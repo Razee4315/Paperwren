@@ -9,7 +9,7 @@ import {
 } from "@/components/ui";
 import type { FilePosition } from "@/lib/types";
 import { haptic, useSettings } from "@/state/SettingsContext";
-import { Grid3x3, List, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
+import { Grid3x3, List, RotateCw, Search, ZoomIn, ZoomOut } from "lucide-react";
 import {
 	type ReactNode,
 	useCallback,
@@ -27,8 +27,8 @@ import { ViewerShell } from "./ViewerShell";
  * memory, dark reading. Engine: pdf.js.
  */
 
-type PdfDocument = import("pdfjs-dist").PDFDocumentProxy;
-type OutlineNode = { title: string; dest: unknown; items: OutlineNode[] };
+import { PdfSearchSheet } from "./PdfSearchSheet";
+import type { OutlineNode, PdfDocument } from "./pdfTypes";
 
 async function loadPdfjs() {
 	const pdfjs = await import("pdfjs-dist");
@@ -142,6 +142,7 @@ export function PdfViewer({
 	const [outline, setOutline] = useState<OutlineNode[] | null>(null);
 	const [outlineOpen, setOutlineOpen] = useState(false);
 	const [thumbsOpen, setThumbsOpen] = useState(false);
+	const [searchOpen, setSearchOpen] = useState(false);
 	const [passwordOpen, setPasswordOpen] = useState(false);
 	const [password, setPassword] = useState("");
 	const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -408,6 +409,13 @@ export function PdfViewer({
 						<RotateCw size={20} />
 					</IconButton>
 					<IconButton
+						label="Search"
+						onClick={() => setSearchOpen(true)}
+						data-testid="pdf-search"
+					>
+						<Search size={20} />
+					</IconButton>
+					<IconButton
 						label="Outline"
 						onClick={() => setOutlineOpen(true)}
 						disabled={!outline || outline.length === 0}
@@ -488,6 +496,13 @@ export function PdfViewer({
 						))}
 				</ThumbGrid>
 			</Sheet>
+
+			<PdfSearchSheet
+				open={searchOpen}
+				doc={doc}
+				onDismiss={() => setSearchOpen(false)}
+				onGoToPage={goToPage}
+			/>
 
 			<Dialog
 				open={passwordOpen}
