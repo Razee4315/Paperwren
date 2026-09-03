@@ -8,7 +8,7 @@ This repository contains the product documentation in `docs/` and the app source
 
 ## What Paperwren is
 
-A viewer, and nothing else. Paperwren does one job, showing you your files, and does it with respect. Set it as the default ("Always") for your documents and every file opens straight into Paperwren.
+A viewer, and nothing else. Paperwren does one job, showing you your files, and does it with respect. The long-term goal is that you set it as the default ("Always") for your documents and every file opens straight into Paperwren.
 
 ## Current status
 
@@ -16,11 +16,13 @@ Version 0.9 (internal) is in active development.
 
 | Working now | Planned |
 |---|---|
-| PDF viewer with zoom, rotation, thumbnails, outline, position memory | Word (DOCX) reader, v1.1 |
+| PDF viewer with zoom, rotation, thumbnails, outline, position memory, text search | Word (DOCX) reader, v1.1 |
 | Excel viewer with sheet tabs and a virtualized grid | PowerPoint viewer, v1.2 |
-| CSV and plain text viewing | Search inside documents |
+| CSV and plain text viewing | "Open with" integration and "Always" handling |
 | Recents with pinning, onboarding, light and dark themes | In-app storage browser |
-| Settings, cache management, honest error dialogs | Print via system service |
+| Settings, cache management, honest error dialogs | Search highlights, print via system service |
+
+Files are opened through the in-app system picker in this build. The Android "open with" pipeline (viewing a file straight from another app) is the next milestone.
 
 See `docs/README.md` for the full product plan and release phases.
 
