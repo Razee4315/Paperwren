@@ -1,4 +1,5 @@
 import { IconButton, InkProgress } from "@/components/ui";
+import { CoachBubble } from "@/state/coachMarks";
 import { motion, space, type as typeScale } from "@/theme";
 import { ArrowLeft } from "lucide-react";
 import type React from "react";
@@ -205,6 +206,12 @@ export function ViewerShell({
 				</TopBar>
 
 				<Content onClick={onContentClick}>{children}</Content>
+
+				<CoachBubble
+					id="viewerChrome"
+					position={{ bottom: "40%" }}
+					text="Tap the middle of the page to hide the buttons while you read."
+				/>
 
 				{bottomBar && (
 					<BottomBar $visible={chromeVisible} ref={setBottomNode}>

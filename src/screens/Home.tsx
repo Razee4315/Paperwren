@@ -10,6 +10,7 @@ import {
 import { formatBytes } from "@/lib/backend";
 import type { RecentsEntry } from "@/lib/types";
 import { useRecents } from "@/state/RecentsContext";
+import { CoachBubble } from "@/state/coachMarks";
 import { layout, motion, radius, space, type } from "@/theme";
 import {
 	Info,
@@ -331,6 +332,14 @@ export function Home({
 			<FAB onClick={onPickFile} hidden={fabHidden} label="Open a file">
 				<Plus size={26} />
 			</FAB>
+
+			{entries.length === 0 && (
+				<CoachBubble
+					id="homeFab"
+					position={{ bottom: "96px" }}
+					text="Tap to pick your first file, or open any document from your Files app and choose Paperwren."
+				/>
+			)}
 
 			<Sheet
 				open={sheetEntry !== null}
