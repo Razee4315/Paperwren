@@ -343,13 +343,41 @@ export function Onboarding({
 								/>
 								<path d="M98 30 L103 35 L108 30" fill="var(--accent-tint)" />
 							</g>
-							<circle cx="118" cy="98" r="7" fill="var(--ink-1)" />
+							{/* the wren: a small round bird with an ember breast,
+							    perched on the top sheet */}
 							<path
-								d="M118 91 C124 84 122 78 116 76 C110 78 108 84 112 90"
-								stroke="var(--ink-1)"
-								strokeWidth="2"
+								d="M112 100 C110 94 114 89 120 89 C126 89 130 93 130 98 L130 106 L114 106 C112.5 104 112.5 102 112 100 Z"
+								fill="var(--ink-1)"
+							/>
+							<path
+								d="M114 106 C115 100 120 97 126 99 C128 100 129.5 103 129 106 Z"
+								fill="var(--fmt-pdf)"
+							/>
+							<circle cx="126.5" cy="94.5" r="1.1" fill="var(--bg)" />
+							<path
+								d="M130 95 L133.5 96 L130 97.5"
+								stroke="var(--bg)"
+								strokeWidth="1"
 								strokeLinecap="round"
 								fill="none"
+							/>
+							<line
+								x1="118"
+								y1="106"
+								x2="118"
+								y2="108.5"
+								stroke="var(--ink-1)"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+							/>
+							<line
+								x1="126"
+								y1="106"
+								x2="126"
+								y2="108.5"
+								stroke="var(--ink-1)"
+								strokeWidth="1.5"
+								strokeLinecap="round"
 							/>
 						</svg>
 					</Illustration>
