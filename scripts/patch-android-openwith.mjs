@@ -103,8 +103,8 @@ const MAINACTIVITY_METHODS = `
     val path = pendingPath ?: return
     val name = pendingName ?: return
     if (attempt > 60) {
-      // Give up quietly: the payload stays in the inbox and the app
-      // offers it from there on the next start.
+      // Give up quietly: the inbox copy remains on disk; recents
+      // still reference it if a delivery ever succeeded.
       return
     }
     val webView = findWebView()
