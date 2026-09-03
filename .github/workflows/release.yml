@@ -201,6 +201,7 @@ jobs:
         run: |
           node scripts/patch-android-signing.mjs
           node scripts/patch-android-icons.mjs
+          node scripts/patch-android-manifest.mjs
 
       - name: Build release APK (arm64)
         run: npm run tauri -- android build --target aarch64
