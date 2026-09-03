@@ -42,7 +42,7 @@ The headline decisions, so you never have to dig:
 |----------|--------|-------------|
 | App name | **Paperwren** | The wren is one of the smallest birds alive — "paper, but feather-light" is the whole brand in one word. Audited free: GitHub (user + org), `paperwren.app/.dev/.io` unregistered, no app or software product anywhere (2026-09-03). Runners-up: Emberwisp, Inkember. Full audit in [01 §10](01-product-vision.md#10-naming--brand). |
 | Platform | Android first (Tauri 2) | Tauri 2 ships stable Android support; the best lightweight Office renderers are web renderers, so a WebView-centric app is the natural home for them. |
-| UI framework | Svelte 5 + TypeScript (recommended) | Tiny runtime, fast, small bundle. Alternatives vetted in doc 10. |
+| UI framework | React 18 + TypeScript | Implemented with the team's Tauri + React scaffold; design tokens ship as CSS variables so the framework stays swappable. Svelte 5 remains the recommendation if the bundle budget tightens (doc 10). |
 | Renderers | pdf.js · docx-preview · SheetJS + custom grid · PPTX renderer (phased) | Proven, permissively licensed, offline-capable. See doc 07/10. |
 | Min Android | 8.0 (API 26) | Covers ~97% of devices; avoids ancient WebView pain. |
 | Design language | **Paper & Ink** | Warm paper surfaces, ink-dark dark mode, terracotta "Ember" accent. Distinctive without being loud. |

@@ -40,7 +40,7 @@ flowchart TB
 | Layer | Choice | Why | Alternatives considered |
 |-------|--------|-----|------------------------|
 | Shell | **Tauri 2 (Android stable)** | Small APK (~15–25 MB incl. assets), Rust file layer, shared future iOS/desktop code, system WebView = no bundled browser | Flutter (no good Office web renderers story), React Native (heavier), pure Kotlin (Office rendering would still be web-based — same WebView, more glue) |
-| UI framework | **Svelte 5 + TypeScript** | Compiles away runtime (smallest bundle), fast enough on low-end WebViews, simple state model | SolidJS (fine, smaller ecosystem), React (runtime weight), vanilla (velocity cost) |
+| UI framework | **React 18 + TypeScript + styled-components** | The project scaffold the team standardized on (Tauri + React boilerplate); predictable state model, CSS-var theming keeps runtime color logic out of components. Svelte 5 remains the recommended smaller-runtime option if the bundle budget ever demands it | Svelte 5 (smallest bundle; deferred for ecosystem familiarity), SolidJS (fine, smaller ecosystem), vanilla (velocity cost) |
 | PDF | **pdf.js** (MPL-2.0) | The reference web PDF engine; progressive render, text layer, outline, search — all built in | pdfium native bindings (better perf, loses text search/selection work; revisit if perf gate fails) |
 | DOCX | **docx-preview** (Apache-2.0) | Best-in-class HTML fidelity for view-only | mammoth (semantics, loses layout), custom OOXML (v2 if fidelity demands) |
 | XLSX | **SheetJS CE** (Apache-2.0) + **custom virtual grid** | Parse is solved; grids with 100k+ rows must be virtualized (no library grid is both light and good) | Handsontable (heavy/commercial), canvas grid lib (licensing risk) |
@@ -129,13 +129,19 @@ Approach: budgets are CI-visible (build-size check automated; perf runbook manua
 ```
 paperwren/
 ├── docs/               ← this documentation set
-├── src/                ← Svelte UI (screens, ui-kit, viewers, motion)
-├── src-tauri/          ← Rust core (ingest, store, cache, commands)
-│   └── android/        ← Kotlin shim plugin (intents, content URIs)
+├── src/                ← React UI (screens, ui-kit, viewers, state)
+├── src-tauri/          ← Rust core (storage, cache, commands)
 ├── assets/brand/       ← icons, glyphs, fonts, illustrations (SVG sources)
-├── fixtures/           ← the test corpus (doc 12 §3)
-└── .github/workflows/  ← CI: build, size budget, lint, licenses
+├── fixtures/           ← the test corpus (doc 12 §3); regenerate with scripts/make-fixtures.mjs
+├── scripts/            ← fixture generator + Android CI patch scripts
+└── .github/workflows/  ← CI: check, size budget, release builds
 ```
+
+> Platform note: the frontend talks to exactly one backend interface
+> (`src/lib/backend.ts`). In Tauri it routes to the dialog/fs plugins
+> and Rust commands; in a plain browser it routes to in-memory and
+> localStorage implementations so the whole UI is testable without a
+> native shell.
 
 ---
 
