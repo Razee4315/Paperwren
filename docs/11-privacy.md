@@ -16,11 +16,11 @@ Every claim here must stay literally true. Any future feature that would break o
 | Permission | Status | Why |
 |------------|--------|-----|
 | Storage / media permissions | **Not requested** | SAF picker + "open with" intents make them unnecessary |
-| Internet | **Not requested** | Nothing to fetch; updates come from the Play Store, not us |
+| Internet | **Not requested** | The release manifest strips the template-injected INTERNET permission; nothing to fetch |
 | Camera, location, contacts, microphone | **Not requested** | Obviously |
 | POST_NOTIFICATIONS | Not requested | No notifications exist |
 
-**Verifiable claim:** the merged manifest ships with zero `uses-permission` entries (a debug build's "App info" screen shows "no permissions" — worth a screenshot in the store listing and in the Privacy settings page).
+**Verifiable claim:** the merged manifest requests no Android permissions. The single `uses-permission` entry present is `app.paperwren.docs.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, a permission the app defines itself (added automatically by AndroidX to protect receiver registration) — it guards nothing the user would recognize and grants no access. The system "App info" screen shows "no permissions." Platform backup is disabled, so nothing rides along with Google auto-backup either.
 
 ## 3. What Paperwren stores on the device (complete list)
 
