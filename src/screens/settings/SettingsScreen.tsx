@@ -1,6 +1,3 @@
-import { useEffect, useState } from "react";
-import styled from "styled-components";
-import { ArrowLeft, ChevronRight, Info, Moon, Palette, Shield, FolderCog } from "lucide-react";
 import {
 	Button,
 	ConfirmDialog,
@@ -10,10 +7,21 @@ import {
 	showSnackbar,
 } from "@/components/ui";
 import { backend, formatBytes } from "@/lib/backend";
-import { useSettings, haptic } from "@/state/SettingsContext";
-import { useRecents } from "@/state/RecentsContext";
-import { type as typeScale, space, radius, motion, layout } from "@/theme";
 import type { RecentsLimit, ThemeSetting, ZoomMode } from "@/lib/types";
+import { useRecents } from "@/state/RecentsContext";
+import { haptic, useSettings } from "@/state/SettingsContext";
+import { layout, motion, radius, space, type as typeScale } from "@/theme";
+import {
+	ArrowLeft,
+	ChevronRight,
+	FolderCog,
+	Info,
+	Moon,
+	Palette,
+	Shield,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import styled from "styled-components";
 
 /**
  * Settings (docs/08): five groups, instant-apply, no save buttons.
@@ -240,7 +248,9 @@ const StaticText = styled.p`
 function RootMenu({
 	onOpen,
 }: {
-	onOpen: (page: "appearance" | "viewer" | "files" | "privacy" | "about") => void;
+	onOpen: (
+		page: "appearance" | "viewer" | "files" | "privacy" | "about",
+	) => void;
 }) {
 	const { settings, resolvedTheme } = useSettings();
 	const themeLabel =
@@ -253,7 +263,10 @@ function RootMenu({
 	return (
 		<Group>
 			<Card>
-				<Row onClick={() => onOpen("appearance")} data-testid="settings-appearance">
+				<Row
+					onClick={() => onOpen("appearance")}
+					data-testid="settings-appearance"
+				>
 					<RowIcon>
 						<Palette size={22} />
 					</RowIcon>
@@ -360,7 +373,13 @@ function ViewerPage() {
 		<Group>
 			<GroupLabel>PDF</GroupLabel>
 			<Card>
-				<p style={{ padding: "12px 0 4px", fontSize: "0.8125rem", color: "var(--ink-2)" }}>
+				<p
+					style={{
+						padding: "12px 0 4px",
+						fontSize: "0.8125rem",
+						color: "var(--ink-2)",
+					}}
+				>
 					Default zoom when a document opens
 				</p>
 				<RadioGroup>
@@ -514,7 +533,9 @@ function FilesPage() {
 					await backend.clearCache();
 					const s = await backend.cacheStats();
 					setCacheBytes(s.bytes);
-					showSnackbar({ message: `Cache cleared, ${formatBytes(s.bytes)} left.` });
+					showSnackbar({
+						message: `Cache cleared, ${formatBytes(s.bytes)} left.`,
+					});
 				}}
 				onDismiss={() => setConfirmClear(false)}
 			/>
@@ -527,18 +548,17 @@ function PrivacyPage({ onOpenPolicy }: { onOpenPolicy: () => void }) {
 		<Group>
 			<Card>
 				<StaticText>
-					Paperwren has no ads, no accounts, and no analytics. It never
-					connects to the internet.
+					Paperwren has no ads, no accounts, and no analytics. It never connects
+					to the internet.
 				</StaticText>
 				<StaticText>
-					Your files are opened on your device, in your device, and stay on
-					your device. The recents list and your preferences live in
-					Paperwren's private storage, and the cache is deletable from
-					Files & storage.
+					Your files are opened on your device, in your device, and stay on your
+					device. The recents list and your preferences live in Paperwren's
+					private storage, and the cache is deletable from Files & storage.
 				</StaticText>
 				<StaticText>
-					Passwords you type to open protected PDFs are used in memory for
-					that session and never saved.
+					Passwords you type to open protected PDFs are used in memory for that
+					session and never saved.
 				</StaticText>
 				<Row onClick={onOpenPolicy} data-testid="open-policy">
 					<RowText>
@@ -636,30 +656,30 @@ function PolicyPage() {
 		<Group>
 			<Card>
 				<StaticText>
-					<strong>Paperwren Privacy Policy. Last updated: September 2026.</strong>
+					<strong>
+						Paperwren Privacy Policy. Last updated: September 2026.
+					</strong>
 				</StaticText>
 				<StaticText>
-					Paperwren is a document viewer. This policy is short because
-					Paperwren collects almost nothing.
+					Paperwren is a document viewer. This policy is short because Paperwren
+					collects almost nothing.
 				</StaticText>
 				<StaticText>
 					What Paperwren collects: nothing. Paperwren does not collect,
-					transmit, sell, or share any personal data. It has no analytics,
-					no advertising, no trackers, and it does not connect to the
-					internet.
+					transmit, sell, or share any personal data. It has no analytics, no
+					advertising, no trackers, and it does not connect to the internet.
 				</StaticText>
 				<StaticText>
-					What stays on your device: the recent files list, so the app can
-					show it and resume where you stopped. Your settings choices.
-					Temporary cache copies of files you open, stored where only
-					Paperwren can read them, deleted automatically or by you anytime.
-					Passwords you type to open protected PDFs are used in memory for
-					that session and never saved.
+					What stays on your device: the recent files list, so the app can show
+					it and resume where you stopped. Your settings choices. Temporary
+					cache copies of files you open, stored where only Paperwren can read
+					them, deleted automatically or by you anytime. Passwords you type to
+					open protected PDFs are used in memory for that session and never
+					saved.
 				</StaticText>
 				<StaticText>
-					Files you open are read and displayed on your device only.
-					Paperwren never uploads them anywhere because it never talks to
-					any server.
+					Files you open are read and displayed on your device only. Paperwren
+					never uploads them anywhere because it never talks to any server.
 				</StaticText>
 				<StaticText>
 					Permissions: Paperwren requests none. It sees only files you open
@@ -667,8 +687,8 @@ function PolicyPage() {
 				</StaticText>
 				<StaticText>
 					Changes: if a future version ever changes any of the above, this
-					policy will be updated and the app will tell you before the
-					change takes effect.
+					policy will be updated and the app will tell you before the change
+					takes effect.
 				</StaticText>
 			</Card>
 		</Group>

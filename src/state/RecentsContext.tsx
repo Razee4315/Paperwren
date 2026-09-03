@@ -1,20 +1,22 @@
+import { backend, idForSource } from "@/lib/backend";
+import { type RecentsEntry, STORAGE_KEYS } from "@/lib/types";
 import {
+	type ReactNode,
 	createContext,
 	useCallback,
 	useContext,
 	useEffect,
 	useMemo,
 	useState,
-	type ReactNode,
 } from "react";
-import { backend, idForSource } from "@/lib/backend";
-import { STORAGE_KEYS, type RecentsEntry } from "@/lib/types";
 import { useSettings } from "./SettingsContext";
 
 interface RecentsContextValue {
 	entries: RecentsEntry[];
 	ready: boolean;
-	recordOpen: (entry: Omit<RecentsEntry, "id" | "addedAt" | "lastOpenedAt" | "pinned">) => void;
+	recordOpen: (
+		entry: Omit<RecentsEntry, "id" | "addedAt" | "lastOpenedAt" | "pinned">,
+	) => void;
 	updatePosition: (id: string, position: RecentsEntry["position"]) => void;
 	togglePin: (id: string) => void;
 	remove: (id: string) => void;
@@ -44,12 +46,9 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		};
 	}, []);
 
-	const persist = useCallback(
-		(next: RecentsEntry[]) => {
-			backend.storeSet(STORAGE_KEYS.recents, next).catch(() => {});
-		},
-		[],
-	);
+	const persist = useCallback((next: RecentsEntry[]) => {
+		backend.storeSet(STORAGE_KEYS.recents, next).catch(() => {});
+	}, []);
 
 	const recordOpen = useCallback<RecentsContextValue["recordOpen"]>(
 		(entry) => {
@@ -171,7 +170,16 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			clearAll,
 			restore,
 		}),
-		[sorted, ready, recordOpen, updatePosition, togglePin, remove, clearAll, restore],
+		[
+			sorted,
+			ready,
+			recordOpen,
+			updatePosition,
+			togglePin,
+			remove,
+			clearAll,
+			restore,
+		],
 	);
 
 	return (

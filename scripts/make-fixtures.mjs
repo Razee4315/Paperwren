@@ -3,8 +3,8 @@
  * a 3-page PDF, a small XLSX workbook, a CSV, and a text file.
  * Run: node scripts/make-fixtures.mjs
  */
-import { writeFileSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as XLSX from "xlsx";
 
@@ -14,19 +14,17 @@ mkdirSync(dir, { recursive: true });
 
 // ---------- Minimal multi-page PDF with computed xref ----------
 function makePdf() {
-	const lines = [];
+	const _lines = [];
 	const objects = [];
 	const pageText = (n) =>
-		`BT /F1 24 Tf 72 720 Td (Paperwren test page ${n} of 3) Tj ET\n` +
-		`BT /F1 14 Tf 72 680 Td (If you can read this, the PDF viewer works.) Tj ET\n`;
+		`BT /F1 24 Tf 72 720 Td (Paperwren test page ${n} of 3) Tj ET\nBT /F1 14 Tf 72 680 Td (If you can read this, the PDF viewer works.) Tj ET\n`;
 
 	const content1 = pageText(1);
 	const content2 = pageText(2);
 	const content3 = pageText(3);
 
 	objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
-	objects[2] =
-		"<< /Type /Pages /Kids [3 0 R 5 0 R 7 0 R] /Count 3 >>";
+	objects[2] = "<< /Type /Pages /Kids [3 0 R 5 0 R 7 0 R] /Count 3 >>";
 	objects[3] =
 		"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 9 0 R >> >> >>";
 	objects[4] = { stream: content1 };
@@ -36,8 +34,7 @@ function makePdf() {
 	objects[7] =
 		"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 8 0 R /Resources << /Font << /F1 9 0 R >> >> >>";
 	objects[8] = { stream: content3 };
-	objects[9] =
-		"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+	objects[9] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
 
 	let pdf = "%PDF-1.4\n";
 	const offsets = [];

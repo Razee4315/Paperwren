@@ -1,3 +1,15 @@
+import { formatCssVar } from "@/components/FormatBadge";
+import {
+	Button,
+	Dialog,
+	IconButton,
+	Scrubber,
+	Sheet,
+	TextField,
+} from "@/components/ui";
+import type { FilePosition } from "@/lib/types";
+import { haptic, useSettings } from "@/state/SettingsContext";
+import { Grid3x3, List, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
 import {
 	type ReactNode,
 	useCallback,
@@ -6,25 +18,7 @@ import {
 	useState,
 } from "react";
 import styled from "styled-components";
-import {
-	Grid3x3,
-	List,
-	RotateCw,
-	ZoomIn,
-	ZoomOut,
-} from "lucide-react";
-import {
-	Button,
-	Dialog,
-	IconButton,
-	Sheet,
-	Scrubber,
-	TextField,
-} from "@/components/ui";
 import { ViewerShell } from "./ViewerShell";
-import { useSettings, haptic } from "@/state/SettingsContext";
-import type { FilePosition } from "@/lib/types";
-import { formatCssVar } from "@/components/FormatBadge";
 
 /**
  * SCR-07 PDF viewer (docs/07 section 2): continuous vertical
@@ -178,9 +172,7 @@ export function PdfViewer({
 			const pdf = await task.promise;
 			setDoc(pdf);
 			setLoadProgress(null);
-			pdf
-				.getOutline()
-				.then((o) => setOutline(o as unknown as OutlineNode[]));
+			pdf.getOutline().then((o) => setOutline(o as unknown as OutlineNode[]));
 		} catch (e) {
 			const err = e as { name?: string };
 			if (err?.name === "PasswordException") {
@@ -369,7 +361,7 @@ export function PdfViewer({
 	const outlineItems = (nodes: OutlineNode[], depth = 0): ReactNode =>
 		nodes.map((node, i) => (
 			<OutlineButton
-				key={`${depth}-${i}`}
+				key={`outline-${depth}-${node.title}-${i}`}
 				$depth={depth}
 				onClick={async () => {
 					if (!doc) return;
@@ -409,7 +401,10 @@ export function PdfViewer({
 					<IconButton label="Zoom in" onClick={() => stepZoom(0.25)}>
 						<ZoomIn size={20} />
 					</IconButton>
-					<IconButton label="Rotate" onClick={() => setRotation((r) => (r + 90) % 360)}>
+					<IconButton
+						label="Rotate"
+						onClick={() => setRotation((r) => (r + 90) % 360)}
+					>
 						<RotateCw size={20} />
 					</IconButton>
 					<IconButton
@@ -419,7 +414,10 @@ export function PdfViewer({
 					>
 						<List size={20} />
 					</IconButton>
-					<IconButton label="Page thumbnails" onClick={() => setThumbsOpen(true)}>
+					<IconButton
+						label="Page thumbnails"
+						onClick={() => setThumbsOpen(true)}
+					>
 						<Grid3x3 size={20} />
 					</IconButton>
 				</>
@@ -440,7 +438,7 @@ export function PdfViewer({
 					{doc &&
 						Array.from({ length: doc.numPages }, (_, i) => (
 							<PageBox
-								key={i}
+								key={`page-${i + 1}`}
 								data-page={i + 1}
 								ref={(el) => {
 									if (el) pageRefs.current.set(i + 1, el);
@@ -478,7 +476,7 @@ export function PdfViewer({
 					{doc &&
 						Array.from({ length: doc.numPages }, (_, i) => (
 							<Thumb
-								key={i}
+								key={`thumb-${i + 1}`}
 								$current={i === currentPage}
 								onClick={() => {
 									goToPage(i + 1);
@@ -515,7 +513,7 @@ export function PdfViewer({
 					type="password"
 					value={password}
 					onChange={setPassword}
-					error={passwordError ?? undefined}
+					errorText={passwordError ?? undefined}
 					autoFocus
 				/>
 			</Dialog>

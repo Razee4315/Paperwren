@@ -1,6 +1,6 @@
+import { layout, motion, radius } from "@/theme";
 import type React from "react";
 import styled from "styled-components";
-import { layout, motion, radius } from "@/theme";
 
 /** Square icon-only button. The icon sits at 24px inside a 48px
  * touch target (docs/02 section 4 minimum target). */
@@ -44,13 +44,13 @@ const Styled = styled.button<{ $active?: boolean }>`
 export interface IconButtonProps
 	extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 	children: React.ReactNode;
-	"label": string;
+	label: string;
 	active?: boolean;
 }
 
 export function IconButton({
 	children,
-	"label": label,
+	label,
 	active = false,
 	...rest
 }: IconButtonProps) {

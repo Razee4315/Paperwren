@@ -1,8 +1,8 @@
+import { motion, radius, type } from "@/theme";
+import { X } from "lucide-react";
 import type React from "react";
 import { useEffect } from "react";
 import styled from "styled-components";
-import { X } from "lucide-react";
-import { motion, radius, type } from "@/theme";
 import { Button } from "./Button";
 import { IconButton } from "./IconButton";
 
@@ -80,7 +80,7 @@ export function Dialog({
 	actions,
 	onDismiss,
 	dismissable = true,
-	"label": label,
+	label,
 }: {
 	open: boolean;
 	title: string;
@@ -88,7 +88,7 @@ export function Dialog({
 	actions?: React.ReactNode;
 	onDismiss?: () => void;
 	dismissable?: boolean;
-	"label"?: string;
+	label?: string;
 }) {
 	useEffect(() => {
 		if (!open || !dismissable || !onDismiss) return;
@@ -106,6 +106,7 @@ export function Dialog({
 			onClick={dismissable && onDismiss ? onDismiss : undefined}
 			role="presentation"
 		>
+			{/* biome-ignore lint/a11y/useSemanticElements: modal dialogs need role=dialog on a focusable container */}
 			<Box
 				role="dialog"
 				aria-modal="true"

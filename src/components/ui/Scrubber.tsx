@@ -1,5 +1,5 @@
-import styled from "styled-components";
 import { motion, radius, type } from "@/theme";
+import styled from "styled-components";
 
 /** Page scrubber (docs/02 section 6): thin 4px track, ember fill,
  * 20px thumb growing to 24px while dragging, live caption bubble. */

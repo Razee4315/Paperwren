@@ -1,6 +1,6 @@
+import { motion, radius, type } from "@/theme";
 import { useEffect, useState } from "react";
 import { createGlobalStyle, styled } from "styled-components";
-import { motion, radius, type } from "@/theme";
 
 /** Snackbar (docs/02 section 6): ink-1 background, bg text,
  * optional action, 4s duration. One at a time, managed by the
@@ -74,7 +74,11 @@ export function SnackbarProvider({
 		<>
 			<SnackbarGlobal />
 			{children}
-			<SnackbarHost onRegister={(impl) => (showSnackbarImpl = impl)} />
+			<SnackbarHost
+				onRegister={(impl) => {
+					showSnackbarImpl = impl;
+				}}
+			/>
 		</>
 	);
 }
@@ -102,6 +106,7 @@ function SnackbarHost({
 	if (!state) return null;
 
 	return (
+		// biome-ignore lint/a11y/useSemanticElements: a transient toast is announced as a status region
 		<Bar role="status">
 			<Message>{state.message}</Message>
 			{state.actionLabel && state.onAction && (

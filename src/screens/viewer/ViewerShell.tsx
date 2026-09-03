@@ -1,3 +1,6 @@
+import { IconButton, InkProgress } from "@/components/ui";
+import { motion, space, type as typeScale } from "@/theme";
+import { ArrowLeft } from "lucide-react";
 import type React from "react";
 import {
 	createContext,
@@ -8,9 +11,6 @@ import {
 	useState,
 } from "react";
 import styled from "styled-components";
-import { ArrowLeft } from "lucide-react";
-import { motion, space, type as typeScale } from "@/theme";
-import { IconButton, InkProgress } from "@/components/ui";
 
 /**
  * Shared viewer chrome (docs/05 section 4, docs/07 section 1):
@@ -132,20 +132,19 @@ export function ViewerShell({
 }) {
 	const [chromeVisible, setChromeVisible] = useState(true);
 	const hideTimer = useRef<number | null>(null);
-	const bottomBarRef = useRef<HTMLElement | null>(null);
+	const [bottomNode, setBottomNode] = useState<HTMLElement | null>(null);
 
 	// Keep --bottom-bar-height truthful for format viewers that
 	// offset their content (0 when there is no bottom bar).
 	useEffect(() => {
-		const el = bottomBarRef.current;
 		document.documentElement.style.setProperty(
 			"--bottom-bar-height",
-			el ? `${el.offsetHeight}px` : "0px",
+			bottomNode ? `${bottomNode.offsetHeight}px` : "0px",
 		);
 		return () => {
 			document.documentElement.style.setProperty("--bottom-bar-height", "0px");
 		};
-	}, [bottomBar]);
+	}, [bottomNode]);
 
 	const showChrome = useCallback(() => setChromeVisible(true), []);
 
@@ -169,19 +168,16 @@ export function ViewerShell({
 		};
 	}, [scheduleHide, chromeVisible]);
 
-	const onContentClick = useCallback(
-		(e: React.MouseEvent) => {
-			// Interactive elements and text selection own their taps.
-			const target = e.target as HTMLElement;
-			if (target.closest("a, button, input, textarea, select, [role=slider]")) {
-				return;
-			}
-			const selection = window.getSelection();
-			if (selection && selection.toString().length > 0) return;
-			setChromeVisible((v) => !v);
-		},
-		[],
-	);
+	const onContentClick = useCallback((e: React.MouseEvent) => {
+		// Interactive elements and text selection own their taps.
+		const target = e.target as HTMLElement;
+		if (target.closest("a, button, input, textarea, select, [role=slider]")) {
+			return;
+		}
+		const selection = window.getSelection();
+		if (selection && selection.toString().length > 0) return;
+		setChromeVisible((v) => !v);
+	}, []);
 
 	const chromeApi: ChromeApi = { showChrome, scheduleHide, chromeVisible };
 
@@ -190,7 +186,11 @@ export function ViewerShell({
 			<Shell data-testid="viewer">
 				<TopBar $visible={chromeVisible}>
 					<TopRow>
-						<IconButton label="Back" onClick={onClose} data-testid="viewer-back">
+						<IconButton
+							label="Back"
+							onClick={onClose}
+							data-testid="viewer-back"
+						>
 							<ArrowLeft size={22} />
 						</IconButton>
 						<FileName>{name}</FileName>
@@ -207,12 +207,9 @@ export function ViewerShell({
 				<Content onClick={onContentClick}>{children}</Content>
 
 				{bottomBar && (
-				<BottomBar
-					$visible={chromeVisible}
-					ref={bottomBarRef}
-				>
-					{bottomBar}
-				</BottomBar>
+					<BottomBar $visible={chromeVisible} ref={setBottomNode}>
+						{bottomBar}
+					</BottomBar>
 				)}
 			</Shell>
 		</ChromeContext.Provider>

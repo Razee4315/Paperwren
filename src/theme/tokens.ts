@@ -18,13 +18,48 @@ export const type = {
 		fontWeight: 600,
 		letterSpacing: "-0.01em",
 	},
-	titleL: { fontFamily: font.ui, fontSize: "1.5rem", lineHeight: 1.25, fontWeight: 700 },
-	titleM: { fontFamily: font.ui, fontSize: "1.1875rem", lineHeight: 1.32, fontWeight: 700 },
-	titleS: { fontFamily: font.ui, fontSize: "1rem", lineHeight: 1.375, fontWeight: 600 },
-	body: { fontFamily: font.ui, fontSize: "0.9375rem", lineHeight: 1.47, fontWeight: 400 },
-	bodyStrong: { fontFamily: font.ui, fontSize: "0.9375rem", lineHeight: 1.47, fontWeight: 600 },
-	small: { fontFamily: font.ui, fontSize: "0.8125rem", lineHeight: 1.38, fontWeight: 400 },
-	caption: { fontFamily: font.ui, fontSize: "0.6875rem", lineHeight: 1.27, fontWeight: 500 },
+	titleL: {
+		fontFamily: font.ui,
+		fontSize: "1.5rem",
+		lineHeight: 1.25,
+		fontWeight: 700,
+	},
+	titleM: {
+		fontFamily: font.ui,
+		fontSize: "1.1875rem",
+		lineHeight: 1.32,
+		fontWeight: 700,
+	},
+	titleS: {
+		fontFamily: font.ui,
+		fontSize: "1rem",
+		lineHeight: 1.375,
+		fontWeight: 600,
+	},
+	body: {
+		fontFamily: font.ui,
+		fontSize: "0.9375rem",
+		lineHeight: 1.47,
+		fontWeight: 400,
+	},
+	bodyStrong: {
+		fontFamily: font.ui,
+		fontSize: "0.9375rem",
+		lineHeight: 1.47,
+		fontWeight: 600,
+	},
+	small: {
+		fontFamily: font.ui,
+		fontSize: "0.8125rem",
+		lineHeight: 1.38,
+		fontWeight: 400,
+	},
+	caption: {
+		fontFamily: font.ui,
+		fontSize: "0.6875rem",
+		lineHeight: 1.27,
+		fontWeight: 500,
+	},
 } as const;
 
 export const space = {

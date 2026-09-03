@@ -1,8 +1,8 @@
-import { useCallback } from "react";
-import { backend, formatBytes, readFileMeta } from "@/lib/backend";
-import { FileMeta } from "@/lib/types";
-import { Dialog, Button } from "@/components/ui";
 import { formatFromName } from "@/components/FormatBadge";
+import { Button, Dialog } from "@/components/ui";
+import { backend, formatBytes, readFileMeta } from "@/lib/backend";
+import type { FileMeta } from "@/lib/types";
+import { useCallback } from "react";
 
 /**
  * The open flow with its error taxonomy (docs/09 section 3): every

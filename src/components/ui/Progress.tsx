@@ -1,5 +1,5 @@
-import styled from "styled-components";
 import { motion } from "@/theme";
+import styled from "styled-components";
 
 /** Progress, ink-underline style (docs/02 section 6, docs/04
  * section 5): a 3px ember bar drawing left to right under the

@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import styled from "styled-components";
-import { Pin, PinOff, Plus, Settings as SettingsIcon, Trash2, Info } from "lucide-react";
+import { FormatBadge } from "@/components/FormatBadge";
 import {
 	Button,
 	ConfirmDialog,
@@ -9,11 +7,20 @@ import {
 	Sheet,
 	showSnackbar,
 } from "@/components/ui";
-import { FormatBadge } from "@/components/FormatBadge";
 import { formatBytes } from "@/lib/backend";
-import { RecentsEntry } from "@/lib/types";
+import type { RecentsEntry } from "@/lib/types";
 import { useRecents } from "@/state/RecentsContext";
-import { type, space, radius, motion, layout } from "@/theme";
+import { layout, motion, radius, space, type } from "@/theme";
+import {
+	Info,
+	Pin,
+	PinOff,
+	Plus,
+	Settings as SettingsIcon,
+	Trash2,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import styled from "styled-components";
 
 /**
  * SCR-05 Home (docs/05 section 4): recents grid, FAB "Open a file",
@@ -235,7 +242,11 @@ export function Home({
 		<Page data-testid="home">
 			<AppBar>
 				<Title>Paperwren</Title>
-				<IconButton label="Settings" onClick={onOpenSettings} data-testid="open-settings">
+				<IconButton
+					label="Settings"
+					onClick={onOpenSettings}
+					data-testid="open-settings"
+				>
 					<SettingsIcon size={22} />
 				</IconButton>
 			</AppBar>
@@ -340,10 +351,7 @@ export function Home({
 							</RowLead>
 							{sheetEntry.pinned ? "Unpin" : "Pin"}
 						</SheetRow>
-						<SheetRow
-							$danger={false}
-							onClick={() => setSheetEntry(null)}
-						>
+						<SheetRow $danger={false} onClick={() => setSheetEntry(null)}>
 							<RowLead>
 								<Info size={20} />
 							</RowLead>

@@ -1,0 +1,23 @@
+{
+	"$schema": "../gen/schemas/mobile-schema.json",
+	"identifier": "mobile-capability",
+	"description": "Mobile webview. Same read-only fs grant as desktop: files arrive through the system picker or open-with intents, and reading them is the whole app. No write access, no network.",
+	"platforms": ["android", "iOS"],
+	"windows": ["main"],
+	"permissions": [
+		"core:default",
+		"core:event:default",
+		"core:window:default",
+		"core:app:default",
+		"dialog:default",
+		"dialog:allow-open",
+		{
+			"identifier": "fs:default",
+			"allow": [{ "path": "**" }, { "path": "**/*" }]
+		},
+		{
+			"identifier": "fs:allow-read-file",
+			"allow": [{ "path": "**" }, { "path": "**/*" }]
+		}
+	]
+}

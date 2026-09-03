@@ -1,20 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
-import { backend } from "@/lib/backend";
-import { FileMeta, RecentsEntry, STORAGE_KEYS } from "@/lib/types";
 import { SnackbarProvider, showSnackbar } from "@/components/ui";
-import { GlobalStyles } from "@/theme";
+import { backend } from "@/lib/backend";
+import { type FileMeta, type RecentsEntry, STORAGE_KEYS } from "@/lib/types";
+import { Home } from "@/screens/Home";
 import { Splash } from "@/screens/Splash";
 import { Onboarding } from "@/screens/onboarding/Onboarding";
-import { Home } from "@/screens/Home";
-import { ViewerScreen } from "@/screens/viewer/ViewerScreen";
 import { SettingsScreen } from "@/screens/settings/SettingsScreen";
-import { SettingsProvider } from "@/state/SettingsContext";
+import { ViewerScreen } from "@/screens/viewer/ViewerScreen";
 import { RecentsProvider, useRecents } from "@/state/RecentsContext";
-import {
-	ErrorDialog,
-	pickAndValidate,
-	type OpenError,
-} from "@/state/openFlow";
+import { SettingsProvider } from "@/state/SettingsContext";
+import { ErrorDialog, type OpenError, pickAndValidate } from "@/state/openFlow";
+import { GlobalStyles } from "@/theme";
+import { useCallback, useEffect, useState } from "react";
 
 type Route =
 	| { name: "home" }
@@ -143,9 +139,7 @@ function Root() {
 					}}
 				/>
 			)}
-			{route.name === "settings" && (
-				<SettingsScreen onClose={goHome} />
-			)}
+			{route.name === "settings" && <SettingsScreen onClose={goHome} />}
 			<ErrorDialog
 				error={openError}
 				onDismiss={() => setOpenError(null)}

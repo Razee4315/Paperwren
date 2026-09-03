@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
-import styled from "styled-components";
+import { Button, Dialog } from "@/components/ui";
 import { backend, idForSource } from "@/lib/backend";
-import { FileMeta, FilePosition } from "@/lib/types";
+import type { FileMeta, FilePosition } from "@/lib/types";
 import { useRecents } from "@/state/RecentsContext";
 import { useSettings } from "@/state/SettingsContext";
-import { Button, Dialog } from "@/components/ui";
-import { ViewerShell } from "./ViewerShell";
+import { useEffect, useState } from "react";
+import styled from "styled-components";
 import { PdfViewer } from "./PdfViewer";
+import { ViewerShell } from "./ViewerShell";
 import { XlsxViewer } from "./XlsxViewer";
 
 /**
@@ -128,9 +128,7 @@ export function ViewerScreen({
 	}
 
 	if (file.format === "xlsx" || file.format === "csv") {
-		return (
-			<XlsxViewer data={data} name={file.name} onClose={onClose} />
-		);
+		return <XlsxViewer data={data} name={file.name} onClose={onClose} />;
 	}
 
 	if (file.format === "txt") {

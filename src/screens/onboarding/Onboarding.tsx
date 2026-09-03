@@ -1,8 +1,8 @@
+import { Button, IconButton } from "@/components/ui";
+import { motion, radius, space, type } from "@/theme";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import styled from "styled-components";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button, IconButton } from "@/components/ui";
-import { motion, type, radius, space } from "@/theme";
 
 /**
  * SCR-02..04 Onboarding (docs/06): welcome brand moment, then three
@@ -128,35 +128,132 @@ const Dot = styled.span<{ $active: boolean }>`
  * each (docs/03 section 4). Kept as simple inline SVG. */
 function FormatsArt() {
 	return (
-		<svg width="150" height="150" viewBox="0 0 150 150" fill="none" aria-hidden="true">
-			<rect x="30" y="40" width="34" height="44" rx="6" fill="var(--fmt-xlsx)" opacity="0.85" transform="rotate(-10 47 62)" />
-			<rect x="58" y="34" width="34" height="44" rx="6" fill="var(--fmt-docx)" opacity="0.85" />
+		<svg
+			width="150"
+			height="150"
+			viewBox="0 0 150 150"
+			fill="none"
+			aria-hidden="true"
+		>
+			<rect
+				x="30"
+				y="40"
+				width="34"
+				height="44"
+				rx="6"
+				fill="var(--fmt-xlsx)"
+				opacity="0.85"
+				transform="rotate(-10 47 62)"
+			/>
+			<rect
+				x="58"
+				y="34"
+				width="34"
+				height="44"
+				rx="6"
+				fill="var(--fmt-docx)"
+				opacity="0.85"
+			/>
 			<g transform="rotate(10 95 56)">
-				<rect x="88" y="30" width="34" height="44" rx="6" fill="var(--fmt-pdf)" />
-				<path d="M108 30 L114 36 L120 30" fill="var(--fmt-pptx)" opacity="0.001" />
+				<rect
+					x="88"
+					y="30"
+					width="34"
+					height="44"
+					rx="6"
+					fill="var(--fmt-pdf)"
+				/>
+				<path
+					d="M108 30 L114 36 L120 30"
+					fill="var(--fmt-pptx)"
+					opacity="0.001"
+				/>
 			</g>
-			<path d="M30 108 C55 96 95 96 120 108" stroke="var(--ink-2)" strokeWidth="2" strokeLinecap="round" />
-			<path d="M45 120 C65 111 85 111 105 120" stroke="var(--ink-2)" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+			<path
+				d="M30 108 C55 96 95 96 120 108"
+				stroke="var(--ink-2)"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+			<path
+				d="M45 120 C65 111 85 111 105 120"
+				stroke="var(--ink-2)"
+				strokeWidth="2"
+				strokeLinecap="round"
+				opacity="0.5"
+			/>
 		</svg>
 	);
 }
 
 function PrivacyArt() {
 	return (
-		<svg width="150" height="150" viewBox="0 0 150 150" fill="none" aria-hidden="true">
-			<path d="M75 30 L110 42 V78 C110 98 95 112 75 120 C55 112 40 98 40 78 V42 Z" stroke="var(--ink-1)" strokeWidth="2.5" strokeLinejoin="round" />
-			<rect x="60" y="58" width="30" height="40" rx="4" fill="var(--fmt-pdf)" opacity="0.9" />
-			<line x1="35" y1="30" x2="115" y2="122" stroke="var(--danger)" strokeWidth="2.5" strokeLinecap="round" opacity="0" />
+		<svg
+			width="150"
+			height="150"
+			viewBox="0 0 150 150"
+			fill="none"
+			aria-hidden="true"
+		>
+			<path
+				d="M75 30 L110 42 V78 C110 98 95 112 75 120 C55 112 40 98 40 78 V42 Z"
+				stroke="var(--ink-1)"
+				strokeWidth="2.5"
+				strokeLinejoin="round"
+			/>
+			<rect
+				x="60"
+				y="58"
+				width="30"
+				height="40"
+				rx="4"
+				fill="var(--fmt-pdf)"
+				opacity="0.9"
+			/>
+			<line
+				x1="35"
+				y1="30"
+				x2="115"
+				y2="122"
+				stroke="var(--danger)"
+				strokeWidth="2.5"
+				strokeLinecap="round"
+				opacity="0"
+			/>
 		</svg>
 	);
 }
 
 function FeatherArt() {
 	return (
-		<svg width="150" height="150" viewBox="0 0 150 150" fill="none" aria-hidden="true">
-			<rect x="45" y="40" width="60" height="76" rx="8" stroke="var(--ink-1)" strokeWidth="2.5" />
-			<path d="M88 96 C104 84 110 62 102 46 C86 50 74 64 72 82 C71.5 87 74 92 79 93 C83 94 86 95 88 96 Z" fill="var(--fmt-pdf)" opacity="0.9" />
-			<path d="M102 46 C92 62 84 76 78 92" stroke="#FFF6F1" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
+		<svg
+			width="150"
+			height="150"
+			viewBox="0 0 150 150"
+			fill="none"
+			aria-hidden="true"
+		>
+			<rect
+				x="45"
+				y="40"
+				width="60"
+				height="76"
+				rx="8"
+				stroke="var(--ink-1)"
+				strokeWidth="2.5"
+			/>
+			<path
+				d="M88 96 C104 84 110 62 102 46 C86 50 74 64 72 82 C71.5 87 74 92 79 93 C83 94 86 95 88 96 Z"
+				fill="var(--fmt-pdf)"
+				opacity="0.9"
+			/>
+			<path
+				d="M102 46 C92 62 84 76 78 92"
+				stroke="#FFF6F1"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+				opacity="0.7"
+			/>
 		</svg>
 	);
 }
@@ -207,15 +304,53 @@ export function Onboarding({
 				</SkipRow>
 				<Body>
 					<Illustration aria-hidden="true">
-						<svg width="150" height="150" viewBox="0 0 150 150" fill="none">
-							<rect x="38" y="36" width="30" height="40" rx="6" fill="var(--fmt-xlsx)" opacity="0.85" transform="rotate(-12 53 56)" />
-							<rect x="60" y="32" width="30" height="40" rx="6" fill="var(--fmt-docx)" opacity="0.85" />
+						<svg
+							width="150"
+							height="150"
+							viewBox="0 0 150 150"
+							fill="none"
+							role="img"
+							aria-hidden="true"
+						>
+							<title>Fanned document sheets with a small wren</title>
+							<rect
+								x="38"
+								y="36"
+								width="30"
+								height="40"
+								rx="6"
+								fill="var(--fmt-xlsx)"
+								opacity="0.85"
+								transform="rotate(-12 53 56)"
+							/>
+							<rect
+								x="60"
+								y="32"
+								width="30"
+								height="40"
+								rx="6"
+								fill="var(--fmt-docx)"
+								opacity="0.85"
+							/>
 							<g transform="rotate(12 105 52)">
-								<rect x="88" y="30" width="30" height="40" rx="6" fill="var(--fmt-pdf)" />
+								<rect
+									x="88"
+									y="30"
+									width="30"
+									height="40"
+									rx="6"
+									fill="var(--fmt-pdf)"
+								/>
 								<path d="M98 30 L103 35 L108 30" fill="var(--accent-tint)" />
 							</g>
 							<circle cx="118" cy="98" r="7" fill="var(--ink-1)" />
-							<path d="M118 91 C124 84 122 78 116 76 C110 78 108 84 112 90" stroke="var(--ink-1)" strokeWidth="2" strokeLinecap="round" fill="none" />
+							<path
+								d="M118 91 C124 84 122 78 116 76 C110 78 108 84 112 90"
+								stroke="var(--ink-1)"
+								strokeWidth="2"
+								strokeLinecap="round"
+								fill="none"
+							/>
 						</svg>
 					</Illustration>
 					<Wordmark>
@@ -259,10 +394,7 @@ export function Onboarding({
 			</Body>
 			<Footer>
 				{!isFirst ? (
-					<IconButton
-						label="Back"
-						onClick={() => setSlide((s) => s - 1)}
-					>
+					<IconButton label="Back" onClick={() => setSlide((s) => s - 1)}>
 						<ChevronLeft size={24} />
 					</IconButton>
 				) : (
@@ -270,7 +402,8 @@ export function Onboarding({
 				)}
 				<Dots>
 					{SLIDES.map((_, i) => (
-						<Dot key={i} $active={i === slide} />
+						// biome-ignore lint/suspicious/noArrayIndexKey: static slide list
+						<Dot key={`slide-${i}`} $active={i === slide} />
 					))}
 				</Dots>
 				{!isFirst && !isLast ? (

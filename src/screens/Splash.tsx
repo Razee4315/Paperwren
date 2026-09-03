@@ -1,5 +1,5 @@
-import styled from "styled-components";
 import { motion, radius } from "@/theme";
+import styled from "styled-components";
 
 /**
  * SCR-01 Splash (docs/04 section 3.1): the launcher mark's top

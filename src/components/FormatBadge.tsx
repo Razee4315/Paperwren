@@ -8,7 +8,14 @@ import styled from "styled-components";
  * the badge decides ink (light theme) or format tint (dark theme).
  */
 
-export type FileFormat = "pdf" | "docx" | "xlsx" | "pptx" | "csv" | "txt" | "unknown";
+export type FileFormat =
+	| "pdf"
+	| "docx"
+	| "xlsx"
+	| "pptx"
+	| "csv"
+	| "txt"
+	| "unknown";
 
 const SHEET_PATH =
 	"M6.5 2.5 H16.8 L20.5 6.2 V18.5 C20.5 20.2 19.2 21.5 17.5 21.5 H6.5 C4.8 21.5 3.5 20.2 3.5 18.5 V5.5 C3.5 3.8 4.8 2.5 6.5 2.5 Z";
@@ -38,7 +45,15 @@ function DocxMotif() {
 function XlsxMotif() {
 	return (
 		<g>
-			<rect x="7.5" y="9.5" width="3.8" height="3.8" rx="0.6" fill="currentColor" stroke="none" />
+			<rect
+				x="7.5"
+				y="9.5"
+				width="3.8"
+				height="3.8"
+				rx="0.6"
+				fill="currentColor"
+				stroke="none"
+			/>
 			<rect x="12.7" y="9.5" width="3.8" height="3.8" rx="0.6" />
 			<rect x="7.5" y="14.7" width="3.8" height="3.8" rx="0.6" />
 			<rect x="12.7" y="14.7" width="3.8" height="3.8" rx="0.6" />
@@ -49,7 +64,11 @@ function XlsxMotif() {
 function PptxMotif() {
 	return (
 		<g>
-			<path d="M10 9 L15.5 12.25 L10 15.5 Z" fill="currentColor" stroke="none" />
+			<path
+				d="M10 9 L15.5 12.25 L10 15.5 Z"
+				fill="currentColor"
+				stroke="none"
+			/>
 			<path d="M7.5 18.5 H16.5" />
 		</g>
 	);
@@ -58,7 +77,15 @@ function PptxMotif() {
 function CsvMotif() {
 	return (
 		<g>
-			<rect x="7.5" y="9.5" width="3.8" height="3.8" rx="0.6" fill="currentColor" stroke="none" />
+			<rect
+				x="7.5"
+				y="9.5"
+				width="3.8"
+				height="3.8"
+				rx="0.6"
+				fill="currentColor"
+				stroke="none"
+			/>
 			<rect x="12.7" y="9.5" width="3.8" height="3.8" rx="0.6" />
 			<rect x="7.5" y="14.7" width="3.8" height="3.8" rx="0.6" />
 			<path d="M14.6 14.9 C14.2 15.8 13.6 16.4 12.9 16.6" />
@@ -122,17 +149,29 @@ export function FormatGlyph({
 }
 
 /** Badge background per format, from the design token names. */
-export function formatCssVar(format: FileFormat): { base: string; container: string } {
+export function formatCssVar(format: FileFormat): {
+	base: string;
+	container: string;
+} {
 	switch (format) {
 		case "pdf":
 			return { base: "var(--fmt-pdf)", container: "var(--fmt-pdf-container)" };
 		case "docx":
-			return { base: "var(--fmt-docx)", container: "var(--fmt-docx-container)" };
+			return {
+				base: "var(--fmt-docx)",
+				container: "var(--fmt-docx-container)",
+			};
 		case "xlsx":
 		case "csv":
-			return { base: "var(--fmt-xlsx)", container: "var(--fmt-xlsx-container)" };
+			return {
+				base: "var(--fmt-xlsx)",
+				container: "var(--fmt-xlsx-container)",
+			};
 		case "pptx":
-			return { base: "var(--fmt-pptx)", container: "var(--fmt-pptx-container)" };
+			return {
+				base: "var(--fmt-pptx)",
+				container: "var(--fmt-pptx-container)",
+			};
 		default:
 			return { base: "var(--ink-3)", container: "var(--surface-2)" };
 	}

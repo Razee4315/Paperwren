@@ -1,6 +1,6 @@
+import { motion, radius, type } from "@/theme";
 import type React from "react";
 import styled from "styled-components";
-import { motion, radius, type } from "@/theme";
 
 /** Banner (docs/02 section 6): full-width strip with icon, for
  * password / file-changed / large-file cautions. */
@@ -55,6 +55,7 @@ export function Banner({
 	onAction?: () => void;
 }) {
 	return (
+		// biome-ignore lint/a11y/useSemanticElements: a transient banner is announced as a status region
 		<Strip role="status">
 			{icon}
 			<Text>{message}</Text>

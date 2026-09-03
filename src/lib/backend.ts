@@ -94,7 +94,9 @@ const browserBackend: Backend = {
 	},
 	async cacheStats() {
 		let bytes = 0;
-		browserFiles.forEach((f) => (bytes += f.size));
+		browserFiles.forEach((f) => {
+			bytes += f.size;
+		});
 		return { bytes };
 	},
 	async clearCache() {
@@ -103,8 +105,16 @@ const browserBackend: Backend = {
 };
 
 // ---------- Tauri backend ----------
+//
+// File picking goes through the dialog plugin (the system picker on
+// Android, a native dialog on desktop). Reading goes through the fs
+// plugin because it understands both desktop paths and Android
+// content:// URIs, which std::fs cannot touch.
 
-async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+async function tauriInvoke<T>(
+	cmd: string,
+	args?: Record<string, unknown>,
+): Promise<T> {
 	const { invoke } = await import("@tauri-apps/api/core");
 	return invoke<T>(cmd, args);
 }
@@ -125,22 +135,23 @@ const tauriBackend: Backend = {
 		if (!result || typeof result !== "string") return null;
 		const path = result;
 		const name = path.split(/[\\/]/).pop() ?? path;
-		const meta = await tauriInvoke<{ size: number } | null>("ingest_file", {
-			path,
-		});
-		return {
-			name,
-			size: meta?.size ?? 0,
-			source: path,
-			ref: path,
-		};
+		let size = 0;
+		try {
+			const { stat } = await import("@tauri-apps/plugin-fs");
+			const meta = await stat(path);
+			size = meta.size;
+		} catch {
+			// Size is advisory; the viewer handles read failures.
+		}
+		return { name, size, source: path, ref: path };
 	},
 	async readBytes(ref) {
-		const buf = (await tauriInvoke("read_file_bytes", { path: ref })) as unknown;
-		// Raw IPC responses arrive as ArrayBuffer.
-		if (buf instanceof ArrayBuffer) return buf;
-		if (buf instanceof Uint8Array) return buf.buffer.slice(0) as ArrayBuffer;
-		throw new Error("Unexpected file payload from the backend.");
+		const { readFile } = await import("@tauri-apps/plugin-fs");
+		const bytes = await readFile(ref);
+		return bytes.buffer.slice(
+			bytes.byteOffset,
+			bytes.byteOffset + bytes.byteLength,
+		) as ArrayBuffer;
 	},
 	async storeGet(key) {
 		return tauriInvoke<unknown>("store_get", { key });
@@ -156,7 +167,9 @@ const tauriBackend: Backend = {
 	},
 };
 
-export const backend: Backend = isTauriEnvironment ? tauriBackend : browserBackend;
+export const backend: Backend = isTauriEnvironment
+	? tauriBackend
+	: browserBackend;
 
 export async function readFileMeta(picked: PickedFileMeta): Promise<FileMeta> {
 	return {

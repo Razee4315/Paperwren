@@ -1,7 +1,7 @@
+import { layout, motion, radius, type } from "@/theme";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { motion, radius, type, layout } from "@/theme";
 
 /**
  * Bottom sheet (docs/02 section 6): drag handle, dismiss on
@@ -130,6 +130,7 @@ export function Sheet({
 	return (
 		<>
 			<Scrim $closing={closing} onClick={dismiss} role="presentation" />
+			{/* biome-ignore lint/a11y/useSemanticElements: bottom sheet is a dialog with custom drag behavior */}
 			<Panel
 				role="dialog"
 				aria-modal="true"

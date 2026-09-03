@@ -1,5 +1,5 @@
-import styled from "styled-components";
 import { motion, radius, type } from "@/theme";
+import styled from "styled-components";
 
 /** Filled text field (docs/02 section 6): surface-2 fill, radius-m,
  * ember focus underline. 16px font on mobile via the global rule. */
@@ -40,7 +40,7 @@ const Box = styled.input<{ $hasError: boolean }>`
 	}
 `;
 
-const Error = styled.span`
+const ErrorText = styled.span`
 	${type.small};
 	color: var(--danger);
 `;
@@ -51,7 +51,7 @@ export function TextField({
 	onChange,
 	placeholder,
 	type = "text",
-	error,
+	errorText,
 	autoFocus,
 	inputMode,
 	maxLength,
@@ -61,7 +61,7 @@ export function TextField({
 	onChange: (value: string) => void;
 	placeholder?: string;
 	type?: string;
-	error?: string;
+	errorText?: string;
 	autoFocus?: boolean;
 	inputMode?: "text" | "numeric";
 	maxLength?: number;
@@ -77,11 +77,11 @@ export function TextField({
 				autoFocus={autoFocus}
 				inputMode={inputMode}
 				maxLength={maxLength}
-				$hasError={!!error}
+				$hasError={!!errorText}
 				aria-label={label}
-				aria-invalid={!!error}
+				aria-invalid={!!errorText}
 			/>
-			{error && <Error role="alert">{error}</Error>}
+			{errorText && <ErrorText role="alert">{errorText}</ErrorText>}
 		</Wrap>
 	);
 }

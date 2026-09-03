@@ -1,8 +1,8 @@
+import { formatCssVar } from "@/components/FormatBadge";
+import { Button, Sheet as UiSheet } from "@/components/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
-import { Button, Sheet as UiSheet } from "@/components/ui";
 import { ViewerShell } from "./ViewerShell";
-import { formatCssVar } from "@/components/FormatBadge";
 
 /**
  * SCR-09 XLSX viewer (docs/07 section 3): SheetJS parse into a
@@ -47,7 +47,8 @@ async function loadXlsx(): Promise<typeof import("xlsx")> {
 }
 
 function parseWorkbook(wb: WorkBook): GridSheet[] {
-	const XLSX = window.__PAPERWREN_XLSX!;
+	const XLSX = window.__PAPERWREN_XLSX;
+	if (!XLSX) return [];
 	const sheets: GridSheet[] = [];
 
 	for (const sheetName of wb.SheetNames) {
@@ -267,7 +268,9 @@ export function XlsxViewer({
 	const [sheets, setSheets] = useState<GridSheet[] | null>(null);
 	const [failed, setFailed] = useState(false);
 	const [active, setActive] = useState(0);
-	const [selected, setSelected] = useState<{ r: number; c: number } | null>(null);
+	const [selected, setSelected] = useState<{ r: number; c: number } | null>(
+		null,
+	);
 	const [cellCardOpen, setCellCardOpen] = useState(false);
 	const [scrollTop, setScrollTop] = useState(0);
 	const [scrollLeft, setScrollLeft] = useState(0);
@@ -293,10 +296,10 @@ export function XlsxViewer({
 
 	// Track viewport size for the windowing math.
 	useEffect(() => {
+		if (!sheets) return;
 		const el = scrollRef.current;
 		if (!el) return;
-		const update = () =>
-			setViewport({ w: el.clientWidth, h: el.clientHeight });
+		const update = () => setViewport({ w: el.clientWidth, h: el.clientHeight });
 		update();
 		const ro = new ResizeObserver(update);
 		ro.observe(el);
@@ -336,7 +339,8 @@ export function XlsxViewer({
 		let c1 = c0;
 		while (
 			c1 < sheet.cols &&
-			colOffsets[c1] + labelColWidth < viewLeft + viewport.w + OVERSCAN * DEFAULT_COL
+			colOffsets[c1] + labelColWidth <
+				viewLeft + viewport.w + OVERSCAN * DEFAULT_COL
 		) {
 			c1++;
 		}
@@ -437,14 +441,18 @@ export function XlsxViewer({
 						{ length: windowed.c1 - windowed.c0 },
 						(_, i) => windowed.c0 + i,
 					).map((c) => (
-						<HeadCell key={c} $width={sheet.widths[c] ?? DEFAULT_COL}>
+						<HeadCell
+							key={`colhead-${c}`}
+							$width={sheet.widths[c] ?? DEFAULT_COL}
+						>
 							{colName(c)}
 						</HeadCell>
 					))}
 				</HeadRow>
 				<GridCanvas $width={gridWidth + labelColWidth} $height={gridHeight}>
-					{Array.from({ length: windowed.r1 - windowed.r0 }, (_, i) =>
-						windowed.r0 + i,
+					{Array.from(
+						{ length: windowed.r1 - windowed.r0 },
+						(_, i) => windowed.r0 + i,
 					).map((r) => (
 						<div key={r}>
 							<RowLabel

@@ -1,19 +1,15 @@
+import { backend } from "@/lib/backend";
+import { isMobileShell } from "@/lib/env";
+import { DEFAULT_SETTINGS, STORAGE_KEYS, type Settings } from "@/lib/types";
 import {
+	type ReactNode,
 	createContext,
 	useCallback,
 	useContext,
 	useEffect,
 	useMemo,
 	useState,
-	type ReactNode,
 } from "react";
-import { backend } from "@/lib/backend";
-import {
-	DEFAULT_SETTINGS,
-	STORAGE_KEYS,
-	type Settings,
-} from "@/lib/types";
-import { isMobileShell } from "@/lib/env";
 
 interface SettingsContextValue {
 	settings: Settings;
@@ -40,7 +36,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 			.then((stored) => {
 				if (cancelled) return;
 				if (stored && typeof stored === "object") {
-					setSettings({ ...DEFAULT_SETTINGS, ...(stored as Partial<Settings>) });
+					setSettings({
+						...DEFAULT_SETTINGS,
+						...(stored as Partial<Settings>),
+					});
 				}
 				setReady(true);
 			})
@@ -118,7 +117,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 	);
 
 	return (
-		<SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>
+		<SettingsContext.Provider value={value}>
+			{children}
+		</SettingsContext.Provider>
 	);
 }
 
