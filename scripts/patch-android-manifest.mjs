@@ -30,9 +30,15 @@ src = src.replace(internetPermission, "");
 if (/android:allowBackup="false"/.test(src)) {
 	// Already hardened.
 } else if (/android:allowBackup="true"/.test(src)) {
-	src = src.replace('android:allowBackup="true"', 'android:allowBackup="false"');
+	src = src.replace(
+		'android:allowBackup="true"',
+		'android:allowBackup="false"',
+	);
 } else if (/<application\b/.test(src)) {
-	src = src.replace(/<application\b/, '<application\n        android:allowBackup="false"');
+	src = src.replace(
+		/<application\b/,
+		'<application\n        android:allowBackup="false"',
+	);
 } else {
 	console.error(`No <application> tag found, aborting:\n${src}`);
 	process.exit(1);
