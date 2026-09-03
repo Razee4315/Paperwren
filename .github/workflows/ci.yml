@@ -38,6 +38,9 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
+      - name: Dry-run Android patches against the pinned template
+        run: node scripts/patch-android-openwith.mjs check
+
   rust:
     name: Rust check
     runs-on: ubuntu-latest

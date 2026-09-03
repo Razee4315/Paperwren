@@ -46,7 +46,11 @@
 			"src-tauri/target/**",
 			"src-tauri/gen/**",
 			"*.config.ts",
-			"*.config.js"
+			"*.config.js",
+			"package.json",
+			"package-lock.json",
+			"src-tauri/tauri.conf.json",
+			"src-tauri/tauri.android.conf.json"
 		]
 	}
 }

@@ -12,6 +12,18 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Paperwren open-with bridge (Android). MainActivity evaluates
+      // window.__paperwrenOpenFile once the webview exists; payloads
+      // collect here until React mounts and drains them. Defined
+      // inline so it exists the moment the page loads, before any
+      // bundle code.
+      window.__paperwrenFiles = [];
+      window.__paperwrenOpenFile = function (path, name) {
+        window.__paperwrenFiles.push({ path: path, name: name });
+        window.dispatchEvent(new CustomEvent("paperwren-file"));
+      };
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

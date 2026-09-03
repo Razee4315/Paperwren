@@ -1,5 +1,5 @@
 import { SnackbarProvider, showSnackbar } from "@/components/ui";
-import { backend } from "@/lib/backend";
+import { backend, guessFormat } from "@/lib/backend";
 import { type FileMeta, type RecentsEntry, STORAGE_KEYS } from "@/lib/types";
 import { Home } from "@/screens/Home";
 import { Splash } from "@/screens/Splash";
@@ -8,9 +8,14 @@ import { SettingsScreen } from "@/screens/settings/SettingsScreen";
 import { ViewerScreen } from "@/screens/viewer/ViewerScreen";
 import { RecentsProvider, useRecents } from "@/state/RecentsContext";
 import { SettingsProvider } from "@/state/SettingsContext";
-import { ErrorDialog, type OpenError, pickAndValidate } from "@/state/openFlow";
+import {
+	ErrorDialog,
+	type OpenError,
+	pickAndValidate,
+	validateFileName,
+} from "@/state/openFlow";
 import { GlobalStyles } from "@/theme";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Route =
 	| { name: "home" }
@@ -25,6 +30,8 @@ function Root() {
 	const [route, setRoute] = useState<Route>({ name: "home" });
 	const [openError, setOpenError] = useState<OpenError | null>(null);
 	const [picking, setPicking] = useState(false);
+	const lastBridged = useRef<string | null>(null);
+	const bridgeHandled = useRef(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -32,6 +39,9 @@ function Root() {
 		Promise.all([backend.storeGet(STORAGE_KEYS.onboarded), minSplash]).then(
 			([onboarded]) => {
 				if (cancelled) return;
+				// A cold-start file from the open-with bridge wins over
+				// the splash/onboarding flow.
+				if (bridgeHandled.current) return;
 				setPhase(onboarded ? "app" : "onboarding");
 			},
 		);
@@ -96,6 +106,48 @@ function Root() {
 		finishOnboarding();
 		pickAndOpen();
 	}, [finishOnboarding, pickAndOpen]);
+
+	// Android open-with bridge (docs/10 section 3): MainActivity
+	// copies the file into the inbox and evaluates the inline bridge;
+	// payloads queue in window.__paperwrenFiles until React drains
+	// them here. A cold start via intent bypasses onboarding entirely
+	// (docs/06: reading the file is the onboarding).
+	useEffect(() => {
+		const drain = () => {
+			const queue = window.__paperwrenFiles;
+			if (!queue || queue.length === 0) return;
+			const next = queue.splice(0, queue.length).pop();
+			if (!next) return;
+			const key = `${next.path}|${next.name}`;
+			if (key === lastBridged.current) return; // duplicate delivery
+			lastBridged.current = key;
+			bridgeHandled.current = true;
+			const nameError = validateFileName(next.name);
+			if (nameError) {
+				setOpenError(nameError);
+				return;
+			}
+			const file: FileMeta = {
+				name: next.name,
+				format: guessFormat(next.name),
+				size: 0,
+				ref: next.path,
+				source: next.path,
+			};
+			backend.storeSet(STORAGE_KEYS.onboarded, true).catch(() => {});
+			setPhase("app");
+			recordOpen({
+				name: file.name,
+				format: file.format,
+				size: file.size,
+				source: file.source,
+			});
+			setRoute({ name: "viewer", file });
+		};
+		drain();
+		window.addEventListener("paperwren-file", drain);
+		return () => window.removeEventListener("paperwren-file", drain);
+	}, [recordOpen]);
 
 	if (phase === "splash") {
 		return <Splash />;

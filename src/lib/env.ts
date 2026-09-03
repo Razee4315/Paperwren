@@ -7,6 +7,8 @@
 declare global {
 	interface Window {
 		__TAURI_INTERNALS__?: unknown;
+		/** Android open-with bridge payloads (see index.html). */
+		__paperwrenFiles?: Array<{ path: string; name: string }>;
 	}
 }
 
