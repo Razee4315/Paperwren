@@ -5,6 +5,7 @@ import { useRecents } from "@/state/RecentsContext";
 import { useSettings } from "@/state/SettingsContext";
 import { useEffect, useState } from "react";
 import styled from "styled-components";
+import { DocxViewer } from "./DocxViewer";
 import { PdfViewer } from "./PdfViewer";
 import { ViewerShell } from "./ViewerShell";
 import { XlsxViewer } from "./XlsxViewer";
@@ -99,18 +100,29 @@ export function ViewerScreen({
 		return <Center>Opening {file.name}...</Center>;
 	}
 
-	if (file.format === "docx" || file.format === "pptx") {
+	if (file.format === "pptx") {
 		return (
 			<Dialog
 				open
-				title={file.format === "docx" ? "Word documents" : "PowerPoint files"}
+				title="PowerPoint files"
 				onDismiss={onClose}
 				actions={<Button onClick={onClose}>OK</Button>}
 			>
-				{file.format === "docx"
-					? "Word document reading arrives in the v1.1 update. This build reads PDF, Excel, CSV, and text files."
-					: "PowerPoint viewing arrives in the v1.2 update. This build reads PDF, Excel, CSV, and text files."}
+				PowerPoint viewing arrives in the v1.2 update. This build reads PDF,
+				Word, Excel, CSV, and text files.
 			</Dialog>
+		);
+	}
+
+	if (file.format === "docx") {
+		return (
+			<DocxViewer
+				data={data}
+				name={file.name}
+				initialPosition={entry?.position}
+				onPosition={handlePosition}
+				onClose={onClose}
+			/>
 		);
 	}
 

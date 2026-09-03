@@ -16,13 +16,14 @@ Version 0.9 (internal) is in active development.
 
 | Working now | Planned |
 |---|---|
-| PDF viewer with zoom, rotation, thumbnails, outline, position memory, text search | Word (DOCX) reader, v1.1 |
-| Excel viewer with sheet tabs and a virtualized grid | PowerPoint viewer, v1.2 |
-| CSV and plain text viewing | "Open with" integration and "Always" handling |
-| Recents with pinning, onboarding, light and dark themes | In-app storage browser |
-| Settings, cache management, honest error dialogs | Search highlights, print via system service |
+| PDF viewer with zoom, rotation, thumbnails, outline, position memory, text search | PowerPoint viewer, v1.2 |
+| Word (DOCX) reader with layout-faithful pages | Reading mode for Word documents |
+| Excel viewer with sheet tabs and a virtualized grid | "Open with" from every file manager, verified on device |
+| CSV and plain text viewing | In-app storage browser |
+| Recents with pinning, onboarding, light and dark themes | Search highlights, print via system service |
+| Settings, cache management, honest error dialogs | |
 
-Files are opened through the in-app system picker in this build. The Android "open with" pipeline (viewing a file straight from another app) is the next milestone.
+Files are opened through the in-app system picker in this build. The Android "open with" pipeline (viewing a file straight from another app) is implemented and ships in the test APK; it needs on-device verification before it is called done.
 
 See `docs/README.md` for the full product plan and release phases.
 

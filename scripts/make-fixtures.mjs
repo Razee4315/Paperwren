@@ -85,8 +85,95 @@ function makeXlsx() {
 	console.log("fixtures/sample.xlsx written");
 }
 
+// ---------- Minimal DOCX (hand-built OOXML zip) ----------
+
+function crc32(buf) {
+	let table = crc32.table;
+	if (!table) {
+		table = crc32.table = new Int32Array(256);
+		for (let n = 0; n < 256; n++) {
+			let c = n;
+			for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+			table[n] = c;
+		}
+	}
+	let crc = -1;
+	for (let i = 0; i < buf.length; i++)
+		crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xff];
+	return (crc ^ -1) >>> 0;
+}
+
+function buildZip(entries) {
+	// entries: [name, content][], stored (no compression)
+	const chunks = [];
+	const central = [];
+	let offset = 0;
+	for (const [name, content] of entries) {
+		const nameBuf = Buffer.from(name, "utf8");
+		const data = Buffer.from(content, "utf8");
+		const crc = crc32(data);
+		const local = Buffer.alloc(30);
+		local.writeUInt32LE(0x04034b50, 0);
+		local.writeUInt16LE(20, 4); // version needed
+		local.writeUInt16LE(0, 6); // flags
+		local.writeUInt16LE(0, 8); // stored
+		local.writeUInt16LE(0, 10); // time
+		local.writeUInt16LE(0x5921, 12); // date
+		local.writeUInt32LE(crc, 14);
+		local.writeUInt32LE(data.length, 18);
+		local.writeUInt32LE(data.length, 22);
+		local.writeUInt16LE(nameBuf.length, 26);
+		local.writeUInt16LE(0, 28);
+		chunks.push(local, nameBuf, data);
+		const cd = Buffer.alloc(46);
+		cd.writeUInt32LE(0x02014b50, 0);
+		cd.writeUInt16LE(20, 4);
+		cd.writeUInt16LE(20, 6);
+		cd.writeUInt16LE(0, 8);
+		cd.writeUInt16LE(0, 10);
+		cd.writeUInt16LE(0, 12);
+		cd.writeUInt16LE(0x5921, 14);
+		cd.writeUInt32LE(crc, 16);
+		cd.writeUInt32LE(data.length, 20);
+		cd.writeUInt32LE(data.length, 24);
+		cd.writeUInt16LE(nameBuf.length, 28);
+		cd.writeUInt32LE(offset, 42);
+		central.push(Buffer.concat([cd, nameBuf]));
+		offset += local.length + nameBuf.length + data.length;
+	}
+	const centralBuf = Buffer.concat(central);
+	const end = Buffer.alloc(22);
+	end.writeUInt32LE(0x06054b50, 0);
+	end.writeUInt16LE(entries.length, 8);
+	end.writeUInt16LE(entries.length, 10);
+	end.writeUInt32LE(centralBuf.length, 12);
+	end.writeUInt32LE(offset, 16);
+	return Buffer.concat([...chunks, centralBuf, end]);
+}
+
+function makeDocx() {
+	const document =
+		'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+		'<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Paperwren Word fixture</w:t></w:r></w:p>' +
+		"<w:p><w:r><w:t>If you can read this, the DOCX reader works.</w:t></w:r></w:p>" +
+		"<w:p><w:r><w:rPr><w:b/><w:i/></w:rPr><w:t>Bold and italic text renders too.</w:t></w:r></w:p>" +
+		"</w:body></w:document>";
+	const contentTypes =
+		'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
+	const rels =
+		'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+	const zip = buildZip([
+		["[Content_Types].xml", contentTypes],
+		["_rels/.rels", rels],
+		["word/document.xml", document],
+	]);
+	writeFileSync(join(dir, "sample.docx"), zip);
+	console.log("fixtures/sample.docx written");
+}
+
 makePdf();
 makeXlsx();
+makeDocx();
 writeFileSync(
 	join(dir, "sample.txt"),
 	"Paperwren plain text fixture\n\nThe quick brown fox jumps over the lazy dog.\n",
