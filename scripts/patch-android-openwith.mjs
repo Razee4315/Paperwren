@@ -27,6 +27,7 @@ import android.webkit.WebView
 import androidx.core.content.IntentCompat
 import android.os.Handler
 import android.os.Looper
+import org.json.JSONObject
 import java.io.File`;
 
 const MAINACTIVITY_METHODS = `
@@ -114,7 +115,7 @@ const MAINACTIVITY_METHODS = `
     }
     val script =
       "window.__paperwrenOpenFile && window.__paperwrenOpenFile(" +
-        JSON.stringify(path) + "," + JSON.stringify(name) + ")"
+        JSONObject.quote(path) + "," + JSONObject.quote(name) + ")"
     webView.evaluateJavascript(script, null)
     pendingPath = null
     pendingName = null
