@@ -95,4 +95,28 @@ writeFileSync(
 	join(dir, "sample.csv"),
 	"name,role,city\nAisha,student,Dhaka\nRavi,engineer,Pune\nMaya,owner,Lima\n",
 );
-console.log("fixtures/sample.txt and sample.csv written");
+
+// ---------- Hostile fixtures (docs/12 section 3) ----------
+
+// Legacy Office files are OLE compound documents; the magic bytes
+// are enough to exercise the honest-dialog path.
+const OLE_MAGIC = Buffer.from([
+	0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1,
+]);
+for (const ext of ["doc", "xls", "ppt"]) {
+	writeFileSync(join(dir, `legacy.${ext}`), OLE_MAGIC);
+}
+
+// A corrupt PDF: valid header, broken structure.
+writeFileSync(
+	join(dir, "corrupt.pdf"),
+	"%PDF-1.4\nthis file claims to be a pdf but the structure is garbage\n",
+);
+
+// An unsupported extension with real bytes.
+writeFileSync(
+	join(dir, "archive.xyz"),
+	"just some bytes in a format Paperwren does not read\n",
+);
+
+console.log("legacy and hostile fixtures written");
