@@ -29,6 +29,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install Rust (for lockfile generation when missing)
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Check for changes and bump version
         id: bump
         run: |
@@ -54,8 +57,15 @@ jobs:
             jq --arg v "$NEW_VERSION" '.version = $v' src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
             jq --arg v "$NEW_VERSION" '.version = $v' package.json > tmp.json && mv tmp.json package.json
             sed -i "s/^version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" src-tauri/Cargo.toml
-            # Keep Cargo.lock in sync or every build rewrites it (own crate entry)
-            sed -i "/name = \"paperwren\"/{n;s/version = \"[^\"]*\"/version = \"$NEW_VERSION\"/}" src-tauri/Cargo.lock
+            # Keep Cargo.lock in sync or every build rewrites it (own crate entry).
+            if [ -f src-tauri/Cargo.lock ]; then
+              sed -i "/name = \"paperwren\"/{n;s/version = \"[^\"]*\"/version = \"$NEW_VERSION\"/}" src-tauri/Cargo.lock
+            else
+              # First run: the lock has never been committed. Generate it
+              # so it lands in this commit and stays pinned from now on.
+              cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+              sed -i "/name = \"paperwren\"/{n;s/version = \"[^\"]*\"/version = \"$NEW_VERSION\"/}" src-tauri/Cargo.lock
+            fi
 
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
