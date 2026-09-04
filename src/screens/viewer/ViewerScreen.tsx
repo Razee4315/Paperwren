@@ -8,7 +8,7 @@ import { useRecents } from "@/state/RecentsContext";
 import { useSettings } from "@/state/SettingsContext";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { DocxViewer } from "./DocxViewer";
 import { PdfViewer } from "./PdfViewer";
@@ -60,9 +60,45 @@ export function ViewerScreen({
 	// The format comes from the bytes, not the name: Android pickers
 	// hand out extension-less content URIs, and names lie anyway.
 	const [format, setFormat] = useState<FileFormat | null>(null);
+	// Checked once at read time: after the PDF viewer hands the
+	// buffer to pdf.js the buffer is detached, so render-time byte
+	// inspection would crash (audit 10.2 ownership semantics).
+	const [legacyOffice, setLegacyOffice] = useState(false);
 	const recentsId = idForSource(file.source);
 
 	const entry = entries.find((e) => e.id === recentsId);
+
+	/** Fresh bytes for the PDF password retry, which cannot reuse
+	 * the buffer pdf.js took ownership of. */
+	const reloadDoc = useCallback(async (): Promise<ArrayBuffer | null> => {
+		try {
+			if (file.reopen) {
+				const result = await backend.openRecent({
+					id: recentsId,
+					name: file.name,
+					format: file.format,
+					size: file.size,
+					source: file.source,
+					reopen: file.reopen,
+					addedAt: 0,
+					lastOpenedAt: 0,
+					pinned: false,
+				});
+				return result.ok ? result.buffer : null;
+			}
+			return await backend.readBytes(file.ref);
+		} catch {
+			return null;
+		}
+	}, [
+		file.name,
+		file.ref,
+		file.source,
+		file.reopen,
+		file.format,
+		file.size,
+		recentsId,
+	]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -104,6 +140,7 @@ export function ViewerScreen({
 				}
 				const buf = result.buffer;
 				const detected = sniffFormat(buf, file.name);
+				setLegacyOffice(isLegacyOffice(buf));
 				setData(buf);
 				setFormat(detected);
 				if (detected !== "unknown") {
@@ -197,7 +234,7 @@ export function ViewerScreen({
 	const displayName = displayNameFor(file.name, format);
 	const viewerPosition = entry?.position;
 
-	if (isLegacyOffice(data)) {
+	if (legacyOffice) {
 		return (
 			<Dialog
 				open
@@ -245,6 +282,7 @@ export function ViewerScreen({
 				initialPosition={viewerPosition}
 				onPosition={handlePosition}
 				onClose={onClose}
+				onNeedData={reloadDoc}
 				darkenPages={settings["viewer.darken_pages"]}
 			/>
 		);

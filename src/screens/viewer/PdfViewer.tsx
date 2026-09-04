@@ -211,6 +211,7 @@ export function PdfViewer({
 	initialPosition,
 	onPosition,
 	onClose,
+	onNeedData,
 	darkenPages,
 }: {
 	data: ArrayBuffer;
@@ -218,6 +219,9 @@ export function PdfViewer({
 	initialPosition?: FilePosition;
 	onPosition?: (pos: FilePosition) => void;
 	onClose: () => void;
+	/** Fresh bytes for a password retry: the first buffer is handed
+	 * to pdf.js, which detaches it. */
+	onNeedData?: () => Promise<ArrayBuffer | null>;
 	darkenPages: boolean;
 }) {
 	const { settings } = useSettings();
@@ -330,8 +334,14 @@ export function PdfViewer({
 		setPasswordOpen(false);
 		setPasswordError(null);
 		setLoadProgress(0.05);
-		load(dataRef.current, password);
-	}, [load, password]);
+		// The first buffer was handed to pdf.js and detached by it; a
+		// retry therefore needs fresh bytes from the source.
+		const retry = async () => {
+			const fresh = onNeedData ? await onNeedData() : null;
+			load(fresh ?? dataRef.current, password);
+		};
+		retry();
+	}, [load, password, onNeedData]);
 
 	// Read each page's own media box. Using page 1 for every placeholder
 	// breaks mixed portrait/landscape and differently cropped documents.

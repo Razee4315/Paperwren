@@ -72,12 +72,21 @@ export function sniffFormat(bytes: ArrayBuffer, name: string): FileFormat {
 }
 
 /** Pre-2007 Office binary formats open with the OLE compound
- * document magic; they get their own honest dialog. */
+ * document magic; they get their own honest dialog. Detached
+ * buffers (pdf.js took ownership) read as not-legacy instead of
+ * throwing. */
 export function isLegacyOffice(bytes: ArrayBuffer): boolean {
-	const head = new Uint8Array(bytes.slice(0, 8));
-	return (
-		head[0] === 0xd0 && head[1] === 0xcf && head[2] === 0x11 && head[3] === 0xe0
-	);
+	try {
+		const head = new Uint8Array(bytes.slice(0, 8));
+		return (
+			head[0] === 0xd0 &&
+			head[1] === 0xcf &&
+			head[2] === 0x11 &&
+			head[3] === 0xe0
+		);
+	} catch {
+		return false;
+	}
 }
 
 /** Best-effort display name for content URIs whose last segment is
