@@ -15,6 +15,8 @@ export default defineConfig({
 	use: {
 		baseURL: "http://127.0.0.1:4173",
 		viewport: { width: 412, height: 915 },
+		trace: "retain-on-failure",
+		video: "retain-on-failure",
 	},
 	webServer: {
 		command: "npx vite preview --port 4173 --strictPort",

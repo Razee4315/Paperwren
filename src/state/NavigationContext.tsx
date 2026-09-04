@@ -31,6 +31,10 @@ declare global {
 		 * dismissed or popped; returns false so the activity can
 		 * finish/minimize. */
 		__paperwrenHandleBack?: () => boolean;
+		/** Debug/test hook: mirror of the navigation state so browser
+		 * tests can tell "overlay never opened" apart from "opened
+		 * and was dismissed". */
+		__paperwrenNavDebug?: NavigationState;
 	}
 }
 
@@ -124,6 +128,11 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 			}
 		};
 	}, [handleBack]);
+
+	// Debug/test mirror of the navigation state.
+	useEffect(() => {
+		window.__paperwrenNavDebug = state;
+	}, [state]);
 
 	// Browser/desktop QA parity: each deeper screen/overlay pushes a
 	// history entry; popstate is one Back step.

@@ -94,18 +94,40 @@ test("settings subpage Back returns to Settings root, then Home", async ({
 
 test("viewer sheets dismiss on Back before leaving the viewer", async ({
 	page,
-}) => {
+}, testInfo) => {
 	await bootHome(page);
 	await openPdf(page);
 	const viewer = page.getByTestId("viewer");
 	await expect(viewer).toBeVisible({ timeout: 20_000 });
 
+	/** Attach navigation state + sheet presence so a failure shows
+	 * whether an overlay never opened or was dismissed. */
+	const attachState = async (label: string) => {
+		const snapshot = await page.evaluate(() => ({
+			nav: window.__paperwrenNavDebug ?? null,
+			sheets: [...document.querySelectorAll("[data-testid$='-sheet']")].map(
+				(n) => n.getAttribute("data-testid"),
+			),
+		}));
+		await testInfo.attach(label, {
+			body: JSON.stringify(snapshot, null, 2),
+			contentType: "application/json",
+		});
+		return snapshot;
+	};
+
 	await page.getByTestId("pdf-more-tools").click();
 	const toolsSheet = page.getByTestId("pdf-tools-sheet");
-	await expect(toolsSheet).toBeVisible();
-	await toolsSheet.getByTestId("pdf-tools-pages").click();
-	await expect(toolsSheet).toBeHidden();
-	await expect(page.getByTestId("pdf-thumbs-sheet")).toBeVisible();
+	await expect(toolsSheet).toBeVisible({ timeout: 10_000 });
+	const afterOpen = await attachState("after-open-tools");
+	expect(afterOpen.nav?.overlays.map((o) => o.id)).toContain("pdf-tools");
+
+	await toolsSheet.getByTestId("pdf-tools-pages").click({ timeout: 10_000 });
+	await expect(page.getByTestId("pdf-thumbs-sheet")).toBeVisible({
+		timeout: 10_000,
+	});
+	const afterSwitch = await attachState("after-open-thumbs");
+	expect(afterSwitch.nav?.overlays.map((o) => o.id)).toEqual(["pdf-thumbs"]);
 	await expect(page.getByTestId("pdf-thumbs-grid")).toBeVisible({
 		timeout: 10_000,
 	});
@@ -117,4 +139,6 @@ test("viewer sheets dismiss on Back before leaving the viewer", async ({
 	await expect(page.getByTestId("pdf-thumbs-grid")).toBeHidden({
 		timeout: 10_000,
 	});
+	const afterBack = await attachState("after-back");
+	expect(afterBack.nav?.overlays).toEqual([]);
 });
