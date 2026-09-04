@@ -103,9 +103,9 @@ const MAINACTIVITY_METHODS = `
   private fun deliverPendingFile(attempt: Int) {
     val path = pendingPath ?: return
     val name = pendingName ?: return
-    if (attempt > 60) {
-      // Give up quietly: the inbox copy remains on disk; recents
-      // still reference it if a delivery ever succeeded.
+    if (attempt > 200) {
+      // 30 seconds of retries. The inbox copy remains on disk; a
+      // delivery is never dropped silently before this cap.
       return
     }
     val webView = findWebView()
@@ -113,12 +113,21 @@ const MAINACTIVITY_METHODS = `
       Handler(Looper.getMainLooper()).postDelayed({ deliverPendingFile(attempt + 1) }, 150)
       return
     }
+    // The bridge answers accepted only when the app actually took
+    // the payload. An eval that lands before the page's inline
+    // script ran returns pending, and the file is retried: firing
+    // into a not-yet-ready page used to lose the delivery.
     val script =
-      "window.__paperwrenOpenFile && window.__paperwrenOpenFile(" +
-        JSONObject.quote(path) + "," + JSONObject.quote(name) + ")"
-    webView.evaluateJavascript(script, null)
-    pendingPath = null
-    pendingName = null
+      "window.__paperwrenOpenFile(" +
+        JSONObject.quote(path) + "," + JSONObject.quote(name) + ") ? 'accepted' : 'pending'"
+    webView.evaluateJavascript(script) { result ->
+      if (result == "\"accepted\"") {
+        pendingPath = null
+        pendingName = null
+      } else {
+        Handler(Looper.getMainLooper()).postDelayed({ deliverPendingFile(attempt + 1) }, 150)
+      }
+    }
   }
 
   private fun findWebView(): WebView? {

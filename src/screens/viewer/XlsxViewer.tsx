@@ -123,25 +123,76 @@ const GridWrap = styled.div`
 	margin-bottom: var(--bottom-bar-height, 0px);
 `;
 
+/* Column headers: sticky at the top, clipped to the viewport, with
+   an inner track translated against the horizontal scroll so every
+   letter sits exactly over its column at any offset. */
 const HeadRow = styled.div`
 	position: sticky;
 	top: 0;
 	z-index: 3;
 	display: flex;
+	height: 28px;
 	background: var(--surface-2);
 	border-bottom: 1px solid var(--border);
-	width: max-content;
+	overflow: hidden;
 `;
 
-const HeadCell = styled.div<{ $width: number }>`
+const HeadTrack = styled.div`
+	position: relative;
+	flex: 1;
+	overflow: hidden;
+`;
+
+const HeadTrackInner = styled.div<{ $width: number; $offset: number }>`
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
 	width: ${({ $width }) => $width}px;
-	min-width: ${({ $width }) => $width}px;
+	transform: translateX(${({ $offset }) => -$offset}px);
+`;
+
+const HeadCell = styled.div<{ $x: number; $width: number }>`
+	position: absolute;
+	left: ${({ $x }) => $x}px;
+	top: 0;
+	bottom: 0;
+	width: ${({ $width }) => $width}px;
 	padding: 6px 8px;
 	font-size: 0.8125rem;
 	font-weight: 600;
 	color: var(--ink-2);
 	text-align: center;
 	border-right: 1px solid var(--border);
+	box-sizing: border-box;
+	overflow: hidden;
+	user-select: none;
+	-webkit-user-select: none;
+`;
+
+const ResizeHandle = styled.span`
+	position: absolute;
+	right: -6px;
+	top: 0;
+	bottom: 0;
+	width: 13px;
+	cursor: col-resize;
+	touch-action: none;
+	z-index: 2;
+
+	&::after {
+		content: "";
+		position: absolute;
+		right: 5px;
+		top: 6px;
+		bottom: 6px;
+		width: 3px;
+		border-radius: 2px;
+		background: var(--border);
+	}
+	&:hover::after {
+		background: var(--accent);
+	}
 `;
 
 const RowLabelCol = styled(HeadCell)`
@@ -309,11 +360,43 @@ export function XlsxViewer({
 	}, [sheets]);
 
 	const sheet = sheets?.[active];
+	const [widthOverrides, setWidthOverrides] = useState<
+		Record<number, number[]>
+	>({});
+	const effectiveWidths = useMemo(
+		() => widthOverrides[active] ?? sheet?.widths ?? [],
+		[widthOverrides, active, sheet],
+	);
+
+	const beginColumnResize = useCallback(
+		(col: number, startX: number, startWidth: number) => {
+			const onMove = (e: PointerEvent) => {
+				const next = Math.min(
+					480,
+					Math.max(48, Math.round(startWidth + e.clientX - startX)),
+				);
+				setWidthOverrides((prev) => {
+					const base = prev[active] ?? (sheets?.[active]?.widths ?? []).slice();
+					if (base[col] === next) return prev;
+					const copy = base.slice();
+					copy[col] = next;
+					return { ...prev, [active]: copy };
+				});
+			};
+			const onUp = () => {
+				window.removeEventListener("pointermove", onMove);
+				window.removeEventListener("pointerup", onUp);
+			};
+			window.addEventListener("pointermove", onMove);
+			window.addEventListener("pointerup", onUp);
+		},
+		[active, sheets],
+	);
 
 	// Column x-offsets via prefix sums for windowing.
 	const colOffsets = useMemo(
-		() => (sheet ? columnOffsets(sheet.widths) : [0]),
-		[sheet],
+		() => (sheet ? columnOffsets(effectiveWidths) : [0]),
+		[sheet, effectiveWidths],
 	);
 
 	const windowed = useMemo(() => {
@@ -415,19 +498,37 @@ export function XlsxViewer({
 			}
 		>
 			<GridWrap ref={scrollRef} onScroll={onGridScroll} data-testid="xlsx-grid">
-				<HeadRow style={{ transform: `translateX(${scrollLeft}px)` }}>
-					<RowLabelCol $width={48}>#</RowLabelCol>
-					{Array.from(
-						{ length: windowed.c1 - windowed.c0 },
-						(_, i) => windowed.c0 + i,
-					).map((c) => (
-						<HeadCell
-							key={`colhead-${c}`}
-							$width={sheet.widths[c] ?? DEFAULT_COL_WIDTH}
-						>
-							{colName(c)}
-						</HeadCell>
-					))}
+				<HeadRow>
+					<RowLabelCol $x={0} $width={labelColWidth}>
+						#
+					</RowLabelCol>
+					<HeadTrack>
+						<HeadTrackInner $width={gridWidth} $offset={scrollLeft}>
+							{Array.from(
+								{ length: windowed.c1 - windowed.c0 },
+								(_, i) => windowed.c0 + i,
+							).map((c) => (
+								<HeadCell
+									key={`colhead-${c}`}
+									$x={colOffsets[c] ?? 0}
+									$width={effectiveWidths[c] ?? DEFAULT_COL_WIDTH}
+								>
+									{colName(c)}
+									<ResizeHandle
+										onPointerDown={(e) => {
+											e.stopPropagation();
+											e.currentTarget.setPointerCapture(e.pointerId);
+											beginColumnResize(
+												c,
+												e.clientX,
+												effectiveWidths[c] ?? DEFAULT_COL_WIDTH,
+											);
+										}}
+									/>
+								</HeadCell>
+							))}
+						</HeadTrackInner>
+					</HeadTrack>
 				</HeadRow>
 				<GridCanvas $width={gridWidth + labelColWidth} $height={gridHeight}>
 					{Array.from(
@@ -454,7 +555,7 @@ export function XlsxViewer({
 										key={c}
 										$x={labelColWidth + (colOffsets[c] ?? 0)}
 										$y={r * ROW_HEIGHT}
-										$width={sheet.widths[c] ?? DEFAULT_COL_WIDTH}
+										$width={effectiveWidths[c] ?? DEFAULT_COL_WIDTH}
 										$selected={isSel}
 										$bold={cell?.bold}
 										$italic={cell?.italic}

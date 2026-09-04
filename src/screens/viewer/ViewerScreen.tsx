@@ -1,5 +1,7 @@
-import { Button, Dialog } from "@/components/ui";
+import { type FileFormat, FormatGlyph } from "@/components/FormatBadge";
+import { Button, Dialog, InkProgress } from "@/components/ui";
 import { backend, idForSource } from "@/lib/backend";
+import { displayNameFor, isLegacyOffice, sniffFormat } from "@/lib/sniff";
 import type { FileMeta, FilePosition } from "@/lib/types";
 import { useRecents } from "@/state/RecentsContext";
 import { useSettings } from "@/state/SettingsContext";
@@ -13,10 +15,10 @@ import { ViewerShell } from "./ViewerShell";
 import { XlsxViewer } from "./XlsxViewer";
 
 /**
- * SCR-07..10 viewer dispatcher (docs/05): loads the bytes through
- * the backend, restores position memory, and routes to the format
- * viewer. Formats scheduled for later phases show the honest
- * dialogs from docs/09 instead of a broken attempt.
+ * SCR-07..10 viewer dispatcher (docs/05): loads the bytes once
+ * through the backend, decides the format by magic bytes (Android
+ * pickers hand out extension-less content URIs), restores position
+ * memory, and routes to the format viewer.
  */
 
 const Center = styled.div`
@@ -27,6 +29,11 @@ const Center = styled.div`
 	justify-content: center;
 	background: var(--bg);
 	color: var(--ink-2);
+`;
+
+const CenterText = styled.p`
+	margin: 12px 0 8px;
+	font-variant-numeric: tabular-nums;
 `;
 
 export function ViewerScreen({
@@ -44,6 +51,9 @@ export function ViewerScreen({
 	const { entries, updatePosition } = useRecents();
 	const [data, setData] = useState<ArrayBuffer | null>(null);
 	const [loadFailed, setLoadFailed] = useState(false);
+	// The format comes from the bytes, not the name: Android pickers
+	// hand out extension-less content URIs, and names lie anyway.
+	const [format, setFormat] = useState<FileFormat | null>(null);
 	const recentsId = idForSource(file.source);
 
 	const entry = entries.find((e) => e.id === recentsId);
@@ -59,6 +69,7 @@ export function ViewerScreen({
 					return;
 				}
 				setData(buf);
+				setFormat(sniffFormat(buf, file.name));
 			})
 			.catch(() => {
 				if (!cancelled) setLoadFailed(true);
@@ -93,16 +104,59 @@ export function ViewerScreen({
 					</>
 				}
 			>
-				{`'${file.name}' is not where it was. It may have been moved or deleted.`}
+				{`'${displayNameFor(file.name, format ?? "unknown")}' is not where it was. It may have been moved or deleted.`}
 			</Dialog>
 		);
 	}
 
 	if (!data) {
-		return <Center>Opening {file.name}...</Center>;
+		// Immediate feedback after picking: chrome is up, the ink bar
+		// runs, and the single SAF read happens here (docs/04: chrome
+		// never waits for content).
+		return (
+			<Center>
+				<div style={{ textAlign: "center" }}>
+					<FormatGlyph format={format ?? "unknown"} size={40} />
+					<CenterText>
+						Opening {displayNameFor(file.name, format ?? "unknown")}
+					</CenterText>
+					<InkProgress progress={null} />
+				</div>
+			</Center>
+		);
 	}
 
-	if (file.format === "pptx") {
+	if (!format) {
+		return (
+			<Dialog
+				open
+				title="Can't open this file"
+				onDismiss={onClose}
+				actions={<Button onClick={onClose}>OK</Button>}
+			>
+				The file seems to be damaged or is not valid.
+			</Dialog>
+		);
+	}
+
+	const displayName = displayNameFor(file.name, format);
+	const viewerPosition = entry?.position;
+
+	if (isLegacyOffice(data)) {
+		return (
+			<Dialog
+				open
+				title="Older Office format"
+				onDismiss={onClose}
+				actions={<Button onClick={onClose}>OK</Button>}
+			>
+				This file uses a legacy format Paperwren does not read yet. Save it as
+				the newer format from Word, Excel, or PowerPoint, or try another viewer.
+			</Dialog>
+		);
+	}
+
+	if (format === "pptx") {
 		return (
 			<Dialog
 				open
@@ -116,24 +170,24 @@ export function ViewerScreen({
 		);
 	}
 
-	if (file.format === "docx") {
+	if (format === "docx") {
 		return (
 			<DocxViewer
 				data={data}
-				name={file.name}
-				initialPosition={entry?.position}
+				name={displayName}
+				initialPosition={viewerPosition}
 				onPosition={handlePosition}
 				onClose={onClose}
 			/>
 		);
 	}
 
-	if (file.format === "pdf") {
+	if (format === "pdf") {
 		return (
 			<PdfViewer
 				data={data}
-				name={file.name}
-				initialPosition={entry?.position}
+				name={displayName}
+				initialPosition={viewerPosition}
 				onPosition={handlePosition}
 				onClose={onClose}
 				darkenPages={settings["viewer.darken_pages"]}
@@ -141,16 +195,16 @@ export function ViewerScreen({
 		);
 	}
 
-	if (file.format === "xlsx" || file.format === "csv") {
-		return <XlsxViewer data={data} name={file.name} onClose={onClose} />;
+	if (format === "xlsx" || format === "csv") {
+		return <XlsxViewer data={data} name={displayName} onClose={onClose} />;
 	}
 
-	if (file.format === "txt") {
+	if (format === "txt") {
 		const lower = file.name.toLowerCase();
 		if (lower.endsWith(".md") || lower.endsWith(".markdown")) {
-			return <MarkdownView data={data} name={file.name} onClose={onClose} />;
+			return <MarkdownView data={data} name={displayName} onClose={onClose} />;
 		}
-		return <TextPlainView data={data} name={file.name} onClose={onClose} />;
+		return <TextPlainView data={data} name={displayName} onClose={onClose} />;
 	}
 
 	return (

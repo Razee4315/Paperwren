@@ -1,14 +1,8 @@
 import { formatCssVar } from "@/components/FormatBadge";
-import {
-	Button,
-	Dialog,
-	IconButton,
-	Scrubber,
-	Sheet,
-	TextField,
-} from "@/components/ui";
+import { Button, Dialog, IconButton, Sheet, TextField } from "@/components/ui";
 import {
 	type FitMode,
+	clampZoom,
 	computePageDisplayBox,
 	nextFitMode,
 	stepZoom as stepZoomClamped,
@@ -51,6 +45,10 @@ const ScrollWrap = styled.div`
 	overflow: auto;
 	padding: 8px;
 	background: var(--bg);
+	/* Pans stay native; two-finger pinch comes to JS as pointer
+	   events so the document re-renders crisply at the new zoom
+	   instead of the browser scaling the whole app. */
+	touch-action: pan-x pan-y;
 `;
 
 const Pages = styled.div<{ $darken: boolean }>`
@@ -154,6 +152,8 @@ export function PdfViewer({
 	const [outlineOpen, setOutlineOpen] = useState(false);
 	const [thumbsOpen, setThumbsOpen] = useState(false);
 	const [searchOpen, setSearchOpen] = useState(false);
+	const [jumpOpen, setJumpOpen] = useState(false);
+	const [jumpValue, setJumpValue] = useState("");
 	const [passwordOpen, setPasswordOpen] = useState(false);
 	const [password, setPassword] = useState("");
 	const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -259,7 +259,7 @@ export function PdfViewer({
 				if (cancelled) return;
 				const base = page.getViewport({ scale: 1, rotation });
 				const scale =
-					(box.width / base.width) * Math.min(2, window.devicePixelRatio);
+					(box.width / base.width) * Math.min(3, window.devicePixelRatio);
 				const viewport = page.getViewport({ scale, rotation });
 				const canvas = document.createElement("canvas");
 				canvas.width = Math.floor(viewport.width);
@@ -369,10 +369,74 @@ export function PdfViewer({
 	const stepZoom = useCallback(
 		(direction: 1 | -1) => {
 			haptic(settings);
+			focal.current = null;
 			setZoom((z) => stepZoomClamped(z, direction));
 		},
 		[settings],
 	);
+
+	// --- pinch to zoom: two pointers scale the document around the
+	// pinch midpoint; pans stay native via touch-action ---
+	const pointers = useRef(new Map<number, [number, number]>());
+	const pinchRef = useRef<{ baseDist: number; startZoom: number } | null>(null);
+	const focal = useRef<{ xRatio: number; yRatio: number } | null>(null);
+
+	const dist = () => {
+		const [a, b] = [...pointers.current.values()];
+		return Math.hypot(a[0] - b[0], a[1] - b[1]);
+	};
+
+	const onPointerDown = useCallback(
+		(e: React.PointerEvent) => {
+			pointers.current.set(e.pointerId, [e.clientX, e.clientY]);
+			if (pointers.current.size === 2) {
+				pinchRef.current = { baseDist: dist(), startZoom: zoom };
+			}
+		},
+		[zoom],
+	);
+
+	const onPointerMove = useCallback(
+		(e: React.PointerEvent) => {
+			if (!pointers.current.has(e.pointerId)) return;
+			pointers.current.set(e.pointerId, [e.clientX, e.clientY]);
+			if (pointers.current.size !== 2 || !pinchRef.current) return;
+			const el = scrollRef.current;
+			if (!el) return;
+			const [a, b] = [...pointers.current.values()];
+			const midX = (a[0] + b[0]) / 2;
+			const midY = (a[1] + b[1]) / 2;
+			focal.current = {
+				xRatio:
+					(el.scrollLeft + midX - el.clientLeft) / Math.max(1, el.scrollWidth),
+				yRatio:
+					(el.scrollTop + midY - el.clientTop) / Math.max(1, el.scrollHeight),
+			};
+			const next = clampZoom(
+				pinchRef.current.startZoom * (dist() / pinchRef.current.baseDist),
+			);
+			if (next !== zoom) {
+				haptic(settings, 4);
+				setZoom(next);
+			}
+		},
+		[zoom, settings],
+	);
+
+	const onPointerUp = useCallback((e: React.PointerEvent) => {
+		pointers.current.delete(e.pointerId);
+		if (pointers.current.size < 2) pinchRef.current = null;
+	}, []);
+
+	// Keep the pinched content under the fingers after the re-render.
+	useEffect(() => {
+		const el = scrollRef.current;
+		const f = focal.current;
+		if (!el || !f) return;
+		focal.current = null;
+		el.scrollLeft = f.xRatio * el.scrollWidth - el.clientWidth / 2;
+		el.scrollTop = f.yRatio * el.scrollHeight - el.clientHeight / 2;
+	}, [box]);
 
 	const outlineItems = (nodes: OutlineNode[], depth = 0): ReactNode =>
 		nodes.map((node, i) => (
@@ -447,16 +511,27 @@ export function PdfViewer({
 			}
 			bottomBar={
 				doc ? (
-					<Scrubber
-						value={currentPage}
-						max={doc.numPages}
-						onChange={goToPage}
-						label="Page"
-					/>
+					<PagePill
+						onClick={() => {
+							setJumpValue(String(currentPage + 1));
+							setJumpOpen(true);
+						}}
+						data-testid="pdf-page-pill"
+					>
+						{currentPage + 1} / {doc.numPages}
+					</PagePill>
 				) : undefined
 			}
 		>
-			<ScrollWrap ref={scrollRef} onScroll={onScroll} onDoubleClick={cycleZoom}>
+			<ScrollWrap
+				ref={scrollRef}
+				onScroll={onScroll}
+				onDoubleClick={cycleZoom}
+				onPointerDown={onPointerDown}
+				onPointerMove={onPointerMove}
+				onPointerUp={onPointerUp}
+				onPointerCancel={onPointerUp}
+			>
 				<Pages $darken={darkenPages}>
 					{doc &&
 						Array.from({ length: doc.numPages }, (_, i) => (
@@ -518,6 +593,34 @@ export function PdfViewer({
 				onDismiss={() => setSearchOpen(false)}
 				onGoToPage={goToPage}
 			/>
+
+			<Sheet
+				open={jumpOpen}
+				title="Go to page"
+				onDismiss={() => setJumpOpen(false)}
+			>
+				<TextField
+					label="Page number"
+					value={jumpValue}
+					onChange={setJumpValue}
+					placeholder={`1 to ${doc?.numPages ?? 1}`}
+					inputMode="numeric"
+					autoFocus
+				/>
+				<Button
+					onClick={() => {
+						const n = Number.parseInt(jumpValue, 10);
+						if (doc && n >= 1 && n <= doc.numPages) {
+							goToPage(n);
+							setJumpOpen(false);
+							setJumpValue("");
+						}
+					}}
+					disabled={jumpValue.trim().length === 0}
+				>
+					Go
+				</Button>
+			</Sheet>
 
 			<Dialog
 				open={passwordOpen}
@@ -590,3 +693,30 @@ function ThumbPage({ doc, pageNum }: { doc: PdfDocument; pageNum: number }) {
 
 	return <div ref={ref} style={{ width: "100%", height: "100%" }} />;
 }
+
+/* Page pill: replaces the old scrubber bar. One quiet indicator,
+   tappable to jump. */
+const PagePill = styled.button`
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 auto;
+	margin-bottom: calc(10px + var(--safe-area-bottom, 0px));
+	padding: 8px 18px;
+	border: none;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--ink-1) 85%, transparent);
+	color: var(--bg);
+	font-size: 0.8125rem;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	cursor: pointer;
+	backdrop-filter: blur(6px);
+	transition: transform 100ms cubic-bezier(0.2, 0, 0, 1);
+	user-select: none;
+	-webkit-user-select: none;
+
+	&:active {
+		transform: scale(0.95);
+	}
+`;

@@ -11,7 +11,6 @@ import { SettingsProvider } from "@/state/SettingsContext";
 import {
 	ErrorDialog,
 	type OpenError,
-	pickAndValidate,
 	validateFileName,
 } from "@/state/openFlow";
 import { GlobalStyles } from "@/theme";
@@ -56,26 +55,31 @@ function Root() {
 
 	const goHome = useCallback(() => setRoute({ name: "home" }), []);
 
-	/** System picker flow: validate, record, open. Silent when the
-	 * user cancels the picker. */
+	/** System picker flow: route to the viewer the moment the file
+	 * is picked. The viewer reads the bytes once and sniffs the
+	 * format there — validation before reading showed an
+	 * "unsupported" dialog for every Android picker result, whose
+	 * content:// URIs carry no extension. Silent on cancel. */
 	const pickAndOpen = useCallback(async () => {
 		if (picking) return;
 		setPicking(true);
 		try {
-			const result = await pickAndValidate();
-			if (result.ok) {
+			const picked = await backend.pickFile();
+			if (picked) {
+				const format = guessFormat(picked.name);
 				recordOpen({
-					name: result.file.name,
-					format: result.file.format,
-					size: result.file.size,
-					source: result.file.source,
+					name: picked.name,
+					format,
+					size: picked.size,
+					source: picked.source,
 				});
-				openFile(result.file);
-			} else if (
-				result.error.kind !== "generic" ||
-				result.error.detail !== ""
-			) {
-				setOpenError(result.error);
+				openFile({
+					name: picked.name,
+					format,
+					size: picked.size,
+					ref: picked.ref,
+					source: picked.source,
+				});
 			}
 		} finally {
 			setPicking(false);

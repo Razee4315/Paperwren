@@ -5,11 +5,10 @@ import { ViewerShell } from "./ViewerShell";
 
 /**
  * SCR-08 DOCX reader (docs/07 section 4): docx-preview renders the
- * document's own layout into a paginated container. The full
- * fidelity tier (headings, body, runs, lists, tables, images,
- * links, page breaks) is what the library produces; the degraded
- * tiers degrade inside it. Reading mode with reflow and text size
- * follows in the reading pass.
+ * document's own layout into paginated white "paper" pages, scaled
+ * to fit the screen width. Pages stay white in every theme, like
+ * PDF pages, so text keeps its document colors and stays readable
+ * in dark mode.
  */
 
 const ScrollWrap = styled.div`
@@ -21,23 +20,26 @@ const ScrollWrap = styled.div`
 	padding-top: calc(72px + var(--safe-area-top, 0px));
 `;
 
-const DocContainer = styled.div<{ $size: number }>`
-	max-width: 820px;
+const DocContainer = styled.div<{ $zoom: number }>`
+	width: max-content;
 	margin: 0 auto;
-	background: var(--surface);
-	box-shadow: var(--shadow-1);
-	font-size: ${({ $size }) => $size}%;
+	zoom: ${({ $zoom }) => $zoom};
 
-	/* docx-preview injects its own default chrome; bring it back to
-	   the Paper and Ink surfaces. */
+	/* docx-preview injects gray chrome and dark defaults; the pages
+	   are paper and stay paper in every theme. */
 	.docx-wrapper {
 		background: transparent !important;
 		padding: 0 !important;
 	}
 	.docx-wrapper > section.docx {
-		background: var(--surface) !important;
+		background: #ffffff !important;
 		box-shadow: var(--shadow-1) !important;
-		margin-bottom: 12px;
+		margin-bottom: 12px !important;
+	}
+	/* Words the document colors as near-black; give it the paper ink. */
+	.docx-wrapper > section.docx,
+	.docx-wrapper > section.docx p {
+		color: #211b15 !important;
 	}
 `;
 
@@ -50,12 +52,6 @@ const Center = styled.div`
 	color: var(--ink-2);
 	padding: 24px;
 	text-align: center;
-`;
-
-const PanelNote = styled.p`
-	color: var(--ink-2);
-	font-size: 0.9375rem;
-	padding: 8px;
 `;
 
 declare global {
@@ -78,6 +74,7 @@ export function DocxViewer({
 	onClose: () => void;
 }) {
 	const [failed, setFailed] = useState(false);
+	const [fitZoom, setFitZoom] = useState(1);
 	const scrollRef = useRef<HTMLDivElement | null>(null);
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const positionTimer = useRef<number | null>(null);
@@ -95,6 +92,22 @@ export function DocxViewer({
 						ignoreLastRenderedPageBreak: false,
 						useBase64URL: true,
 					})
+					.then(() => {
+						if (cancelled) return;
+						// Pages render at true document width (Letter is
+						// 816 CSS px), far wider than a phone. Scale the
+						// whole document to the available width.
+						const el = scrollRef.current;
+						const section = containerRef.current?.querySelector(
+							"section.docx",
+						) as HTMLElement | null;
+						if (el && section && section.offsetWidth > 0) {
+							const available = el.clientWidth - 32;
+							setFitZoom(
+								Math.max(0.3, Math.min(1.5, available / section.offsetWidth)),
+							);
+						}
+					})
 					.catch((e: unknown) => {
 						window.__PAPERWREN_DOCX_FAIL__ = String(e);
 						setFailed(true);
@@ -105,6 +118,22 @@ export function DocxViewer({
 			cancelled = true;
 		};
 	}, [data]);
+
+	// Refit on rotation / resize.
+	useEffect(() => {
+		const el = scrollRef.current;
+		if (!el) return;
+		const ro = new ResizeObserver(() => {
+			const section = containerRef.current?.querySelector(
+				"section.docx",
+			) as HTMLElement | null;
+			if (!section || section.offsetWidth === 0) return;
+			const available = el.clientWidth - 32;
+			setFitZoom(Math.max(0.3, Math.min(1.5, available / section.offsetWidth)));
+		});
+		ro.observe(el);
+		return () => ro.disconnect();
+	}, []);
 
 	const onScroll = useCallback(() => {
 		const el = scrollRef.current;
@@ -160,7 +189,7 @@ export function DocxViewer({
 			chromeAutohide={false}
 		>
 			<ScrollWrap ref={scrollRef} onScroll={onScroll} data-testid="docx-view">
-				<DocContainer ref={containerRef} $size={100}>
+				<DocContainer ref={containerRef} $zoom={fitZoom}>
 					<PanelNote>Opening document...</PanelNote>
 				</DocContainer>
 			</ScrollWrap>
@@ -173,3 +202,9 @@ interface FilePositionLike {
 	page?: number;
 	zoom?: number;
 }
+
+const PanelNote = styled.p`
+	color: var(--ink-2);
+	font-size: 0.9375rem;
+	padding: 8px;
+`;

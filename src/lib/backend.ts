@@ -134,16 +134,13 @@ const tauriBackend: Backend = {
 		});
 		if (!result || typeof result !== "string") return null;
 		const path = result;
+		// Android pickers return content:// URIs whose last segment is
+		// an opaque numeric id with no extension. Keep the raw name as
+		// a hint only; sniffing decides the format from the bytes, and
+		// the size arrives with the single read (no extra SAF round
+		// trip, which is what made picking feel stuck).
 		const name = path.split(/[\\/]/).pop() ?? path;
-		let size = 0;
-		try {
-			const { stat } = await import("@tauri-apps/plugin-fs");
-			const meta = await stat(path);
-			size = meta.size;
-		} catch {
-			// Size is advisory; the viewer handles read failures.
-		}
-		return { name, size, source: path, ref: path };
+		return { name, size: 0, source: path, ref: path };
 	},
 	async readBytes(ref) {
 		const { readFile } = await import("@tauri-apps/plugin-fs");
