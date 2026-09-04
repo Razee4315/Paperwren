@@ -26,6 +26,7 @@ const Shell = styled.div`
 	display: flex;
 	flex-direction: column;
 	z-index: 10;
+	animation: pw-screen-in ${motion.dur.standard} ${motion.ease.enter};
 `;
 
 const TopBar = styled.header<{ $visible: boolean }>`

@@ -32,7 +32,14 @@ export interface RecentsEntry {
 	position?: FilePosition;
 }
 
-export type ThemeSetting = "system" | "light" | "dark";
+export type ThemeSetting =
+	| "system"
+	| "light"
+	| "dark"
+	| "sepia"
+	| "moss"
+	| "slate";
+export type ResolvedTheme = "paper" | "midnight" | "sepia" | "moss" | "slate";
 export type ZoomMode = "fit_width" | "fit_page" | "100";
 export type RecentsLimit = 20 | 50 | 100 | -1;
 

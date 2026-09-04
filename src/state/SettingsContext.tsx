@@ -1,6 +1,11 @@
 import { backend } from "@/lib/backend";
 import { isMobileShell } from "@/lib/env";
-import { DEFAULT_SETTINGS, STORAGE_KEYS, type Settings } from "@/lib/types";
+import {
+	DEFAULT_SETTINGS,
+	type ResolvedTheme,
+	STORAGE_KEYS,
+	type Settings,
+} from "@/lib/types";
 import {
 	type ReactNode,
 	createContext,
@@ -15,7 +20,8 @@ interface SettingsContextValue {
 	settings: Settings;
 	ready: boolean;
 	update: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
-	resolvedTheme: "paper" | "midnight";
+	resolvedTheme: ResolvedTheme;
+	isDarkTheme: boolean;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -67,11 +73,23 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 		[],
 	);
 
-	const resolvedTheme: "paper" | "midnight" = useMemo(() => {
-		if (settings["appearance.theme"] === "light") return "paper";
-		if (settings["appearance.theme"] === "dark") return "midnight";
-		return systemDark ? "midnight" : "paper";
+	const resolvedTheme: ResolvedTheme = useMemo(() => {
+		switch (settings["appearance.theme"]) {
+			case "light":
+				return "paper";
+			case "dark":
+				return "midnight";
+			case "sepia":
+			case "moss":
+			case "slate":
+				return settings["appearance.theme"];
+			default:
+				return systemDark ? "midnight" : "paper";
+		}
 	}, [settings, systemDark]);
+
+	const isDarkTheme = resolvedTheme !== "paper" && resolvedTheme !== "sepia";
+	const pureBlack = settings["appearance.pure_black"];
 
 	// Theme = one attribute on <html>; components read variables.
 	useEffect(() => {
@@ -81,9 +99,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		document.documentElement.classList.toggle(
 			"pure-black",
-			settings["appearance.pure_black"] && resolvedTheme === "midnight",
+			pureBlack && isDarkTheme,
 		);
-	}, [settings, resolvedTheme]);
+	}, [pureBlack, isDarkTheme]);
 
 	// Keyboard inset tracking (mobile lesson: measure the difference
 	// between layout and visual viewports and apply it as padding,
@@ -112,8 +130,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const value = useMemo(
-		() => ({ settings, ready, update, resolvedTheme }),
-		[settings, ready, update, resolvedTheme],
+		() => ({ settings, ready, update, resolvedTheme, isDarkTheme }),
+		[settings, ready, update, resolvedTheme, isDarkTheme],
 	);
 
 	return (

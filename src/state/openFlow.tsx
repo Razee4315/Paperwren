@@ -12,7 +12,7 @@ import { useCallback } from "react";
 export type OpenError =
 	| { kind: "legacy"; ext: string; newExt: string }
 	| { kind: "unsupported" }
-	| { kind: "too-large"; name: string; size: number; file: FileMeta }
+	| { kind: "too-large"; name: string; size: number; file?: FileMeta }
 	| { kind: "not-found"; name: string; id: string }
 	| { kind: "generic"; detail: string };
 
@@ -43,12 +43,11 @@ export function validateFileName(name: string): OpenError | null {
 export function validateFileSize(
 	name: string,
 	size: number,
-	file?: FileMeta,
-): OpenError | null {
+): Extract<OpenError, { kind: "too-large" }> | null {
 	const ext = name.split(".").pop()?.toLowerCase() ?? "";
 	const limitMb = SIZE_LIMIT_MB[ext];
-	if (limitMb && size > limitMb * 1024 * 1024 && file) {
-		return { kind: "too-large", name, size, file };
+	if (limitMb && size > limitMb * 1024 * 1024) {
+		return { kind: "too-large", name, size };
 	}
 	return null;
 }
@@ -112,7 +111,11 @@ export function ErrorDialog({
 							<Button variant="ghost" onClick={close}>
 								Cancel
 							</Button>
-							<Button onClick={() => onTryAnyway?.(error.file)}>
+							<Button
+								onClick={() => {
+									if (error.file) onTryAnyway?.(error.file);
+								}}
+							>
 								Try anyway
 							</Button>
 						</>
@@ -172,7 +175,15 @@ export async function pickAndValidate(): Promise<
 	const nameError = validateFileName(picked.name);
 	if (nameError) return { ok: false, error: nameError };
 	const file = await readFileMeta(picked);
-	const sizeError = validateFileSize(picked.name, picked.size, file);
-	if (sizeError) return { ok: false, error: sizeError };
+	const sizeError = validateFileSize(picked.name, picked.size);
+	if (sizeError) {
+		const tooLarge: OpenError = {
+			kind: "too-large",
+			name: sizeError.name,
+			size: sizeError.size,
+			file,
+		};
+		return { ok: false, error: tooLarge };
+	}
 	return { ok: true, file };
 }

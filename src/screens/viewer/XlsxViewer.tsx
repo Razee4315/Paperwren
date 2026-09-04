@@ -1,5 +1,13 @@
 import { formatCssVar } from "@/components/FormatBadge";
 import { Button, Sheet as UiSheet } from "@/components/ui";
+import {
+	DEFAULT_COL_WIDTH,
+	ROW_HEIGHT,
+	colName,
+	columnOffsets,
+	computeVisibleWindow,
+	ROW_LABEL_WIDTH as labelColWidth,
+} from "@/lib/sheetLayout";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
 import { ViewerShell } from "./ViewerShell";
@@ -28,20 +36,6 @@ interface GridSheet {
 	cells: Map<string, GridCell>;
 }
 
-const ROW_H = 30;
-const DEFAULT_COL = 96;
-const OVERSCAN = 6;
-
-function colName(index: number): string {
-	let name = "";
-	let n = index;
-	while (n >= 0) {
-		name = String.fromCharCode(65 + (n % 26)) + name;
-		n = Math.floor(n / 26) - 1;
-	}
-	return name;
-}
-
 async function loadXlsx(): Promise<typeof import("xlsx")> {
 	return import("xlsx");
 }
@@ -60,7 +54,7 @@ function parseWorkbook(wb: WorkBook): GridSheet[] {
 				name: sheetName,
 				rows: 1,
 				cols: 1,
-				widths: [DEFAULT_COL],
+				widths: [DEFAULT_COL_WIDTH],
 				cells: new Map(),
 			});
 			continue;
@@ -102,7 +96,9 @@ function parseWorkbook(wb: WorkBook): GridSheet[] {
 		const widths: number[] = [];
 		for (let c = 0; c < cols; c++) {
 			const w = (ws["!cols"]?.[c] as { wpx?: number } | undefined)?.wpx;
-			widths.push(Math.min(320, Math.max(48, Math.round(w ?? DEFAULT_COL))));
+			widths.push(
+				Math.min(320, Math.max(48, Math.round(w ?? DEFAULT_COL_WIDTH))),
+			);
 		}
 
 		sheets.push({ name: sheetName, rows, cols, widths, cells });
@@ -176,8 +172,8 @@ const GridCellBox = styled.div<{
 	left: ${({ $x }) => $x}px;
 	top: ${({ $y }) => $y}px;
 	width: ${({ $width }) => $width - 1}px;
-	height: ${ROW_H - 1}px;
-	line-height: ${ROW_H - 6}px;
+	height: ${ROW_HEIGHT - 1}px;
+	line-height: ${ROW_HEIGHT - 6}px;
 	padding: 2px 8px;
 	font-size: 0.84375rem;
 	font-variant-numeric: tabular-nums;
@@ -309,44 +305,22 @@ export function XlsxViewer({
 	const sheet = sheets?.[active];
 
 	// Column x-offsets via prefix sums for windowing.
-	const colOffsets = useMemo(() => {
-		if (!sheet) return [0];
-		const offsets = [0];
-		for (let c = 0; c < sheet.cols; c++) {
-			offsets.push(offsets[c] + (sheet.widths[c] ?? DEFAULT_COL));
-		}
-		return offsets;
-	}, [sheet]);
-
-	const labelColWidth = 48;
+	const colOffsets = useMemo(
+		() => (sheet ? columnOffsets(sheet.widths) : [0]),
+		[sheet],
+	);
 
 	const windowed = useMemo(() => {
 		if (!sheet) return null;
-		const r0 = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
-		const rCount = Math.ceil(viewport.h / ROW_H) + OVERSCAN * 2;
-		const r1 = Math.min(sheet.rows, r0 + rCount);
-
-		// First visible column: linear scan is fine for <= 500 cols.
-		let c0 = 0;
-		const viewLeft = scrollLeft;
-		while (
-			c0 < sheet.cols - 1 &&
-			colOffsets[c0 + 1] + labelColWidth < viewLeft
-		) {
-			c0++;
-		}
-		c0 = Math.max(0, c0 - OVERSCAN);
-		let c1 = c0;
-		while (
-			c1 < sheet.cols &&
-			colOffsets[c1] + labelColWidth <
-				viewLeft + viewport.w + OVERSCAN * DEFAULT_COL
-		) {
-			c1++;
-		}
-		c1 = Math.min(sheet.cols, c1 + OVERSCAN);
-
-		return { r0, r1, c0, c1 };
+		return computeVisibleWindow({
+			rows: sheet.rows,
+			cols: sheet.cols,
+			colOffsets,
+			scrollTop,
+			scrollLeft,
+			viewportWidth: viewport.w,
+			viewportHeight: viewport.h,
+		});
 	}, [sheet, scrollTop, scrollLeft, viewport, colOffsets]);
 
 	const onGridScroll = useCallback((e: React.UIEvent) => {
@@ -400,7 +374,7 @@ export function XlsxViewer({
 		: undefined;
 
 	const gridWidth = colOffsets[sheet.cols] ?? 0;
-	const gridHeight = sheet.rows * ROW_H;
+	const gridHeight = sheet.rows * ROW_HEIGHT;
 
 	return (
 		<ViewerShell
@@ -443,7 +417,7 @@ export function XlsxViewer({
 					).map((c) => (
 						<HeadCell
 							key={`colhead-${c}`}
-							$width={sheet.widths[c] ?? DEFAULT_COL}
+							$width={sheet.widths[c] ?? DEFAULT_COL_WIDTH}
 						>
 							{colName(c)}
 						</HeadCell>
@@ -457,7 +431,7 @@ export function XlsxViewer({
 						<div key={r}>
 							<RowLabel
 								$x={0}
-								$y={r * ROW_H}
+								$y={r * ROW_HEIGHT}
 								$width={labelColWidth}
 								$selected={false}
 							>
@@ -473,8 +447,8 @@ export function XlsxViewer({
 									<GridCellBox
 										key={c}
 										$x={labelColWidth + (colOffsets[c] ?? 0)}
-										$y={r * ROW_H}
-										$width={sheet.widths[c] ?? DEFAULT_COL}
+										$y={r * ROW_HEIGHT}
+										$width={sheet.widths[c] ?? DEFAULT_COL_WIDTH}
 										$selected={isSel}
 										$bold={cell?.bold}
 										$italic={cell?.italic}

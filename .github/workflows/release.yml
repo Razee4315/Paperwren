@@ -221,6 +221,13 @@ jobs:
           cp "$APK" "Paperwren-v$VERSION-android-arm64-testkey.apk"
           ls -la "Paperwren-v$VERSION-android-arm64-testkey.apk"
 
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Paperwren-android-apk
+          path: Paperwren-v*-android-arm64-testkey.apk
+          if-no-files-found: error
+
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:

@@ -253,12 +253,16 @@ function RootMenu({
 	) => void;
 }) {
 	const { settings, resolvedTheme } = useSettings();
-	const themeLabel =
-		settings["appearance.theme"] === "system"
-			? "System"
-			: resolvedTheme === "paper"
-				? "Light"
-				: "Dark";
+	const themeNames: Record<string, string> = {
+		paper: "Paper",
+		sepia: "Sepia",
+		midnight: "Midnight",
+		moss: "Moss",
+		slate: "Slate",
+	};
+	const themeLabel = settings["appearance.theme"].startsWith("system")
+		? `System (${themeNames[resolvedTheme]})`
+		: (themeNames[settings["appearance.theme"]] ?? resolvedTheme);
 
 	return (
 		<Group>
@@ -322,8 +326,41 @@ function RootMenu({
 	);
 }
 
+const THEME_SWATCHES: Record<string, { bg: string; fg: string }> = {
+	system: {
+		bg: "linear-gradient(135deg, #FAF7F2 50%, #161310 50%)",
+		fg: "#D95430",
+	},
+	light: { bg: "#FAF7F2", fg: "#D95430" },
+	sepia: { bg: "#F4EDE1", fg: "#C0562F" },
+	dark: { bg: "#161310", fg: "#F06A45" },
+	moss: { bg: "#1B2116", fg: "#D9A03F" },
+	slate: { bg: "#1A1C20", fg: "#8AA6C4" },
+};
+
+const Swatch = styled.span<{ $bg: string; $fg: string }>`
+	width: 28px;
+	height: 28px;
+	border-radius: 999px;
+	background: ${({ $bg }) => $bg};
+	border: 1px solid var(--border);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+
+	&::after {
+		content: "";
+		width: 10px;
+		height: 14px;
+		border-radius: 2px;
+		background: ${({ $fg }) => $fg};
+		transform: rotate(8deg);
+	}
+`;
+
 function AppearancePage() {
-	const { settings, update } = useSettings();
+	const { settings, update, resolvedTheme } = useSettings();
 	return (
 		<Group>
 			<GroupLabel>Theme</GroupLabel>
@@ -331,11 +368,14 @@ function AppearancePage() {
 				<RadioGroup>
 					{(
 						[
-							["system", "Follow system"],
-							["light", "Light"],
-							["dark", "Dark"],
-						] as [ThemeSetting, string][]
-					).map(([value, label]) => (
+							["system", "Follow system", "Light or dark, as your device"],
+							["light", "Paper", "Warm white, the classic look"],
+							["sepia", "Sepia", "Soft cream, easy in bright light"],
+							["dark", "Midnight", "Warm near-black"],
+							["moss", "Moss", "Deep earthy green"],
+							["slate", "Slate", "Cool neutral gray"],
+						] as [ThemeSetting, string, string][]
+					).map(([value, label, hint]) => (
 						<RadioRow
 							key={value}
 							$active={settings["appearance.theme"] === value}
@@ -344,13 +384,28 @@ function AppearancePage() {
 								update("appearance.theme", value);
 							}}
 						>
-							{label}
+							<span>
+								<span style={{ display: "block" }}>{label}</span>
+								<span
+									style={{
+										display: "block",
+										fontSize: "0.8125rem",
+										color: "var(--ink-3)",
+									}}
+								>
+									{hint}
+								</span>
+							</span>
+							<Swatch
+								$bg={THEME_SWATCHES[value].bg}
+								$fg={THEME_SWATCHES[value].fg}
+							/>
 							<RadioDot $active={settings["appearance.theme"] === value} />
 						</RadioRow>
 					))}
 				</RadioGroup>
 			</Card>
-			{settings["appearance.theme"] !== "light" && (
+			{resolvedTheme !== "paper" && resolvedTheme !== "sepia" && (
 				<>
 					<GroupLabel>Dark display</GroupLabel>
 					<Card>

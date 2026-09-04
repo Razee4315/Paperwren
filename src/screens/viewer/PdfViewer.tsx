@@ -7,6 +7,12 @@ import {
 	Sheet,
 	TextField,
 } from "@/components/ui";
+import {
+	type FitMode,
+	computePageDisplayBox,
+	nextFitMode,
+	stepZoom as stepZoomClamped,
+} from "@/lib/pdfLayout";
 import type { FilePosition } from "@/lib/types";
 import { haptic, useSettings } from "@/state/SettingsContext";
 import { Grid3x3, List, RotateCw, Search, ZoomIn, ZoomOut } from "lucide-react";
@@ -136,8 +142,13 @@ export function PdfViewer({
 	const [openError, setOpenError] = useState(false);
 	const [currentPage, setCurrentPage] = useState(initialPosition?.page ?? 0);
 	const [zoom, setZoom] = useState(1);
-	const [fitMode, setFitMode] = useState<"width" | "page">(
-		settings["viewer.zoom_mode_pdf"] === "fit_page" ? "page" : "width",
+	const settingsMode = settings["viewer.zoom_mode_pdf"];
+	const [fitMode, setFitMode] = useState<FitMode>(
+		settingsMode === "fit_page"
+			? "page"
+			: settingsMode === "100"
+				? "none"
+				: "width",
 	);
 	const [outline, setOutline] = useState<OutlineNode[] | null>(null);
 	const [outlineOpen, setOutlineOpen] = useState(false);
@@ -148,13 +159,25 @@ export function PdfViewer({
 	const [passwordError, setPasswordError] = useState<string | null>(null);
 	const [rotation, setRotation] = useState(0);
 	const [box, setBox] = useState({ width: 600, height: 800 });
+	const [viewport, setViewport] = useState({ w: 0, h: 0 });
 
 	const scrollRef = useRef<HTMLDivElement | null>(null);
 	const pageRefs = useRef(new Map<number, HTMLDivElement>());
-	const containerWidth = useRef(800);
 	const dataRef = useRef(data);
 	const positionTimer = useRef<number | null>(null);
 	const restored = useRef(false);
+
+	// Track the scroll container so geometry follows window resizes.
+	useEffect(() => {
+		const el = scrollRef.current;
+		if (!el) return;
+		const update = () =>
+			setViewport({ w: el.clientWidth - 16, h: el.clientHeight - 16 });
+		update();
+		const ro = new ResizeObserver(update);
+		ro.observe(el);
+		return () => ro.disconnect();
+	}, []);
 
 	// --- document loading, with password retry ---
 	const load = useCallback(async (dataSource: ArrayBuffer, pwd?: string) => {
@@ -200,31 +223,27 @@ export function PdfViewer({
 		load(dataRef.current, password);
 	}, [load, password]);
 
-	// --- page geometry ---
+	// --- page geometry (pure math from lib/pdfLayout, viewport-aware) ---
 	useEffect(() => {
-		if (!doc) return;
+		if (!doc || viewport.w <= 0) return;
 		let cancelled = false;
-		const el = scrollRef.current;
-		if (el) containerWidth.current = el.clientWidth - 16;
 		doc.getPage(1).then((page) => {
 			if (cancelled) return;
 			const vp = page.getViewport({ scale: 1, rotation });
-			const scale =
-				fitMode === "width"
-					? containerWidth.current / vp.width
-					: Math.min(
-							containerWidth.current / vp.width,
-							(window.innerHeight - 24) / vp.height,
-						);
-			setBox({
-				width: Math.round(vp.width * scale * zoom),
-				height: Math.round(vp.height * scale * zoom),
+			const next = computePageDisplayBox({
+				pageWidth: vp.width,
+				pageHeight: vp.height,
+				containerWidth: viewport.w,
+				containerHeight: viewport.h || window.innerHeight - 24,
+				fitMode,
+				zoom,
 			});
+			setBox({ width: next.width, height: next.height });
 		});
 		return () => {
 			cancelled = true;
 		};
-	}, [doc, fitMode, zoom, rotation]);
+	}, [doc, fitMode, zoom, rotation, viewport]);
 
 	// --- virtualized rendering: visible pages plus margin ---
 	useEffect(() => {
@@ -343,18 +362,14 @@ export function PdfViewer({
 
 	const cycleZoom = useCallback(() => {
 		haptic(settings);
-		if (fitMode !== "page") {
-			setFitMode("page");
-		} else {
-			setFitMode("width");
-			setZoom(1);
-		}
-	}, [fitMode, settings]);
+		setZoom(1);
+		setFitMode((f) => nextFitMode(f));
+	}, [settings]);
 
 	const stepZoom = useCallback(
-		(delta: number) => {
+		(direction: 1 | -1) => {
 			haptic(settings);
-			setZoom((z) => Math.min(4, Math.max(0.5, z + delta)));
+			setZoom((z) => stepZoomClamped(z, direction));
 		},
 		[settings],
 	);
@@ -396,10 +411,10 @@ export function PdfViewer({
 			chromeAutohide={settings["viewer.chrome_autohide"]}
 			topActions={
 				<>
-					<IconButton label="Zoom out" onClick={() => stepZoom(-0.25)}>
+					<IconButton label="Zoom out" onClick={() => stepZoom(-1)}>
 						<ZoomOut size={20} />
 					</IconButton>
-					<IconButton label="Zoom in" onClick={() => stepZoom(0.25)}>
+					<IconButton label="Zoom in" onClick={() => stepZoom(1)}>
 						<ZoomIn size={20} />
 					</IconButton>
 					<IconButton

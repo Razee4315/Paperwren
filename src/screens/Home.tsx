@@ -36,6 +36,7 @@ const Page = styled.div`
 	height: 100%;
 	overflow: hidden;
 	background: var(--bg);
+	animation: pw-screen-in ${motion.dur.standard} ${motion.ease.enter};
 `;
 
 const AppBar = styled.header`
@@ -75,7 +76,9 @@ const Grid = styled.div`
 	gap: ${space[3]};
 `;
 
-const Card = styled.button`
+const Card = styled.button<{ $index: number }>`
+	animation: pw-item-in ${motion.dur.standard} ${motion.ease.enter} both;
+	animation-delay: ${({ $index }) => Math.min($index * 40, 320)}ms;
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
@@ -89,14 +92,17 @@ const Card = styled.button`
 	font-family: inherit;
 	transition:
 		background-color ${motion.dur.instant} ${motion.ease.standard},
-		transform ${motion.dur.instant} ${motion.ease.standard};
+		transform ${motion.dur.instant} ${motion.ease.standard},
+		box-shadow ${motion.dur.standard} ${motion.ease.standard};
 	min-width: 0;
 
 	&:hover {
 		background: var(--surface-2);
+		box-shadow: var(--shadow-1);
 	}
 	&:active {
-		transform: scale(0.98);
+		transform: scale(0.97);
+		background: var(--surface-2);
 	}
 `;
 
@@ -274,9 +280,10 @@ export function Home({
 						<>
 							<SectionLabel>Pinned</SectionLabel>
 							<Grid>
-								{pinned.map((entry) => (
+								{pinned.map((entry, i) => (
 									<Card
 										key={entry.id}
+										$index={i}
 										onClick={() => {
 											if (longPressFired.current) {
 												longPressFired.current = false;
@@ -302,9 +309,10 @@ export function Home({
 						<>
 							<SectionLabel>Recent</SectionLabel>
 							<Grid>
-								{recent.map((entry) => (
+								{recent.map((entry, i) => (
 									<Card
 										key={entry.id}
+										$index={i}
 										onClick={() => {
 											if (longPressFired.current) {
 												longPressFired.current = false;

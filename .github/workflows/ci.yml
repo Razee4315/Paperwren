@@ -38,6 +38,9 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
+      - name: Unit tests
+        run: npm test
+
       - name: Dry-run Android patches against the pinned template
         run: node scripts/patch-android-openwith.mjs check
 
