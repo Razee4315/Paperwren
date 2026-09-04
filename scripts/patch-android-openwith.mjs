@@ -119,7 +119,7 @@ const MAINACTIVITY_METHODS = `
     // into a not-yet-ready page used to lose the delivery.
     val script =
       "window.__paperwrenOpenFile(" +
-        JSONObject.quote(path) + "," + JSONObject.quote(name) + ") ? \\"accepted\\" : \\"pending\\"
+        JSONObject.quote(path) + "," + JSONObject.quote(name) + ") ? \\"accepted\\" : \\"pending\\""
     webView.evaluateJavascript(script) { result ->
       if (result == "\\"accepted\\"") {
         pendingPath = null
@@ -275,6 +275,10 @@ function patchMainActivity(original) {
 	);
 	if (onCreateBody.indexOf("handleIncomingIntent") === -1) {
 		fail("onCreate hook not adjacent to super.onCreate.", src);
+	}
+	const bridgeExpression = String.raw`JSONObject.quote(path) + "," + JSONObject.quote(name) + ") ? \"accepted\" : \"pending\""`;
+	if (!src.includes(bridgeExpression)) {
+		fail("Bridge expression has invalid Kotlin string quoting.", src);
 	}
 	return src;
 }
