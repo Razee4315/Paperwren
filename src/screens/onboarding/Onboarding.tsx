@@ -380,37 +380,46 @@ function WelcomeArt() {
 					color="var(--fmt-pdf)"
 					rotate={10}
 				/>
-				{/* the wren: small round bird, ember breast, perched on the stack */}
+				{/* the wren: tail left, round body, lifted head with a
+				    sharp beak, ember breast, perched on the top sheet */}
 				<g>
+					{/* body: teardrop facing right */}
 					<path
-						d="M112 106 C110 98 116 92 124 92 C132 92 138 97 138 104 L138 112 L116 112 C114 110 112.5 108 112 106 Z"
+						d="M104 106 C104 99 110 94 119 94 C127 94 133 99 134 105 C134.6 108 134 110.6 133 112 L110 112 C106.5 110.5 104 108.5 104 106 Z"
 						fill="var(--ink-1)"
 					/>
+					{/* tail: two short lines lifting off the back */}
 					<path
-						d="M118 112 C119 105 125 101 132 103 C135 104 137 108 136.5 112 Z"
+						d="M105 105 L96 100 M105 108 L95 105"
+						stroke="var(--ink-1)"
+						strokeWidth="2"
+						strokeLinecap="round"
+					/>
+					{/* head detail: eye + beak */}
+					<circle cx="128" cy="100" r="1.4" fill="var(--bg)" />
+					<path
+						d="M133.4 100 L138.5 101.4 L133.4 102.8 Z"
 						fill="var(--accent)"
 					/>
-					<circle cx="133" cy="99" r="1.3" fill="var(--bg)" />
+					{/* ember breast on the lower front */}
 					<path
-						d="M138 100 L142 101 L138 102.5"
-						stroke="var(--bg)"
-						strokeWidth="1.2"
-						strokeLinecap="round"
-						fill="none"
+						d="M117 112 C117.5 105.5 123 102 129.5 104.5 C132.6 105.8 133.8 108.8 133.4 112 Z"
+						fill="var(--accent)"
 					/>
+					{/* legs */}
 					<line
-						x1="122"
+						x1="118"
 						y1="112"
-						x2="122"
+						x2="118"
 						y2="115"
 						stroke="var(--ink-1)"
 						strokeWidth="1.6"
 						strokeLinecap="round"
 					/>
 					<line
-						x1="132"
+						x1="128"
 						y1="112"
-						x2="132"
+						x2="128"
 						y2="115"
 						stroke="var(--ink-1)"
 						strokeWidth="1.6"

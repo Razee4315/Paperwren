@@ -12,3 +12,5 @@ Thumbs.db
 test-results/
 coverage/
 public/fixtures/
+fixtures/large.xlsx
+public/fixtures/large.xlsx

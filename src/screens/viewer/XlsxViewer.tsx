@@ -275,16 +275,22 @@ export function XlsxViewer({
 
 	useEffect(() => {
 		let cancelled = false;
-		loadXlsx().then((XLSX) => {
-			window.__PAPERWREN_XLSX = XLSX;
-			if (cancelled) return;
-			try {
-				const wb = XLSX.read(data, { type: "array" });
-				setSheets(parseWorkbook(wb));
-			} catch {
-				setFailed(true);
-			}
-		});
+		loadXlsx()
+			.then((XLSX) => {
+				window.__PAPERWREN_XLSX = XLSX;
+				if (cancelled) return;
+				try {
+					const wb = XLSX.read(data, { type: "array" });
+					setSheets(parseWorkbook(wb));
+				} catch {
+					setFailed(true);
+				}
+			})
+			.catch(() => {
+				// A chunk load failure must surface as an error, never a
+				// spinner that hangs forever.
+				if (!cancelled) setFailed(true);
+			});
 		return () => {
 			cancelled = true;
 		};
