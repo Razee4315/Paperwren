@@ -101,7 +101,11 @@ test("viewer sheets dismiss on Back before leaving the viewer", async ({
 	await expect(viewer).toBeVisible({ timeout: 20_000 });
 
 	await page.getByTestId("pdf-more-tools").click();
-	await page.getByTestId("pdf-tools-pages").click();
+	const toolsSheet = page.getByTestId("pdf-tools-sheet");
+	await expect(toolsSheet).toBeVisible();
+	await toolsSheet.getByTestId("pdf-tools-pages").click();
+	await expect(toolsSheet).toBeHidden();
+	await expect(page.getByTestId("pdf-thumbs-sheet")).toBeVisible();
 	await expect(page.getByTestId("pdf-thumbs-grid")).toBeVisible({
 		timeout: 10_000,
 	});

@@ -1,6 +1,7 @@
 import { useOverlayRegistration } from "@/state/NavigationContext";
 import { layout, motion, radius, type } from "@/theme";
 import type React from "react";
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 
@@ -94,20 +95,32 @@ export function Sheet({
 	const [closing, setClosing] = useState(false);
 	const startY = useRef<number | null>(null);
 	const dismissTimer = useRef<number | null>(null);
+	const closingRef = useRef(false);
+	const onDismissRef = useRef(onDismiss);
+	onDismissRef.current = onDismiss;
 
 	// Register with the shared overlay stack so system Back dismisses
 	// the top sheet before touching the screen below it.
 	useOverlayRegistration(id ?? "", open && id !== undefined, onDismiss);
 
 	const dismiss = useCallback(() => {
-		if (closing) return;
+		if (closingRef.current) return;
+		closingRef.current = true;
 		setClosing(true);
 		setDragY(0);
-		dismissTimer.current = window.setTimeout(onDismiss, 200);
-	}, [onDismiss, closing]);
+		dismissTimer.current = window.setTimeout(() => {
+			dismissTimer.current = null;
+			onDismissRef.current();
+		}, 200);
+	}, []);
 
 	useEffect(() => {
 		if (!open) return;
+		if (dismissTimer.current !== null) {
+			window.clearTimeout(dismissTimer.current);
+			dismissTimer.current = null;
+		}
+		closingRef.current = false;
 		setClosing(false);
 		setDragY(0);
 	}, [open]);
@@ -169,7 +182,7 @@ export function Sheet({
 
 	if (!open) return null;
 
-	return (
+	return createPortal(
 		<>
 			<Scrim $closing={closing} onClick={dismiss} role="presentation" />
 			{/* biome-ignore lint/a11y/useSemanticElements: bottom sheet is a dialog with custom drag behavior */}
@@ -177,6 +190,7 @@ export function Sheet({
 				role="dialog"
 				aria-modal="true"
 				aria-label={title}
+				data-testid={id ? `${id}-sheet` : undefined}
 				ref={panelRef}
 				tabIndex={-1}
 				$dragY={dragY}
@@ -197,6 +211,7 @@ export function Sheet({
 					{children}
 				</Content>
 			</Panel>
-		</>
+		</>,
+		document.body,
 	);
 }
