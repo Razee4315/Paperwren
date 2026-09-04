@@ -3,10 +3,15 @@ import { type Page, expect, test } from "@playwright/test";
 
 const samplePdf = readFileSync("fixtures/sample.pdf");
 
-/** Boot past onboarding into an empty Home. */
+/** Boot past onboarding into an empty Home. Viewer chrome stays
+ * visible so toolbar buttons never auto-hide mid-test. */
 async function bootHome(page: Page) {
 	await page.addInitScript(() => {
 		window.localStorage.setItem("paperwren.onboarded", "true");
+		window.localStorage.setItem(
+			"paperwren.settings",
+			JSON.stringify({ "viewer.chrome_autohide": false }),
+		);
 	});
 	await page.goto("/");
 	await expect(page.getByTestId("home")).toBeVisible();
