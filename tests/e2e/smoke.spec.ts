@@ -100,13 +100,17 @@ test("viewer sheets dismiss on Back before leaving the viewer", async ({
 	const viewer = page.getByTestId("viewer");
 	await expect(viewer).toBeVisible({ timeout: 20_000 });
 
-	await page.getByLabel("More PDF tools").click();
-	await expect(viewer.getByText("Pages and thumbnails")).toBeVisible();
-	await page.getByRole("button", { name: "Pages and thumbnails" }).click();
+	await page.getByTestId("pdf-more-tools").click();
+	await page.getByTestId("pdf-tools-pages").click();
+	await expect(page.getByTestId("pdf-thumbs-grid")).toBeVisible({
+		timeout: 10_000,
+	});
 
 	// Thumbnails sheet is now the top overlay; browser Back (the
 	// desktop stand-in for system Back) must dismiss it, not exit.
 	await page.goBack();
 	await expect(page.getByTestId("viewer")).toBeVisible();
-	await expect(page.getByLabel("Pages")).toBeHidden({ timeout: 10_000 });
+	await expect(page.getByTestId("pdf-thumbs-grid")).toBeHidden({
+		timeout: 10_000,
+	});
 });

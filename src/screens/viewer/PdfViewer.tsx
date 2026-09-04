@@ -912,7 +912,11 @@ export function PdfViewer({
 					>
 						<Search size={20} />
 					</IconButton>
-					<IconButton label="More PDF tools" onClick={() => setToolsOpen(true)}>
+					<IconButton
+						label="More PDF tools"
+						onClick={() => setToolsOpen(true)}
+						data-testid="pdf-more-tools"
+					>
 						<MoreVertical size={20} />
 					</IconButton>
 				</>
@@ -985,6 +989,7 @@ export function PdfViewer({
 				onDismiss={() => setToolsOpen(false)}
 			>
 				<ToolButton
+					data-testid="pdf-tools-pages"
 					onClick={() => {
 						setToolsOpen(false);
 						setThumbsOpen(true);
@@ -1034,7 +1039,7 @@ export function PdfViewer({
 				id="pdf-thumbs"
 				onDismiss={() => setThumbsOpen(false)}
 			>
-				<ThumbGrid>
+				<ThumbGrid data-testid="pdf-thumbs-grid">
 					{doc &&
 						Array.from({ length: doc.numPages }, (_, i) => (
 							<Thumb
