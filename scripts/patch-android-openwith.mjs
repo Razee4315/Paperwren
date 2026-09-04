@@ -119,7 +119,7 @@ const MAINACTIVITY_METHODS = `
     // into a not-yet-ready page used to lose the delivery.
     val script =
       "window.__paperwrenOpenFile(" +
-        JSONObject.quote(path) + "," + JSONObject.quote(name) + ") ? 'accepted' : 'pending'"
+        JSONObject.quote(path) + "," + JSONObject.quote(name) + ") ? \"accepted\" : \"pending\""
     webView.evaluateJavascript(script) { result ->
       if (result == "\"accepted\"") {
         pendingPath = null
