@@ -2,8 +2,11 @@
  * Adds the "open with" pipeline to the generated Android project
  * (docs/10 section 3): intent filters for ACTION_VIEW and
  * ACTION_SEND on the document MIME types, and a MainActivity patch
- * that copies the incoming content:// stream into an app-private
- * inbox and hands the real path to the webview.
+ * that ingests the incoming content:// stream asynchronously into
+ * an app-private managed-imports store and hands the real path and
+ * the provider's DISPLAY_NAME to the webview. Also installs the
+ * system Back bridge: the web layer consumes Back when an overlay
+ * or screen is open, otherwise the activity finishes.
  *
  * Template anchors are verified against the tauri-cli 2.11.4
  * template (scripts/fixtures/MainActivity.template.kt), with the
@@ -23,7 +26,9 @@ const mode = process.argv[2] ?? "apply";
 
 const MAINACTIVITY_IMPORTS = `import android.content.Intent
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.webkit.WebView
+import androidx.activity.OnBackPressedCallback
 import androidx.core.content.IntentCompat
 import android.os.Handler
 import android.os.Looper
@@ -41,12 +46,47 @@ const MAINACTIVITY_METHODS = `
       intent.data
     }
     if (uri == null) return
-    copyIncomingFile(uri, intent.type)
-    deliverPendingFile(0)
+    // Ingest off the main thread: a 250 MB scan must never freeze
+    // onCreate/onNewIntent, and Back must stay responsive while the
+    // copy runs (audit section 4.4).
+    Thread { ingestIncomingFile(uri, intent.type) }.start()
   }
 
-  private fun inboxName(uri: Uri, mime: String?): String {
-    var name = uri.lastPathSegment ?: "document"
+  /** Provider metadata first: DISPLAY_NAME is the real file name the
+   * user recognizes; the URI's last segment is only a fallback. */
+  private fun queryDisplayName(uri: Uri): String {
+    try {
+      contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+          val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+          if (idx >= 0) {
+            val name = cursor.getString(idx)
+            if (!name.isNullOrBlank()) return name
+          }
+        }
+      }
+    } catch (e: Exception) {
+      // Fall through to the last segment.
+    }
+    return uri.lastPathSegment ?: "document"
+  }
+
+  private fun querySize(uri: Uri): Long {
+    try {
+      contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+          val idx = cursor.getColumnIndex(OpenableColumns.SIZE)
+          if (idx >= 0 && !cursor.isNull(idx)) return cursor.getLong(idx)
+        }
+      }
+    } catch (e: Exception) {
+      // Unknown size is fine; the read reports it later.
+    }
+    return 0L
+  }
+
+  private fun inboxName(displayName: String, mime: String?): String {
+    var name = displayName
     if (name.contains("/")) name = name.substring(name.lastIndexOf('/') + 1)
     val known = listOf("pdf", "docx", "xlsx", "pptx", "csv", "txt", "md")
     if (known.any { name.endsWith(".$it", true) }) return name
@@ -67,25 +107,46 @@ const MAINACTIVITY_METHODS = `
     return cleaned.ifEmpty { "document" }
   }
 
-  private fun copyIncomingFile(uri: Uri, mime: String?) {
+  /** Ingest into the managed imports store (app_data/imports): a
+   * reopen-critical copy that "Clear cache" never touches. Opening
+   * the same file twice dedupes by name + size instead of stacking
+   * "report (1).pdf" copies (audit section 4.4 item 8). */
+  private fun ingestIncomingFile(uri: Uri, mime: String?) {
     try {
-      val inbox = File(filesDir, "inbox").apply { mkdirs() }
-      val base = sanitizeName(inboxName(uri, mime))
-      // Never overwrite: a previous inbox copy may hold real work.
-      var target = File(inbox, base)
+      val displayName = queryDisplayName(uri)
+      val imports = File(filesDir, "imports").apply { mkdirs() }
+      val base = sanitizeName(inboxName(displayName, mime))
+      var target = File(imports, base)
       var n = 1
-      while (target.exists()) {
+      while (target.exists() && target.length() != querySize(uri)) {
         val dot = base.lastIndexOf('.')
         val candidate = if (dot > 0) base.substring(0, dot) + " ($n)" + base.substring(dot) else "$base ($n)"
-        target = File(inbox, candidate)
+        target = File(imports, candidate)
         n++
       }
-      contentResolver.openInputStream(uri)?.use { input ->
-        target.outputStream().use { output -> input.copyTo(output) }
+      if (!target.exists() || target.length() == 0L) {
+        val tmp = File(imports, ".$base.$$.tmp")
+        try {
+          contentResolver.openInputStream(uri)?.use { input ->
+            tmp.outputStream().use { output -> input.copyTo(output) }
+          } ?: return
+          if (tmp.length() == 0L) {
+            tmp.delete()
+            return
+          }
+          if (target.exists()) target.delete()
+          if (!tmp.renameTo(target)) return
+        } finally {
+          tmp.delete()
+        }
       }
-      if (target.length() > 0) {
+      val copiedName = target.name
+      val copiedSize = target.length()
+      Handler(Looper.getMainLooper()).post {
         pendingPath = target.absolutePath
-        pendingName = target.name
+        pendingName = copiedName
+        pendingSize = copiedSize
+        deliverPendingFile(0)
       }
     } catch (e: Exception) {
       // Leave the app running; the file simply does not open.
@@ -104,7 +165,7 @@ const MAINACTIVITY_METHODS = `
     val path = pendingPath ?: return
     val name = pendingName ?: return
     if (attempt > 200) {
-      // 30 seconds of retries. The inbox copy remains on disk; a
+      // 30 seconds of retries. The imports copy remains on disk; a
       // delivery is never dropped silently before this cap.
       return
     }
@@ -119,11 +180,12 @@ const MAINACTIVITY_METHODS = `
     // into a not-yet-ready page used to lose the delivery.
     val script =
       "window.__paperwrenOpenFile(" +
-        JSONObject.quote(path) + "," + JSONObject.quote(name) + ") ? \\"accepted\\" : \\"pending\\""
+        JSONObject.quote(path) + "," + JSONObject.quote(name) + "," + pendingSize + ") ? \\"accepted\\" : \\"pending\\""
     webView.evaluateJavascript(script) { result ->
       if (result == "\\"accepted\\"") {
         pendingPath = null
         pendingName = null
+        pendingSize = 0L
       } else {
         Handler(Looper.getMainLooper()).postDelayed({ deliverPendingFile(attempt + 1) }, 150)
       }
@@ -147,7 +209,8 @@ const MAINACTIVITY_METHODS = `
     return null
   }`;
 
-const MAINACTIVITY_ONCREATE_HOOK = "    handleIncomingIntent(intent)";
+const MAINACTIVITY_ONCREATE_HOOK = `    handleIncomingIntent(intent)
+    installBackBridge()`;
 
 const MAINACTIVITY_ONNEWINTENT = `
   override fun onNewIntent(intent: Intent) {
@@ -155,9 +218,39 @@ const MAINACTIVITY_ONNEWINTENT = `
     handleIncomingIntent(intent)
   }`;
 
+/** System Back bridge (audit section 5.3): ask the web layer first;
+ * when it did not consume Back (nothing to dismiss or pop), briefly
+ * disable the callback so the dispatcher performs the default
+ * finish behavior instead of looping back into this callback. */
+const MAINACTIVITY_BACK_METHOD = `
+  private fun installBackBridge() {
+    onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+      override fun handleOnBackPressed() {
+        val webView = findWebView()
+        if (webView == null || !isAppOrigin(webView.url)) {
+          setEnabledAndFinish()
+          return
+        }
+        webView.evaluateJavascript(
+          "window.__paperwrenHandleBack ? window.__paperwrenHandleBack() : 'false'"
+        ) { result ->
+          if (result == "true") return@evaluateJavascript
+          setEnabledAndFinish()
+        }
+      }
+
+      private fun setEnabledAndFinish() {
+        isEnabled = false
+        onBackPressedDispatcher.onBackPressed()
+        isEnabled = true
+      }
+    })
+  }`;
+
 const MAINACTIVITY_FIELDS = `
   private var pendingPath: String? = null
-  private var pendingName: String? = null`;
+  private var pendingName: String? = null
+  private var pendingSize: Long = 0L`;
 
 const ACTION_VIEW_FILTER = `
         <intent-filter>
@@ -244,6 +337,8 @@ function patchMainActivity(original) {
 		"\n" +
 		MAINACTIVITY_FIELDS +
 		"\n" +
+		MAINACTIVITY_BACK_METHOD +
+		"\n" +
 		MAINACTIVITY_METHODS +
 		"\n" +
 		src.slice(lastBrace);
@@ -268,7 +363,7 @@ function patchMainActivity(original) {
 	if (/(^|\n)override fun/.test(src.slice(bodyEnd))) {
 		fail("An override sits after the class body.", src);
 	}
-	// onCreate must keep its original call then our hook, in order.
+	// onCreate must keep its original call then our hooks, in order.
 	const onCreateBody = src.slice(
 		onCreateAnchor,
 		src.indexOf("}", onCreateAnchor),
@@ -276,7 +371,16 @@ function patchMainActivity(original) {
 	if (onCreateBody.indexOf("handleIncomingIntent") === -1) {
 		fail("onCreate hook not adjacent to super.onCreate.", src);
 	}
-	const bridgeExpression = String.raw`JSONObject.quote(path) + "," + JSONObject.quote(name) + ") ? \"accepted\" : \"pending\""`;
+	if (onCreateBody.indexOf("installBackBridge") === -1) {
+		fail("Back bridge hook not adjacent to super.onCreate.", src);
+	}
+	if (!classBody.includes("OnBackPressedCallback")) {
+		fail("Back bridge callback missing from the class body.", src);
+	}
+	if (!classBody.includes("OpenableColumns.DISPLAY_NAME")) {
+		fail("Display-name query missing from the class body.", src);
+	}
+	const bridgeExpression = String.raw`JSONObject.quote(path) + "," + JSONObject.quote(name) + "," + pendingSize + ") ? \"accepted\" : \"pending\""`;
 	if (!src.includes(bridgeExpression)) {
 		fail("Bridge expression has invalid Kotlin string quoting.", src);
 	}
@@ -314,6 +418,12 @@ if (mode === "check") {
 	const inside = body.slice(0, last);
 	if (!inside.includes("override fun onNewIntent")) {
 		fail("Dry run: onNewIntent outside class.", body);
+	}
+	if (!inside.includes("installBackBridge")) {
+		fail("Dry run: back bridge outside class.", body);
+	}
+	if (!inside.includes("OpenableColumns.DISPLAY_NAME")) {
+		fail("Dry run: display-name query outside class.", body);
 	}
 	console.log("Dry run OK: patch applies cleanly to the 2.11.4 template.");
 	process.exit(0);

@@ -40,6 +40,18 @@ fn cache_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(base)
 }
 
+/// Managed open-with copies live here. They are reopen-critical, so
+/// they are NOT part of "Clear cache" (audit section 4.4): removing
+/// one invalidates its recent instead of happening silently.
+fn imports_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let base = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("imports");
+    Ok(base)
+}
+
 /// Only plain name characters survive; this key becomes a filename.
 fn sanitize_key(key: &str) -> String {
     key.chars()
@@ -60,10 +72,22 @@ fn store_get(app: tauri::AppHandle, key: String) -> Result<Value, String> {
 #[tauri::command]
 fn store_set(app: tauri::AppHandle, key: String, value: Value) -> Result<(), String> {
     let dir = store_dir(&app)?;
-    let path = dir.join(format!("{}.json", sanitize_key(&key)));
+    let safe_key = sanitize_key(&key);
+    let path = dir.join(format!("{safe_key}.json"));
     // Atomic write: a kill mid-write must leave the previous
-    // version readable, so write a temp file and rename.
-    let tmp = dir.join(format!(".{}.tmp", std::process::id()));
+    // version readable, so write a temp file and rename. The temp
+    // name is unique per destination key AND write generation:
+    // settings and recents writing concurrently used to share one
+    // process-wide temp path (audit section 15.2).
+    let generation = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let tmp = dir.join(format!(
+        ".{safe_key}.{}.{}.tmp",
+        std::process::id(),
+        generation
+    ));
     {
         let mut f = fs::File::create(&tmp).map_err(|e| e.to_string())?;
         let payload = serde_json::to_vec(&value).map_err(|e| e.to_string())?;
@@ -103,6 +127,26 @@ fn clear_cache(app: tauri::AppHandle) -> Result<CacheStats, String> {
     Ok(CacheStats { bytes: 0 })
 }
 
+#[tauri::command]
+fn imports_stats(app: tauri::AppHandle) -> Result<CacheStats, String> {
+    let root = imports_root(&app)?;
+    Ok(CacheStats {
+        bytes: dir_size(&root),
+    })
+}
+
+/// Removing managed copies invalidates their recents; the frontend
+/// marks the affected entries unavailable rather than calling this
+/// under a control labeled only "Clear cache".
+#[tauri::command]
+fn clear_imports(app: tauri::AppHandle) -> Result<CacheStats, String> {
+    let root = imports_root(&app)?;
+    if root.exists() {
+        fs::remove_dir_all(&root).map_err(|e| e.to_string())?;
+    }
+    Ok(CacheStats { bytes: 0 })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -112,7 +156,9 @@ pub fn run() {
             store_get,
             store_set,
             cache_stats,
-            clear_cache
+            clear_cache,
+            imports_stats,
+            clear_imports
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

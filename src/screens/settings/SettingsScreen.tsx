@@ -8,6 +8,7 @@ import {
 } from "@/components/ui";
 import { backend, formatBytes } from "@/lib/backend";
 import type { RecentsLimit, ThemeSetting, ZoomMode } from "@/lib/types";
+import { useNavigation } from "@/state/NavigationContext";
 import { useRecents } from "@/state/RecentsContext";
 import { haptic, useSettings } from "@/state/SettingsContext";
 import { layout, motion, radius, space, type as typeScale } from "@/theme";
@@ -38,8 +39,18 @@ type Subpage =
 	| "licenses"
 	| "policy";
 
-export function SettingsScreen({ onClose }: { onClose: () => void }) {
-	const [subpage, setSubpage] = useState<Subpage>(null);
+export function SettingsScreen({
+	visible,
+	subpage,
+}: {
+	/** False when a viewer is stacked above; keeps state alive. */
+	visible: boolean;
+	/** Subpage lives in the navigation stack so system Back leaves
+	 * a subpage before leaving Settings (audit section 5). */
+	subpage: Subpage;
+}) {
+	const { setSettingsSubpage, handleBack } = useNavigation();
+	const setSubpage = setSettingsSubpage;
 
 	const titles: Record<NonNullable<Subpage>, string> = {
 		appearance: "Appearance",
@@ -52,17 +63,19 @@ export function SettingsScreen({ onClose }: { onClose: () => void }) {
 	};
 
 	return (
-		<Page data-testid="settings">
+		<Page
+			data-testid="settings"
+			style={visible ? undefined : { display: "none" }}
+		>
 			<AppBar>
-				{subpage ? (
-					<IconButton label="Back" onClick={() => setSubpage(null)}>
-						<ArrowLeft size={22} />
-					</IconButton>
-				) : (
-					<IconButton label="Back" onClick={onClose}>
-						<ArrowLeft size={22} />
-					</IconButton>
-				)}
+				{/* Toolbar Back is the same handleBack as system Back. */}
+				<IconButton
+					label="Back"
+					onClick={handleBack}
+					data-testid="settings-back"
+				>
+					<ArrowLeft size={22} />
+				</IconButton>
 				<BarTitle>{subpage ? titles[subpage] : "Settings"}</BarTitle>
 			</AppBar>
 

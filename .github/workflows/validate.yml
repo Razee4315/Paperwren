@@ -1,0 +1,197 @@
+name: Validate
+
+# Non-release validation for working branches and PRs (audit
+# section 17.4): frontend lint/type/test, Rust checks, browser
+# integration tests, and an Android APK build uploaded as an
+# artifact. Never bumps versions, tags, or publishes releases.
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend lint, build, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build (tsc + vite)
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Dry-run Android patches against the pinned template
+        run: node scripts/patch-android-openwith.mjs check
+
+      - name: Android icon foreground bounding-box check
+        run: node scripts/check-icon-foreground.mjs
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+          if-no-files-found: error
+
+  rust:
+    name: Rust check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Check Rust
+        working-directory: src-tauri
+        run: cargo check --all-targets
+
+  browser:
+    name: Browser integration tests
+    runs-on: ubuntu-latest
+    needs: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Playwright without touching the lockfile
+        run: npm install --no-save @playwright/test
+
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Build the app
+        run: npm run build
+
+      - name: Run browser tests
+        run: npx playwright test
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-results
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+
+  android:
+    name: Android APK (debug, arm64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Android SDK and NDK environment
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          NDK_DIR=$(ls -d "$ANDROID_HOME"/ndk/*/ 2>/dev/null | sort -V | tail -1 || true)
+          if [ -z "$NDK_DIR" ]; then
+            echo "No preinstalled NDK found" >&2
+            exit 1
+          fi
+          echo "NDK_HOME=$NDK_DIR" >> "$GITHUB_ENV"
+          echo "GRADLE_OPTS=-Dorg.gradle.daemon=false" >> "$GITHUB_ENV"
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-validate
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Cache debug keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: paperwren-android-debug-keystore
+
+      - name: Generate app icons
+        run: |
+          npx tauri icon assets/brand/app-icon.svg --output src-tauri/icons
+          npx tauri icon assets/brand/app-icon-foreground.svg --output .tauri-icons-android
+
+      - name: Initialize Android project
+        run: npx tauri android init
+
+      - name: Patch generated Android project
+        run: |
+          node scripts/patch-android-icons.mjs
+          node scripts/patch-android-manifest.mjs
+          node scripts/patch-android-openwith.mjs
+
+      - name: Build debug APK (arm64)
+        run: npx tauri android build --target aarch64 --debug
+
+      - name: Collect APK
+        run: |
+          set -eo pipefail
+          APK=$(find src-tauri/gen/android/app/build/outputs/apk -name "*debug*.apk" | head -1 || true)
+          if [ -z "$APK" ]; then
+            echo "No debug APK found"
+            find src-tauri/gen/android/app/build/outputs -type f || true
+            exit 1
+          fi
+          mkdir -p artifacts
+          cp "$APK" artifacts/Paperwren-debug-android-arm64.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Paperwren-debug-android-arm64
+          path: artifacts/Paperwren-debug-android-arm64.apk
+          if-no-files-found: error

@@ -13,7 +13,9 @@ import { useRecents } from "@/state/RecentsContext";
 import { CoachBubble } from "@/state/coachMarks";
 import { layout, motion, radius, space, type } from "@/theme";
 import {
+	BookOpen,
 	Info,
+	MoreVertical,
 	Pin,
 	PinOff,
 	Plus,
@@ -24,9 +26,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 
 /**
- * SCR-05 Home (docs/05 section 4): recents grid, FAB "Open a file",
- * long-press sheet with Pin / Remove / Details. Empty state uses
- * the Fraunces headline from the copy deck (no em dashes).
+ * SCR-05 Home (docs/05 section 4, audit section 12): a useful,
+ * intentional dashboard. Full-width recent rows on phones with a
+ * visible overflow action (long-press is a shortcut, never the only
+ * route), a Continue reading card for the most recent healthy
+ * document, skeletons while loading, and honest unavailable states
+ * with repair instead of a late parser failure.
  */
 
 const Page = styled.div`
@@ -70,17 +75,23 @@ const SectionLabel = styled.h2`
 	margin: ${space[4]} 0 ${space[2]};
 `;
 
-const Grid = styled.div`
+/** Full-width rows on compact widths; a balanced grid only when the
+ * cards can actually use the width (audit 12.2). */
+const List = styled.div`
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
-	gap: ${space[3]};
+	grid-template-columns: 1fr;
+	gap: ${space[2]};
+	@media (min-width: 720px) {
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+		gap: ${space[3]};
+	}
 `;
 
-const Card = styled.button<{ $index: number }>`
+const RowCard = styled.button<{ $index: number; $dim?: boolean }>`
 	animation: pw-item-in ${motion.dur.standard} ${motion.ease.enter} both;
 	animation-delay: ${({ $index }) => Math.min($index * 40, 320)}ms;
 	display: grid;
-	grid-template-columns: auto minmax(0, 1fr);
+	grid-template-columns: auto minmax(0, 1fr) auto;
 	align-items: center;
 	gap: ${space[3]};
 	padding: ${space[3]};
@@ -96,25 +107,26 @@ const Card = styled.button<{ $index: number }>`
 		box-shadow ${motion.dur.standard} ${motion.ease.standard};
 	min-width: 0;
 	min-height: 76px;
+	opacity: ${({ $dim }) => ($dim ? 0.62 : 1)};
 
 	&:hover {
 		background: var(--surface-2);
 		box-shadow: var(--shadow-1);
 	}
 	&:active {
-		transform: scale(0.97);
+		transform: scale(0.98);
 		background: var(--surface-2);
 	}
 `;
 
-const CardText = styled.span`
+const RowText = styled.span`
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
 	min-width: 0;
 `;
 
-const CardName = styled.span`
+const RowName = styled.span`
 	${type.titleS};
 	color: var(--ink-1);
 	overflow: hidden;
@@ -123,13 +135,87 @@ const CardName = styled.span`
 	max-width: 100%;
 `;
 
-const CardMeta = styled.span`
+const RowMeta = styled.span`
 	${type.small};
 	color: var(--ink-3);
 	font-variant-numeric: tabular-nums;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+`;
+
+const UnavailableChip = styled.span`
+	${type.small};
+	color: var(--danger, #b3261e);
+	font-weight: 600;
+`;
+
+/** Continue reading card for the most recent healthy document. */
+const ContinueCard = styled.button`
+	display: flex;
+	align-items: center;
+	gap: ${space[3]};
+	width: 100%;
+	padding: ${space[4]};
+	margin-top: ${space[2]};
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: ${radius.xl};
+	cursor: pointer;
+	text-align: left;
+	font-family: inherit;
+	box-shadow: var(--shadow-1);
+	transition: transform ${motion.dur.instant} ${motion.ease.standard};
+
+	&:active {
+		transform: scale(0.99);
+	}
+`;
+
+const ContinueBody = styled.span`
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+	flex: 1;
+`;
+
+const ContinueTitle = styled.span`
+	${type.caption};
+	color: var(--ink-3);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+`;
+
+const ContinueName = styled.span`
+	${type.titleS};
+	color: var(--ink-1);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+`;
+
+const ContinueSub = styled.span`
+	${type.small};
+	color: var(--ink-2);
+	font-variant-numeric: tabular-nums;
+`;
+
+const ContinueCta = styled.span`
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--accent-strong);
+	${type.small};
+	font-weight: 700;
+	flex-shrink: 0;
+`;
+
+const Skeleton = styled.div<{ $w?: string }>`
+	height: 76px;
+	border-radius: ${radius.l};
+	background: var(--surface-2);
+	margin-bottom: ${space[2]};
 `;
 
 const EmptyState = styled.div`
@@ -199,6 +285,9 @@ function recentMeta(entry: RecentsEntry): string {
 		entry.format === "unknown" ? "File" : entry.format.toUpperCase();
 	const parts = [format];
 	if (entry.size > 0) parts.push(formatBytes(entry.size));
+	if (entry.position?.page !== undefined) {
+		parts.push(`Page ${entry.position.page + 1}`);
+	}
 	parts.push(relativeDate(entry.lastOpenedAt));
 	return parts.join(" · ");
 }
@@ -246,6 +335,9 @@ export function Home({
 
 	const pinned = entries.filter((e) => e.pinned);
 	const recent = entries.filter((e) => !e.pinned);
+	const continueEntry = entries.find(
+		(e) => !e.unavailable && e.position?.page !== undefined,
+	);
 
 	const longPressFired = useRef(false);
 
@@ -272,6 +364,43 @@ export function Home({
 		},
 	});
 
+	const renderRow = (entry: RecentsEntry, i: number) => (
+		<RowCard
+			key={entry.id}
+			$index={i}
+			$dim={entry.unavailable}
+			onClick={() => {
+				if (longPressFired.current) {
+					longPressFired.current = false;
+					return;
+				}
+				onOpenRecent(entry);
+			}}
+			{...longPressProps(entry)}
+			data-testid={`recent-${entry.id}`}
+		>
+			<FormatBadge format={entry.format} size={48} />
+			<RowText>
+				<RowName>{entry.name}</RowName>
+				<RowMeta>{recentMeta(entry)}</RowMeta>
+				{entry.unavailable && (
+					<UnavailableChip>Not available — tap to fix</UnavailableChip>
+				)}
+			</RowText>
+			{/* Visible overflow: actions are never long-press-only. */}
+			<IconButton
+				label={`Actions for ${entry.name}`}
+				onClick={(e) => {
+					e.stopPropagation();
+					setSheetEntry(entry);
+				}}
+				data-testid={`recent-actions-${entry.id}`}
+			>
+				<MoreVertical size={20} />
+			</IconButton>
+		</RowCard>
+	);
+
 	return (
 		<Page data-testid="home">
 			<AppBar>
@@ -285,7 +414,14 @@ export function Home({
 				</IconButton>
 			</AppBar>
 
-			{ready && entries.length === 0 ? (
+			{!ready ? (
+				<Scroll aria-busy="true">
+					<SectionLabel>Recent files</SectionLabel>
+					<Skeleton />
+					<Skeleton />
+					<Skeleton />
+				</Scroll>
+			) : entries.length === 0 ? (
 				<EmptyState data-testid="empty-state">
 					<EmptyIllustration />
 					<EmptyHeadline>Nothing here yet.</EmptyHeadline>
@@ -303,60 +439,35 @@ export function Home({
 				</EmptyState>
 			) : (
 				<Scroll ref={scrollRef} onScroll={onScroll}>
+					{continueEntry && (
+						<ContinueCard
+							onClick={() => onOpenRecent(continueEntry)}
+							data-testid="continue-reading"
+						>
+							<FormatBadge format={continueEntry.format} size={44} />
+							<ContinueBody>
+								<ContinueTitle>Continue reading</ContinueTitle>
+								<ContinueName>{continueEntry.name}</ContinueName>
+								<ContinueSub>
+									Page {(continueEntry.position?.page ?? 0) + 1} ·{" "}
+									{relativeDate(continueEntry.lastOpenedAt)}
+								</ContinueSub>
+							</ContinueBody>
+							<ContinueCta>
+								<BookOpen size={16} /> Resume
+							</ContinueCta>
+						</ContinueCard>
+					)}
 					{pinned.length > 0 && (
 						<>
 							<SectionLabel>Pinned</SectionLabel>
-							<Grid>
-								{pinned.map((entry, i) => (
-									<Card
-										key={entry.id}
-										$index={i}
-										onClick={() => {
-											if (longPressFired.current) {
-												longPressFired.current = false;
-												return;
-											}
-											onOpenRecent(entry);
-										}}
-										{...longPressProps(entry)}
-										data-testid={`recent-${entry.id}`}
-									>
-										<FormatBadge format={entry.format} size={46} />
-										<CardText>
-											<CardName>{entry.name}</CardName>
-											<CardMeta>{recentMeta(entry)}</CardMeta>
-										</CardText>
-									</Card>
-								))}
-							</Grid>
+							<List>{pinned.map(renderRow)}</List>
 						</>
 					)}
 					{recent.length > 0 && (
 						<>
-							<SectionLabel>Recent</SectionLabel>
-							<Grid>
-								{recent.map((entry, i) => (
-									<Card
-										key={entry.id}
-										$index={i}
-										onClick={() => {
-											if (longPressFired.current) {
-												longPressFired.current = false;
-												return;
-											}
-											onOpenRecent(entry);
-										}}
-										{...longPressProps(entry)}
-										data-testid={`recent-${entry.id}`}
-									>
-										<FormatBadge format={entry.format} size={46} />
-										<CardText>
-											<CardName>{entry.name}</CardName>
-											<CardMeta>{recentMeta(entry)}</CardMeta>
-										</CardText>
-									</Card>
-								))}
-							</Grid>
+							<SectionLabel>Recent files ({recent.length})</SectionLabel>
+							<List>{recent.map(renderRow)}</List>
 						</>
 					)}
 				</Scroll>
@@ -366,7 +477,7 @@ export function Home({
 				<Plus size={26} />
 			</FAB>
 
-			{entries.length === 0 && (
+			{ready && entries.length === 0 && (
 				<CoachBubble
 					id="homeFab"
 					position={{ bottom: "96px" }}
@@ -377,6 +488,7 @@ export function Home({
 			<Sheet
 				open={sheetEntry !== null}
 				title={sheetEntry?.name ?? ""}
+				id="home-actions"
 				onDismiss={() => setSheetEntry(null)}
 			>
 				{sheetEntry && (

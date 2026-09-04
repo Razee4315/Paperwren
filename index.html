@@ -21,8 +21,8 @@
       // answer is anything else, so a delivery is never lost into a
       // page that had not finished loading.
       window.__paperwrenFiles = [];
-      window.__paperwrenOpenFile = function (path, name) {
-        window.__paperwrenFiles.push({ path: path, name: name });
+      window.__paperwrenOpenFile = function (path, name, size) {
+        window.__paperwrenFiles.push({ path: path, name: name, size: size || 0 });
         window.dispatchEvent(new CustomEvent("paperwren-file"));
         return true;
       };

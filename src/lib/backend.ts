@@ -1,5 +1,7 @@
 import { isTauriEnvironment } from "./env";
-import type { FileMeta } from "./types";
+import { type OpenFailure, classifyOpenError } from "./errors";
+import { createSerializedWriter } from "./serializedWriter";
+import type { FileMeta, RecentsEntry, ReopenDescriptor } from "./types";
 
 /**
  * The one platform boundary of the app: pick a file, read its
@@ -16,15 +18,25 @@ export interface PickedFileMeta {
 	size: number;
 	source: string;
 	ref: string;
+	reopen?: ReopenDescriptor;
 }
+
+export type OpenRecentResult =
+	| { ok: true; buffer: ArrayBuffer }
+	| { ok: false; failure: OpenFailure };
 
 interface Backend {
 	pickFile(): Promise<PickedFileMeta | null>;
 	readBytes(ref: string): Promise<ArrayBuffer>;
+	/** Resolve a recent's durable descriptor into readable bytes or
+	 * a typed failure (audit section 4.5). */
+	openRecent(entry: RecentsEntry): Promise<OpenRecentResult>;
 	storeGet(key: string): Promise<unknown>;
 	storeSet(key: string, value: unknown): Promise<void>;
 	cacheStats(): Promise<{ bytes: number }>;
 	clearCache(): Promise<void>;
+	importsStats(): Promise<{ bytes: number }>;
+	clearImports(): Promise<void>;
 }
 
 // ---------- Browser backend (development and web preview) ----------
@@ -82,6 +94,13 @@ const browserBackend: Backend = {
 		if (!file) throw new Error("File not found. It may have been moved.");
 		return file.arrayBuffer();
 	},
+	async openRecent(entry) {
+		// Browser sources ("browser:name") only resolve while the
+		// in-memory map still holds the picked File.
+		const file = browserFiles.get(entry.source);
+		if (!file) return { ok: false, failure: "not_found" };
+		return { ok: true, buffer: await file.arrayBuffer() };
+	},
 	async storeGet(key) {
 		const raw = localStorage.getItem(`paperwren.${key}`);
 		return raw === null ? null : JSON.parse(raw);
@@ -99,6 +118,10 @@ const browserBackend: Backend = {
 	async clearCache() {
 		browserFiles.clear();
 	},
+	async importsStats() {
+		return { bytes: 0 };
+	},
+	async clearImports() {},
 };
 
 // ---------- Tauri backend ----------
@@ -137,7 +160,10 @@ const tauriBackend: Backend = {
 		// the size arrives with the single read (no extra SAF round
 		// trip, which is what made picking feel stuck).
 		const name = path.split(/[\\/]/).pop() ?? path;
-		return { name, size: 0, source: path, ref: path };
+		const reopen: ReopenDescriptor = path.startsWith("content://")
+			? { kind: "persisted-uri", uri: path }
+			: { kind: "desktop-path", path };
+		return { name, size: 0, source: path, ref: path, reopen };
 	},
 	async readBytes(ref) {
 		const { readFile } = await import("@tauri-apps/plugin-fs");
@@ -147,23 +173,62 @@ const tauriBackend: Backend = {
 			bytes.byteOffset + bytes.byteLength,
 		) as ArrayBuffer;
 	},
+	async openRecent(entry) {
+		const target = entry.reopen?.kind !== undefined ? entry.reopen : null;
+		const ref =
+			target?.kind === "persisted-uri"
+				? target.uri
+				: target?.kind === "managed-copy" || target?.kind === "desktop-path"
+					? target.path
+					: entry.source;
+		try {
+			const buffer = await this.readBytes(ref);
+			if (buffer.byteLength === 0) return { ok: false, failure: "corrupt" };
+			return { ok: true, buffer };
+		} catch (err) {
+			const failure = classifyOpenError(err);
+			// A revoked/unavailable provider or a vanished copy is a
+			// fact about the recent, not a transient read error.
+			return {
+				ok: false,
+				failure:
+					failure === "provider_unavailable" && target?.kind === "managed-copy"
+						? "not_found"
+						: failure,
+			};
+		}
+	},
 	async storeGet(key) {
 		return tauriInvoke<unknown>("store_get", { key });
 	},
 	async storeSet(key, value) {
-		return tauriInvoke<void>("store_set", { key, value });
+		await tauriInvoke<void>("store_set", { key, value });
 	},
 	async cacheStats() {
 		return tauriInvoke<{ bytes: number }>("cache_stats");
 	},
 	async clearCache() {
-		return tauriInvoke<void>("clear_cache");
+		await tauriInvoke<void>("clear_cache");
+	},
+	async importsStats() {
+		return tauriInvoke<{ bytes: number }>("imports_stats");
+	},
+	async clearImports() {
+		await tauriInvoke<void>("clear_imports");
 	},
 };
 
-export const backend: Backend = isTauriEnvironment
-	? tauriBackend
-	: browserBackend;
+const rawBackend: Backend = isTauriEnvironment ? tauriBackend : browserBackend;
+
+// Serialized per-key persistence writes (audit section 15.1).
+const serializedStoreSet = createSerializedWriter((key, value) =>
+	rawBackend.storeSet(key, value),
+);
+
+export const backend: Backend = {
+	...rawBackend,
+	storeSet: serializedStoreSet,
+};
 
 export async function readFileMeta(picked: PickedFileMeta): Promise<FileMeta> {
 	return {
@@ -172,6 +237,7 @@ export async function readFileMeta(picked: PickedFileMeta): Promise<FileMeta> {
 		size: picked.size,
 		ref: picked.ref,
 		source: picked.source,
+		reopen: picked.reopen,
 	};
 }
 

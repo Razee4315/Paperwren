@@ -23,6 +23,17 @@ interface RecentsContextValue {
 	remove: (id: string) => void;
 	clearAll: () => RecentsEntry[];
 	restore: (previous: RecentsEntry[]) => void;
+	/** Mark a recent as failing to reopen; the dashboard offers
+	 * repair/remove instead of a healthy-looking entry. */
+	markUnavailable: (id: string) => void;
+	/** Repair: re-point an existing recent at a newly picked source,
+	 * keeping its history and position instead of duplicating. */
+	replaceSource: (
+		id: string,
+		update: Pick<RecentsEntry, "name" | "format" | "size" | "source"> & {
+			reopen?: RecentsEntry["reopen"];
+		},
+	) => void;
 }
 
 const RecentsContext = createContext<RecentsContextValue | null>(null);
@@ -131,6 +142,39 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		[persist],
 	);
 
+	const markUnavailable = useCallback<RecentsContextValue["markUnavailable"]>(
+		(id) => {
+			setEntries((prev) => {
+				const next = prev.map((e) =>
+					e.id === id ? { ...e, unavailable: true } : e,
+				);
+				persist(next);
+				return next;
+			});
+		},
+		[persist],
+	);
+
+	const replaceSource = useCallback<RecentsContextValue["replaceSource"]>(
+		(id, update) => {
+			setEntries((prev) => {
+				const next = prev.map((e) =>
+					e.id === id
+						? {
+								...e,
+								...update,
+								unavailable: undefined,
+								lastOpenedAt: Date.now(),
+							}
+						: e,
+				);
+				persist(next);
+				return next;
+			});
+		},
+		[persist],
+	);
+
 	const clearAll = useCallback<RecentsContextValue["clearAll"]>(() => {
 		const previous = entries;
 		setEntries(() => {
@@ -177,6 +221,8 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			remove,
 			clearAll,
 			restore,
+			markUnavailable,
+			replaceSource,
 		}),
 		[
 			sorted,
@@ -187,6 +233,8 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			remove,
 			clearAll,
 			restore,
+			markUnavailable,
+			replaceSource,
 		],
 	);
 

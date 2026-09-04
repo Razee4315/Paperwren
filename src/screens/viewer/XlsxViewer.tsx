@@ -117,10 +117,13 @@ const GridWrap = styled.div`
 	inset: 0;
 	overflow: auto;
 	background: var(--bg);
-	/* The always-visible toolbar and sheet tabs overlay this area;
-	   keep the grid and its sticky header out from under them. */
-	margin-top: calc(56px + var(--safe-area-top, 0px));
-	margin-bottom: var(--bottom-bar-height, 0px);
+	/* Shared viewport contract (audit 8): real toolbar and sheet-tab
+	   heights, safe areas included, instead of magic numbers. */
+	margin-top: var(--viewer-top-height, calc(56px + var(--safe-area-top, 0px)));
+	margin-bottom: var(
+		--viewer-bottom-height,
+		var(--bottom-bar-height, 0px)
+	);
 `;
 
 /* Column headers: sticky at the top, clipped to the viewport, with

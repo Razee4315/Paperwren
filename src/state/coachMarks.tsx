@@ -5,15 +5,15 @@ import styled from "styled-components";
 
 /**
  * Post-onboarding coach marks (docs/06 section 4): one-time,
- * dismiss on tap, never repeat. CM-1 greets on the empty Home,
- * CM-2 explains the tap-to-hide chrome on first viewer open.
+ * dismiss on tap, never repeat. The viewer chrome coach was
+ * removed (audit section 9): conventional controls plus the
+ * auto-hide setting explain it without a mandatory-feeling bubble.
  */
 
-export type CoachMarkId = "homeFab" | "viewerChrome";
+export type CoachMarkId = "homeFab";
 
 interface CoachMarks {
 	homeFab?: boolean;
-	viewerChrome?: boolean;
 }
 
 async function loadMarks(): Promise<CoachMarks> {
@@ -83,17 +83,28 @@ export function CoachBubble({
 }) {
 	const [visible, setVisible] = useState(false);
 
+	// Both timers are owned by the effect scope so cleanup is a
+	// valid effect cleanup (audit 9.1); the mark is marked seen when
+	// shown and auto-dismisses, so it never demands a tap (9.2).
 	useEffect(() => {
 		let cancelled = false;
+		let showTimer: number | null = null;
+		let hideTimer: number | null = null;
 		hasCoachMark(id).then((needed) => {
 			if (cancelled || !needed) return;
-			const t = window.setTimeout(() => {
-				if (!cancelled) setVisible(true);
+			showTimer = window.setTimeout(() => {
+				if (cancelled) return;
+				setVisible(true);
+				markCoachSeen(id);
+				hideTimer = window.setTimeout(() => {
+					if (!cancelled) setVisible(false);
+				}, 4000);
 			}, 1200);
-			return () => window.clearTimeout(t);
 		});
 		return () => {
 			cancelled = true;
+			if (showTimer !== null) window.clearTimeout(showTimer);
+			if (hideTimer !== null) window.clearTimeout(hideTimer);
 		};
 	}, [id]);
 
