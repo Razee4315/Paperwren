@@ -48,7 +48,7 @@ export function ViewerScreen({
 	onRemoved: (id: string) => void;
 }) {
 	const { settings } = useSettings();
-	const { entries, updatePosition } = useRecents();
+	const { entries, recordOpen, updatePosition } = useRecents();
 	const [data, setData] = useState<ArrayBuffer | null>(null);
 	const [loadFailed, setLoadFailed] = useState(false);
 	// The format comes from the bytes, not the name: Android pickers
@@ -68,8 +68,17 @@ export function ViewerScreen({
 					setLoadFailed(true);
 					return;
 				}
+				const detected = sniffFormat(buf, file.name);
 				setData(buf);
-				setFormat(sniffFormat(buf, file.name));
+				setFormat(detected);
+				if (detected !== "unknown") {
+					recordOpen({
+						name: displayNameFor(file.name, detected),
+						format: detected,
+						size: buf.byteLength,
+						source: file.source,
+					});
+				}
 			})
 			.catch(() => {
 				if (!cancelled) setLoadFailed(true);
@@ -77,7 +86,7 @@ export function ViewerScreen({
 		return () => {
 			cancelled = true;
 		};
-	}, [file.ref]);
+	}, [file.name, file.ref, file.source, recordOpen]);
 
 	const handlePosition = (pos: FilePosition) => {
 		updatePosition(recentsId, pos);

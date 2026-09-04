@@ -72,17 +72,17 @@ const SectionLabel = styled.h2`
 
 const Grid = styled.div`
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
 	gap: ${space[3]};
 `;
 
 const Card = styled.button<{ $index: number }>`
 	animation: pw-item-in ${motion.dur.standard} ${motion.ease.enter} both;
 	animation-delay: ${({ $index }) => Math.min($index * 40, 320)}ms;
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: ${space[2]};
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	align-items: center;
+	gap: ${space[3]};
 	padding: ${space[3]};
 	background: var(--surface);
 	border: 1px solid var(--border);
@@ -95,6 +95,7 @@ const Card = styled.button<{ $index: number }>`
 		transform ${motion.dur.instant} ${motion.ease.standard},
 		box-shadow ${motion.dur.standard} ${motion.ease.standard};
 	min-width: 0;
+	min-height: 76px;
 
 	&:hover {
 		background: var(--surface-2);
@@ -104,6 +105,13 @@ const Card = styled.button<{ $index: number }>`
 		transform: scale(0.97);
 		background: var(--surface-2);
 	}
+`;
+
+const CardText = styled.span`
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
 `;
 
 const CardName = styled.span`
@@ -119,6 +127,9 @@ const CardMeta = styled.span`
 	${type.small};
 	color: var(--ink-3);
 	font-variant-numeric: tabular-nums;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 `;
 
 const EmptyState = styled.div`
@@ -166,6 +177,9 @@ const EmptyBody = styled.p`
 function relativeDate(ts: number): string {
 	const d = new Date(ts);
 	const now = new Date();
+	if (!Number.isFinite(ts) || ts <= 0 || Number.isNaN(d.getTime())) {
+		return "Previously opened";
+	}
 	const sameDay = d.toDateString() === now.toDateString();
 	if (sameDay) {
 		return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -173,7 +187,20 @@ function relativeDate(ts: number): string {
 	const yesterday = new Date(now);
 	yesterday.setDate(now.getDate() - 1);
 	if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-	return d.toLocaleDateString([], { month: "short", day: "numeric" });
+	return d.toLocaleDateString([], {
+		month: "short",
+		day: "numeric",
+		year: d.getFullYear() === now.getFullYear() ? undefined : "numeric",
+	});
+}
+
+function recentMeta(entry: RecentsEntry): string {
+	const format =
+		entry.format === "unknown" ? "File" : entry.format.toUpperCase();
+	const parts = [format];
+	if (entry.size > 0) parts.push(formatBytes(entry.size));
+	parts.push(relativeDate(entry.lastOpenedAt));
+	return parts.join(" · ");
 }
 
 function EmptyIllustration() {
@@ -294,12 +321,11 @@ export function Home({
 										{...longPressProps(entry)}
 										data-testid={`recent-${entry.id}`}
 									>
-										<FormatBadge format={entry.format} />
-										<CardName>{entry.name}</CardName>
-										<CardMeta>
-											{entry.format.toUpperCase()} · {formatBytes(entry.size)} ·{" "}
-											{relativeDate(entry.lastOpenedAt)}
-										</CardMeta>
+										<FormatBadge format={entry.format} size={46} />
+										<CardText>
+											<CardName>{entry.name}</CardName>
+											<CardMeta>{recentMeta(entry)}</CardMeta>
+										</CardText>
 									</Card>
 								))}
 							</Grid>
@@ -323,12 +349,11 @@ export function Home({
 										{...longPressProps(entry)}
 										data-testid={`recent-${entry.id}`}
 									>
-										<FormatBadge format={entry.format} />
-										<CardName>{entry.name}</CardName>
-										<CardMeta>
-											{entry.format.toUpperCase()} · {formatBytes(entry.size)} ·{" "}
-											{relativeDate(entry.lastOpenedAt)}
-										</CardMeta>
+										<FormatBadge format={entry.format} size={46} />
+										<CardText>
+											<CardName>{entry.name}</CardName>
+											<CardMeta>{recentMeta(entry)}</CardMeta>
+										</CardText>
 									</Card>
 								))}
 							</Grid>
@@ -372,7 +397,7 @@ export function Home({
 							<RowLead>
 								<Info size={20} />
 							</RowLead>
-							{`${sheetEntry.format.toUpperCase()} file, ${formatBytes(sheetEntry.size)}`}
+							{recentMeta(sheetEntry)}
 						</SheetRow>
 						<SheetRow
 							$danger

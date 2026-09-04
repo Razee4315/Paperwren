@@ -24,7 +24,7 @@ type Route =
 const SPLASH_MS = 480;
 
 function Root() {
-	const { recordOpen, remove } = useRecents();
+	const { remove } = useRecents();
 	const [phase, setPhase] = useState<"splash" | "onboarding" | "app">("splash");
 	const [route, setRoute] = useState<Route>({ name: "home" });
 	const [openError, setOpenError] = useState<OpenError | null>(null);
@@ -67,12 +67,6 @@ function Root() {
 			const picked = await backend.pickFile();
 			if (picked) {
 				const format = guessFormat(picked.name);
-				recordOpen({
-					name: picked.name,
-					format,
-					size: picked.size,
-					source: picked.source,
-				});
 				openFile({
 					name: picked.name,
 					format,
@@ -84,7 +78,7 @@ function Root() {
 		} finally {
 			setPicking(false);
 		}
-	}, [picking, recordOpen, openFile]);
+	}, [picking, openFile]);
 
 	/** Re-open a recent. The recents entry's source is the read
 	 * handle; if the file is gone the viewer shows E-06. */
@@ -140,18 +134,12 @@ function Root() {
 			};
 			backend.storeSet(STORAGE_KEYS.onboarded, true).catch(() => {});
 			setPhase("app");
-			recordOpen({
-				name: file.name,
-				format: file.format,
-				size: file.size,
-				source: file.source,
-			});
 			setRoute({ name: "viewer", file });
 		};
 		drain();
 		window.addEventListener("paperwren-file", drain);
 		return () => window.removeEventListener("paperwren-file", drain);
-	}, [recordOpen]);
+	}, []);
 
 	if (phase === "splash") {
 		return <Splash />;

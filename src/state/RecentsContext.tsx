@@ -1,4 +1,5 @@
 import { backend, idForSource } from "@/lib/backend";
+import { normalizeRecents } from "@/lib/recents";
 import { type RecentsEntry, STORAGE_KEYS } from "@/lib/types";
 import {
 	type ReactNode,
@@ -37,7 +38,14 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			.storeGet(STORAGE_KEYS.recents)
 			.then((stored) => {
 				if (cancelled) return;
-				if (Array.isArray(stored)) setEntries(stored as RecentsEntry[]);
+				const normalized = normalizeRecents(stored);
+				setEntries(normalized);
+				if (
+					Array.isArray(stored) &&
+					JSON.stringify(normalized) !== JSON.stringify(stored)
+				) {
+					backend.storeSet(STORAGE_KEYS.recents, normalized).catch(() => {});
+				}
 				setReady(true);
 			})
 			.catch(() => setReady(true));

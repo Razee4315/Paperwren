@@ -30,7 +30,6 @@ interface Backend {
 // ---------- Browser backend (development and web preview) ----------
 
 const browserFiles = new Map<string, File>();
-let browserCounter = 0;
 
 declare global {
 	interface Window {
@@ -46,14 +45,13 @@ const browserBackend: Backend = {
 		const injected = window.__paperwrenTestFile;
 		if (injected) {
 			window.__paperwrenTestFile = undefined;
-			browserCounter += 1;
-			const ref = `browser-${browserCounter}`;
-			browserFiles.set(ref, injected);
+			const source = `browser:${injected.name}`;
+			browserFiles.set(source, injected);
 			return {
 				name: injected.name,
 				size: injected.size,
-				source: `browser:${injected.name}`,
-				ref,
+				source,
+				ref: source,
 			};
 		}
 		return new Promise((resolve) => {
@@ -66,14 +64,13 @@ const browserBackend: Backend = {
 					resolve(null);
 					return;
 				}
-				browserCounter += 1;
-				const ref = `browser-${browserCounter}`;
-				browserFiles.set(ref, file);
+				const source = `browser:${file.name}`;
+				browserFiles.set(source, file);
 				resolve({
 					name: file.name,
 					size: file.size,
-					source: `browser:${file.name}`,
-					ref,
+					source,
+					ref: source,
 				});
 			};
 			input.oncancel = () => resolve(null);

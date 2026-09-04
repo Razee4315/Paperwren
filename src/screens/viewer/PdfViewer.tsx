@@ -3,17 +3,27 @@ import { Button, Dialog, IconButton, Sheet, TextField } from "@/components/ui";
 import {
 	type FitMode,
 	clampZoom,
+	computeOutputScale,
 	computePageDisplayBox,
 	nextFitMode,
 	stepZoom as stepZoomClamped,
 } from "@/lib/pdfLayout";
 import type { FilePosition } from "@/lib/types";
 import { haptic, useSettings } from "@/state/SettingsContext";
-import { Grid3x3, List, RotateCw, Search, ZoomIn, ZoomOut } from "lucide-react";
+import {
+	Grid3x3,
+	List,
+	MoreVertical,
+	RotateCw,
+	Search,
+	ZoomIn,
+	ZoomOut,
+} from "lucide-react";
 import {
 	type ReactNode,
 	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
@@ -49,6 +59,8 @@ const ScrollWrap = styled.div`
 	   events so the document re-renders crisply at the new zoom
 	   instead of the browser scaling the whole app. */
 	touch-action: pan-x pan-y;
+	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
 `;
 
 const Pages = styled.div<{ $darken: boolean }>`
@@ -57,6 +69,8 @@ const Pages = styled.div<{ $darken: boolean }>`
 	align-items: center;
 	gap: 8px;
 	filter: ${({ $darken }) => ($darken ? "invert(0.92) hue-rotate(180deg)" : "none")};
+	transform-origin: 50% 0;
+	wil-change: transform;
 `;
 
 const PageBox = styled.div<{ $width: number; $height: number }>`
@@ -68,6 +82,12 @@ const PageBox = styled.div<{ $width: number; $height: number }>`
 	position: relative;
 	overflow: hidden;
 	flex-shrink: 0;
+
+	canvas {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
 `;
 
 const ListPanel = styled.div`
@@ -101,6 +121,31 @@ const PanelNote = styled.p`
 	padding: 8px;
 `;
 
+const ToolButton = styled.button`
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	width: 100%;
+	min-height: 52px;
+	padding: 10px 8px;
+	border: 0;
+	border-radius: 10px;
+	background: transparent;
+	color: var(--ink-1);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+
+	&:hover {
+		background: var(--surface-2);
+	}
+
+	&:disabled {
+		opacity: 0.45;
+		cursor: default;
+	}
+`;
+
 const ThumbGrid = styled.div`
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
@@ -116,6 +161,13 @@ const Thumb = styled.button<{ $current: boolean }>`
 	cursor: pointer;
 	overflow: hidden;
 	aspect-ratio: 0.707;
+
+	canvas {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
 `;
 
 export function PdfViewer({
@@ -139,7 +191,11 @@ export function PdfViewer({
 	const [loadProgress, setLoadProgress] = useState<number | null>(0);
 	const [openError, setOpenError] = useState(false);
 	const [currentPage, setCurrentPage] = useState(initialPosition?.page ?? 0);
-	const [zoom, setZoom] = useState(1);
+	const [zoom, setZoom] = useState(
+		settings["viewer.remember_position"]
+			? clampZoom(initialPosition?.zoom ?? 1)
+			: 1,
+	);
 	const settingsMode = settings["viewer.zoom_mode_pdf"];
 	const [fitMode, setFitMode] = useState<FitMode>(
 		settingsMode === "fit_page"
@@ -152,16 +208,20 @@ export function PdfViewer({
 	const [outlineOpen, setOutlineOpen] = useState(false);
 	const [thumbsOpen, setThumbsOpen] = useState(false);
 	const [searchOpen, setSearchOpen] = useState(false);
+	const [toolsOpen, setToolsOpen] = useState(false);
 	const [jumpOpen, setJumpOpen] = useState(false);
 	const [jumpValue, setJumpValue] = useState("");
 	const [passwordOpen, setPasswordOpen] = useState(false);
 	const [password, setPassword] = useState("");
 	const [passwordError, setPasswordError] = useState<string | null>(null);
 	const [rotation, setRotation] = useState(0);
-	const [box, setBox] = useState({ width: 600, height: 800 });
+	const [pageSizes, setPageSizes] = useState<
+		Array<{ width: number; height: number }>
+	>([]);
 	const [viewport, setViewport] = useState({ w: 0, h: 0 });
 
 	const scrollRef = useRef<HTMLDivElement | null>(null);
+	const pagesRef = useRef<HTMLDivElement | null>(null);
 	const pageRefs = useRef(new Map<number, HTMLDivElement>());
 	const dataRef = useRef(data);
 	const positionTimer = useRef<number | null>(null);
@@ -196,7 +256,10 @@ export function PdfViewer({
 			const pdf = await task.promise;
 			setDoc(pdf);
 			setLoadProgress(null);
-			pdf.getOutline().then((o) => setOutline(o as unknown as OutlineNode[]));
+			pdf
+				.getOutline()
+				.then((o) => setOutline(o as unknown as OutlineNode[]))
+				.catch(() => setOutline([]));
 		} catch (e) {
 			const err = e as { name?: string };
 			if (err?.name === "PasswordException") {
@@ -216,6 +279,13 @@ export function PdfViewer({
 		load(dataRef.current);
 	}, [load]);
 
+	useEffect(
+		() => () => {
+			doc?.destroy().catch(() => {});
+		},
+		[doc],
+	);
+
 	const unlock = useCallback(() => {
 		setPasswordOpen(false);
 		setPasswordError(null);
@@ -223,33 +293,68 @@ export function PdfViewer({
 		load(dataRef.current, password);
 	}, [load, password]);
 
-	// --- page geometry (pure math from lib/pdfLayout, viewport-aware) ---
+	// Read each page's own media box. Using page 1 for every placeholder
+	// breaks mixed portrait/landscape and differently cropped documents.
 	useEffect(() => {
-		if (!doc || viewport.w <= 0) return;
+		if (!doc) return;
 		let cancelled = false;
-		doc.getPage(1).then((page) => {
-			if (cancelled) return;
-			const vp = page.getViewport({ scale: 1, rotation });
-			const next = computePageDisplayBox({
-				pageWidth: vp.width,
-				pageHeight: vp.height,
+		const readSizes = async () => {
+			try {
+				const firstPage = await doc.getPage(1);
+				const firstViewport = firstPage.getViewport({ scale: 1 });
+				const sizes = [
+					{ width: firstViewport.width, height: firstViewport.height },
+				];
+				if (!cancelled) setPageSizes(sizes);
+				// Limit metadata concurrency so a thousand-page scan does not
+				// queue ahead of rendering the page the reader can actually see.
+				for (let start = 2; start <= doc.numPages; start += 12) {
+					const end = Math.min(doc.numPages, start + 11);
+					const batch = await Promise.all(
+						Array.from({ length: end - start + 1 }, async (_, offset) => {
+							const page = await doc.getPage(start + offset);
+							const vp = page.getViewport({ scale: 1 });
+							return { width: vp.width, height: vp.height };
+						}),
+					);
+					sizes.push(...batch);
+					if (cancelled) return;
+				}
+				if (!cancelled) setPageSizes(sizes);
+			} catch {
+				// Individual pages still render with the safe fallback box.
+			}
+		};
+		readSizes();
+		return () => {
+			cancelled = true;
+		};
+	}, [doc]);
+
+	const pageBoxes = useMemo(() => {
+		if (!doc || viewport.w <= 0) return [];
+		const fallback = pageSizes[0] ?? { width: 612, height: 792 };
+		return Array.from({ length: doc.numPages }, (_, index) => {
+			const size = pageSizes[index] ?? fallback;
+			const sideways = rotation % 180 !== 0;
+			return computePageDisplayBox({
+				pageWidth: sideways ? size.height : size.width,
+				pageHeight: sideways ? size.width : size.height,
 				containerWidth: viewport.w,
 				containerHeight: viewport.h || window.innerHeight - 24,
 				fitMode,
 				zoom,
 			});
-			setBox({ width: next.width, height: next.height });
 		});
-		return () => {
-			cancelled = true;
-		};
-	}, [doc, fitMode, zoom, rotation, viewport]);
+	}, [doc, fitMode, pageSizes, rotation, viewport, zoom]);
+	const firstBox = pageBoxes[0] ?? { width: 600, height: 800, scale: 1 };
 
 	// --- virtualized rendering: visible pages plus margin ---
 	useEffect(() => {
-		if (!doc || box.width < 50) return;
+		if (!doc || pageBoxes.length === 0) return;
 		let cancelled = false;
 		const inflight = new Map<number, boolean>();
+		const visiblePages = new Set<number>();
 
 		const renderPage = async (pageNum: number, el: HTMLElement) => {
 			if (inflight.get(pageNum)) return;
@@ -257,17 +362,24 @@ export function PdfViewer({
 			try {
 				const page = await doc.getPage(pageNum);
 				if (cancelled) return;
-				const base = page.getViewport({ scale: 1, rotation });
-				const scale =
-					(box.width / base.width) * Math.min(3, window.devicePixelRatio);
-				const viewport = page.getViewport({ scale, rotation });
+				const displayBox = pageBoxes[pageNum - 1] ?? firstBox;
+				const outputScale = computeOutputScale(
+					displayBox.width,
+					displayBox.height,
+					window.devicePixelRatio,
+				);
+				const renderViewport = page.getViewport({
+					scale: displayBox.scale * outputScale,
+					rotation,
+				});
 				const canvas = document.createElement("canvas");
-				canvas.width = Math.floor(viewport.width);
-				canvas.height = Math.floor(viewport.height);
+				canvas.width = Math.max(1, Math.floor(renderViewport.width));
+				canvas.height = Math.max(1, Math.floor(renderViewport.height));
 				const ctx = canvas.getContext("2d");
 				if (!ctx) return;
-				await page.render({ canvasContext: ctx, viewport }).promise;
-				if (cancelled) return;
+				await page.render({ canvasContext: ctx, viewport: renderViewport })
+					.promise;
+				if (cancelled || !visiblePages.has(pageNum)) return;
 				el.replaceChildren(canvas);
 			} catch {
 				// cancelled or failed; the observer retries when visible
@@ -281,7 +393,13 @@ export function PdfViewer({
 				for (const entry of entries) {
 					const pageNum = Number((entry.target as HTMLElement).dataset.page);
 					if (entry.isIntersecting) {
+						visiblePages.add(pageNum);
 						renderPage(pageNum, entry.target as HTMLElement);
+					} else {
+						visiblePages.delete(pageNum);
+						// Scanned PDFs have very large bitmaps. Releasing canvases once
+						// they leave the render margin keeps memory and startup bounded.
+						entry.target.replaceChildren();
 					}
 				}
 			},
@@ -290,37 +408,36 @@ export function PdfViewer({
 
 		pageRefs.current.forEach((el) => {
 			observer.observe(el);
-			if (!el.querySelector("canvas")) renderPage(Number(el.dataset.page), el);
 		});
 
 		return () => {
 			cancelled = true;
 			observer.disconnect();
 		};
-	}, [doc, box, rotation]);
+	}, [doc, firstBox, pageBoxes, rotation]);
 
 	// --- restore position once geometry is known ---
 	useEffect(() => {
-		if (!doc || restored.current || box.width < 50) return;
+		if (!doc || restored.current || firstBox.width < 50) return;
 		restored.current = true;
 		if (
 			!initialPosition ||
-			box.width < 50 ||
+			firstBox.width < 50 ||
 			!settings["viewer.remember_position"]
 		) {
 			return;
 		}
 		const el = scrollRef.current;
 		if (!el) return;
-		if (initialPosition.page && initialPosition.page > 0) {
-			const target = pageRefs.current.get(initialPosition.page);
+		if (initialPosition.page !== undefined && initialPosition.page >= 0) {
+			const target = pageRefs.current.get(initialPosition.page + 1);
 			target?.scrollIntoView({ block: "start" });
 			setCurrentPage(initialPosition.page);
 		} else if (initialPosition.scrollRatio) {
 			el.scrollTop =
 				initialPosition.scrollRatio * (el.scrollHeight - el.clientHeight);
 		}
-	}, [doc, box, initialPosition, settings]);
+	}, [doc, firstBox.width, initialPosition, settings]);
 
 	// --- current page tracking + position memory ---
 	const onScroll = useCallback(() => {
@@ -378,22 +495,31 @@ export function PdfViewer({
 	// --- pinch to zoom: two pointers scale the document around the
 	// pinch midpoint; pans stay native via touch-action ---
 	const pointers = useRef(new Map<number, [number, number]>());
-	const pinchRef = useRef<{ baseDist: number; startZoom: number } | null>(null);
+	const pinchRef = useRef<{
+		baseDist: number;
+		startZoom: number;
+		previewZoom: number;
+	} | null>(null);
 	const focal = useRef<{ xRatio: number; yRatio: number } | null>(null);
 
-	const dist = () => {
+	const pointerDistance = useCallback(() => {
 		const [a, b] = [...pointers.current.values()];
 		return Math.hypot(a[0] - b[0], a[1] - b[1]);
-	};
+	}, []);
 
 	const onPointerDown = useCallback(
 		(e: React.PointerEvent) => {
+			e.currentTarget.setPointerCapture(e.pointerId);
 			pointers.current.set(e.pointerId, [e.clientX, e.clientY]);
 			if (pointers.current.size === 2) {
-				pinchRef.current = { baseDist: dist(), startZoom: zoom };
+				pinchRef.current = {
+					baseDist: pointerDistance(),
+					startZoom: zoom,
+					previewZoom: zoom,
+				};
 			}
 		},
-		[zoom],
+		[pointerDistance, zoom],
 	);
 
 	const onPointerMove = useCallback(
@@ -401,6 +527,7 @@ export function PdfViewer({
 			if (!pointers.current.has(e.pointerId)) return;
 			pointers.current.set(e.pointerId, [e.clientX, e.clientY]);
 			if (pointers.current.size !== 2 || !pinchRef.current) return;
+			e.preventDefault();
 			const el = scrollRef.current;
 			if (!el) return;
 			const [a, b] = [...pointers.current.values()];
@@ -413,30 +540,58 @@ export function PdfViewer({
 					(el.scrollTop + midY - el.clientTop) / Math.max(1, el.scrollHeight),
 			};
 			const next = clampZoom(
-				pinchRef.current.startZoom * (dist() / pinchRef.current.baseDist),
+				pinchRef.current.startZoom *
+					(pointerDistance() / Math.max(1, pinchRef.current.baseDist)),
 			);
-			if (next !== zoom) {
-				haptic(settings, 4);
-				setZoom(next);
+			pinchRef.current.previewZoom = next;
+			// Preview with a cheap transform and render sharply only once
+			// the fingers lift. Re-rendering canvases every pointer event
+			// made image-heavy PDFs feel frozen.
+			if (pagesRef.current) {
+				pagesRef.current.style.transform = `scale(${next / pinchRef.current.startZoom})`;
 			}
 		},
-		[zoom, settings],
+		[pointerDistance],
 	);
 
 	const onPointerUp = useCallback((e: React.PointerEvent) => {
+		const completedPinch = pinchRef.current;
+		if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+			e.currentTarget.releasePointerCapture(e.pointerId);
+		}
 		pointers.current.delete(e.pointerId);
-		if (pointers.current.size < 2) pinchRef.current = null;
+		if (pointers.current.size < 2 && completedPinch) {
+			pinchRef.current = null;
+			if (pagesRef.current) pagesRef.current.style.transform = "";
+			setZoom(completedPinch.previewZoom);
+		}
+	}, []);
+
+	const onWheel = useCallback((e: React.WheelEvent) => {
+		if (!e.ctrlKey) return;
+		e.preventDefault();
+		const el = scrollRef.current;
+		if (!el) return;
+		focal.current = {
+			xRatio:
+				(el.scrollLeft + e.clientX - el.clientLeft) /
+				Math.max(1, el.scrollWidth),
+			yRatio:
+				(el.scrollTop + e.clientY - el.clientTop) /
+				Math.max(1, el.scrollHeight),
+		};
+		setZoom((value) => clampZoom(value * Math.exp(-e.deltaY * 0.002)));
 	}, []);
 
 	// Keep the pinched content under the fingers after the re-render.
 	useEffect(() => {
 		const el = scrollRef.current;
 		const f = focal.current;
-		if (!el || !f) return;
+		if (!el || !f || firstBox.width <= 0) return;
 		focal.current = null;
 		el.scrollLeft = f.xRatio * el.scrollWidth - el.clientWidth / 2;
 		el.scrollTop = f.yRatio * el.scrollHeight - el.clientHeight / 2;
-	}, [box]);
+	}, [firstBox.width]);
 
 	const outlineItems = (nodes: OutlineNode[], depth = 0): ReactNode =>
 		nodes.map((node, i) => (
@@ -482,44 +637,37 @@ export function PdfViewer({
 						<ZoomIn size={20} />
 					</IconButton>
 					<IconButton
-						label="Rotate"
-						onClick={() => setRotation((r) => (r + 90) % 360)}
-					>
-						<RotateCw size={20} />
-					</IconButton>
-					<IconButton
 						label="Search"
 						onClick={() => setSearchOpen(true)}
 						data-testid="pdf-search"
 					>
 						<Search size={20} />
 					</IconButton>
-					<IconButton
-						label="Outline"
-						onClick={() => setOutlineOpen(true)}
-						disabled={!outline || outline.length === 0}
-					>
-						<List size={20} />
-					</IconButton>
-					<IconButton
-						label="Page thumbnails"
-						onClick={() => setThumbsOpen(true)}
-					>
-						<Grid3x3 size={20} />
+					<IconButton label="More PDF tools" onClick={() => setToolsOpen(true)}>
+						<MoreVertical size={20} />
 					</IconButton>
 				</>
 			}
 			bottomBar={
 				doc ? (
-					<PagePill
-						onClick={() => {
-							setJumpValue(String(currentPage + 1));
-							setJumpOpen(true);
-						}}
-						data-testid="pdf-page-pill"
-					>
-						{currentPage + 1} / {doc.numPages}
-					</PagePill>
+					<ReaderStatus>
+						<StatusPill onClick={cycleZoom} aria-label="Change page fit">
+							{fitMode === "width"
+								? "Fit width"
+								: fitMode === "page"
+									? "Fit page"
+									: `${Math.round(zoom * 100)}%`}
+						</StatusPill>
+						<PagePill
+							onClick={() => {
+								setJumpValue(String(currentPage + 1));
+								setJumpOpen(true);
+							}}
+							data-testid="pdf-page-pill"
+						>
+							{currentPage + 1} / {doc.numPages}
+						</PagePill>
+					</ReaderStatus>
 				) : undefined
 			}
 		>
@@ -531,8 +679,9 @@ export function PdfViewer({
 				onPointerMove={onPointerMove}
 				onPointerUp={onPointerUp}
 				onPointerCancel={onPointerUp}
+				onWheel={onWheel}
 			>
-				<Pages $darken={darkenPages}>
+				<Pages ref={pagesRef} $darken={darkenPages}>
 					{doc &&
 						Array.from({ length: doc.numPages }, (_, i) => (
 							<PageBox
@@ -542,12 +691,44 @@ export function PdfViewer({
 									if (el) pageRefs.current.set(i + 1, el);
 									else pageRefs.current.delete(i + 1);
 								}}
-								$width={box.width}
-								$height={box.height}
+								$width={pageBoxes[i]?.width ?? firstBox.width}
+								$height={pageBoxes[i]?.height ?? firstBox.height}
 							/>
 						))}
 				</Pages>
 			</ScrollWrap>
+
+			<Sheet
+				open={toolsOpen}
+				title="PDF tools"
+				onDismiss={() => setToolsOpen(false)}
+			>
+				<ToolButton
+					onClick={() => {
+						setToolsOpen(false);
+						setThumbsOpen(true);
+					}}
+				>
+					<Grid3x3 size={20} /> Pages and thumbnails
+				</ToolButton>
+				<ToolButton
+					disabled={!outline || outline.length === 0}
+					onClick={() => {
+						setToolsOpen(false);
+						setOutlineOpen(true);
+					}}
+				>
+					<List size={20} /> Document outline
+				</ToolButton>
+				<ToolButton
+					onClick={() => {
+						setRotation((value) => (value + 90) % 360);
+						setToolsOpen(false);
+					}}
+				>
+					<RotateCw size={20} /> Rotate clockwise
+				</ToolButton>
+			</Sheet>
 
 			<Sheet
 				open={outlineOpen}
@@ -671,37 +852,67 @@ function ThumbPage({ doc, pageNum }: { doc: PdfDocument; pageNum: number }) {
 
 	useEffect(() => {
 		let cancelled = false;
-		doc.getPage(pageNum).then((page) => {
-			if (cancelled || !ref.current) return;
-			if (ref.current.querySelector("canvas")) return;
-			const viewport = page.getViewport({ scale: 0.25 });
-			const canvas = document.createElement("canvas");
-			canvas.width = Math.floor(viewport.width);
-			canvas.height = Math.floor(viewport.height);
-			const ctx = canvas.getContext("2d");
-			if (!ctx) return;
-			page.render({ canvasContext: ctx, viewport }).promise.then(() => {
-				if (!cancelled && ref.current) {
-					ref.current.replaceChildren(canvas);
-				}
-			});
-		});
+		const el = ref.current;
+		if (!el) return;
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (!entries.some((entry) => entry.isIntersecting)) return;
+				observer.disconnect();
+				doc
+					.getPage(pageNum)
+					.then((page) => {
+						if (cancelled || !ref.current) return;
+						const viewport = page.getViewport({ scale: 0.25 });
+						const canvas = document.createElement("canvas");
+						canvas.width = Math.max(1, Math.floor(viewport.width));
+						canvas.height = Math.max(1, Math.floor(viewport.height));
+						const ctx = canvas.getContext("2d");
+						if (!ctx) return;
+						page
+							.render({ canvasContext: ctx, viewport })
+							.promise.then(() => {
+								if (!cancelled && ref.current) {
+									ref.current.replaceChildren(canvas);
+								}
+							})
+							.catch(() => {});
+					})
+					.catch(() => {});
+			},
+			{ rootMargin: "240px" },
+		);
+		observer.observe(el);
 		return () => {
 			cancelled = true;
+			observer.disconnect();
 		};
 	}, [doc, pageNum]);
 
 	return <div ref={ref} style={{ width: "100%", height: "100%" }} />;
 }
 
-/* Page pill: replaces the old scrubber bar. One quiet indicator,
-   tappable to jump. */
-const PagePill = styled.button`
+const ReaderStatus = styled.div`
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	margin: 0 auto;
-	margin-bottom: calc(10px + var(--safe-area-bottom, 0px));
+	gap: 8px;
+	padding: 8px 12px calc(8px + var(--safe-area-bottom, 0px));
+`;
+
+const StatusPill = styled.button`
+	padding: 8px 14px;
+	border: 1px solid color-mix(in srgb, var(--ink-1) 18%, transparent);
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--surface) 94%, transparent);
+	color: var(--ink-1);
+	font-size: 0.8125rem;
+	font-weight: 600;
+	cursor: pointer;
+	backdrop-filter: blur(6px);
+`;
+
+/* Quiet page indicator, tappable to jump. */
+const PagePill = styled.button`
 	padding: 8px 18px;
 	border: none;
 	border-radius: 999px;

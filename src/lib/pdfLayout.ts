@@ -14,6 +14,11 @@ export const MAX_FIT_WIDTH = 760;
 export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 4;
 
+/** Keep a single rendered page below this many backing-store pixels.
+ * Large scanned pages can otherwise allocate hundreds of megabytes at
+ * high zoom on a 3x display. */
+export const MAX_CANVAS_PIXELS = 12_000_000;
+
 export interface PageGeometry {
 	pageWidth: number;
 	pageHeight: number;
@@ -82,4 +87,15 @@ export function nextFitMode(current: FitMode): FitMode {
 export function stepZoom(current: number, direction: 1 | -1): number {
 	if (direction === 1) return clampZoom(current + 0.25);
 	return clampZoom(current - 0.25);
+}
+
+/** Device-pixel multiplier for a canvas, capped by a pixel budget. */
+export function computeOutputScale(
+	cssWidth: number,
+	cssHeight: number,
+	devicePixelRatio: number,
+): number {
+	const pixels = Math.max(1, cssWidth * cssHeight);
+	const budgetScale = Math.sqrt(MAX_CANVAS_PIXELS / pixels);
+	return Math.max(0.25, Math.min(3, devicePixelRatio || 1, budgetScale));
 }

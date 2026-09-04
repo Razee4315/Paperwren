@@ -4,6 +4,7 @@ import {
 	MAX_ZOOM,
 	MIN_ZOOM,
 	clampZoom,
+	computeOutputScale,
 	computePageDisplayBox,
 	nextFitMode,
 	stepZoom,
@@ -156,5 +157,16 @@ describe("clampZoom and stepZoom", () => {
 		expect(stepZoom(1, -1)).toBe(0.75);
 		expect(stepZoom(MAX_ZOOM, 1)).toBe(MAX_ZOOM);
 		expect(stepZoom(MIN_ZOOM, -1)).toBe(MIN_ZOOM);
+	});
+});
+
+describe("computeOutputScale", () => {
+	it("uses device density for an ordinary page", () => {
+		expect(computeOutputScale(600, 800, 2)).toBe(2);
+	});
+
+	it("caps huge scanned pages to the canvas pixel budget", () => {
+		const scale = computeOutputScale(5000, 7000, 3);
+		expect(5000 * 7000 * scale * scale).toBeLessThanOrEqual(12_000_001);
 	});
 });
