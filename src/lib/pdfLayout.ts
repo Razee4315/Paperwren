@@ -99,3 +99,117 @@ export function computeOutputScale(
 	const budgetScale = Math.sqrt(MAX_CANVAS_PIXELS / pixels);
 	return Math.max(0.25, Math.min(3, devicePixelRatio || 1, budgetScale));
 }
+
+// ---------- focal zoom anchoring (audit section 6) ----------
+//
+// The anchor is a point inside a specific page, never a ratio of
+// total document scroll: document height changes non-uniformly with
+// mixed page sizes, rotation, and late geometry corrections.
+
+export interface ZoomAnchor {
+	/** 1-based page number whose content must stay under the point. */
+	pageNumber: number;
+	/** Position within that page, 0..1 of its width/height. */
+	xRatio: number;
+	yRatio: number;
+	/** Viewport-space point (clientX/Y) that must keep showing it. */
+	clientX: number;
+	clientY: number;
+}
+
+export interface ClientRectLike {
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+}
+
+/** Pick the page whose rect contains the client point, or the
+ * nearest page by center distance when the point sits in the gaps
+ * or outside every page (scroller padding). */
+export function findAnchorPage(
+	pageRects: Map<number, ClientRectLike>,
+	clientX: number,
+	clientY: number,
+): number {
+	let best = 0;
+	let bestDistance = Number.POSITIVE_INFINITY;
+	let contained = 0;
+	for (const [pageNumber, rect] of pageRects) {
+		if (
+			clientX >= rect.left &&
+			clientX <= rect.left + rect.width &&
+			clientY >= rect.top &&
+			clientY <= rect.top + rect.height
+		) {
+			contained = pageNumber;
+			break;
+		}
+		const dx = clientX - (rect.left + rect.width / 2);
+		const dy = clientY - (rect.top + rect.height / 2);
+		const distance = dx * dx + dy * dy;
+		if (distance < bestDistance) {
+			bestDistance = distance;
+			best = pageNumber;
+		}
+	}
+	return contained || best;
+}
+
+/** Build the anchor for a focal client point before zoom changes. */
+export function buildZoomAnchor(params: {
+	pageRects: Map<number, ClientRectLike>;
+	scrollerRect: { left: number; top: number };
+	clientX: number;
+	clientY: number;
+}): ZoomAnchor | null {
+	const pageNumber = findAnchorPage(
+		params.pageRects,
+		params.clientX,
+		params.clientY,
+	);
+	const rect = params.pageRects.get(pageNumber);
+	if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+	return {
+		pageNumber,
+		xRatio: (params.clientX - rect.left) / rect.width,
+		yRatio: (params.clientY - rect.top) / rect.height,
+		clientX: params.clientX,
+		clientY: params.clientY,
+	};
+}
+
+/** Scroll offsets that put the anchored page-local point back under
+ * the saved client point after a relayout. Clamped to valid ranges. */
+export function computeAnchoredScroll(params: {
+	anchor: ZoomAnchor;
+	pageRect: ClientRectLike; // client-space rect AFTER the relayout
+	scrollerRect: { left: number; top: number };
+	scrollLeft: number;
+	scrollTop: number;
+	clientWidth: number;
+	clientHeight: number;
+	scrollWidth: number;
+	scrollHeight: number;
+}): { left: number; top: number } {
+	const pageContentX =
+		params.pageRect.left -
+		params.scrollerRect.left +
+		params.scrollLeft +
+		params.anchor.xRatio * params.pageRect.width;
+	const pageContentY =
+		params.pageRect.top -
+		params.scrollerRect.top +
+		params.scrollTop +
+		params.anchor.yRatio * params.pageRect.height;
+	const desiredLeft =
+		pageContentX - (params.anchor.clientX - params.scrollerRect.left);
+	const desiredTop =
+		pageContentY - (params.anchor.clientY - params.scrollerRect.top);
+	const clamp = (v: number, max: number) =>
+		Math.max(0, Math.min(Math.max(0, max), v));
+	return {
+		left: clamp(desiredLeft, params.scrollWidth - params.clientWidth),
+		top: clamp(desiredTop, params.scrollHeight - params.clientHeight),
+	};
+}

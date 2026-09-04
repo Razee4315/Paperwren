@@ -1,6 +1,7 @@
 import { type FileFormat, FormatGlyph } from "@/components/FormatBadge";
 import { Button, Dialog, InkProgress } from "@/components/ui";
 import { backend, idForSource } from "@/lib/backend";
+import { type OpenFailure, classifyOpenError, failureCopy } from "@/lib/errors";
 import { displayNameFor, isLegacyOffice, sniffFormat } from "@/lib/sniff";
 import type { FileMeta, FilePosition } from "@/lib/types";
 import { useRecents } from "@/state/RecentsContext";
@@ -18,7 +19,9 @@ import { XlsxViewer } from "./XlsxViewer";
  * SCR-07..10 viewer dispatcher (docs/05): loads the bytes once
  * through the backend, decides the format by magic bytes (Android
  * pickers hand out extension-less content URIs), restores position
- * memory, and routes to the format viewer.
+ * memory, and routes to the format viewer. Read failures are typed
+ * (audit 15.3): every kind gets its own dialog and one recovery
+ * path, never a generic "File not found".
  */
 
 const Center = styled.div`
@@ -41,16 +44,19 @@ export function ViewerScreen({
 	onClose,
 	onMissingFile,
 	onRemoved,
+	onRepair,
 }: {
 	file: FileMeta;
 	onClose: () => void;
 	onMissingFile: () => void;
 	onRemoved: (id: string) => void;
+	/** Re-pick flow for an unavailable recent: replaces the entry. */
+	onRepair: () => void;
 }) {
 	const { settings } = useSettings();
-	const { entries, recordOpen, updatePosition } = useRecents();
+	const { entries, recordOpen, updatePosition, markUnavailable } = useRecents();
 	const [data, setData] = useState<ArrayBuffer | null>(null);
-	const [loadFailed, setLoadFailed] = useState(false);
+	const [failure, setFailure] = useState<OpenFailure | null>(null);
 	// The format comes from the bytes, not the name: Android pickers
 	// hand out extension-less content URIs, and names lie anyway.
 	const [format, setFormat] = useState<FileFormat | null>(null);
@@ -60,43 +66,80 @@ export function ViewerScreen({
 
 	useEffect(() => {
 		let cancelled = false;
-		backend
-			.readBytes(file.ref)
-			.then((buf) => {
+		const read = file.reopen
+			? backend.openRecent({
+					id: recentsId,
+					name: file.name,
+					format: file.format,
+					size: file.size,
+					source: file.source,
+					reopen: file.reopen,
+					addedAt: 0,
+					lastOpenedAt: 0,
+					pinned: false,
+				})
+			: backend
+					.readBytes(file.ref)
+					.then((buffer) =>
+						buffer.byteLength === 0
+							? ({ ok: false, failure: "corrupt" } as const)
+							: ({ ok: true, buffer } as const),
+					)
+					.catch(
+						(err) =>
+							({
+								ok: false,
+								failure: classifyOpenError(err),
+							}) as const,
+					);
+
+		read
+			.then((result) => {
 				if (cancelled) return;
-				if (buf.byteLength === 0) {
-					setLoadFailed(true);
+				if (!result.ok) {
+					if (result.failure !== "cancelled") {
+						setFailure(result.failure);
+					}
 					return;
 				}
+				const buf = result.buffer;
 				const detected = sniffFormat(buf, file.name);
 				setData(buf);
 				setFormat(detected);
 				if (detected !== "unknown") {
+					// Record from metadata as soon as ingestion succeeds;
+					// PDF.js parsing happens later and must not gate the
+					// recent (audit 4.5).
 					recordOpen({
 						name: displayNameFor(file.name, detected),
 						format: detected,
 						size: buf.byteLength,
 						source: file.source,
+						reopen: file.reopen,
 					});
 				}
 			})
 			.catch(() => {
-				if (!cancelled) setLoadFailed(true);
+				if (!cancelled) setFailure("read_failed");
 			});
 		return () => {
 			cancelled = true;
 		};
-	}, [file.name, file.ref, file.source, recordOpen]);
+	}, [file.name, file.ref, file.source, file.reopen, recentsId, recordOpen]);
 
 	const handlePosition = (pos: FilePosition) => {
 		updatePosition(recentsId, pos);
 	};
 
-	if (loadFailed) {
+	if (failure) {
+		// Reading failed: the recent is honestly marked unavailable so
+		// the dashboard can offer repair instead of pretending.
+		if (entry && !entry.unavailable) markUnavailable(recentsId);
+		const copy = failureCopy(failure, file.name);
 		return (
 			<Dialog
 				open
-				title="File not found"
+				title={copy.title}
 				onDismiss={onMissingFile}
 				actions={
 					<>
@@ -109,11 +152,14 @@ export function ViewerScreen({
 						>
 							Remove from recents
 						</Button>
+						{copy.action === "locate" ? (
+							<Button onClick={onRepair}>Choose file again</Button>
+						) : null}
 						<Button onClick={onMissingFile}>OK</Button>
 					</>
 				}
 			>
-				{`'${displayNameFor(file.name, format ?? "unknown")}' is not where it was. It may have been moved or deleted.`}
+				{copy.message}
 			</Dialog>
 		);
 	}
@@ -290,6 +336,10 @@ const Pre = styled.pre`
 	inset: 0;
 	overflow: auto;
 	padding: 16px;
+	/* Shared viewer insets (audit 14.4): first and last lines clear
+	   the toolbar and the bottom edge. */
+	padding-top: calc(var(--viewer-top-height, 56px) + 16px);
+	padding-bottom: calc(48px + var(--safe-area-bottom, 0px));
 	white-space: pre-wrap;
 	word-break: break-word;
 	font-size: 0.9375rem;
@@ -303,10 +353,15 @@ const MarkdownBody = styled.div`
 	inset: 0;
 	overflow: auto;
 	padding: 24px 20px calc(48px + var(--safe-area-bottom, 0px));
-	max-width: 760px;
-	margin: 0 auto;
+	/* Shared viewer inset; a full-width scroller with an inner
+	   reading column (audit 14.4: no ambiguous centered inset-0
+	   margin-auto width). */
+	padding-top: calc(var(--viewer-top-height, 56px) + 16px);
+	width: 100%;
 
 	article {
+		max-width: 760px;
+		margin: 0 auto;
 		line-height: 1.65;
 		font-size: 1rem;
 		color: var(--ink-1);

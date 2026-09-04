@@ -5,3 +5,6 @@ export type OutlineNode = {
 	dest: unknown;
 	items: OutlineNode[];
 };
+/** Render tasks are kept so stale renders can be cancelled
+ * (audit 10.2). */
+export type RenderTaskLike = { cancel: () => void };

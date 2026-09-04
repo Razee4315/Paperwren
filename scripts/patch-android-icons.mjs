@@ -7,8 +7,9 @@
  * Input: the android/ subtree produced by
  *   npx tauri icon assets/brand/app-icon-foreground.svg --output .tauri-icons-android
  * The foreground SVG has the safe-zone padding baked in (the mark
- * is scaled to 60 percent of the canvas) so launcher masks cannot
- * crop the artwork.
+ * is scaled to 80 percent of the canvas, verified by
+ * scripts/check-icon-foreground.mjs) so launcher masks cannot crop
+ * the artwork while it still reads at launcher size.
  *
  * Also makes the adaptive icon use a color background resource and
  * defines that color exactly once (duplicate resources break the

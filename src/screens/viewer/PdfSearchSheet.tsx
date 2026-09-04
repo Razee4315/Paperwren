@@ -80,14 +80,25 @@ function buildSnippet(
 	return `${prefix}${text.slice(start, end).replace(/\s+/g, " ")}${suffix}`;
 }
 
-/** Extract the text of one page (cached by the caller's debounce). */
+/** Per-document page-text cache: extraction runs once per page per
+ * document instead of once per keystroke (audit 11.3). */
+const textCache = new WeakMap<PdfDocument, Map<number, string>>();
+
 async function pageText(doc: PdfDocument, pageNum: number): Promise<string> {
+	let pages = textCache.get(doc);
+	if (!pages) {
+		pages = new Map<number, string>();
+		textCache.set(doc, pages);
+	}
+	const cached = pages.get(pageNum);
+	if (cached !== undefined) return cached;
 	const page = await doc.getPage(pageNum);
 	const content = await page.getTextContent();
 	let out = "";
 	for (const item of content.items) {
 		if ("str" in item) out += `${item.str} `;
 	}
+	pages.set(pageNum, out);
 	return out;
 }
 
@@ -124,34 +135,40 @@ export function PdfSearchSheet({
 		setBusy(true);
 		const needle = query.trim().toLowerCase();
 
-		const run = async () => {
-			const found: SearchHit[] = [];
-			for (let p = 1; p <= doc.numPages; p++) {
-				if (id !== runId.current) return;
-				try {
-					const text = (await pageText(doc, p)).toLowerCase();
-					let idx = text.indexOf(needle);
-					let count = 0;
-					while (idx !== -1 && count < 5) {
-						found.push({
-							page: p,
-							snippet: buildSnippet(text, idx, needle.length),
-						});
-						count++;
-						idx = text.indexOf(needle, idx + needle.length);
+		// Debounce input: typing must never block scrolling or chrome
+		// interaction (audit 11.3), and stale runs are cancelled by
+		// their generation id.
+		const timer = window.setTimeout(() => {
+			const run = async () => {
+				const found: SearchHit[] = [];
+				for (let p = 1; p <= doc.numPages; p++) {
+					if (id !== runId.current) return;
+					try {
+						const text = (await pageText(doc, p)).toLowerCase();
+						let idx = text.indexOf(needle);
+						let count = 0;
+						while (idx !== -1 && count < 5) {
+							found.push({
+								page: p,
+								snippet: buildSnippet(text, idx, needle.length),
+							});
+							count++;
+							idx = text.indexOf(needle, idx + needle.length);
+						}
+					} catch {
+						// Unreadable page text; skip it.
 					}
-				} catch {
-					// Unreadable page text; skip it.
+					if (id !== runId.current) return;
+					setSearched(p);
+					// Report progressive results as they land.
+					setHits([...found]);
 				}
-				if (id !== runId.current) return;
-				setSearched(p);
-				// Report progressive results as they land.
-				setHits([...found]);
-			}
-			setBusy(false);
-		};
-		run();
+				setBusy(false);
+			};
+			run();
+		}, 250);
 		return () => {
+			window.clearTimeout(timer);
 			runId.current++;
 		};
 	}, [open, query, doc]);
@@ -159,7 +176,7 @@ export function PdfSearchSheet({
 	const progress = total > 0 ? searched / total : 0;
 
 	return (
-		<Sheet open={open} title="Search" onDismiss={onDismiss}>
+		<Sheet open={open} title="Search" id="pdf-search" onDismiss={onDismiss}>
 			<TextField
 				label="Find in document"
 				value={query}

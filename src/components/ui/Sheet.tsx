@@ -1,3 +1,4 @@
+import { useOverlayRegistration } from "@/state/NavigationContext";
 import { layout, motion, radius, type } from "@/theme";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -78,28 +79,69 @@ export function Sheet({
 	title,
 	onDismiss,
 	children,
+	id,
 }: {
 	open: boolean;
 	title: string;
 	onDismiss: () => void;
 	children: React.ReactNode;
+	/** Stack id for system-Back dismissal; omitted on surfaces that
+	 * manage their own Back handling. */
+	id?: string;
 }) {
 	const [dragY, setDragY] = useState(0);
 	const [dragging, setDragging] = useState(false);
 	const [closing, setClosing] = useState(false);
 	const startY = useRef<number | null>(null);
+	const dismissTimer = useRef<number | null>(null);
+
+	// Register with the shared overlay stack so system Back dismisses
+	// the top sheet before touching the screen below it.
+	useOverlayRegistration(id ?? "", open && id !== undefined, onDismiss);
 
 	const dismiss = useCallback(() => {
+		if (closing) return;
 		setClosing(true);
 		setDragY(0);
-		window.setTimeout(onDismiss, 200);
-	}, [onDismiss]);
+		dismissTimer.current = window.setTimeout(onDismiss, 200);
+	}, [onDismiss, closing]);
 
 	useEffect(() => {
 		if (!open) return;
 		setClosing(false);
 		setDragY(0);
 	}, [open]);
+
+	// Cancel the delayed dismiss if we unmount mid-animation, and
+	// never fire a dismiss after the sheet is gone.
+	useEffect(
+		() => () => {
+			if (dismissTimer.current !== null) {
+				window.clearTimeout(dismissTimer.current);
+			}
+		},
+		[],
+	);
+
+	// Escape dismisses like a dialog; focus starts inside and returns
+	// to the opener on close.
+	const panelRef = useRef<HTMLDivElement | null>(null);
+	useEffect(() => {
+		if (!open) return;
+		const opener = document.activeElement as HTMLElement | null;
+		panelRef.current?.focus();
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				e.stopPropagation();
+				dismiss();
+			}
+		};
+		window.addEventListener("keydown", onKey, true);
+		return () => {
+			window.removeEventListener("keydown", onKey, true);
+			opener?.focus?.();
+		};
+	}, [open, dismiss]);
 
 	// Track pointer events on the panel header area so scrolling
 	// content inside the sheet still works.
@@ -135,6 +177,8 @@ export function Sheet({
 				role="dialog"
 				aria-modal="true"
 				aria-label={title}
+				ref={panelRef}
+				tabIndex={-1}
 				$dragY={dragY}
 				$animating={!dragging}
 				onPointerDown={onPointerDown}

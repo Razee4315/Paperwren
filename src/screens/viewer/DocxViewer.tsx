@@ -17,7 +17,10 @@ const ScrollWrap = styled.div`
 	overflow: auto;
 	background: var(--surface-2);
 	padding: 16px;
-	padding-top: calc(72px + var(--safe-area-top, 0px));
+	/* Shared viewport contract (audit 8): the real toolbar height,
+	   safe area included, so the first line is never hidden. */
+	padding-top: calc(var(--viewer-top-height, 56px) + 16px);
+	padding-bottom: calc(var(--viewer-bottom-height, 0px) + 24px);
 `;
 
 const DocContainer = styled.div<{ $zoom: number }>`
@@ -36,9 +39,9 @@ const DocContainer = styled.div<{ $zoom: number }>`
 		box-shadow: var(--shadow-1) !important;
 		margin-bottom: 12px !important;
 	}
-	/* Words the document colors as near-black; give it the paper ink. */
-	.docx-wrapper > section.docx,
-	.docx-wrapper > section.docx p {
+	/* Only the section default ink is overridden; paragraphs the
+	   document colors intentionally keep their authored color. */
+	.docx-wrapper > section.docx {
 		color: #211b15 !important;
 	}
 `;
@@ -189,9 +192,11 @@ export function DocxViewer({
 			chromeAutohide={false}
 		>
 			<ScrollWrap ref={scrollRef} onScroll={onScroll} data-testid="docx-view">
-				<DocContainer ref={containerRef} $zoom={fitZoom}>
-					<PanelNote>Opening document...</PanelNote>
-				</DocContainer>
+				{/* The loading note is a sibling: docx-preview replaces the
+				   children of its container node, which used to swallow
+				   this message's node mid-paint (audit 14.2). */}
+				<DocContainer ref={containerRef} $zoom={fitZoom} />
+				{fitZoom === 1 && <PanelNote>Loading document...</PanelNote>}
 			</ScrollWrap>
 		</ViewerShell>
 	);

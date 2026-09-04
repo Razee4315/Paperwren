@@ -1,5 +1,4 @@
 import { IconButton, InkProgress } from "@/components/ui";
-import { CoachBubble } from "@/state/coachMarks";
 import { motion, space, type as typeScale } from "@/theme";
 import { ArrowLeft } from "lucide-react";
 import type React from "react";
@@ -17,6 +16,11 @@ import styled from "styled-components";
  * Shared viewer chrome (docs/05 section 4, docs/07 section 1):
  * toolbar up top, format-specific bottom bar, tap-center toggle,
  * auto-hide after 2.5s while reading, ink-underline progress.
+ *
+ * Viewport contract (audit section 8): the shell publishes
+ * --viewer-top-height and --viewer-bottom-height (safe areas
+ * included) so every format viewer can pad its scroll area the
+ * same way and no first line/page/row hides behind chrome.
  */
 
 const Shell = styled.div`
@@ -135,18 +139,37 @@ export function ViewerShell({
 	const [chromeVisible, setChromeVisible] = useState(true);
 	const hideTimer = useRef<number | null>(null);
 	const [bottomNode, setBottomNode] = useState<HTMLElement | null>(null);
+	const shellRef = useRef<HTMLDivElement | null>(null);
+	const topRef = useRef<HTMLHeadElement | null>(null);
 
-	// Keep --bottom-bar-height truthful for format viewers that
-	// offset their content (0 when there is no bottom bar).
+	// Publish the shared viewport inset contract: the real rendered
+	// heights of the bars, safe areas included (audit section 8).
 	useEffect(() => {
-		document.documentElement.style.setProperty(
-			"--bottom-bar-height",
-			bottomNode ? `${bottomNode.offsetHeight}px` : "0px",
-		);
-		return () => {
-			document.documentElement.style.setProperty("--bottom-bar-height", "0px");
+		const publish = () => {
+			const shell = shellRef.current;
+			if (!shell) return;
+			shell.style.setProperty(
+				"--viewer-top-height",
+				`${topRef.current?.offsetHeight ?? 56}px`,
+			);
+			shell.style.setProperty(
+				"--viewer-bottom-height",
+				bottomNode ? `${bottomNode.offsetHeight}px` : "0px",
+			);
 		};
-	}, [bottomNode]);
+		publish();
+		const ro =
+			typeof ResizeObserver !== "undefined"
+				? new ResizeObserver(publish)
+				: null;
+		if (ro && topRef.current) ro.observe(topRef.current);
+		if (ro && bottomNode) ro.observe(bottomNode);
+		window.addEventListener("resize", publish);
+		return () => {
+			ro?.disconnect();
+			window.removeEventListener("resize", publish);
+		};
+	}, [bottomNode, chromeVisible, bottomBar]);
 
 	const showChrome = useCallback(() => setChromeVisible(true), []);
 
@@ -185,8 +208,8 @@ export function ViewerShell({
 
 	return (
 		<ChromeContext.Provider value={chromeApi}>
-			<Shell data-testid="viewer">
-				<TopBar $visible={chromeVisible}>
+			<Shell data-testid="viewer" ref={shellRef}>
+				<TopBar $visible={chromeVisible} ref={topRef}>
 					<TopRow>
 						<IconButton
 							label="Back"
@@ -207,12 +230,6 @@ export function ViewerShell({
 				</TopBar>
 
 				<Content onClick={onContentClick}>{children}</Content>
-
-				<CoachBubble
-					id="viewerChrome"
-					position={{ bottom: "40%" }}
-					text="Tap the middle of the page to hide the buttons while you read."
-				/>
 
 				{bottomBar && (
 					<BottomBar $visible={chromeVisible} ref={setBottomNode}>
