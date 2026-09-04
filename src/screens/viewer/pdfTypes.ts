@@ -7,4 +7,4 @@ export type OutlineNode = {
 };
 /** Render tasks are kept so stale renders can be cancelled
  * (audit 10.2). */
-export type RenderTaskLike = { cancel: () => void };
+export type RenderTaskLike = { cancel: () => void; promise: Promise<void> };
