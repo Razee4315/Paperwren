@@ -136,8 +136,9 @@ export function Sheet({
 		[],
 	);
 
-	// Escape dismisses like a dialog; focus starts inside and returns
-	// to the opener on close.
+	// Escape dismisses like a dialog; Tab is trapped inside the panel
+	// (audit SH-03: modal focus must stay in the sheet); focus starts
+	// inside and returns to the opener on close.
 	const panelRef = useRef<HTMLDivElement | null>(null);
 	useEffect(() => {
 		if (!open) return;
@@ -147,6 +148,25 @@ export function Sheet({
 			if (e.key === "Escape") {
 				e.stopPropagation();
 				dismiss();
+				return;
+			}
+			if (e.key === "Tab" && panelRef.current) {
+				const focusables = panelRef.current.querySelectorAll<HTMLElement>(
+					'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+				);
+				if (focusables.length === 0) return;
+				const first = focusables[0];
+				const last = focusables[focusables.length - 1];
+				const active = document.activeElement;
+				if (e.shiftKey) {
+					if (active === first || active === panelRef.current) {
+						e.preventDefault();
+						last.focus();
+					}
+				} else if (active === last) {
+					e.preventDefault();
+					first.focus();
+				}
 			}
 		};
 		window.addEventListener("keydown", onKey, true);

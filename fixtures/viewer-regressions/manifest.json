@@ -1,0 +1,14 @@
+{
+	"grid-align.xlsx": {
+		"tests": "XLS-01/XLS-02 header/cell edge alignment at multiple scroll offsets, unequal widths, column resize"
+	},
+	"merges.xlsx": {
+		"tests": "XLS-03 merged rectangle rendering (single anchor cell spanning the range)"
+	},
+	"narrow-fit.docx": {
+		"tests": "DOC-01 readiness at exactly 100% fit; DOC-02 manual zoom controls"
+	},
+	"wide-fit.pdf": {
+		"tests": "PDF-02 fit -> manual conversion preserves a fit scale far below 0.5"
+	}
+}

@@ -12,3 +12,44 @@ body,
 	margin: 0;
 	padding: 0;
 }
+
+/* PDF semantic layers (docs/14 audit PDF-09): scoped by unique class
+   prefixes so pdf.js's viewer CSS and these overlays cannot leak into
+   the app. The text layer must stay interactive for selection; links
+   sit above it; highlights are non-interactive. */
+.pw-link-layer {
+	position: absolute;
+	inset: 0;
+	z-index: 4;
+	pointer-events: none;
+}
+.pw-link {
+	position: absolute;
+	border: none;
+	background: transparent;
+	padding: 0;
+	cursor: pointer;
+	pointer-events: auto;
+}
+.pw-match {
+	position: absolute;
+	background: color-mix(in srgb, #f2c14e 40%, transparent);
+	border-radius: 2px;
+	mix-blend-mode: multiply;
+}
+.pw-match-active {
+	background: color-mix(in srgb, #ef8354 55%, transparent);
+	outline: 2px solid #ef8354;
+}
+.textLayer {
+	z-index: 2;
+}
+
+/* DOCX search highlights via the CSS Custom Highlight API
+   (docs/14 audit DOC-04): non-destructive, no DOM mutation. */
+::highlight(pw-docx-search) {
+	background-color: rgba(242, 193, 78, 0.4);
+}
+::highlight(pw-docx-active) {
+	background-color: rgba(239, 131, 84, 0.55);
+}

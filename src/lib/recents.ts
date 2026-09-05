@@ -1,6 +1,11 @@
 import { guessFormat, idForSource } from "./backend";
 import { displayNameFor } from "./sniff";
-import type { FilePosition, RecentsEntry, ReopenDescriptor } from "./types";
+import type {
+	DocxPositionMode,
+	FilePosition,
+	RecentsEntry,
+	ReopenDescriptor,
+} from "./types";
 
 const FORMATS = new Set([
 	"pdf",
@@ -17,9 +22,109 @@ const finiteNonNegative = (value: unknown, fallback = 0) =>
 		? value
 		: fallback;
 
+const unitFraction = (value: unknown, fallback = 0) =>
+	typeof value === "number" && Number.isFinite(value)
+		? Math.min(1, Math.max(0, value))
+		: fallback;
+
+const nonNegativeFinite = (value: unknown) =>
+	typeof value === "number" && Number.isFinite(value) && value >= 0
+		? value
+		: undefined;
+
+/** Zero-based page index of a stored position, whatever shape it is
+ * (legacy page field or a versioned pdf/docx location). */
+export function positionPageIndex(
+	position: FilePosition | undefined,
+): number | undefined {
+	if (!position) return undefined;
+	if (isVersionedPosition(position)) {
+		if (position.kind === "pdf" || position.kind === "docx") {
+			return position.location.pageIndex;
+		}
+		return undefined;
+	}
+	return position.page;
+}
+
+/** Type guard for the versioned union members. */
+export function isVersionedPosition(
+	position: FilePosition,
+): position is Extract<FilePosition, { version: 2 }> {
+	return "version" in position;
+}
+
+/** Validate a versioned position payload (docs/14 audit section 8).
+ * v2 payloads are checked field by field (finite numbers, integer
+ * page indexes, sane bounds, known kinds/modes); legacy
+ * {page,zoom,scrollRatio} values keep their documented decoding.
+ * Anything untrustworthy is dropped rather than persisted. */
 function cleanPosition(value: unknown): FilePosition | undefined {
 	if (!value || typeof value !== "object") return undefined;
 	const raw = value as Record<string, unknown>;
+
+	if (raw.version === 2) {
+		if (raw.kind === "pdf" || raw.kind === "docx") {
+			const loc = raw.location;
+			if (!loc || typeof loc !== "object") return undefined;
+			const l = loc as Record<string, unknown>;
+			const pageIndex = nonNegativeFinite(l.pageIndex);
+			if (pageIndex === undefined || !Number.isInteger(pageIndex)) {
+				return undefined;
+			}
+			const modes = ["width", "page", "manual"] as const;
+			const mode = modes.find((m) => m === raw.mode);
+			if (!mode) return undefined;
+			const location = {
+				pageIndex,
+				x: unitFraction(l.x),
+				y: unitFraction(l.y),
+				viewportX: unitFraction(l.viewportX, 0.5),
+				viewportY: unitFraction(l.viewportY, 0.5),
+			};
+			const scale = nonNegativeFinite(raw.scale);
+			if (raw.kind === "pdf") {
+				const rotation =
+					([0, 90, 180, 270] as const).find((r) => r === raw.rotation) ?? 0;
+				return {
+					version: 2,
+					kind: "pdf",
+					location,
+					mode,
+					rotation,
+					scale: mode === "manual" && scale !== undefined ? scale : undefined,
+				};
+			}
+			const docxMode: DocxPositionMode = mode === "page" ? "manual" : mode;
+			return {
+				version: 2,
+				kind: "docx",
+				location,
+				mode: docxMode,
+				scale: docxMode === "manual" && scale !== undefined ? scale : undefined,
+			};
+		}
+		if (raw.kind === "sheet") {
+			if (typeof raw.sheetName !== "string" || raw.sheetName.length === 0) {
+				return undefined;
+			}
+			const row = nonNegativeFinite(raw.row);
+			const col = nonNegativeFinite(raw.col);
+			if (row === undefined || col === undefined) return undefined;
+			return {
+				version: 2,
+				kind: "sheet",
+				sheetName: raw.sheetName,
+				row: Math.floor(row),
+				col: Math.floor(col),
+				offsetX: nonNegativeFinite(raw.offsetX) ?? 0,
+				offsetY: nonNegativeFinite(raw.offsetY) ?? 0,
+			};
+		}
+		return undefined;
+	}
+
+	// Legacy union: {page, zoom, scrollRatio}.
 	const position: FilePosition = {};
 	if (typeof raw.page === "number" && raw.page >= 0) position.page = raw.page;
 	if (typeof raw.zoom === "number" && raw.zoom > 0) position.zoom = raw.zoom;

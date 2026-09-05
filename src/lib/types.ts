@@ -39,11 +39,64 @@ export interface IngestedDocument {
 	importedAt: number;
 }
 
-export interface FilePosition {
-	page?: number;
-	zoom?: number;
-	scrollRatio?: number;
+/**
+ * Viewer position memory (docs/14 audit section 8).
+ *
+ * v2 is a versioned, discriminated payload: viewers REPLACE the whole
+ * stored payload on every write (no shallow merge of incompatible
+ * modes), and `cleanPosition` validates it on read so old or corrupt
+ * shapes cannot leak through. Legacy `{page, zoom, scrollRatio}`
+ * values are still decoded with a documented fallback: page top if
+ * only the page is reliable, scroll ratio when no page exists, and a
+ * legacy zoom means manual mode.
+ *
+ * Coordinate units: PDF locations store ratios of the page's
+ * UNROTATED box (canonical, converted with total rotation by the
+ * viewer); DOCX stores fractions of the unscaled section box.
+ * viewportX/Y are the fractions of the usable viewport where that
+ * point should reappear. Never store document text, passwords, or
+ * search excerpts here.
+ */
+export interface PageLocation {
+	/** Zero-based, integer, validated on read. */
+	pageIndex: number;
+	x: number;
+	y: number;
+	viewportX: number;
+	viewportY: number;
 }
+
+export type PdfPositionMode = "width" | "page" | "manual";
+export type DocxPositionMode = "width" | "manual";
+
+export type FilePosition =
+	| {
+			version: 2;
+			kind: "pdf";
+			location: PageLocation;
+			mode: PdfPositionMode;
+			/** Absolute CSS-px-per-point scale; only in manual mode. */
+			scale?: number;
+			/** User rotation 0|90|180|270. */
+			rotation: number;
+	  }
+	| {
+			version: 2;
+			kind: "docx";
+			location: PageLocation;
+			mode: DocxPositionMode;
+			scale?: number;
+	  }
+	| {
+			version: 2;
+			kind: "sheet";
+			sheetName: string;
+			row: number;
+			col: number;
+			offsetX: number;
+			offsetY: number;
+	  }
+	| { page?: number; zoom?: number; scrollRatio?: number };
 
 export interface RecentsEntry {
 	id: string;

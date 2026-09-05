@@ -4,14 +4,110 @@ import styled from "styled-components";
 import type { PdfDocument } from "./pdfTypes";
 
 /**
- * OVL-01 search sheet (docs/07 section 2): progressive text search
- * with hit count, snippets, and jump-to-page. v0.9 jumps to the
- * page of a hit; on-canvas highlight boxes are a follow-up.
+ * OVL-01 search (docs/14 audit PDF-09): progressive search over
+ * per-page text with a normalized index that maps every match back
+ * to its text item and character offset, so the reader can highlight
+ * and scroll to the ACTUAL match instead of just the page.
+ *
+ * Extraction model: items are concatenated and a newline is recorded
+ * where pdf.js reports hasEOL; no unconditional spaces are inserted,
+ * so a word split across two items still matches. The per-character
+ * map is what makes item+offset highlights possible.
+ *
+ * Result policy: ALL matches are counted; the rendered list is
+ * bounded with an explicit label (never a silent cap).
  */
 
-interface SearchHit {
+export interface SearchHit {
 	page: number;
+	/** Index into the page's text content items. */
+	itemIndex: number;
+	/** Character offset within that item's string. */
+	startInItem: number;
+	length: number;
 	snippet: string;
+}
+
+interface CharRef {
+	item: number;
+	offset: number;
+}
+
+interface PageTextIndex {
+	items: string[];
+	normalized: string;
+	map: CharRef[];
+	/** The page reported no extractable text (image-only scan or an
+	 * extraction that came back empty). */
+	empty: boolean;
+}
+
+const SNIPPET_CONTEXT = 24;
+/** Rendered result-list bound; the count stays honest (audit
+ * PDF-09: "Count all matches, or explicitly label a capped set" — we
+ * do both: count everything, label the rendered bound). */
+const RENDERED_HIT_LIMIT = 200;
+
+function buildSnippet(
+	normalized: string,
+	index: number,
+	length: number,
+): string {
+	const start = Math.max(0, index - SNIPPET_CONTEXT);
+	const end = Math.min(normalized.length, index + length + SNIPPET_CONTEXT);
+	const prefix = start > 0 ? "..." : "";
+	const suffix = end < normalized.length ? "..." : "";
+	return `${prefix}${normalized.slice(start, end).replace(/\s+/g, " ").trim()}${suffix}`;
+}
+
+/** Per-document page-text cache with in-flight deduplication (audit
+ * PDF-09): extraction runs once per page per document no matter how
+ * many searches race. */
+const indexCache = new WeakMap<
+	PdfDocument,
+	Map<number, Promise<PageTextIndex>>
+>();
+
+function pageTextIndex(
+	doc: PdfDocument,
+	pageNum: number,
+): Promise<PageTextIndex> {
+	let pages = indexCache.get(doc);
+	if (!pages) {
+		pages = new Map<number, Promise<PageTextIndex>>();
+		indexCache.set(doc, pages);
+	}
+	const cached = pages.get(pageNum);
+	if (cached) return cached;
+	const promise = (async () => {
+		const page = await doc.getPage(pageNum);
+		const content = await page.getTextContent();
+		const items: string[] = [];
+		let normalized = "";
+		const map: CharRef[] = [];
+		for (let i = 0; i < content.items.length; i++) {
+			const item = content.items[i];
+			if (!("str" in item)) continue;
+			const str = item.str;
+			items.push(str);
+			for (let k = 0; k < str.length; k++) {
+				normalized += str[k].toLowerCase();
+				map.push({ item: i, offset: k });
+			}
+			if ("hasEOL" in item && item.hasEOL) {
+				normalized += "\n";
+				map.push({ item: i, offset: str.length });
+			}
+		}
+		return {
+			items,
+			normalized,
+			map,
+			empty: normalized.trim().length === 0,
+		};
+	})();
+	pages.set(pageNum, promise);
+	return promise;
 }
 
 const ListPanel = styled.div`
@@ -66,58 +162,28 @@ const NoHits = styled.p`
 	padding: 8px;
 `;
 
-const SNIPPET_CONTEXT = 24;
-
-function buildSnippet(
-	text: string,
-	index: number,
-	queryLength: number,
-): string {
-	const start = Math.max(0, index - SNIPPET_CONTEXT);
-	const end = Math.min(text.length, index + queryLength + SNIPPET_CONTEXT);
-	const prefix = start > 0 ? "..." : "";
-	const suffix = end < text.length ? "..." : "";
-	return `${prefix}${text.slice(start, end).replace(/\s+/g, " ")}${suffix}`;
-}
-
-/** Per-document page-text cache: extraction runs once per page per
- * document instead of once per keystroke (audit 11.3). */
-const textCache = new WeakMap<PdfDocument, Map<number, string>>();
-
-async function pageText(doc: PdfDocument, pageNum: number): Promise<string> {
-	let pages = textCache.get(doc);
-	if (!pages) {
-		pages = new Map<number, string>();
-		textCache.set(doc, pages);
-	}
-	const cached = pages.get(pageNum);
-	if (cached !== undefined) return cached;
-	const page = await doc.getPage(pageNum);
-	const content = await page.getTextContent();
-	let out = "";
-	for (const item of content.items) {
-		if ("str" in item) out += `${item.str} `;
-	}
-	pages.set(pageNum, out);
-	return out;
-}
-
 export function PdfSearchSheet({
 	open,
 	doc,
 	onDismiss,
-	onGoToPage,
+	onNavigateToMatches,
 }: {
 	open: boolean;
 	doc: PdfDocument | null;
 	onDismiss: () => void;
-	onGoToPage: (page: number) => void;
+	/** Hands the full hit list + active index to the viewer, which
+	 * highlights matches, scrolls to the active one, and closes this
+	 * sheet (audit PDF-09). */
+	onNavigateToMatches: (hits: SearchHit[], activeIndex: number) => void;
 }) {
 	const [query, setQuery] = useState("");
 	const [hits, setHits] = useState<SearchHit[]>([]);
+	const [matchCount, setMatchCount] = useState(0);
 	const [searched, setSearched] = useState(0);
 	const [total, setTotal] = useState(0);
 	const [busy, setBusy] = useState(false);
+	const [textlessPages, setTextlessPages] = useState(0);
+	const [erroredPages, setErroredPages] = useState(0);
 	const runId = useRef(0);
 	const [selected, setSelected] = useState(-1);
 
@@ -125,43 +191,61 @@ export function PdfSearchSheet({
 		if (!open || !doc) return;
 		const id = ++runId.current;
 		setHits([]);
+		setMatchCount(0);
 		setSearched(0);
 		setTotal(doc.numPages);
 		setSelected(-1);
-		if (query.trim().length === 0) {
+		setTextlessPages(0);
+		setErroredPages(0);
+		const needle = query.trim().toLowerCase();
+		if (needle.length === 0) {
 			setBusy(false);
 			return;
 		}
 		setBusy(true);
-		const needle = query.trim().toLowerCase();
-
 		// Debounce input: typing must never block scrolling or chrome
-		// interaction (audit 11.3), and stale runs are cancelled by
-		// their generation id.
+		// interaction; stale runs are cancelled by their generation id.
 		const timer = window.setTimeout(() => {
 			const run = async () => {
 				const found: SearchHit[] = [];
+				let count = 0;
+				let textless = 0;
+				let errored = 0;
 				for (let p = 1; p <= doc.numPages; p++) {
 					if (id !== runId.current) return;
 					try {
-						const text = (await pageText(doc, p)).toLowerCase();
-						let idx = text.indexOf(needle);
-						let count = 0;
-						while (idx !== -1 && count < 5) {
-							found.push({
-								page: p,
-								snippet: buildSnippet(text, idx, needle.length),
-							});
+						const index = await pageTextIndex(doc, p);
+						if (index.empty) textless++;
+						let idx = index.normalized.indexOf(needle);
+						while (idx !== -1) {
 							count++;
-							idx = text.indexOf(needle, idx + needle.length);
+							const startRef = index.map[idx];
+							const endRef = index.map[idx + needle.length - 1] ?? startRef;
+							if (found.length < RENDERED_HIT_LIMIT) {
+								found.push({
+									page: p,
+									itemIndex: startRef.item,
+									startInItem: startRef.offset,
+									length: endRef.offset - startRef.offset + 1,
+									snippet: buildSnippet(index.normalized, idx, needle.length),
+								});
+							}
+							idx = index.normalized.indexOf(
+								needle,
+								idx + Math.max(1, needle.length),
+							);
 						}
 					} catch {
-						// Unreadable page text; skip it.
+						// A page that fails extraction is a fact worth
+						// disclosing, not silence (audit PDF-09).
+						errored++;
 					}
 					if (id !== runId.current) return;
 					setSearched(p);
-					// Report progressive results as they land.
+					setMatchCount(count);
 					setHits([...found]);
+					setTextlessPages(textless);
+					setErroredPages(errored);
 				}
 				setBusy(false);
 			};
@@ -174,6 +258,7 @@ export function PdfSearchSheet({
 	}, [open, query, doc]);
 
 	const progress = total > 0 ? searched / total : 0;
+	const renderedCapped = matchCount > hits.length;
 
 	return (
 		<Sheet open={open} title="Search" id="pdf-search" onDismiss={onDismiss}>
@@ -184,32 +269,41 @@ export function PdfSearchSheet({
 				placeholder="Search text"
 				autoFocus
 			/>
-			<StatusLine aria-live="polite">
+			<StatusLine aria-live="polite" data-testid="pdf-search-status">
 				{busy
 					? `Searching, page ${searched} of ${total} (${Math.round(progress * 100)}%)`
 					: query.trim()
-						? `${hits.length} ${hits.length === 1 ? "result" : "results"}`
+						? `${matchCount} ${matchCount === 1 ? "result" : "results"}`
 						: "Type to search the document."}
+				{renderedCapped ? ` — showing the first ${RENDERED_HIT_LIMIT}.` : ""}
+				{!busy && erroredPages > 0
+					? ` ${erroredPages} ${erroredPages === 1 ? "page" : "pages"} could not be searched.`
+					: ""}
 			</StatusLine>
-			<ListPanel>
+			<ListPanel data-testid="pdf-search-results">
 				{hits.map((hit, i) => (
 					<HitButton
-						key={`hit-${hit.page}-${i}`}
+						key={`hit-${hit.page}-${hit.itemIndex}-${hit.startInItem}`}
 						$current={i === selected}
+						data-testid={`pdf-search-hit-${i}`}
 						onClick={() => {
 							setSelected(i);
-							onGoToPage(hit.page);
+							onNavigateToMatches(hits, i);
 						}}
 					>
 						<HitPage>Page {hit.page}</HitPage>
 						<HitSnippet>{hit.snippet}</HitSnippet>
 					</HitButton>
 				))}
-				{!busy && query.trim() && hits.length === 0 && (
-					<NoHits>No matches. Try a shorter or different word.</NoHits>
+				{!busy && query.trim() && matchCount === 0 && (
+					<NoHits>
+						{textlessPages === total && total > 0
+							? "No searchable text. This document may be a scan (image-only pages) — search needs embedded text."
+							: "No matches. Try a shorter or different word."}
+					</NoHits>
 				)}
 			</ListPanel>
-			{!busy && hits.length === 0 && (
+			{!busy && matchCount === 0 && (
 				<Button variant="ghost" onClick={onDismiss}>
 					Close
 				</Button>

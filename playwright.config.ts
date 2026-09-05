@@ -19,7 +19,10 @@ export default defineConfig({
 		video: "retain-on-failure",
 	},
 	webServer: {
-		command: "npx vite preview --port 4173 --strictPort",
+		// Pin the host: vite otherwise binds localhost (::1 and 127.0.0.1
+		// in an unpredictable order), which made the first test of a run
+		// hit ERR_CONNECTION_REFUSED while the readiness probe passed.
+		command: "node node_modules/vite/bin/vite.js preview --port 4173 --strictPort --host 127.0.0.1",
 		reuseExistingServer: false,
 		timeout: 60_000,
 	},

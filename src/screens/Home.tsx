@@ -8,6 +8,7 @@ import {
 	showSnackbar,
 } from "@/components/ui";
 import { formatBytes } from "@/lib/backend";
+import { positionPageIndex } from "@/lib/recents";
 import type { RecentsEntry } from "@/lib/types";
 import { useRecents } from "@/state/RecentsContext";
 import { CoachBubble } from "@/state/coachMarks";
@@ -285,8 +286,9 @@ function recentMeta(entry: RecentsEntry): string {
 		entry.format === "unknown" ? "File" : entry.format.toUpperCase();
 	const parts = [format];
 	if (entry.size > 0) parts.push(formatBytes(entry.size));
-	if (entry.position?.page !== undefined) {
-		parts.push(`Page ${entry.position.page + 1}`);
+	const pageIndex = positionPageIndex(entry.position);
+	if (pageIndex !== undefined && entry.format === "pdf") {
+		parts.push(`Page ${pageIndex + 1}`);
 	}
 	parts.push(relativeDate(entry.lastOpenedAt));
 	return parts.join(" · ");
@@ -336,7 +338,7 @@ export function Home({
 	const pinned = entries.filter((e) => e.pinned);
 	const recent = entries.filter((e) => !e.pinned);
 	const continueEntry = entries.find(
-		(e) => !e.unavailable && e.position?.page !== undefined,
+		(e) => !e.unavailable && positionPageIndex(e.position) !== undefined,
 	);
 
 	const longPressFired = useRef(false);
@@ -449,7 +451,7 @@ export function Home({
 								<ContinueTitle>Continue reading</ContinueTitle>
 								<ContinueName>{continueEntry.name}</ContinueName>
 								<ContinueSub>
-									Page {(continueEntry.position?.page ?? 0) + 1} ·{" "}
+									Page {(positionPageIndex(continueEntry.position) ?? 0) + 1} ·{" "}
 									{relativeDate(continueEntry.lastOpenedAt)}
 								</ContinueSub>
 							</ContinueBody>

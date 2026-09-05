@@ -109,7 +109,13 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			if (!settings["files.save_recents"]) return;
 			setEntries((prev) => {
 				const next = prev.map((e) =>
-					e.id === id ? { ...e, position: { ...e.position, ...position } } : e,
+					e.id === id
+						? // Versioned payloads REPLACE the stored position:
+							// shallow-merging an old {page,zoom} shape with a new
+							// versioned shape (or a different viewer's kind) would
+							// leave obsolete fields behind (audit section 8).
+							{ ...e, position }
+						: e,
 				);
 				persist(next);
 				return next;
