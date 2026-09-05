@@ -35,7 +35,11 @@ const Shell = styled.div`
 	   never have the previous screen's floating buttons poke through
 	   its bars (audit XLS-06: bottom-strip taps must reach it). */
 	z-index: 600;
-	animation: pw-screen-in ${motion.dur.standard} ${motion.ease.enter};
+	/* No entrance animation: a loading surface that starts at
+	   opacity 0 stays invisible when the Android WebView freezes
+	   CSS animations around the native picker, and only a much
+	   later re-render paints it. The reader must always be
+	   immediately visible. */
 `;
 
 const TopBar = styled.header<{ $visible: boolean }>`
@@ -119,6 +123,9 @@ interface ChromeApi {
 	 * policy (PDF read surface via its gesture controller). */
 	toggleChrome: () => void;
 	chromeVisible: boolean;
+	/** Fresh read of the visibility state for timer callbacks that
+	 * would otherwise act on a stale captured value. */
+	isChromeVisible: () => boolean;
 	/** Measured shell width, for responsive action rows (audit
 	 * SH-01): viewers expose more top actions only when the real
 	 * toolbar has room for them. */
@@ -130,6 +137,7 @@ const ChromeContext = createContext<ChromeApi>({
 	scheduleHide: () => {},
 	toggleChrome: () => {},
 	chromeVisible: true,
+	isChromeVisible: () => true,
 	shellWidth: 0,
 });
 
@@ -178,6 +186,8 @@ export function ViewerShell({
 	contentTapTogglesChrome?: boolean;
 }) {
 	const [chromeVisible, setChromeVisible] = useState(true);
+	const chromeVisibleRef = useRef(true);
+	chromeVisibleRef.current = chromeVisible;
 	const hideTimer = useRef<number | null>(null);
 	const [bottomNode, setBottomNode] = useState<HTMLElement | null>(null);
 	const shellRef = useRef<HTMLDivElement | null>(null);
@@ -311,6 +321,7 @@ export function ViewerShell({
 		scheduleHide,
 		toggleChrome,
 		chromeVisible,
+		isChromeVisible: () => chromeVisibleRef.current,
 		shellWidth,
 	};
 

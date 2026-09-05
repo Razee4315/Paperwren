@@ -27,6 +27,7 @@ const mode = process.argv[2] ?? "apply";
 const MAINACTIVITY_IMPORTS = `import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.IntentCompat
@@ -207,10 +208,46 @@ const MAINACTIVITY_METHODS = `
       }
     }
     return null
+  }
+
+  /** Picker name bridge: the in-app document picker hands the web
+   * layer a content:// URI whose last segment is an opaque id, so
+   * the recents list would show "Document.pdf" for everything. The
+   * web layer calls these @JavascriptInterface methods to ask the
+   * provider for the real DISPLAY_NAME and SIZE. Retried because the
+   * WebView does not exist yet when onCreate runs. */
+  private fun installNameBridge(attempt: Int) {
+    val webView = findWebView()
+    if (webView == null || !isAppOrigin(webView.url)) {
+      if (attempt < 200) {
+        Handler(Looper.getMainLooper()).postDelayed({ installNameBridge(attempt + 1) }, 150)
+      }
+      return
+    }
+    webView.addJavascriptInterface(object : Any() {
+      @JavascriptInterface
+      fun displayName(uri: String): String {
+        return try {
+          queryDisplayName(Uri.parse(uri))
+        } catch (e: Exception) {
+          ""
+        }
+      }
+
+      @JavascriptInterface
+      fun contentSize(uri: String): Long {
+        return try {
+          querySize(Uri.parse(uri))
+        } catch (e: Exception) {
+          0L
+        }
+      }
+    }, "__paperwrenAndroid")
   }`;
 
 const MAINACTIVITY_ONCREATE_HOOK = `    handleIncomingIntent(intent)
-    installBackBridge()`;
+    installBackBridge()
+    installNameBridge(0)`;
 
 const MAINACTIVITY_ONNEWINTENT = `
   override fun onNewIntent(intent: Intent) {
@@ -380,6 +417,12 @@ function patchMainActivity(original) {
 	if (!classBody.includes("OpenableColumns.DISPLAY_NAME")) {
 		fail("Display-name query missing from the class body.", src);
 	}
+	if (!classBody.includes("__paperwrenAndroid")) {
+		fail("Picker name bridge missing from the class body.", src);
+	}
+	if (!src.includes("import android.webkit.JavascriptInterface")) {
+		fail("JavascriptInterface import missing after patch.", src);
+	}
 	const bridgeExpression = String.raw`JSONObject.quote(path) + "," + JSONObject.quote(name) + "," + pendingSize + ") ? \"accepted\" : \"pending\""`;
 	if (!src.includes(bridgeExpression)) {
 		fail("Bridge expression has invalid Kotlin string quoting.", src);
@@ -424,6 +467,9 @@ if (mode === "check") {
 	}
 	if (!inside.includes("OpenableColumns.DISPLAY_NAME")) {
 		fail("Dry run: display-name query outside class.", body);
+	}
+	if (!inside.includes("__paperwrenAndroid")) {
+		fail("Dry run: picker name bridge outside class.", body);
 	}
 	console.log("Dry run OK: patch applies cleanly to the 2.11.4 template.");
 	process.exit(0);

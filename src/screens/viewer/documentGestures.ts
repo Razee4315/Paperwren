@@ -95,6 +95,22 @@ export function createGestureController(emit: (event: GestureEvent) => void) {
 		void t;
 	}
 
+	/** Shared tap finalization: resolves single vs double against the
+	 * previous tap's time and position. */
+	function emitTap(p: PointerSample) {
+		if (
+			lastTap &&
+			p.t - lastTap.t <= DOUBLE_TAP_MS &&
+			Math.hypot(p.x - lastTap.x, p.y - lastTap.y) <= DOUBLE_TAP_SLOP
+		) {
+			lastTap = null;
+			emit({ type: "tap", x: p.x, y: p.y, double: true });
+			return;
+		}
+		lastTap = { x: p.x, y: p.y, t: p.t };
+		emit({ type: "tap", x: p.x, y: p.y, double: false });
+	}
+
 	return {
 		get phase(): GesturePhase {
 			return phase;
@@ -224,21 +240,30 @@ export function createGestureController(emit: (event: GestureEvent) => void) {
 						lastTap = null;
 						return;
 					}
-					if (
-						lastTap &&
-						p.t - lastTap.t <= DOUBLE_TAP_MS &&
-						Math.hypot(p.x - lastTap.x, p.y - lastTap.y) <= DOUBLE_TAP_SLOP
-					) {
-						lastTap = null;
-						emit({ type: "tap", x: p.x, y: p.y, double: true });
-					} else {
-						lastTap = { x: p.x, y: p.y, t: p.t };
-						emit({ type: "tap", x: p.x, y: p.y, double: false });
-					}
+					emitTap(p);
 					break;
 				}
 				case "panning": {
 					if (pointers.size === 0) {
+						// Tap recovery: a contact that crossed the pan slop on
+						// lift (the finger rolls on glass) but never really
+						// traveled or lingered is still a tap. Without this,
+						// a resting thumb hides the chrome once and can
+						// never bring it back on a phone (mobile audit).
+						const duration = p.t - downT;
+						const travel = Math.hypot(
+							p.x - tracked.startX,
+							p.y - tracked.startY,
+						);
+						if (
+							!everPinched &&
+							travel <= TAP_MAX_TRAVEL &&
+							duration <= TAP_MAX_DURATION
+						) {
+							phase = "idle";
+							emitTap(p);
+							break;
+						}
 						emit({ type: "panEnd", vx: velocity.x, vy: velocity.y });
 						velocity = { x: 0, y: 0 };
 						phase = "idle";

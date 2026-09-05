@@ -1,7 +1,7 @@
 import { type FileFormat, FormatBadge } from "@/components/FormatBadge";
 import { WrenMark } from "@/components/WrenMark";
 import { InkProgress } from "@/components/ui";
-import { motion, radius, space, type } from "@/theme";
+import { radius, space, type } from "@/theme";
 import styled from "styled-components";
 
 /**
@@ -12,7 +12,7 @@ import styled from "styled-components";
  * progress whenever the loader under the hood reports one.
  */
 
-const Stage = styled.div`
+const Stage = styled.div<{ $elevated: boolean }>`
 	position: fixed;
 	inset: 0;
 	background: var(--bg);
@@ -25,8 +25,14 @@ const Stage = styled.div`
 	text-align: center;
 	/* Above page content, below the viewer toolbar (20) so Back
 	   stays reachable, and far below sheets (1100) and dialogs. */
-	z-index: 10;
-	animation: pw-screen-in ${motion.dur.standard} ${motion.ease.enter};
+	/* Standalone mode rises above the previous screen's FAB (500) and
+	   coach bubble (900) but stays below Sheets (1100) and Dialogs
+	   (1200) so failure recovery always lands on top. */
+	z-index: ${({ $elevated }) => ($elevated ? 950 : 10)};
+	/* No entrance animation: a loading page must be visible the
+	   instant it mounts — an opacity-0 start freezes invisible when
+	   the Android WebView pauses CSS animations around the native
+	   picker (the "screen appears only after a theme change" bug). */
 `;
 
 const MarkWrap = styled.div`
@@ -125,14 +131,23 @@ export function OpeningScreen({
 	name,
 	format,
 	progress,
+	elevated = false,
 }: {
 	name: string;
 	format: FileFormat;
 	/** Fraction when the loader reports one; null while indeterminate. */
 	progress: number | null;
+	/** Standalone mode (before the viewer shell mounts): raised above
+	 * the previous screen's floating chrome so nothing pokes through. */
+	elevated?: boolean;
 }) {
 	return (
-		<Stage data-testid="opening-screen" aria-live="polite" aria-busy="true">
+		<Stage
+			data-testid="opening-screen"
+			aria-live="polite"
+			aria-busy="true"
+			$elevated={elevated}
+		>
 			<MarkWrap>
 				<WrenMark size={128} />
 			</MarkWrap>

@@ -87,6 +87,44 @@ describe("tap arbitration (audit PDF-03)", () => {
 		expect((end as { vy: number }).vy).toBeLessThan(0);
 		expect(events.some((e) => e.type === "tap")).toBe(false);
 	});
+
+	it("a contact that rolls past the slop on lift but barely travels is still a tap", () => {
+		// Finger rolls ~10px mid-gesture (crosses PAN_SLOP=8, becomes a
+		// pan) but the whole contact stays inside TAP_MAX_TRAVEL=12 and
+		// TAP_MAX_DURATION=300: lifting it must recover the tap, or a
+		// resting thumb can never bring the chrome back on a phone.
+		const events = run([
+			{ op: "down", x: 200, y: 400, t: 0 },
+			{ op: "move", x: 200, y: 410, t: 40 },
+			{ op: "move", x: 199, y: 409, t: 80 },
+			{ op: "up", x: 199, y: 409, t: 120 },
+		]);
+		expect(events[0]).toEqual({ type: "panStart" });
+		expect(events.some((e) => e.type === "tap" && e.double === false)).toBe(
+			true,
+		);
+		expect(events.some((e) => e.type === "panEnd")).toBe(false);
+	});
+
+	it("a long-lingering roll is still a pan, not a recovered tap", () => {
+		const events = run([
+			{ op: "down", x: 200, y: 400, t: 0 },
+			{ op: "move", x: 200, y: 410, t: 40 },
+			{ op: "up", x: 200, y: 410, t: 900 },
+		]);
+		expect(events.some((e) => e.type === "tap")).toBe(false);
+		expect(events.some((e) => e.type === "panEnd")).toBe(true);
+	});
+
+	it("a pinch that ends in small travel never recovers into a tap", () => {
+		const events = run([
+			{ op: "down", id: 1, x: 200, y: 400, t: 0 },
+			{ op: "down", id: 2, x: 260, y: 400, t: 10 },
+			{ op: "up", id: 2, x: 261, y: 401, t: 60 },
+			{ op: "up", id: 1, x: 201, y: 402, t: 90 },
+		]);
+		expect(events.some((e) => e.type === "tap")).toBe(false);
+	});
 });
 
 describe("pinch lifecycle", () => {

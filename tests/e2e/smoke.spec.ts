@@ -78,9 +78,9 @@ test("recents record the real name and reopen after a reload", async ({
 	await expect(page.getByTestId("viewer")).toBeVisible({
 		timeout: 20_000,
 	});
-	await expect(
-		page.getByTestId("viewer").locator("header"),
-	).toContainText("2026 tax return.pdf");
+	await expect(page.getByTestId("viewer").locator("header")).toContainText(
+		"2026 tax return.pdf",
+	);
 });
 
 test("settings subpage Back returns to Settings root, then Home", async ({

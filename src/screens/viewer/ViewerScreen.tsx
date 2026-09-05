@@ -191,11 +191,14 @@ export function ViewerScreen({
 		// Immediate feedback after picking: the branded opening page
 		// runs while the single read happens (docs/04: chrome never
 		// waits for content, and content gets a real loading page).
+		// Elevated: the viewer shell is not mounted yet, so the page
+		// must rise above the previous screen's FAB.
 		return (
 			<OpeningScreen
 				name={displayNameFor(file.name, format ?? "unknown")}
 				format={format ?? "unknown"}
 				progress={null}
+				elevated
 			/>
 		);
 	}

@@ -1009,10 +1009,17 @@ export function PdfViewer({
 			if (chromeToggleTimer.current !== null) {
 				window.clearTimeout(chromeToggleTimer.current);
 			}
+			// Showing is immediate: when the tools are hidden the reader
+			// tap must bring them back on the first touch, with no
+			// arbitration wait (the zoom double-tap loses its slot
+			// there, which is the right trade — a hidden-chrome state
+			// answers "show me the tools" first). Only the hide
+			// direction waits out the double-tap window.
+			const delay = chrome.isChromeVisible() ? SINGLE_TAP_CHROME_MS : 0;
 			chromeToggleTimer.current = window.setTimeout(() => {
 				chromeToggleTimer.current = null;
 				chrome.toggleChrome();
-			}, SINGLE_TAP_CHROME_MS);
+			}, delay);
 		},
 		[cycleZoomAt, chrome],
 	);

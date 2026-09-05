@@ -73,6 +73,15 @@ declare global {
 		 * instead of showing the file input. Lets automated browser
 		 * tests exercise the whole open flow without a chooser. */
 		__paperwrenTestFile?: File;
+		/** Android picker bridge (MainActivity patch): asks the
+		 * content resolver for the real DISPLAY_NAME and SIZE of a
+		 * picked content:// URI, whose own last segment is an opaque
+		 * numeric id. Undefined off Android or before the bridge
+		 * installs. */
+		__paperwrenAndroid?: {
+			displayName(uri: string): string;
+			contentSize(uri: string): number;
+		};
 	}
 }
 
@@ -189,15 +198,47 @@ const tauriBackend: Backend = {
 		if (!result || typeof result !== "string") return null;
 		const path = result;
 		// Android pickers return content:// URIs whose last segment is
-		// an opaque numeric id with no extension. Keep the raw name as
-		// a hint only; sniffing decides the format from the bytes, and
-		// the size arrives with the single read (no extra SAF round
-		// trip, which is what made picking feel stuck).
-		const name = path.split(/[\\/]/).pop() ?? path;
+		// an opaque numeric id with no extension. The Kotlin bridge
+		// (MainActivity patch) asks the provider for the real
+		// DISPLAY_NAME; without it every recent showed as
+		// "Document.pdf". Fallbacks: percent-decode the segment
+		// (SAF URIs carry the path as ...%2FDir%2FName.pdf), then the
+		// raw segment. Sniffing still decides the format from the
+		// bytes, and the size arrives with the single read when the
+		// bridge is unavailable.
+		let name = path.split(/[\\/]/).pop() ?? path;
+		let size = 0;
+		if (path.startsWith("content://")) {
+			const bridge = window.__paperwrenAndroid;
+			if (bridge) {
+				try {
+					const bridgedName = bridge.displayName(path);
+					if (bridgedName) {
+						name = bridgedName;
+						const bridgedSize = bridge.contentSize(path);
+						if (Number.isFinite(bridgedSize) && bridgedSize > 0) {
+							size = bridgedSize;
+						}
+					}
+				} catch {
+					// Bridge hiccup: fall through to the decoded segment.
+				}
+			}
+			if (size === 0 && name === (path.split(/[\\/]/).pop() ?? path)) {
+				try {
+					const decoded = decodeURIComponent(name);
+					name = decoded.includes("/")
+						? decoded.slice(decoded.lastIndexOf("/") + 1)
+						: decoded;
+				} catch {
+					// Malformed escape: keep the raw segment.
+				}
+			}
+		}
 		const reopen: ReopenDescriptor = path.startsWith("content://")
 			? { kind: "persisted-uri", uri: path }
 			: { kind: "desktop-path", path };
-		return { name, size: 0, source: path, ref: path, reopen };
+		return { name, size, source: path, ref: path, reopen };
 	},
 	async readBytes(ref) {
 		const { readFile } = await import("@tauri-apps/plugin-fs");

@@ -60,25 +60,17 @@ if (existsSync(anydpi)) {
 }
 
 const valuesDir = join(DEST, "values");
-let colorDefined = false;
-if (existsSync(valuesDir)) {
-	for (const file of readdirSync(valuesDir)) {
-		if (!file.endsWith(".xml")) continue;
-		if (
-			readFileSync(join(valuesDir, file), "utf8").includes(
-				"ic_launcher_background",
-			)
-		) {
-			colorDefined = true;
-		}
-	}
+if (!existsSync(valuesDir)) {
+	console.error(`values/ not found at ${valuesDir}. Run tauri android init first.`);
+	process.exit(1);
 }
-if (!colorDefined) {
-	writeFileSync(
-		join(valuesDir, "ic_launcher_background.xml"),
-		`<resources>\n    <color name="ic_launcher_background">#000000</color>\n</resources>\n`,
-	);
-	console.log("Wrote values/ic_launcher_background.xml (black).");
-}
+// Always force the black background: a previously generated project
+// carries the old ember color in values/, and a launcher tile that
+// never matches the brand reads as broken (the white tile bug).
+writeFileSync(
+	join(valuesDir, "ic_launcher_background.xml"),
+	`<resources>\n    <color name="ic_launcher_background">#000000</color>\n</resources>\n`,
+);
+console.log("Wrote values/ic_launcher_background.xml (black, forced).");
 
 console.log(`Launcher icons applied from ${SRC} to ${DEST}.`);

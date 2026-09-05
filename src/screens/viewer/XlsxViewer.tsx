@@ -1,4 +1,5 @@
 import { formatCssVar } from "@/components/FormatBadge";
+import { OpeningScreen } from "@/components/OpeningScreen";
 import {
 	Button,
 	TextField,
@@ -736,17 +737,7 @@ export function XlsxViewer({
 	}
 
 	if (!sheets || !sheet || !windowed) {
-		return (
-			<ViewerShell
-				name={name}
-				formatColor={formatCssVar("xlsx").base}
-				progress={0.4}
-				onClose={onClose}
-				chromeAutohide={false}
-			>
-				<Center>Preparing sheet...</Center>
-			</ViewerShell>
-		);
+		return <OpeningScreen name={name} format="xlsx" progress={null} />;
 	}
 
 	const selectedCell = selected
