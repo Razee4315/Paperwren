@@ -1,15 +1,185 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <g transform="translate(51.2 51.2) scale(0.8)">
-    <g transform="rotate(-12 256 266)">
-      <rect x="156" y="136" width="200" height="260" rx="32" fill="#3F9463" opacity="0.85"/>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  fill="none"
+  role="img"
+  aria-labelledby="title description"
+>
+  <title id="title">Paperwren adaptive-icon foreground</title>
+  <desc id="description">
+    A white folded-paper wren with an uplifted tail and a pale mint
+    wing on transparency, sized for Android adaptive-icon masks.
+  </desc>
+
+  <defs>
+    <linearGradient
+      id="paper"
+      x1="214" y1="168"
+      x2="309" y2="350"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E5F0ED"/>
+    </linearGradient>
+
+    <linearGradient
+      id="tailFold"
+      x1="112" y1="172"
+      x2="212" y2="291"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#D8EFEB"/>
+      <stop offset="1" stop-color="#A3CEC7"/>
+    </linearGradient>
+
+    <linearGradient
+      id="wing"
+      x1="205" y1="249"
+      x2="287" y2="333"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#F7FCFA"/>
+      <stop offset="1" stop-color="#C5E4DD"/>
+    </linearGradient>
+
+    <linearGradient
+      id="fold"
+      x1="286" y1="214"
+      x2="308" y2="257"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#B8DDD4"/>
+      <stop offset="1" stop-color="#8DBFB6"/>
+    </linearGradient>
+
+    <path
+      id="wren"
+      d="
+        M 104 164
+        L 220 226
+        L 293 184
+        C 306 176 318 173 331 174
+        C 352 175 369 190 376 210
+        L 408 225
+        L 375 239
+        C 372 263 359 284 340 300
+        L 300 330
+        C 279 346 251 349 229 337
+        C 211 328 198 313 186 294
+        L 144 278
+        Z
+      "
+    />
+  </defs>
+
+  <!-- Adaptive-icon foreground: the wren mark only (the launcher's
+       mask supplies the background), centered in the safe zone at the
+       largest scale scripts/check-icon-foreground.mjs allows. -->
+  <g transform="translate(38.4 38) scale(0.85)">
+    <g id="paper-shadow" aria-hidden="true">
+      <use
+        href="#wren"
+        transform="translate(0 12)"
+        fill="#031A22"
+        opacity="0.13"
+      />
+      <use
+        href="#wren"
+        transform="translate(0 5)"
+        fill="#031A22"
+        opacity="0.15"
+      />
     </g>
-    <g transform="rotate(0 256 256)">
-      <rect x="156" y="126" width="200" height="260" rx="32" fill="#3B6BC7" opacity="0.85"/>
-    </g>
-    <g transform="rotate(12 246 246)">
-      <path d="M176 106 H296 L356 166 V346 C356 364 342 378 324 378 H176 C158 378 144 364 144 346 V138 C144 120 158 106 176 106 Z" fill="#D95430"/>
-      <path d="M296 106 V136 C296 152.4 309.6 166 326 166 H356 Z" fill="#F0A184"/>
-      <path d="M176 118 H290 L344 172 V346 C344 357 335 366 324 366 H176 C165 366 156 357 156 346 V138 C156 127 165 118 176 118 Z" fill="none" stroke="#FAF7F2" stroke-width="6" opacity="0.9"/>
+
+    <g id="paper-wren">
+      <use href="#wren" fill="url(#paper)"/>
+
+      <path
+        d="M104 164 L220 226 L186 294 L144 278 Z"
+        fill="url(#tailFold)"
+      />
+
+      <path
+        d="M104 164 L220 226 L167 249 Z"
+        fill="#F2FAF7"
+      />
+
+      <path
+        d="M104 164 L167 249 L144 278 Z"
+        fill="#C8E5DE"
+      />
+
+      <path
+        d="M109 173 L167 249 L211 230"
+        stroke="#FFFFFF"
+        stroke-opacity="0.32"
+        stroke-width="1.5"
+        stroke-linejoin="round"
+      />
+
+      <path
+        d="
+          M186 294
+          L304 272
+          L300 330
+          C279 346 251 349 229 337
+          C211 328 198 313 186 294
+          Z
+        "
+        fill="#D7EAE4"
+      />
+
+      <path
+        d="M199 258 L287 213 L316 250 L265 339 Z"
+        fill="#467E77"
+        opacity="0.11"
+      />
+
+      <path
+        d="M194 252 L286 208 L310 247 L260 331 Z"
+        fill="url(#wing)"
+      />
+
+      <path
+        d="M286 208 L278 247 L310 247 Z"
+        fill="url(#fold)"
+      />
+
+      <path
+        d="M194 252 L286 208 L310 247"
+        stroke="#FFFFFF"
+        stroke-opacity="0.72"
+        stroke-width="2"
+        stroke-linejoin="round"
+      />
+
+      <path
+        d="M278 247 L310 247"
+        stroke="#608E84"
+        stroke-opacity="0.28"
+        stroke-width="1.5"
+      />
+
+      <path
+        d="M194 252 L260 331"
+        stroke="#FFFFFF"
+        stroke-opacity="0.52"
+        stroke-width="1.5"
+      />
+
+      <path
+        d="M376 225 L408 225 L375 239 Z"
+        fill="#B8D9D0"
+      />
+
+      <circle
+        cx="348"
+        cy="211"
+        r="5.5"
+        fill="#103943"
+      />
     </g>
   </g>
 </svg>
