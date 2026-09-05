@@ -61,7 +61,9 @@ if (existsSync(anydpi)) {
 
 const valuesDir = join(DEST, "values");
 if (!existsSync(valuesDir)) {
-	console.error(`values/ not found at ${valuesDir}. Run tauri android init first.`);
+	console.error(
+		`values/ not found at ${valuesDir}. Run tauri android init first.`,
+	);
 	process.exit(1);
 }
 // Always force the black background: a previously generated project

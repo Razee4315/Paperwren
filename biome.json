@@ -43,6 +43,7 @@
 		"ignore": [
 			"node_modules/**",
 			"dist/**",
+			"test-results/**",
 			"src-tauri/target/**",
 			"src-tauri/gen/**",
 			"*.config.ts",
