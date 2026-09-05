@@ -41,7 +41,9 @@ test("opening a PDF keeps its real name and Back returns Home", async ({
 
 	const viewer = page.getByTestId("viewer");
 	await expect(viewer).toBeVisible({ timeout: 20_000 });
-	await expect(viewer.getByText("2026 tax return.pdf")).toBeVisible();
+	// The toolbar carries the name; the opening page shows it too
+	// while the document parses, so scope to the toolbar.
+	await expect(viewer.locator("header")).toContainText("2026 tax return.pdf");
 
 	// A page box must actually lay out.
 	await expect(viewer.locator("[data-page='1']")).toBeVisible();
@@ -66,14 +68,19 @@ test("recents record the real name and reopen after a reload", async ({
 	const card = page.locator("[data-testid^='recent-']").first();
 	await expect(card).toContainText("2026 tax return.pdf");
 
-	// Process restart: only the persisted recents list survives.
+	// Process restart: the IndexedDB mirror of the picked file keeps
+	// the recent reopenable (the in-memory File dies with the page).
 	await page.reload();
 	await expect(page.getByTestId("home")).toBeVisible();
-	// Browser dev sources cannot survive a reload (in-memory File);
-	// the entry must still exist with its real name.
-	await expect(page.locator("[data-testid^='recent-']").first()).toContainText(
-		"2026 tax return.pdf",
-	);
+	const stored = page.locator("[data-testid^='recent-']").first();
+	await expect(stored).toContainText("2026 tax return.pdf");
+	await stored.click();
+	await expect(page.getByTestId("viewer")).toBeVisible({
+		timeout: 20_000,
+	});
+	await expect(
+		page.getByTestId("viewer").locator("header"),
+	).toContainText("2026 tax return.pdf");
 });
 
 test("settings subpage Back returns to Settings root, then Home", async ({

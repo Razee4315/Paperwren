@@ -1,4 +1,5 @@
 import { formatCssVar } from "@/components/FormatBadge";
+import { OpeningScreen } from "@/components/OpeningScreen";
 import { Button, Dialog, IconButton, Sheet, TextField } from "@/components/ui";
 import {
 	type CanonicalPoint,
@@ -1868,6 +1869,12 @@ export function PdfViewer({
 						))}
 				</Pages>
 			</ScrollWrap>
+
+			{/* Parse phase: pdf.js progress drives the branded opening
+				    page; it unmounts the moment the document publishes. */}
+			{loadProgress !== null && (
+				<OpeningScreen name={name} format="pdf" progress={loadProgress} />
+			)}
 
 			<Sheet
 				open={toolsOpen}

@@ -79,7 +79,11 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 				let next: RecentsEntry[];
 				if (existing) {
 					next = prev.map((e) =>
-						e.id === id ? { ...e, ...entry, lastOpenedAt: now } : e,
+						e.id === id
+							? // A successful open clears any stale unavailable mark
+								// (the entry healed — it must not stay dimmed).
+								{ ...e, ...entry, lastOpenedAt: now, unavailable: undefined }
+							: e,
 					);
 				} else {
 					next = [

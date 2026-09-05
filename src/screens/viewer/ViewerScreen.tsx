@@ -1,5 +1,6 @@
-import { type FileFormat, FormatGlyph } from "@/components/FormatBadge";
-import { Button, Dialog, InkProgress } from "@/components/ui";
+import type { FileFormat } from "@/components/FormatBadge";
+import { OpeningScreen } from "@/components/OpeningScreen";
+import { Button, Dialog } from "@/components/ui";
 import { backend, idForSource } from "@/lib/backend";
 import { type OpenFailure, classifyOpenError, failureCopy } from "@/lib/errors";
 import { displayNameFor, isLegacyOffice, sniffFormat } from "@/lib/sniff";
@@ -23,21 +24,6 @@ import { XlsxViewer } from "./XlsxViewer";
  * (audit 15.3): every kind gets its own dialog and one recovery
  * path, never a generic "File not found".
  */
-
-const Center = styled.div`
-	position: fixed;
-	inset: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: var(--bg);
-	color: var(--ink-2);
-`;
-
-const CenterText = styled.p`
-	margin: 12px 0 8px;
-	font-variant-numeric: tabular-nums;
-`;
 
 export function ViewerScreen({
 	file,
@@ -202,19 +188,15 @@ export function ViewerScreen({
 	}
 
 	if (!data) {
-		// Immediate feedback after picking: chrome is up, the ink bar
-		// runs, and the single SAF read happens here (docs/04: chrome
-		// never waits for content).
+		// Immediate feedback after picking: the branded opening page
+		// runs while the single read happens (docs/04: chrome never
+		// waits for content, and content gets a real loading page).
 		return (
-			<Center>
-				<div style={{ textAlign: "center" }}>
-					<FormatGlyph format={format ?? "unknown"} size={40} />
-					<CenterText>
-						Opening {displayNameFor(file.name, format ?? "unknown")}
-					</CenterText>
-					<InkProgress progress={null} />
-				</div>
-			</Center>
+			<OpeningScreen
+				name={displayNameFor(file.name, format ?? "unknown")}
+				format={format ?? "unknown"}
+				progress={null}
+			/>
 		);
 	}
 

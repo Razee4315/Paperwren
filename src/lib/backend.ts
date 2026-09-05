@@ -1,5 +1,11 @@
 import { isTauriEnvironment } from "./env";
 import { type OpenFailure, classifyOpenError } from "./errors";
+import {
+	storedFileBytes,
+	storedFileClear,
+	storedFileGet,
+	storedFilePut,
+} from "./fileStore";
 import { createSerializedWriter } from "./serializedWriter";
 import type { FileMeta, RecentsEntry, ReopenDescriptor } from "./types";
 
@@ -43,6 +49,24 @@ interface Backend {
 
 const browserFiles = new Map<string, File>();
 
+/** A picked browser file serves the immediate open from memory and is
+ * mirrored into IndexedDB so its recent survives a reload (the map
+ * dies with the page; the store is the browser's disk). */
+function registerBrowserFile(source: string, file: File): void {
+	browserFiles.set(source, file);
+	storedFilePut(source, file).catch(() => {});
+}
+
+async function resolveBrowserFile(source: string): Promise<Blob | null> {
+	const live = browserFiles.get(source);
+	if (live) return live;
+	try {
+		return await storedFileGet(source);
+	} catch {
+		return null;
+	}
+}
+
 declare global {
 	interface Window {
 		/** Dev test hook: set a File here and the picker returns it
@@ -58,7 +82,7 @@ const browserBackend: Backend = {
 		if (injected) {
 			window.__paperwrenTestFile = undefined;
 			const source = `browser:${injected.name}`;
-			browserFiles.set(source, injected);
+			registerBrowserFile(source, injected);
 			return {
 				name: injected.name,
 				size: injected.size,
@@ -77,7 +101,7 @@ const browserBackend: Backend = {
 					return;
 				}
 				const source = `browser:${file.name}`;
-				browserFiles.set(source, file);
+				registerBrowserFile(source, file);
 				resolve({
 					name: file.name,
 					size: file.size,
@@ -90,14 +114,14 @@ const browserBackend: Backend = {
 		});
 	},
 	async readBytes(ref) {
-		const file = browserFiles.get(ref);
+		const file = await resolveBrowserFile(ref);
 		if (!file) throw new Error("File not found. It may have been moved.");
 		return file.arrayBuffer();
 	},
 	async openRecent(entry) {
-		// Browser sources ("browser:name") only resolve while the
-		// in-memory map still holds the picked File.
-		const file = browserFiles.get(entry.source);
+		// Browser sources ("browser:name") resolve from the in-memory
+		// map first, then the IndexedDB mirror left by the pick.
+		const file = await resolveBrowserFile(entry.source);
 		if (!file) return { ok: false, failure: "not_found" };
 		return { ok: true, buffer: await file.arrayBuffer() };
 	},
@@ -113,10 +137,20 @@ const browserBackend: Backend = {
 		browserFiles.forEach((f) => {
 			bytes += f.size;
 		});
+		try {
+			bytes += await storedFileBytes();
+		} catch {
+			// The mirror is best-effort; the live map still reports.
+		}
 		return { bytes };
 	},
 	async clearCache() {
 		browserFiles.clear();
+		try {
+			await storedFileClear();
+		} catch {
+			// Ditto: clearing the mirror is best-effort.
+		}
 	},
 	async importsStats() {
 		return { bytes: 0 };

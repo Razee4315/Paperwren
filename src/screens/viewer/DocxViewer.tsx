@@ -1,4 +1,5 @@
 import { formatCssVar } from "@/components/FormatBadge";
+import { OpeningScreen } from "@/components/OpeningScreen";
 import { Button, IconButton, Sheet, TextField } from "@/components/ui";
 import { isVersionedPosition } from "@/lib/recents";
 import type { FilePosition } from "@/lib/types";
@@ -86,12 +87,6 @@ const Center = styled.div`
 	color: var(--ink-2);
 	padding: 24px;
 	text-align: center;
-`;
-
-const PanelNote = styled.p`
-	color: var(--ink-2);
-	font-size: 0.9375rem;
-	padding: 8px;
 `;
 
 /** Debounce before a scroll position is written (audit DOC-03). */
@@ -664,7 +659,9 @@ export function DocxViewer({
 					data-zoom={zoom.toFixed(4)}
 					data-testid="docx-container"
 				/>
-				{status === "loading" && <PanelNote>Loading document...</PanelNote>}
+				{status === "loading" && (
+					<OpeningScreen name={name} format="docx" progress={null} />
+				)}
 				{status === "error" && (
 					<Center>
 						Can't open this file. It seems to be damaged or isn't a valid Word

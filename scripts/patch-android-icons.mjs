@@ -76,9 +76,9 @@ if (existsSync(valuesDir)) {
 if (!colorDefined) {
 	writeFileSync(
 		join(valuesDir, "ic_launcher_background.xml"),
-		`<resources>\n    <color name="ic_launcher_background">#FAE4DA</color>\n</resources>\n`,
+		`<resources>\n    <color name="ic_launcher_background">#000000</color>\n</resources>\n`,
 	);
-	console.log("Wrote values/ic_launcher_background.xml (ember paper).");
+	console.log("Wrote values/ic_launcher_background.xml (black).");
 }
 
 console.log(`Launcher icons applied from ${SRC} to ${DEST}.`);

@@ -9,8 +9,8 @@
 >
   <title id="title">Paperwren adaptive-icon foreground</title>
   <desc id="description">
-    A white folded-paper wren with an uplifted tail and a pale mint
-    wing on transparency, sized for Android adaptive-icon masks.
+    A white folded-paper wren with an uplifted tail on transparency,
+    sized for Android adaptive-icon masks.
   </desc>
 
   <defs>
@@ -21,7 +21,7 @@
       gradientUnits="userSpaceOnUse"
     >
       <stop stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#E5F0ED"/>
+      <stop offset="1" stop-color="#EDEDED"/>
     </linearGradient>
 
     <linearGradient
@@ -30,8 +30,8 @@
       x2="212" y2="291"
       gradientUnits="userSpaceOnUse"
     >
-      <stop stop-color="#D8EFEB"/>
-      <stop offset="1" stop-color="#A3CEC7"/>
+      <stop stop-color="#EFEFEF"/>
+      <stop offset="1" stop-color="#C4C4C4"/>
     </linearGradient>
 
     <linearGradient
@@ -40,8 +40,8 @@
       x2="287" y2="333"
       gradientUnits="userSpaceOnUse"
     >
-      <stop stop-color="#F7FCFA"/>
-      <stop offset="1" stop-color="#C5E4DD"/>
+      <stop stop-color="#F8F8F8"/>
+      <stop offset="1" stop-color="#DCDCDC"/>
     </linearGradient>
 
     <linearGradient
@@ -50,8 +50,8 @@
       x2="308" y2="257"
       gradientUnits="userSpaceOnUse"
     >
-      <stop stop-color="#B8DDD4"/>
-      <stop offset="1" stop-color="#8DBFB6"/>
+      <stop stop-color="#D6D6D6"/>
+      <stop offset="1" stop-color="#ADADAD"/>
     </linearGradient>
 
     <path
@@ -82,14 +82,14 @@
       <use
         href="#wren"
         transform="translate(0 12)"
-        fill="#031A22"
-        opacity="0.13"
+        fill="#000000"
+        opacity="0.45"
       />
       <use
         href="#wren"
         transform="translate(0 5)"
-        fill="#031A22"
-        opacity="0.15"
+        fill="#000000"
+        opacity="0.5"
       />
     </g>
 
@@ -103,18 +103,18 @@
 
       <path
         d="M104 164 L220 226 L167 249 Z"
-        fill="#F2FAF7"
+        fill="#F7F7F7"
       />
 
       <path
         d="M104 164 L167 249 L144 278 Z"
-        fill="#C8E5DE"
+        fill="#D9D9D9"
       />
 
       <path
         d="M109 173 L167 249 L211 230"
         stroke="#FFFFFF"
-        stroke-opacity="0.32"
+        stroke-opacity="0.4"
         stroke-width="1.5"
         stroke-linejoin="round"
       />
@@ -128,13 +128,13 @@
           C211 328 198 313 186 294
           Z
         "
-        fill="#D7EAE4"
+        fill="#E3E3E3"
       />
 
       <path
         d="M199 258 L287 213 L316 250 L265 339 Z"
-        fill="#467E77"
-        opacity="0.11"
+        fill="#8C8C8C"
+        opacity="0.12"
       />
 
       <path
@@ -150,35 +150,35 @@
       <path
         d="M194 252 L286 208 L310 247"
         stroke="#FFFFFF"
-        stroke-opacity="0.72"
+        stroke-opacity="0.8"
         stroke-width="2"
         stroke-linejoin="round"
       />
 
       <path
         d="M278 247 L310 247"
-        stroke="#608E84"
-        stroke-opacity="0.28"
+        stroke="#9A9A9A"
+        stroke-opacity="0.3"
         stroke-width="1.5"
       />
 
       <path
         d="M194 252 L260 331"
         stroke="#FFFFFF"
-        stroke-opacity="0.52"
+        stroke-opacity="0.6"
         stroke-width="1.5"
       />
 
       <path
         d="M376 225 L408 225 L375 239 Z"
-        fill="#B8D9D0"
+        fill="#DADADA"
       />
 
       <circle
         cx="348"
         cy="211"
         r="5.5"
-        fill="#103943"
+        fill="#0A0A0A"
       />
     </g>
   </g>
