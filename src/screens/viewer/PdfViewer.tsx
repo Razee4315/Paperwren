@@ -38,6 +38,7 @@ import {
 import {
 	type MutableRefObject,
 	type ReactNode,
+	memo,
 	useCallback,
 	useEffect,
 	useLayoutEffect,
@@ -159,7 +160,10 @@ const Pages = styled.div<{ $darken: boolean }>`
 	width: max-content;
 	min-width: 100%;
 	filter: ${({ $darken }) => ($darken ? "invert(0.92) hue-rotate(180deg)" : "none")};
-	will-change: transform;
+	/* will-change: transform is applied ONLY while a pinch preview is
+	   live (schedulePreview) — a permanent promotion would keep a
+	   composited layer the size of the whole document column alive
+	   during plain scrolling. */
 `;
 
 const PageBox = styled.div<{ $width: number; $height: number }>`
@@ -776,6 +780,7 @@ export function PdfViewer({
 		if (pages) {
 			pages.style.transform = "";
 			pages.style.transformOrigin = "";
+			pages.style.willChange = "";
 		}
 		previewRef.current = null;
 		const tx = txRef.current;
@@ -819,6 +824,7 @@ export function PdfViewer({
 		if (pages) {
 			pages.style.transform = "";
 			pages.style.transformOrigin = "";
+			pages.style.willChange = "";
 		}
 		previewRef.current = null;
 	}, []);
@@ -830,6 +836,8 @@ export function PdfViewer({
 			const p = previewRef.current;
 			const pages = pagesRef.current;
 			if (!p || !pages) return;
+			// Promote only while the preview transform is live.
+			pages.style.willChange = "transform";
 			pages.style.transformOrigin = `${p.ox}px ${p.oy}px`;
 			pages.style.transform = `translate(${p.tx}px, ${p.ty}px) scale(${p.k})`;
 		});
@@ -1395,6 +1403,17 @@ export function PdfViewer({
 	);
 	goToPageRef.current = goToPage;
 
+	// Stable so the memoized PageStack does not re-render on it.
+	const handlePageRetry = useCallback((pageNum: number) => {
+		setPageErrors((prev) => {
+			if (!prev.has(pageNum)) return prev;
+			const next = new Set(prev);
+			next.delete(pageNum);
+			return next;
+		});
+		retryDemandRef.current?.(pageNum);
+	}, []);
+
 	// --- virtualized rendering with cancellation and a small
 	// concurrency limit (audit PDF-07): render tasks are stored with
 	// their owning generation so a stale completion can neither
@@ -1435,6 +1454,25 @@ export function PdfViewer({
 			}
 		};
 
+		// Geometry signatures: a page that already carries a raster (and
+		// semantic layers) for the CURRENT scale/DPR/rotation must not
+		// be re-rendered when it scrolls back into range.
+		const renderSigFor = (pageNum: number): string => {
+			const box = pageBoxes[pageNum - 1] ?? pageBoxes[0];
+			return `${box.scale}:${window.devicePixelRatio}:${totalRotationFor(pageNum)}`;
+		};
+		const semanticSigFor = (pageNum: number): string =>
+			`${(pageBoxes[pageNum - 1] ?? pageBoxes[0]).scale}:${totalRotationFor(pageNum)}`;
+		// Removes only viewer-owned children. React-managed overlays
+		// (search highlights, Retry UI) stay owned by React.
+		const clearPageLayers = (el: HTMLElement) => {
+			el.querySelector("canvas")?.remove();
+			el.querySelector(".textLayer")?.remove();
+			el.querySelector(".pw-link-layer")?.remove();
+			delete el.dataset.renderSig;
+			delete el.dataset.semanticSig;
+		};
+
 		// Semantic layers per page (audit PDF-09): a selectable text
 		// layer rendered by pdf.js's own TextLayer at CSS scale (not
 		// the raster's DPR scale), plus read-only link annotations.
@@ -1454,6 +1492,14 @@ export function PdfViewer({
 				textLayerRef?.cancel();
 			});
 			let textLayerRef: { cancel: () => void } | null = null;
+			// Already built for this exact scale/rotation (a retained
+			// page scrolling back): rebuilding would be pure waste.
+			if (
+				el.dataset.semanticSig === semanticSigFor(pageNum) &&
+				el.querySelector(".textLayer")
+			) {
+				return;
+			}
 			try {
 				const pdfjs = await loadPdfjs();
 				// CSS-space viewport: same rotation, raster-independent scale.
@@ -1540,6 +1586,7 @@ export function PdfViewer({
 					return;
 				}
 				el.appendChild(textDiv);
+				el.dataset.semanticSig = semanticSigFor(pageNum);
 			} catch {
 				// Text/links are enhancements; a failure leaves the raster
 				// readable. Cancelled runs are normal.
@@ -1551,6 +1598,13 @@ export function PdfViewer({
 			inflight.add(pageNum);
 			active++;
 			let canvas: HTMLCanvasElement | null = null;
+			// Outcome of THIS attempt: the finally re-enqueue exists only
+			// to recover demand consumed by a task that settled as
+			// CANCELLED. A published page must not be re-enqueued (it
+			// would re-render forever), and a page that failed already
+			// has the Retry affordance (a retry loop would spin forever).
+			let published = false;
+			let failed = false;
 			try {
 				const page = await doc.getPage(pageNum);
 				if (cancelled || !visiblePages.has(pageNum)) return;
@@ -1592,14 +1646,18 @@ export function PdfViewer({
 				}
 				// Replace only the raster child; semantic layers (text,
 				// links, highlights) survive a raster swap (audit PDF-09).
+				// prepend keeps React-managed siblings (search highlights,
+				// Retry overlay) owned and in place.
 				const previous = el.querySelector("canvas");
 				if (previous) {
 					releaseRaster(previous.width * previous.height * 4);
 					el.replaceChild(canvas, previous);
 				} else {
-					el.replaceChildren(canvas);
+					el.prepend(canvas);
 				}
 				retainRaster(canvas.width * canvas.height * 4);
+				published = true;
+				el.dataset.renderSig = renderSigFor(pageNum);
 				if (!firstPaintRef.current) {
 					// First visible content (docs/15 #2 step 2): the boundary
 					// after which the reader can SEE something. If a stall is
@@ -1609,7 +1667,10 @@ export function PdfViewer({
 					firstPaintRef.current = true;
 					traceOpen("pdf:first-paint", `page ${pageNum}`, openIdRef.current);
 				}
-				await attachSemanticLayers(pageNum, page, el, displayBox.scale);
+				// Semantic layers (text, links) attach OUTSIDE the raster
+				// slot: their layout work is main-thread heavy, and holding
+				// a slot for it starves the next visible page's raster.
+				void attachSemanticLayers(pageNum, page, el, displayBox.scale);
 			} catch (e) {
 				const err = e as { name?: string };
 				const cancelledRender =
@@ -1617,6 +1678,7 @@ export function PdfViewer({
 					cancelled ||
 					!visiblePages.has(pageNum);
 				if (!cancelledRender) {
+					failed = true;
 					// A real failure must be visible and recoverable, not
 					// a permanently white page (audit PDF-07 item 4).
 					setPageErrors((prev) => {
@@ -1631,9 +1693,14 @@ export function PdfViewer({
 				inflight.delete(pageNum);
 				active--;
 				pump();
-				// Demand that arrived while this task was settling must
-				// not be consumed silently: re-check and enqueue again.
+				// Demand that arrived while a CANCELLED task was settling
+				// must not be consumed silently: re-check and enqueue
+				// again. Published (or genuinely failed) attempts must
+				// not re-enqueue — that re-rendered every visible page in
+				// a busy loop and starved scrolling (docs/15 perf fix).
 				if (
+					!published &&
+					!failed &&
 					!cancelled &&
 					visiblePages.has(pageNum) &&
 					!renderTasks.current.has(pageNum) &&
@@ -1655,10 +1722,37 @@ export function PdfViewer({
 			pump();
 		};
 
+		// Recently-exited page rasters kept alive so scrolling back a
+		// page or two is instant instead of re-running the full render
+		// pipeline. Bounded in pages and bytes so scanned PDFs stay
+		// bounded (a 12MP canvas is ~48MB).
+		const RETAINED_MAX_PAGES = 2;
+		const RETAINED_MAX_BYTES = 96 * 1024 * 1024;
+		const retainedRasters = new Map<
+			number,
+			{ el: HTMLElement; bytes: number }
+		>();
+		let retainedBytes = 0;
+		const evictRetained = () => {
+			while (
+				retainedRasters.size > RETAINED_MAX_PAGES ||
+				(retainedRasters.size > 0 && retainedBytes > RETAINED_MAX_BYTES)
+			) {
+				const oldest = retainedRasters.entries().next();
+				if (oldest.done) break;
+				const [p, r] = oldest.value;
+				retainedRasters.delete(p);
+				retainedBytes -= r.bytes;
+				releaseRaster(r.bytes);
+				clearPageLayers(r.el);
+			}
+		};
+
 		const observer = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
 					const pageNum = Number((entry.target as HTMLElement).dataset.page);
+					const el = entry.target as HTMLElement;
 					if (entry.isIntersecting) {
 						visiblePages.add(pageNum);
 						setPageErrors((prev) => {
@@ -1667,12 +1761,31 @@ export function PdfViewer({
 							next.delete(pageNum);
 							return next;
 						});
-						enqueue(pageNum, entry.target as HTMLElement);
+						retainedRasters.delete(pageNum);
+						// A retained raster for the current geometry is
+						// already on screen: no render, no queue. Only its
+						// semantic layers may need finishing (attach is a
+						// no-op when they are complete).
+						if (
+							el.querySelector("canvas") &&
+							el.dataset.renderSig === renderSigFor(pageNum)
+						) {
+							void doc
+								.getPage(pageNum)
+								.then((page) => {
+									if (cancelled || !visiblePages.has(pageNum)) return;
+									const box = pageBoxes[pageNum - 1] ?? pageBoxes[0];
+									return attachSemanticLayers(pageNum, page, el, box.scale);
+								})
+								.catch(() => {});
+							continue;
+						}
+						enqueue(pageNum, el);
 					} else {
 						visiblePages.delete(pageNum);
-						// Scanned PDFs have very large bitmaps. Releasing canvases
-						// and cancelling queued work once pages leave the render
-						// margin keeps memory and startup bounded.
+						// Cancelling queued work once pages leave the render
+						// margin keeps startup bounded; the finished raster is
+						// retained for instant scroll-back.
 						const registryEntry = renderTasks.current.get(pageNum);
 						if (registryEntry) {
 							registryEntry.task.cancel();
@@ -1680,11 +1793,21 @@ export function PdfViewer({
 						}
 						const qi = queue.findIndex((q) => q.pageNum === pageNum);
 						if (qi !== -1) queue.splice(qi, 1);
-						const rendered = entry.target.querySelector("canvas");
+						const rendered = el.querySelector("canvas");
 						if (rendered) {
-							releaseRaster(rendered.width * rendered.height * 4);
+							const bytes = rendered.width * rendered.height * 4;
+							const prior = retainedRasters.get(pageNum);
+							if (prior) retainedBytes -= prior.bytes;
+							retainedRasters.set(pageNum, { el, bytes });
+							retainedBytes += bytes;
+							evictRetained();
+						} else {
+							// Nothing worth keeping: stop a pending semantic
+							// attach and drop partial layers.
+							semanticCancels.get(pageNum)?.();
+							semanticCancels.delete(pageNum);
+							clearPageLayers(el);
 						}
-						entry.target.replaceChildren();
 					}
 				}
 			},
@@ -1704,6 +1827,14 @@ export function PdfViewer({
 			cancelAll();
 			for (const cancel of semanticCancels.values()) cancel();
 			semanticCancels.clear();
+			// Retained rasters belong to the old layout: release their
+			// accounting and drop them (they are beyond the margin, so
+			// nothing on screen changes).
+			for (const [, r] of retainedRasters) {
+				releaseRaster(r.bytes);
+				clearPageLayers(r.el);
+			}
+			retainedRasters.clear();
 			observer.disconnect();
 			retryDemandRef.current = null;
 		};
@@ -1891,50 +2022,17 @@ export function PdfViewer({
 				data-testid="pdf-scroll"
 			>
 				<Pages ref={pagesRef} $darken={darkenPages}>
-					{doc &&
-						Array.from({ length: doc.numPages }, (_, i) => (
-							<PageBox
-								key={`page-${i + 1}`}
-								data-page={i + 1}
-								ref={(el) => {
-									if (el) pageRefs.current.set(i + 1, el);
-									else pageRefs.current.delete(i + 1);
-								}}
-								$width={pageBoxes[i]?.width ?? 600}
-								$height={pageBoxes[i]?.height ?? 800}
-							>
-								{pageErrors.has(i + 1) && (
-									<PageError>
-										<span>This page couldn't be rendered.</span>
-										<RetryButton
-											data-testid={`pdf-page-retry-${i + 1}`}
-											onClick={() => {
-												setPageErrors((prev) => {
-													const next = new Set(prev);
-													next.delete(i + 1);
-													return next;
-												});
-												retryDemandRef.current?.(i + 1);
-											}}
-										>
-											Retry
-										</RetryButton>
-									</PageError>
-								)}
-								{search && doc && (
-									<PdfMatchLayer
-										doc={doc}
-										pageNum={i + 1}
-										hits={search.hits
-											.map((hit, index) => ({ hit, index }))
-											.filter(({ hit }) => hit.page === i + 1)}
-										activeIndex={search.activeIndex}
-										scale={pageBoxes[i]?.scale ?? 1}
-										rotation={totalRotationFor(i + 1)}
-									/>
-								)}
-							</PageBox>
-						))}
+					{doc && (
+						<PageStack
+							doc={doc}
+							pageBoxes={pageBoxes}
+							pageErrors={pageErrors}
+							search={search}
+							totalRotationFor={totalRotationFor}
+							pageRefs={pageRefs}
+							onRetry={handlePageRetry}
+						/>
+					)}
 				</Pages>
 			</ScrollWrap>
 
@@ -2183,10 +2281,73 @@ export function PdfViewer({
 	);
 }
 
+/** The whole page stack is memoized: current-page tracking re-renders
+ * the viewer on every page crossing, and reconciling every page box
+ * each time made large documents stutter while scrolling. Page
+ * identity-relevant props (layout, errors, search) change rarely, so
+ * scroll-driven renders skip this subtree entirely. */
+const PageStack = memo(function PageStack({
+	doc,
+	pageBoxes,
+	pageErrors,
+	search,
+	totalRotationFor,
+	pageRefs,
+	onRetry,
+}: {
+	doc: PdfDocument;
+	pageBoxes: DisplayBox[];
+	pageErrors: Set<number>;
+	search: { hits: SearchHit[]; activeIndex: number } | null;
+	totalRotationFor: (pageNumber: number) => number;
+	pageRefs: MutableRefObject<Map<number, HTMLDivElement>>;
+	onRetry: (pageNum: number) => void;
+}) {
+	return (
+		<>
+			{Array.from({ length: doc.numPages }, (_, i) => (
+				<PageBox
+					key={`page-${i + 1}`}
+					data-page={i + 1}
+					ref={(el) => {
+						if (el) pageRefs.current.set(i + 1, el);
+						else pageRefs.current.delete(i + 1);
+					}}
+					$width={pageBoxes[i]?.width ?? 600}
+					$height={pageBoxes[i]?.height ?? 800}
+				>
+					{pageErrors.has(i + 1) && (
+						<PageError>
+							<span>This page couldn't be rendered.</span>
+							<RetryButton
+								data-testid={`pdf-page-retry-${i + 1}`}
+								onClick={() => onRetry(i + 1)}
+							>
+								Retry
+							</RetryButton>
+						</PageError>
+					)}
+					{search && (
+						<PdfMatchLayer
+							doc={doc}
+							pageNum={i + 1}
+							hits={search.hits
+								.map((hit, index) => ({ hit, index }))
+								.filter(({ hit }) => hit.page === i + 1)}
+							activeIndex={search.activeIndex}
+							scale={pageBoxes[i]?.scale ?? 1}
+							rotation={totalRotationFor(i + 1)}
+						/>
+					)}
+				</PageBox>
+			))}
+		</>
+	);
+});
+
 /** Bounded concurrency for thumbnail rasters (audit PDF-08 item 10):
  * opening the Pages sheet on a huge document must not queue hundreds
- * of renders against the same engine as the reader. */
-const THUMB_CONCURRENCY = 2;
+ * of renders against the same engine as the reader. */ const THUMB_CONCURRENCY = 2;
 const thumbQueue: Array<() => void> = [];
 let thumbActive = 0;
 
