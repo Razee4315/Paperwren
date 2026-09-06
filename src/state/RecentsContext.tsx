@@ -69,9 +69,17 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		backend.storeSet(STORAGE_KEYS.recents, next).catch(() => {});
 	}, []);
 
+	// Only the recents-relevant settings may take part in these
+	// identities (docs/15 #2): depending on the whole settings object
+	// made every appearance change (theme, pure black) replace the
+	// callbacks, and the viewer's read effect — which depends on
+	// recordOpen — restarted the byte read whenever the theme changed.
+	const saveRecents = settings["files.save_recents"];
+	const recentsLimit = settings["files.recents_limit"];
+
 	const recordOpen = useCallback<RecentsContextValue["recordOpen"]>(
 		(entry) => {
-			if (!settings["files.save_recents"]) return;
+			if (!saveRecents) return;
 			const id = idForSource(entry.source);
 			const now = Date.now();
 			setEntries((prev) => {
@@ -91,7 +99,7 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 						...prev,
 					];
 				}
-				const limit = settings["files.recents_limit"];
+				const limit = recentsLimit;
 				if (limit > 0) {
 					next = [
 						...next.filter((e) => e.pinned),
@@ -105,12 +113,12 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 				return next;
 			});
 		},
-		[persist, settings],
+		[persist, saveRecents, recentsLimit],
 	);
 
 	const updatePosition = useCallback<RecentsContextValue["updatePosition"]>(
 		(id, position) => {
-			if (!settings["files.save_recents"]) return;
+			if (!saveRecents) return;
 			setEntries((prev) => {
 				const next = prev.map((e) =>
 					e.id === id
@@ -125,7 +133,7 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 				return next;
 			});
 		},
-		[persist, settings],
+		[persist, saveRecents],
 	);
 
 	const togglePin = useCallback<RecentsContextValue["togglePin"]>(
@@ -206,11 +214,11 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 
 	// Turning recents off wipes the list immediately (docs/08).
 	useEffect(() => {
-		if (ready && !settings["files.save_recents"] && entries.length > 0) {
+		if (ready && !saveRecents && entries.length > 0) {
 			setEntries([]);
 			persist([]);
 		}
-	}, [ready, settings, entries.length, persist]);
+	}, [ready, saveRecents, entries.length, persist]);
 
 	const sorted = useMemo(
 		() =>

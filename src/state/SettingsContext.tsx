@@ -26,6 +26,17 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
+declare global {
+	interface Window {
+		/** Dev test hook: applies a settings update through the exact
+		 * same update() path the settings screens use. Lets automated
+		 * browser tests change a setting while a viewer is open — the
+		 * settings UI itself is only reachable from Home (docs/15 #2).
+		 * Undefined unless a test sets it up via the provider. */
+		__paperwrenTestUpdate?: (key: string, value: unknown) => void;
+	}
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
 	const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 	const [ready, setReady] = useState(false);
@@ -72,6 +83,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 		},
 		[],
 	);
+
+	// Dev test hook (docs/15 #2): publish the real update() so tests
+	// can change a setting while a viewer is open, exercising the
+	// identical state path as the settings UI. No-op for normal use.
+	useEffect(() => {
+		window.__paperwrenTestUpdate = (key: string, value: unknown) =>
+			update(key as never, value as never);
+		return () => {
+			window.__paperwrenTestUpdate = undefined;
+		};
+	}, [update]);
 
 	const resolvedTheme: ResolvedTheme = useMemo(() => {
 		switch (settings["appearance.theme"]) {

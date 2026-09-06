@@ -21,6 +21,7 @@ import {
 	totalRotation,
 } from "@/lib/pdfLayout";
 import { isVersionedPosition, positionPageIndex } from "@/lib/recents";
+import { traceOpen } from "@/lib/trace";
 import type { FilePosition } from "@/lib/types";
 import { haptic, useSettings } from "@/state/SettingsContext";
 import {
@@ -35,6 +36,7 @@ import {
 	ZoomOut,
 } from "lucide-react";
 import {
+	type MutableRefObject,
 	type ReactNode,
 	useCallback,
 	useEffect,
@@ -48,7 +50,12 @@ import styled from "styled-components";
 // cannot reset the app (audit PDF-09).
 import "pdfjs-dist/web/pdf_viewer.css";
 import { PdfSearchSheet, type SearchHit } from "./PdfSearchSheet";
-import { ViewerShell, useViewerChrome, useViewportWidth } from "./ViewerShell";
+import {
+	type ChromeApi,
+	ViewerShell,
+	useViewerChrome,
+	useViewportWidth,
+} from "./ViewerShell";
 import {
 	type GestureController,
 	type GestureEvent,
@@ -93,6 +100,24 @@ const PAGE_GAP = 8;
 /** Delay before a single tap toggles chrome, so a double-tap zoom
  * can cancel it (audit PDF-03). */
 const SINGLE_TAP_CHROME_MS = 280;
+
+/**
+ * The one chrome consumer for the PDF gestures (docs/15 #3). It
+ * mounts as a child of ViewerShell — BELOW the chrome provider — so
+ * the context resolves to the real controller instead of the
+ * throwing default. The gesture/tap handlers run in the parent
+ * (which renders the shell and can therefore never read the context
+ * itself) and reach this API through the ref, so touch taps drive
+ * the SAME visibility state the shell's own auto-hide timer owns.
+ */
+function PdfChromeBridge({
+	apiRef,
+}: {
+	apiRef: MutableRefObject<ChromeApi | null>;
+}) {
+	apiRef.current = useViewerChrome();
+	return null;
+}
 
 const ScrollWrap = styled.div`
 	position: absolute;
@@ -271,9 +296,12 @@ export function PdfViewer({
 	onClose,
 	onNeedData,
 	darkenPages,
+	openId,
 }: {
 	data: ArrayBuffer;
 	name: string;
+	/** Per-open request ID for the open-flow trace (docs/15 #2). */
+	openId?: number;
 	initialPosition?: FilePosition;
 	onPosition?: (pos: FilePosition) => void;
 	onClose: () => void;
@@ -283,7 +311,18 @@ export function PdfViewer({
 	darkenPages: boolean;
 }) {
 	const { settings } = useSettings();
-	const chrome = useViewerChrome();
+	// The real chrome controller reaches this component through the
+	// bridge child below the shell's provider (docs/15 #3). Taps must
+	// toggle the SAME state the shell's auto-hide timer owns; reading
+	// the context here would resolve outside the provider and toggle
+	// nothing, leaving touch unable to restore a hidden toolbar.
+	const chromeApiRef = useRef<ChromeApi | null>(null);
+	// The open-flow trace ID; a ref because the parse and render
+	// loops are stable callbacks that must not restart on re-render.
+	const openIdRef = useRef<number | undefined>(undefined);
+	openIdRef.current = openId;
+	// One-shot first-visible-content marker for the open-flow trace.
+	const firstPaintRef = useRef(false);
 	const shellWidth = useViewportWidth();
 
 	const [doc, setDoc] = useState<PdfDocument | null>(null);
@@ -433,6 +472,11 @@ export function PdfViewer({
 		// A superseded attempt's task must not win the slot.
 		loadingTaskRef.current = null;
 		setLoadProgress(0.05);
+		traceOpen(
+			"pdf:parse:start",
+			`${dataSource.byteLength} bytes${pwd !== undefined ? " (password retry)" : ""}`,
+			openIdRef.current,
+		);
 		try {
 			const pdfjs = await loadPdfjs();
 			if (generation !== loadGenerationRef.current) return;
@@ -458,6 +502,7 @@ export function PdfViewer({
 				return;
 			}
 			setDoc(pdf);
+			traceOpen("pdf:parse:ready", `${pdf.numPages} pages`, openIdRef.current);
 			setLoadProgress(null);
 			pdf
 				.getOutline()
@@ -467,6 +512,7 @@ export function PdfViewer({
 			if (generation !== loadGenerationRef.current) return;
 			const err = e as { name?: string };
 			if (err?.name === "PasswordException") {
+				traceOpen("pdf:parse:password", undefined, openIdRef.current);
 				if (pwd !== undefined) {
 					setPasswordError("That password didn't work. Try again.");
 				}
@@ -474,6 +520,7 @@ export function PdfViewer({
 				setLoadProgress(null);
 				return;
 			}
+			traceOpen("pdf:parse:error", err?.name ?? "unknown", openIdRef.current);
 			setOpenError(true);
 			setLoadProgress(null);
 		}
@@ -1015,13 +1062,15 @@ export function PdfViewer({
 			// there, which is the right trade — a hidden-chrome state
 			// answers "show me the tools" first). Only the hide
 			// direction waits out the double-tap window.
-			const delay = chrome.isChromeVisible() ? SINGLE_TAP_CHROME_MS : 0;
+			const delay = chromeApiRef.current?.isChromeVisible()
+				? SINGLE_TAP_CHROME_MS
+				: 0;
 			chromeToggleTimer.current = window.setTimeout(() => {
 				chromeToggleTimer.current = null;
-				chrome.toggleChrome();
+				chromeApiRef.current?.toggleChrome();
 			}, delay);
 		},
-		[cycleZoomAt, chrome],
+		[cycleZoomAt],
 	);
 
 	// --- gesture event dispatch ---
@@ -1551,6 +1600,15 @@ export function PdfViewer({
 					el.replaceChildren(canvas);
 				}
 				retainRaster(canvas.width * canvas.height * 4);
+				if (!firstPaintRef.current) {
+					// First visible content (docs/15 #2 step 2): the boundary
+					// after which the reader can SEE something. If a stall is
+					// reported, the gap from read:done to this event is
+					// parse/render; before read:start it is picker, metadata,
+					// or navigation.
+					firstPaintRef.current = true;
+					traceOpen("pdf:first-paint", `page ${pageNum}`, openIdRef.current);
+				}
 				await attachSemanticLayers(pageNum, page, el, displayBox.scale);
 			} catch (e) {
 				const err = e as { name?: string };
@@ -1819,6 +1877,9 @@ export function PdfViewer({
 				) : undefined
 			}
 		>
+			{/* Runs below the shell's chrome provider and publishes the
+			    real controller to the gesture handlers above (docs/15 #3). */}
+			<PdfChromeBridge apiRef={chromeApiRef} />
 			<ScrollWrap
 				ref={scrollRef}
 				onScroll={onScroll}

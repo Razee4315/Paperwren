@@ -8,6 +8,9 @@
 	"narrow-fit.docx": {
 		"tests": "DOC-01 readiness at exactly 100% fit; DOC-02 manual zoom controls"
 	},
+	"multipage.docx": {
+		"tests": "docs/15 #4 DOCX zoom reachable at 320px: zoom in/out/fit-width, pannable zoomed content, last page reachable"
+	},
 	"wide-fit.pdf": {
 		"tests": "PDF-02 fit -> manual conversion preserves a fit scale far below 0.5"
 	}

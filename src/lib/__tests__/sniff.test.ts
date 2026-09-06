@@ -1,6 +1,11 @@
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
-import { displayNameFor, isLegacyOffice, sniffFormat } from "../sniff";
+import {
+	displayNameFor,
+	isFallbackDisplayName,
+	isLegacyOffice,
+	sniffFormat,
+} from "../sniff";
 
 function bytesOf(s: string): ArrayBuffer {
 	const arr = new TextEncoder().encode(s);
@@ -83,5 +88,28 @@ describe("displayNameFor", () => {
 		expect(displayNameFor("1284", "pdf")).toBe("Document.pdf");
 		expect(displayNameFor("1284", "xlsx")).toBe("Spreadsheet.xlsx");
 		expect(displayNameFor("", "unknown")).toBe("File");
+	});
+});
+
+describe("isFallbackDisplayName", () => {
+	it("treats generic format labels as fallbacks", () => {
+		expect(isFallbackDisplayName("Document.pdf")).toBe(true);
+		expect(isFallbackDisplayName("Spreadsheet.xlsx")).toBe(true);
+		expect(isFallbackDisplayName("File")).toBe(true);
+	});
+
+	it("treats extension-less segments as fallbacks (opaque URIs)", () => {
+		// For UNVERIFIED names an absent extension is the signature of
+		// an unresolved opaque content URI segment; verified
+		// extension-less provider names never reach this check.
+		expect(isFallbackDisplayName("1284")).toBe(true);
+		expect(isFallbackDisplayName("report-final")).toBe(true);
+	});
+
+	it("never flags a specific real filename", () => {
+		expect(isFallbackDisplayName("Quarterly budget.pdf")).toBe(false);
+		// A user's genuine "Document.pdf" is specific and dotted:
+		// healing must not second-guess it.
+		expect(isFallbackDisplayName("report (1).pdf")).toBe(false);
 	});
 });

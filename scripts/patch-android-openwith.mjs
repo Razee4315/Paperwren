@@ -8,6 +8,15 @@
  * system Back bridge: the web layer consumes Back when an overlay
  * or screen is open, otherwise the activity finishes.
  *
+ * The MainActivity patch is PIECEWISE idempotent (docs/15 #1): an
+ * activity patched by an older revision of this script — e.g. one
+ * without the picker name bridge — is upgraded in place by adding
+ * only the missing imports, hooks, fields, and methods, and the
+ * structural validation always runs on the final file. The previous
+ * revision returned early whenever `handleIncomingIntent` was
+ * present, so an older patched activity silently skipped every new
+ * bridge addition and all validation.
+ *
  * Template anchors are verified against the tauri-cli 2.11.4
  * template (scripts/fixtures/MainActivity.template.kt), with the
  * structural checks the platform lessons demand: brace balance,
@@ -15,29 +24,76 @@
  * dry-run mode to test a template before CI runs it.
  *
  * Usage:
- *   node scripts/patch-android-openwith.mjs check   # dry-run against the fixture
+ *   node scripts/patch-android-openwith.mjs check   # dry-run: clean template, upgrade of a legacy-patched activity, idempotency
  *   node scripts/patch-android-openwith.mjs apply   # patch the generated project
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const mode = process.argv[2] ?? "apply";
 
-// ---------- MainActivity patch ----------
+// ---------- MainActivity patch pieces ----------
 
-const MAINACTIVITY_IMPORTS = `import android.content.Intent
-import android.net.Uri
-import android.provider.OpenableColumns
-import android.webkit.JavascriptInterface
-import android.webkit.WebView
-import androidx.activity.OnBackPressedCallback
-import androidx.core.content.IntentCompat
-import android.os.Handler
-import android.os.Looper
-import org.json.JSONObject
-import java.io.File`;
+const MAINACTIVITY_IMPORTS = [
+	"import android.content.Intent",
+	"import android.net.Uri",
+	"import android.provider.OpenableColumns",
+	"import android.webkit.JavascriptInterface",
+	"import android.webkit.WebView",
+	"import androidx.activity.OnBackPressedCallback",
+	"import androidx.core.content.IntentCompat",
+	"import android.os.Handler",
+	"import android.os.Looper",
+	"import org.json.JSONObject",
+	"import java.io.File",
+];
 
-const MAINACTIVITY_METHODS = `
+const MAINACTIVITY_ONCREATE_HOOKS = [
+	"handleIncomingIntent(intent)",
+	"installBackBridge()",
+	"installNameBridge(0)",
+];
 
+const BLOCK_ONNEWINTENT = `
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    handleIncomingIntent(intent)
+  }`;
+
+const BLOCK_FIELDS = `
+  private var pendingPath: String? = null
+  private var pendingName: String? = null
+  private var pendingSize: Long = 0L`;
+
+const BLOCK_BACK_BRIDGE = `
+  /** System Back bridge (audit section 5.3): ask the web layer first;
+   * when it did not consume Back (nothing to dismiss or pop), briefly
+   * disable the callback so the dispatcher performs the default
+   * finish behavior instead of looping back into this callback. */
+  private fun installBackBridge() {
+    onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+      override fun handleOnBackPressed() {
+        val webView = findWebView()
+        if (webView == null || !isAppOrigin(webView.url)) {
+          setEnabledAndFinish()
+          return
+        }
+        webView.evaluateJavascript(
+          "window.__paperwrenHandleBack ? window.__paperwrenHandleBack() : 'false'"
+        ) { result ->
+          if (result == "true") return@evaluateJavascript
+          setEnabledAndFinish()
+        }
+      }
+
+      private fun setEnabledAndFinish() {
+        isEnabled = false
+        onBackPressedDispatcher.onBackPressed()
+        isEnabled = true
+      }
+    })
+  }`;
+
+const BLOCK_HANDLE_INCOMING = `
   private fun handleIncomingIntent(intent: Intent?) {
     if (intent == null) return
     if (intent.action != Intent.ACTION_VIEW && intent.action != Intent.ACTION_SEND) return
@@ -51,8 +107,9 @@ const MAINACTIVITY_METHODS = `
     // onCreate/onNewIntent, and Back must stay responsive while the
     // copy runs (audit section 4.4).
     Thread { ingestIncomingFile(uri, intent.type) }.start()
-  }
+  }`;
 
+const BLOCK_QUERY_DISPLAY_NAME = `
   /** Provider metadata first: DISPLAY_NAME is the real file name the
    * user recognizes; the URI's last segment is only a fallback. */
   private fun queryDisplayName(uri: Uri): String {
@@ -70,8 +127,9 @@ const MAINACTIVITY_METHODS = `
       // Fall through to the last segment.
     }
     return uri.lastPathSegment ?: "document"
-  }
+  }`;
 
+const BLOCK_QUERY_SIZE = `
   private fun querySize(uri: Uri): Long {
     try {
       contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
@@ -84,8 +142,9 @@ const MAINACTIVITY_METHODS = `
       // Unknown size is fine; the read reports it later.
     }
     return 0L
-  }
+  }`;
 
+const BLOCK_INBOX_NAME = `
   private fun inboxName(displayName: String, mime: String?): String {
     var name = displayName
     if (name.contains("/")) name = name.substring(name.lastIndexOf('/') + 1)
@@ -101,13 +160,15 @@ const MAINACTIVITY_METHODS = `
       else -> null
     }
     return if (ext != null) "$name.$ext" else name
-  }
+  }`;
 
+const BLOCK_SANITIZE_NAME = `
   private fun sanitizeName(s: String): String {
     val cleaned = s.filter { it.isLetterOrDigit() || it in " .-_()" }.trim()
     return cleaned.ifEmpty { "document" }
-  }
+  }`;
 
+const BLOCK_INGEST = `
   /** Ingest into the managed imports store (app_data/imports): a
    * reopen-critical copy that "Clear cache" never touches. Opening
    * the same file twice dedupes by name + size instead of stacking
@@ -152,16 +213,18 @@ const MAINACTIVITY_METHODS = `
     } catch (e: Exception) {
       // Leave the app running; the file simply does not open.
     }
-  }
+  }`;
 
+const BLOCK_IS_APP_ORIGIN = `
   private fun isAppOrigin(url: String?): Boolean {
     if (url == null) return false
     return url.startsWith("http://tauri.localhost") ||
       url.startsWith("https://tauri.localhost") ||
       url.startsWith("http://localhost") ||
       url.startsWith("http://127.0.0.1")
-  }
+  }`;
 
+const BLOCK_DELIVER = `
   private fun deliverPendingFile(attempt: Int) {
     val path = pendingPath ?: return
     val name = pendingName ?: return
@@ -191,13 +254,15 @@ const MAINACTIVITY_METHODS = `
         Handler(Looper.getMainLooper()).postDelayed({ deliverPendingFile(attempt + 1) }, 150)
       }
     }
-  }
+  }`;
 
+const BLOCK_FIND_WEBVIEW = `
   private fun findWebView(): WebView? {
     val root = window?.decorView as? android.view.ViewGroup ?: return null
     return findWebViewInGroup(root)
-  }
+  }`;
 
+const BLOCK_FIND_WEBVIEW_IN_GROUP = `
   private fun findWebViewInGroup(group: android.view.ViewGroup): WebView? {
     for (i in 0 until group.childCount) {
       val child = group.getChildAt(i)
@@ -208,8 +273,9 @@ const MAINACTIVITY_METHODS = `
       }
     }
     return null
-  }
+  }`;
 
+const BLOCK_NAME_BRIDGE = `
   /** Picker name bridge: the in-app document picker hands the web
    * layer a content:// URI whose last segment is an opaque id, so
    * the recents list would show "Document.pdf" for everything. The
@@ -245,49 +311,28 @@ const MAINACTIVITY_METHODS = `
     }, "__paperwrenAndroid")
   }`;
 
-const MAINACTIVITY_ONCREATE_HOOK = `    handleIncomingIntent(intent)
-    installBackBridge()
-    installNameBridge(0)`;
-
-const MAINACTIVITY_ONNEWINTENT = `
-  override fun onNewIntent(intent: Intent) {
-    super.onNewIntent(intent)
-    handleIncomingIntent(intent)
-  }`;
-
-/** System Back bridge (audit section 5.3): ask the web layer first;
- * when it did not consume Back (nothing to dismiss or pop), briefly
- * disable the callback so the dispatcher performs the default
- * finish behavior instead of looping back into this callback. */
-const MAINACTIVITY_BACK_METHOD = `
-  private fun installBackBridge() {
-    onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-      override fun handleOnBackPressed() {
-        val webView = findWebView()
-        if (webView == null || !isAppOrigin(webView.url)) {
-          setEnabledAndFinish()
-          return
-        }
-        webView.evaluateJavascript(
-          "window.__paperwrenHandleBack ? window.__paperwrenHandleBack() : 'false'"
-        ) { result ->
-          if (result == "true") return@evaluateJavascript
-          setEnabledAndFinish()
-        }
-      }
-
-      private fun setEnabledAndFinish() {
-        isEnabled = false
-        onBackPressedDispatcher.onBackPressed()
-        isEnabled = true
-      }
-    })
-  }`;
-
-const MAINACTIVITY_FIELDS = `
-  private var pendingPath: String? = null
-  private var pendingName: String? = null
-  private var pendingSize: Long = 0L`;
+/** Class-body pieces in canonical order. `marker` is a string that
+ * appears exactly once in a correctly patched file, so each piece is
+ * added only when missing and never duplicated (docs/15 #1 step 4). */
+const CLASS_BLOCKS = [
+	{ marker: "override fun onNewIntent", code: BLOCK_ONNEWINTENT },
+	{ marker: "private var pendingPath", code: BLOCK_FIELDS },
+	{ marker: "private fun installBackBridge(", code: BLOCK_BACK_BRIDGE },
+	{ marker: "private fun handleIncomingIntent(", code: BLOCK_HANDLE_INCOMING },
+	{ marker: "private fun queryDisplayName(", code: BLOCK_QUERY_DISPLAY_NAME },
+	{ marker: "private fun querySize(", code: BLOCK_QUERY_SIZE },
+	{ marker: "private fun inboxName(", code: BLOCK_INBOX_NAME },
+	{ marker: "private fun sanitizeName(", code: BLOCK_SANITIZE_NAME },
+	{ marker: "private fun ingestIncomingFile(", code: BLOCK_INGEST },
+	{ marker: "private fun isAppOrigin(", code: BLOCK_IS_APP_ORIGIN },
+	{ marker: "private fun deliverPendingFile(", code: BLOCK_DELIVER },
+	{ marker: "private fun findWebView(", code: BLOCK_FIND_WEBVIEW },
+	{
+		marker: "private fun findWebViewInGroup(",
+		code: BLOCK_FIND_WEBVIEW_IN_GROUP,
+	},
+	{ marker: "private fun installNameBridge(", code: BLOCK_NAME_BRIDGE },
+];
 
 const ACTION_VIEW_FILTER = `
         <intent-filter>
@@ -331,68 +376,97 @@ function fail(message, content) {
 	process.exit(1);
 }
 
-function patchMainActivity(original) {
+/** Index of the closing brace of the function whose header matches
+ * `header`, or -1. Brace counting only (the generated activity has
+ * no brace-bearing string literals in onCreate). */
+function functionBodyEnd(src, header) {
+	const start = src.indexOf(header);
+	if (start === -1) return -1;
+	const open = src.indexOf("{", start);
+	if (open === -1) return -1;
+	let depth = 0;
+	for (let i = open; i < src.length; i++) {
+		if (src[i] === "{") depth++;
+		else if (src[i] === "}") {
+			depth--;
+			if (depth === 0) return i;
+		}
+	}
+	return -1;
+}
+
+/** Add every missing import; leave present ones untouched. */
+function ensureImports(original, { nameBridge = true } = {}) {
+	const missing = MAINACTIVITY_IMPORTS.filter(
+		(imp) =>
+			!(imp === "import android.webkit.JavascriptInterface" && !nameBridge) &&
+			!new RegExp(`^${imp.replace(/\./g, "\\.")}$`, "m").test(original),
+	);
+	if (missing.length === 0) return { src: original, added: [] };
+	const lastImport = original.lastIndexOf("\nimport ");
+	if (lastImport === -1)
+		fail("No import lines found in MainActivity.", original);
+	const lineEnd = original.indexOf("\n", lastImport + 1);
+	const src = `${original.slice(0, lineEnd + 1)}${missing.join("\n")}\n${original.slice(lineEnd + 1)}`;
+	return { src, added: missing };
+}
+
+/** Add any missing onCreate hook line right after super.onCreate. */
+function ensureOnCreateHooks(original, { nameBridge = true } = {}) {
+	const anchor = original.indexOf("super.onCreate(savedInstanceState)");
+	if (anchor === -1) fail("onCreate anchor missing.", original);
+	const bodyEnd = functionBodyEnd(original, "override fun onCreate");
+	if (bodyEnd === -1) fail("onCreate body not found.", original);
+	const body = original.slice(anchor, bodyEnd);
+	const missing = MAINACTIVITY_ONCREATE_HOOKS.filter(
+		(hook) =>
+			!(hook === "installNameBridge(0)" && !nameBridge) && !body.includes(hook),
+	);
+	if (missing.length === 0) return { src: original, added: [] };
+	const lineEnd = original.indexOf("\n", anchor);
+	const src = `${original.slice(0, lineEnd + 1)}${missing.map((hook) => `    ${hook}`).join("\n")}\n${original.slice(lineEnd + 1)}`;
+	return { src, added: missing };
+}
+
+/** Add each missing class-body piece before the class's closing
+ * brace, in canonical order, never duplicating a present one. */
+function ensureClassBlocks(original, { nameBridge = true } = {}) {
+	const classIdx = original.indexOf("class MainActivity");
+	if (classIdx === -1) fail("MainActivity class not found.", original);
+	const added = [];
 	let src = original;
-
-	if (src.includes("handleIncomingIntent")) {
-		console.log("MainActivity.kt already patched.");
-		return src;
+	for (const block of CLASS_BLOCKS) {
+		if (block.marker === "private fun installNameBridge(" && !nameBridge) {
+			continue;
+		}
+		if (src.includes(block.marker)) continue;
+		const lastBrace = src.lastIndexOf("}");
+		if (lastBrace < classIdx) fail("Class closing brace not found.", src);
+		src = `${src.slice(0, lastBrace)}\n${block.code}\n${src.slice(lastBrace)}`;
+		added.push(block.marker);
 	}
+	return { src, added };
+}
 
-	// 1. Imports: add after the last import line.
-	if (!/^import android\.content\.Intent$/m.test(src)) {
-		const lastImport = src.lastIndexOf("\nimport ");
-		if (lastImport === -1) fail("No import lines found in MainActivity.", src);
-		const lineEnd = src.indexOf("\n", lastImport + 1);
-		src =
-			src.slice(0, lineEnd + 1) +
-			MAINACTIVITY_IMPORTS +
-			"\n" +
-			src.slice(lineEnd + 1);
-	}
-
-	// 2. onCreate hook: inject right after super.onCreate.
-	const onCreateAnchor = src.indexOf("super.onCreate(savedInstanceState)");
-	if (onCreateAnchor === -1) fail("onCreate anchor missing.", src);
-	const onCreateLineEnd = src.indexOf("\n", onCreateAnchor);
-	src =
-		src.slice(0, onCreateLineEnd + 1) +
-		MAINACTIVITY_ONCREATE_HOOK +
-		"\n" +
-		src.slice(onCreateLineEnd + 1);
-
-	// 3. onNewIntent + fields + methods inside the class body.
-	// Compute the closing brace AFTER the insertion above so the
-	// index cannot go stale.
-	const classIdx = src.indexOf("class MainActivity");
-	if (classIdx === -1) fail("MainActivity class not found.", src);
-	const lastBrace = src.lastIndexOf("}");
-	if (lastBrace < classIdx) fail("Class closing brace not found.", src);
-	src =
-		src.slice(0, lastBrace) +
-		MAINACTIVITY_ONNEWINTENT +
-		"\n" +
-		MAINACTIVITY_FIELDS +
-		"\n" +
-		MAINACTIVITY_BACK_METHOD +
-		"\n" +
-		MAINACTIVITY_METHODS +
-		"\n" +
-		src.slice(lastBrace);
-
-	// 4. Uri import (used in method signatures).
-	if (!/^import android\.net\.Uri$/m.test(src)) {
-		fail("Uri import missing after patch.", src);
-	}
-
-	// 5. Structural checks (platform lessons 1.9 and 2.10).
+/** Structural validation of the final activity. Runs on every patch
+ * (fresh, upgraded, or already current) so an older patched file can
+ * no longer skip the checks (docs/15 #1 step 4). */
+function validatePatched(src, { nameBridge = true } = {}) {
 	if (braces(src) !== 0) fail("Brace balance broken by patch.", src);
+	for (const imp of MAINACTIVITY_IMPORTS) {
+		if (imp === "import android.webkit.JavascriptInterface" && !nameBridge) {
+			continue;
+		}
+		if (!new RegExp(`^${imp.replace(/\./g, "\\.")}$`, "m").test(src)) {
+			fail(`Import missing after patch: ${imp}`, src);
+		}
+	}
+	const classIdx = src.indexOf("class MainActivity");
 	const bodyEnd = src.lastIndexOf("}");
-	const injected = src.indexOf("private fun handleIncomingIntent");
+	const injected = src.indexOf("private fun handleIncomingIntent(");
 	if (injected === -1 || injected > bodyEnd) {
 		fail("Injected methods landed outside the class body.", src);
 	}
-	// Every override must sit inside the class body.
 	const classBody = src.slice(classIdx, bodyEnd);
 	if (!classBody.includes("override fun onNewIntent")) {
 		fail("onNewIntent missing from the class body.", src);
@@ -401,15 +475,14 @@ function patchMainActivity(original) {
 		fail("An override sits after the class body.", src);
 	}
 	// onCreate must keep its original call then our hooks, in order.
-	const onCreateBody = src.slice(
-		onCreateAnchor,
-		src.indexOf("}", onCreateAnchor),
-	);
-	if (onCreateBody.indexOf("handleIncomingIntent") === -1) {
-		fail("onCreate hook not adjacent to super.onCreate.", src);
-	}
-	if (onCreateBody.indexOf("installBackBridge") === -1) {
-		fail("Back bridge hook not adjacent to super.onCreate.", src);
+	const onCreateAnchor = src.indexOf("super.onCreate(savedInstanceState)");
+	const onCreateEnd = functionBodyEnd(src, "override fun onCreate");
+	const onCreateBody = src.slice(onCreateAnchor, onCreateEnd);
+	for (const hook of MAINACTIVITY_ONCREATE_HOOKS) {
+		if (hook === "installNameBridge(0)" && !nameBridge) continue;
+		if (onCreateBody.indexOf(hook) === -1) {
+			fail(`onCreate hook missing: ${hook}`, src);
+		}
 	}
 	if (!classBody.includes("OnBackPressedCallback")) {
 		fail("Back bridge callback missing from the class body.", src);
@@ -417,15 +490,36 @@ function patchMainActivity(original) {
 	if (!classBody.includes("OpenableColumns.DISPLAY_NAME")) {
 		fail("Display-name query missing from the class body.", src);
 	}
-	if (!classBody.includes("__paperwrenAndroid")) {
+	if (nameBridge && !classBody.includes("__paperwrenAndroid")) {
 		fail("Picker name bridge missing from the class body.", src);
-	}
-	if (!src.includes("import android.webkit.JavascriptInterface")) {
-		fail("JavascriptInterface import missing after patch.", src);
 	}
 	const bridgeExpression = String.raw`JSONObject.quote(path) + "," + JSONObject.quote(name) + "," + pendingSize + ") ? \"accepted\" : \"pending\""`;
 	if (!src.includes(bridgeExpression)) {
 		fail("Bridge expression has invalid Kotlin string quoting.", src);
+	}
+}
+
+function patchMainActivity(original, { nameBridge = true } = {}) {
+	// PIECEWISE, not all-or-nothing (docs/15 #1): the previous
+	// revision returned early on any activity already containing
+	// handleIncomingIntent, so an older patched file skipped new
+	// bridge additions and validation forever.
+	const imports = ensureImports(original, { nameBridge });
+	let src = imports.src;
+	const hooks = ensureOnCreateHooks(src, { nameBridge });
+	src = hooks.src;
+	const blocks = ensureClassBlocks(src, { nameBridge });
+	src = blocks.src;
+	validatePatched(src, { nameBridge });
+	const added = imports.added.length + hooks.added.length + blocks.added.length;
+	if (added === 0) {
+		console.log("MainActivity.kt already fully patched; validation passed.");
+	} else {
+		console.log(
+			`MainActivity.kt patched: +${imports.added.length} imports, ` +
+				`+${hooks.added.length} onCreate hooks, +${blocks.added.length} class pieces ` +
+				`(${blocks.added.join(", ") || "none"}); validation passed.`,
+		);
 	}
 	return src;
 }
@@ -447,31 +541,62 @@ function patchManifest(original) {
 	return src;
 }
 
+function countOccurrences(src, needle) {
+	let n = 0;
+	let i = src.indexOf(needle);
+	while (i !== -1) {
+		n++;
+		i = src.indexOf(needle, i + needle.length);
+	}
+	return n;
+}
+
 if (mode === "check") {
 	const template = readFileSync(
 		"scripts/fixtures/MainActivity.template.kt",
 		"utf8",
 	);
+
+	// 1. Clean template: full patch applies and validates.
 	const patched = patchMainActivity(template);
-	if (braces(patched) !== 0) fail("Dry run left braces unbalanced.", patched);
-	// The dry-run must produce a class whose overrides all sit inside
-	// the class body.
-	const body = patched.slice(patched.indexOf("class MainActivity"));
-	const last = body.lastIndexOf("}");
-	const inside = body.slice(0, last);
-	if (!inside.includes("override fun onNewIntent")) {
-		fail("Dry run: onNewIntent outside class.", body);
+
+	// 2. Idempotency: patching the output again adds nothing.
+	if (patchMainActivity(patched) !== patched) {
+		fail("Dry run: re-patching the output was not a no-op.", patched);
 	}
-	if (!inside.includes("installBackBridge")) {
-		fail("Dry run: back bridge outside class.", body);
+	console.log("Dry run OK: patch is idempotent on its own output.");
+
+	// 3. Upgrade: an activity patched by the pre-name-bridge revision
+	// (0.9.16/0.9.17 era — open-with pipeline present, name bridge
+	// absent) gains exactly the missing pieces, with no duplication.
+	const legacy = patchMainActivity(template, { nameBridge: false });
+	if (legacy.includes("__paperwrenAndroid")) {
+		fail("Legacy simulation unexpectedly contains the name bridge.", legacy);
 	}
-	if (!inside.includes("OpenableColumns.DISPLAY_NAME")) {
-		fail("Dry run: display-name query outside class.", body);
+	const upgraded = patchMainActivity(legacy);
+	for (const marker of [
+		"__paperwrenAndroid",
+		"private fun installNameBridge(",
+		"import android.webkit.JavascriptInterface",
+	]) {
+		if (!upgraded.includes(marker)) {
+			fail(`Upgrade did not add: ${marker}`, upgraded);
+		}
 	}
-	if (!inside.includes("__paperwrenAndroid")) {
-		fail("Dry run: picker name bridge outside class.", body);
+	for (const method of [
+		"private fun ingestIncomingFile(",
+		"private fun installNameBridge(",
+		"override fun onNewIntent",
+		"private fun installBackBridge(",
+	]) {
+		const n = countOccurrences(upgraded, method);
+		if (n !== 1) {
+			fail(`Upgrade produced ${n} copies of ${method}`, upgraded);
+		}
 	}
-	console.log("Dry run OK: patch applies cleanly to the 2.11.4 template.");
+	console.log(
+		"Dry run OK: clean patch, idempotent re-patch, and legacy-activity upgrade all pass.",
+	);
 	process.exit(0);
 }
 

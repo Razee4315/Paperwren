@@ -1,5 +1,6 @@
 import { SnackbarProvider, showSnackbar } from "@/components/ui";
 import { backend, guessFormat, idForSource } from "@/lib/backend";
+import { nextOpenId, traceOpen } from "@/lib/trace";
 import { type FileMeta, type RecentsEntry, STORAGE_KEYS } from "@/lib/types";
 import { Home } from "@/screens/Home";
 import { Splash } from "@/screens/Splash";
@@ -49,8 +50,13 @@ function Root() {
 
 	const openFile = useCallback(
 		(file: FileMeta) => {
+			// Every open attempt gets its own request ID so the trace can
+			// separate a stale completion from the open that replaced it
+			// (docs/15 #2 step 2).
+			const openId = nextOpenId();
+			traceOpen("nav:push-viewer", `#${openId} ${file.name}`, openId);
 			setPhase("app");
-			openViewer(file);
+			openViewer({ ...file, openId });
 		},
 		[openViewer],
 	);
@@ -59,13 +65,21 @@ function Root() {
 	 * is picked. The viewer reads the bytes once and sniffs the
 	 * format there — validation before reading showed an
 	 * "unsupported" dialog for every Android picker result, whose
-	 * content:// URIs carry no extension. Silent on cancel. */
+	 * content:// URIs carry no extension. Silent on cancel; a picker
+	 * or metadata failure is announced (docs/15 #2: the flow used to
+	 * reject unhandled, leaving the reader on Home with no error and
+	 * no opening feedback). */
 	const pickAndOpen = useCallback(async () => {
 		if (picking) return;
 		setPicking(true);
+		traceOpen("picker:launch");
 		try {
 			const picked = await backend.pickFile();
 			if (picked) {
+				traceOpen(
+					"picker:result",
+					`${picked.name}${picked.nameVerified ? " (verified)" : " (unverified)"}`,
+				);
 				const format = guessFormat(picked.name);
 				// A pick that repairs an unavailable recent updates that
 				// entry in place instead of creating a duplicate.
@@ -82,13 +96,21 @@ function Root() {
 				}
 				openFile({
 					name: picked.name,
+					nameVerified: picked.nameVerified,
 					format,
 					size: picked.size,
 					ref: picked.ref,
 					source: picked.source,
 					reopen: picked.reopen,
 				});
+			} else {
+				traceOpen("picker:cancelled");
 			}
+		} catch (err) {
+			traceOpen("picker:error", String(err));
+			showSnackbar({
+				message: "Couldn't open the file picker. Try again.",
+			});
 		} finally {
 			setPicking(false);
 		}
@@ -99,6 +121,7 @@ function Root() {
 	 * generic "File not found". */
 	const openRecent = useCallback(
 		(entry: RecentsEntry) => {
+			traceOpen("nav:open-recent", entry.name);
 			openFile({
 				name: entry.name,
 				format: entry.format,
@@ -138,6 +161,7 @@ function Root() {
 			if (key === lastBridged.current) return; // duplicate delivery
 			lastBridged.current = key;
 			bridgeHandled.current = true;
+			traceOpen("bridge:delivered", next.name);
 			const nameError = validateFileName(next.name);
 			if (nameError) {
 				setOpenError(nameError);

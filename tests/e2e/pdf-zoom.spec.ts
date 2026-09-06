@@ -211,9 +211,18 @@ test.describe("double-tap", () => {
 		expect(await pill.textContent()).toBe("Fit width");
 
 		// Two quick touch taps: the double-tap path wins over the delayed
-		// single-tap chrome toggle (audit PDF-03).
-		await page.touchscreen.tap(206, 450);
-		await page.touchscreen.tap(206, 450);
+		// single-tap chrome toggle (audit PDF-03). Dispatched through
+		// CDP back-to-back because two touchscreen.tap round trips can
+		// stray outside the gesture controller's 320ms double-tap
+		// window and race this test.
+		const cdp = await page.context().newCDPSession(page);
+		for (const type of ["touchStart", "touchEnd", "touchStart", "touchEnd"]) {
+			await cdp.send("Input.dispatchTouchEvent", {
+				type,
+				touchPoints: type === "touchStart" ? [{ x: 206, y: 450 }] : [],
+			});
+		}
+		await cdp.detach();
 
 		await expect
 			.poll(async () => pill.textContent(), { timeout: 5_000 })

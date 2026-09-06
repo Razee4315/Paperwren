@@ -116,7 +116,7 @@ const Content = styled.div`
 	inset: 0;
 `;
 
-interface ChromeApi {
+export interface ChromeApi {
 	showChrome: () => void;
 	scheduleHide: () => void;
 	/** Explicit tap-to-toggle for surfaces with a validated tap
@@ -132,17 +132,22 @@ interface ChromeApi {
 	shellWidth: number;
 }
 
-const ChromeContext = createContext<ChromeApi>({
-	showChrome: () => {},
-	scheduleHide: () => {},
-	toggleChrome: () => {},
-	chromeVisible: true,
-	isChromeVisible: () => true,
-	shellWidth: 0,
-});
+// No silent default (docs/15 #3): the previous no-op default let a
+// consumer placed ABOVE the shell's provider — where context cannot
+// reach — toggle nothing forever while the real toolbar hid under
+// its own timer. Every consumer must sit below the provider; a
+// misplaced one now fails loudly instead of passing mouse-only tests
+// while touch cannot restore the toolbar.
+const ChromeContext = createContext<ChromeApi | null>(null);
 
 export function useViewerChrome(): ChromeApi {
-	return useContext(ChromeContext);
+	const api = useContext(ChromeContext);
+	if (!api) {
+		throw new Error(
+			"useViewerChrome must run inside the ViewerShell chrome provider: render the consumer as a descendant of ViewerShell, not as the component that renders it.",
+		);
+	}
+	return api;
 }
 
 /** Measured layout-viewport width. The shell is fixed inset-0, so
@@ -273,6 +278,16 @@ export function ViewerShell({
 	useEffect(() => {
 		if (chromeHold) setChromeVisible(true);
 	}, [chromeHold]);
+
+	// Re-arm idle autohide when a hold LIFTS (docs/15 #3): scheduleHide
+	// refuses to queue while held, and the arming effect above runs
+	// only on mount and visibility flips — so a load-time hold (the
+	// PDF parse progress) left the timer unarmed forever and the
+	// toolbar never hid until the reader's first scroll happened to
+	// re-arm it.
+	useEffect(() => {
+		if (!chromeHold) scheduleHide();
+	}, [chromeHold, scheduleHide]);
 
 	// Hidden bars must not stay keyboard-focusable or interactive
 	// (audit SH-02): `inert` removes them from the tab order in the

@@ -99,6 +99,35 @@ function makeNarrowDocx() {
 	console.log("fixtures/viewer-regressions/narrow-fit.docx written");
 }
 
+// ---------- DOCX: three pages via explicit page breaks (A4) ----------
+// docs/15 #4 acceptance: on a narrow phone the zoom controls stay
+// reachable, zoomed content stays pannable, and the LAST page is
+// still reachable. Word's own multi-page documents reach the viewer
+// as page breaks (w:br type=page) inside one body sectPr, and
+// docx-preview renders each break as another section.docx page.
+function makeMultipageDocx() {
+	const pageBreak = '<w:r><w:br w:type="page"/></w:r>';
+	const documentXml = [
+		'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
+		`<w:p><w:r><w:t>Multipage fixture, page one.</w:t></w:r>${pageBreak}</w:p>`,
+		"<w:p><w:r><w:t>Multipage fixture, page two.</w:t></w:r></w:p>",
+		`<w:p>${pageBreak}<w:r><w:t>Multipage fixture, page three, the last page.</w:t></w:r></w:p>`,
+		'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>',
+		"</w:body></w:document>",
+	].join("");
+	const contentTypes =
+		'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
+	const rels =
+		'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+	const zip = buildZip([
+		["[Content_Types].xml", contentTypes],
+		["_rels/.rels", rels],
+		["word/document.xml", documentXml],
+	]);
+	writeFileSync(join(dir, "multipage.docx"), zip);
+	console.log("fixtures/viewer-regressions/multipage.docx written");
+}
+
 function makeGridAlignXlsx() {
 	const wb = XLSX.utils.book_new();
 	const widths = [72, 140, 61, 220, 96, 48, 180, 96, 133, 250, 96, 96];
@@ -185,6 +214,10 @@ const manifest = {
 	"narrow-fit.docx": {
 		tests: "DOC-01 readiness at exactly 100% fit; DOC-02 manual zoom controls",
 	},
+	"multipage.docx": {
+		tests:
+			"docs/15 #4 DOCX zoom reachable at 320px: zoom in/out/fit-width, pannable zoomed content, last page reachable",
+	},
 	"wide-fit.pdf": {
 		tests:
 			"PDF-02 fit -> manual conversion preserves a fit scale far below 0.5",
@@ -199,4 +232,5 @@ console.log("fixtures/viewer-regressions/manifest.json written");
 makeGridAlignXlsx();
 makeMergeXlsx();
 makeNarrowDocx();
+makeMultipageDocx();
 makeWidePdf();

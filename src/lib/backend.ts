@@ -21,6 +21,10 @@ import type { FileMeta, RecentsEntry, ReopenDescriptor } from "./types";
 
 export interface PickedFileMeta {
 	name: string;
+	/** True when `name` was verified against the provider or the OS
+	 * (bridge DISPLAY_NAME, file object, desktop path); false when it
+	 * is a best-effort URI segment fallback (docs/15 #1). */
+	nameVerified?: boolean;
 	size: number;
 	source: string;
 	ref: string;
@@ -37,6 +41,12 @@ interface Backend {
 	/** Resolve a recent's durable descriptor into readable bytes or
 	 * a typed failure (audit section 4.5). */
 	openRecent(entry: RecentsEntry): Promise<OpenRecentResult>;
+	/** Re-query the provider display name for a persisted content
+	 * URI (Android bridge). Null when unavailable: off Android, the
+	 * bridge not (yet) registered, or the provider query failed.
+	 * Used to heal generic recents names on successful reopen
+	 * (docs/15 #1 step 5). */
+	resolveContentName(source: string): Promise<string | null>;
 	storeGet(key: string): Promise<unknown>;
 	storeSet(key: string, value: unknown): Promise<void>;
 	cacheStats(): Promise<{ bytes: number }>;
@@ -67,12 +77,33 @@ async function resolveBrowserFile(source: string): Promise<Blob | null> {
 	}
 }
 
+/** Query the provider display name through the Android bridge.
+ * Shared by the picker and the reopen healing path; the
+ * @JavascriptInterface call runs on a WebView worker thread, never
+ * the UI thread. Returns null on any failure so callers keep their
+ * fallback. */
+function queryBridgeName(uri: string): string | null {
+	if (!uri.startsWith("content://")) return null;
+	const bridge = window.__paperwrenAndroid;
+	if (!bridge) return null;
+	try {
+		const name = bridge.displayName(uri);
+		return name && name.trim().length > 0 ? name : null;
+	} catch {
+		return null;
+	}
+}
+
 declare global {
 	interface Window {
 		/** Dev test hook: set a File here and the picker returns it
 		 * instead of showing the file input. Lets automated browser
 		 * tests exercise the whole open flow without a chooser. */
 		__paperwrenTestFile?: File;
+		/** Dev test hook: milliseconds to delay browser-backend byte
+		 * reads, so automated tests can observe the loading state and
+		 * interactions DURING an in-flight read (docs/15 #2). */
+		__paperwrenTestReadDelay?: number;
 		/** Android picker bridge (MainActivity patch): asks the
 		 * content resolver for the real DISPLAY_NAME and SIZE of a
 		 * picked content:// URI, whose own last segment is an opaque
@@ -85,6 +116,16 @@ declare global {
 	}
 }
 
+/** Test-only read delay (docs/15 #2): a controlled slow read so
+ * browser tests can cover the loading state and in-flight
+ * interactions. No-op unless the hook is set. */
+async function testReadDelay(): Promise<void> {
+	const ms = window.__paperwrenTestReadDelay;
+	if (typeof ms === "number" && ms > 0) {
+		await new Promise((resolve) => setTimeout(resolve, ms));
+	}
+}
+
 const browserBackend: Backend = {
 	async pickFile() {
 		const injected = window.__paperwrenTestFile;
@@ -94,6 +135,7 @@ const browserBackend: Backend = {
 			registerBrowserFile(source, injected);
 			return {
 				name: injected.name,
+				nameVerified: true,
 				size: injected.size,
 				source,
 				ref: source,
@@ -113,6 +155,7 @@ const browserBackend: Backend = {
 				registerBrowserFile(source, file);
 				resolve({
 					name: file.name,
+					nameVerified: true,
 					size: file.size,
 					source,
 					ref: source,
@@ -125,7 +168,9 @@ const browserBackend: Backend = {
 	async readBytes(ref) {
 		const file = await resolveBrowserFile(ref);
 		if (!file) throw new Error("File not found. It may have been moved.");
-		return file.arrayBuffer();
+		const buffer = await file.arrayBuffer();
+		await testReadDelay();
+		return buffer;
 	},
 	async openRecent(entry) {
 		// Browser sources ("browser:name") resolve from the in-memory
@@ -133,6 +178,10 @@ const browserBackend: Backend = {
 		const file = await resolveBrowserFile(entry.source);
 		if (!file) return { ok: false, failure: "not_found" };
 		return { ok: true, buffer: await file.arrayBuffer() };
+	},
+	async resolveContentName() {
+		// No content providers outside Android/Tauri.
+		return null;
 	},
 	async storeGet(key) {
 		const raw = localStorage.getItem(`paperwren.${key}`);
@@ -203,25 +252,21 @@ const tauriBackend: Backend = {
 		// DISPLAY_NAME; without it every recent showed as
 		// "Document.pdf". Fallbacks: percent-decode the segment
 		// (SAF URIs carry the path as ...%2FDir%2FName.pdf), then the
-		// raw segment. Sniffing still decides the format from the
-		// bytes, and the size arrives with the single read when the
-		// bridge is unavailable.
+		// raw segment. A bridge name is VERIFIED (nameVerified) so the
+		// viewer stores it verbatim; a segment fallback is not, and
+		// the sniffed format decides the viewer regardless.
 		let name = path.split(/[\\/]/).pop() ?? path;
+		let nameVerified = !path.startsWith("content://");
 		let size = 0;
 		if (path.startsWith("content://")) {
-			const bridge = window.__paperwrenAndroid;
-			if (bridge) {
-				try {
-					const bridgedName = bridge.displayName(path);
-					if (bridgedName) {
-						name = bridgedName;
-						const bridgedSize = bridge.contentSize(path);
-						if (Number.isFinite(bridgedSize) && bridgedSize > 0) {
-							size = bridgedSize;
-						}
-					}
-				} catch {
-					// Bridge hiccup: fall through to the decoded segment.
+			const bridgedName = queryBridgeName(path);
+			if (bridgedName) {
+				name = bridgedName;
+				nameVerified = true;
+				const bridge = window.__paperwrenAndroid;
+				const bridgedSize = bridge ? bridge.contentSize(path) : 0;
+				if (Number.isFinite(bridgedSize) && bridgedSize > 0) {
+					size = bridgedSize;
 				}
 			}
 			if (size === 0 && name === (path.split(/[\\/]/).pop() ?? path)) {
@@ -238,7 +283,7 @@ const tauriBackend: Backend = {
 		const reopen: ReopenDescriptor = path.startsWith("content://")
 			? { kind: "persisted-uri", uri: path }
 			: { kind: "desktop-path", path };
-		return { name, size, source: path, ref: path, reopen };
+		return { name, nameVerified, size, source: path, ref: path, reopen };
 	},
 	async readBytes(ref) {
 		const { readFile } = await import("@tauri-apps/plugin-fs");
@@ -272,6 +317,9 @@ const tauriBackend: Backend = {
 						: failure,
 			};
 		}
+	},
+	async resolveContentName(source) {
+		return queryBridgeName(source);
 	},
 	async storeGet(key) {
 		return tauriInvoke<unknown>("store_get", { key });
@@ -308,6 +356,7 @@ export const backend: Backend = {
 export async function readFileMeta(picked: PickedFileMeta): Promise<FileMeta> {
 	return {
 		name: picked.name,
+		nameVerified: picked.nameVerified,
 		format: guessFormat(picked.name),
 		size: picked.size,
 		ref: picked.ref,

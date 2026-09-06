@@ -12,6 +12,16 @@ export interface FileMeta {
 	ref: string;
 	/** Original path or URI the file came from, for recents. */
 	source: string;
+	/** True when `name` came from the provider itself (DISPLAY_NAME
+	 * via the Android bridge, the OS file object) rather than a URI
+	 * segment fallback. Verified names are stored verbatim — even
+	 * extension-less ones, which providers do hand out; unverified
+	 * names get the sniffed-format fallback label (docs/15 #1). */
+	nameVerified?: boolean;
+	/** Per-open request ID stamped by App's openFile funnel for the
+	 * open-flow trace (docs/15 #2 step 2). Diagnostics only — never
+	 * persisted: recents entries are built from explicit fields. */
+	openId?: number;
 	/** Durable reopen descriptor when the ingestion layer produced
 	 * one; legacy flows fall back to `source`. */
 	reopen?: ReopenDescriptor;

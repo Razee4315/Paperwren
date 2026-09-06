@@ -90,17 +90,32 @@ export function isLegacyOffice(bytes: ArrayBuffer): boolean {
 }
 
 /** Best-effort display name for content URIs whose last segment is
- * an opaque ID: falls back to a friendly label per sniffed format. */
+ * an opaque ID: falls back to a friendly label per sniffed format.
+ * Only for names whose origin is NOT verified — a provider-verified
+ * name is stored verbatim, extension-less included. */
+const FALLBACK_LABELS: Record<FileFormat, string> = {
+	pdf: "Document.pdf",
+	docx: "Document.docx",
+	xlsx: "Spreadsheet.xlsx",
+	pptx: "Presentation.pptx",
+	csv: "Data.csv",
+	txt: "Text.txt",
+	unknown: "File",
+};
+
 export function displayNameFor(name: string, format: FileFormat): string {
 	if (name.includes(".")) return name;
-	const label: Record<FileFormat, string> = {
-		pdf: "Document.pdf",
-		docx: "Document.docx",
-		xlsx: "Spreadsheet.xlsx",
-		pptx: "Presentation.pptx",
-		csv: "Data.csv",
-		txt: "Text.txt",
-		unknown: "File",
-	};
-	return label[format] ?? name;
+	return FALLBACK_LABELS[format] ?? name;
+}
+
+/** True when a stored name is a synthetic fallback rather than a
+ * real filename: one of the generic format labels above, or an
+ * extension-less segment (the signature of an unresolved opaque
+ * content URI). Reopen healing (docs/15 #1 step 5) may replace such
+ * a name with a provider-verified one; a name that is specific and
+ * dotted — including a user's genuine "Document.pdf" — is never
+ * second-guessed. */
+export function isFallbackDisplayName(name: string): boolean {
+	if (!name.includes(".")) return true;
+	return Object.values(FALLBACK_LABELS).includes(name);
 }

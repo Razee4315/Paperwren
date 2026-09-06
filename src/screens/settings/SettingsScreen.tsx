@@ -396,6 +396,7 @@ function AppearancePage() {
 								haptic(settings);
 								update("appearance.theme", value);
 							}}
+							data-testid={`theme-option-${value}`}
 						>
 							<span>
 								<span style={{ display: "block" }}>{label}</span>

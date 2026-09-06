@@ -3,7 +3,13 @@ import { OpeningScreen } from "@/components/OpeningScreen";
 import { Button, Dialog } from "@/components/ui";
 import { backend, idForSource } from "@/lib/backend";
 import { type OpenFailure, classifyOpenError, failureCopy } from "@/lib/errors";
-import { displayNameFor, isLegacyOffice, sniffFormat } from "@/lib/sniff";
+import {
+	displayNameFor,
+	isFallbackDisplayName,
+	isLegacyOffice,
+	sniffFormat,
+} from "@/lib/sniff";
+import { traceOpen } from "@/lib/trace";
 import type { FileMeta, FilePosition } from "@/lib/types";
 import { useRecents } from "@/state/RecentsContext";
 import { useSettings } from "@/state/SettingsContext";
@@ -25,6 +31,23 @@ import { XlsxViewer } from "./XlsxViewer";
  * path, never a generic "File not found".
  */
 
+/** Best display name given what is known (docs/15 #1): a healed or
+ * verified name wins outright — a provider may hand out real
+ * extension-less names, and the sniffed bytes still decide the
+ * viewer; an unverified name only gets the format's fallback label
+ * when it carries no extension of its own. Takes primitives so read
+ * effects can list exactly what they capture. */
+function bestDisplayName(
+	name: string,
+	nameVerified: boolean | undefined,
+	healed: string | null,
+	format: FileFormat,
+): string {
+	if (healed) return healed;
+	if (nameVerified) return name;
+	return displayNameFor(name, format);
+}
+
 export function ViewerScreen({
 	file,
 	onClose,
@@ -43,6 +66,9 @@ export function ViewerScreen({
 	const { entries, recordOpen, updatePosition, markUnavailable } = useRecents();
 	const [data, setData] = useState<ArrayBuffer | null>(null);
 	const [failure, setFailure] = useState<OpenFailure | null>(null);
+	// A provider-verified name learned during this open (healed from a
+	// generic label or an opaque URI segment). Null until then.
+	const [healedName, setHealedName] = useState<string | null>(null);
 	// The format comes from the bytes, not the name: Android pickers
 	// hand out extension-less content URIs, and names lie anyway.
 	const [format, setFormat] = useState<FileFormat | null>(null);
@@ -87,7 +113,16 @@ export function ViewerScreen({
 	]);
 
 	useEffect(() => {
+		traceOpen(
+			"viewer:mount",
+			`#${file.openId ?? "?"} ${file.name}`,
+			file.openId,
+		);
+	}, [file.openId, file.name]);
+
+	useEffect(() => {
 		let cancelled = false;
+		traceOpen("read:start", file.reopen?.kind ?? "live-ref", file.openId);
 		const read = file.reopen
 			? backend.openRecent({
 					id: recentsId,
@@ -115,10 +150,29 @@ export function ViewerScreen({
 							}) as const,
 					);
 
-		read
-			.then((result) => {
+		// Metadata healing (docs/15 #1 step 5), in parallel with the
+		// read: a recents entry stored with a generic label or an
+		// opaque numeric segment re-queries the provider on reopen and
+		// adopts the real DISPLAY_NAME when the provider answers.
+		// recordOpen then updates the existing entry in place — id and
+		// position are derived from the unchanged source, so nothing
+		// about the entry's history or pin state is lost.
+		const nameQuery: Promise<string | null> =
+			file.nameVerified || !isFallbackDisplayName(file.name)
+				? Promise.resolve(null)
+				: file.reopen?.kind === "persisted-uri"
+					? backend.resolveContentName(file.reopen.uri).catch(() => null)
+					: Promise.resolve(null);
+
+		Promise.all([read, nameQuery])
+			.then(([result, healed]) => {
 				if (cancelled) return;
+				if (healed) {
+					traceOpen("name:healed", healed, file.openId);
+					setHealedName(healed);
+				}
 				if (!result.ok) {
+					traceOpen("read:failed", result.failure, file.openId);
 					if (result.failure !== "cancelled") {
 						setFailure(result.failure);
 					}
@@ -126,6 +180,11 @@ export function ViewerScreen({
 				}
 				const buf = result.buffer;
 				const detected = sniffFormat(buf, file.name);
+				traceOpen(
+					"read:done",
+					`${buf.byteLength} bytes as ${detected}`,
+					file.openId,
+				);
 				setLegacyOffice(isLegacyOffice(buf));
 				setData(buf);
 				setFormat(detected);
@@ -134,7 +193,12 @@ export function ViewerScreen({
 					// PDF.js parsing happens later and must not gate the
 					// recent (audit 4.5).
 					recordOpen({
-						name: displayNameFor(file.name, detected),
+						name: bestDisplayName(
+							file.name,
+							file.nameVerified,
+							healed,
+							detected,
+						),
 						format: detected,
 						size: buf.byteLength,
 						source: file.source,
@@ -142,13 +206,25 @@ export function ViewerScreen({
 					});
 				}
 			})
-			.catch(() => {
+			.catch((err: unknown) => {
+				traceOpen("read:error", String(err), file.openId);
 				if (!cancelled) setFailure("read_failed");
 			});
 		return () => {
 			cancelled = true;
 		};
-	}, [file.name, file.ref, file.source, file.reopen, recentsId, recordOpen]);
+	}, [
+		file.format,
+		file.name,
+		file.nameVerified,
+		file.openId,
+		file.ref,
+		file.size,
+		file.source,
+		file.reopen,
+		recentsId,
+		recordOpen,
+	]);
 
 	const handlePosition = (pos: FilePosition) => {
 		updatePosition(recentsId, pos);
@@ -195,7 +271,12 @@ export function ViewerScreen({
 		// must rise above the previous screen's FAB.
 		return (
 			<OpeningScreen
-				name={displayNameFor(file.name, format ?? "unknown")}
+				name={bestDisplayName(
+					file.name,
+					file.nameVerified,
+					healedName,
+					format ?? "unknown",
+				)}
 				format={format ?? "unknown"}
 				progress={null}
 				elevated
@@ -216,7 +297,12 @@ export function ViewerScreen({
 		);
 	}
 
-	const displayName = displayNameFor(file.name, format);
+	const displayName = bestDisplayName(
+		file.name,
+		file.nameVerified,
+		healedName,
+		format,
+	);
 	const viewerPosition = entry?.position;
 
 	if (legacyOffice) {
@@ -264,6 +350,7 @@ export function ViewerScreen({
 			<PdfViewer
 				data={data}
 				name={displayName}
+				openId={file.openId}
 				initialPosition={viewerPosition}
 				onPosition={handlePosition}
 				onClose={onClose}
