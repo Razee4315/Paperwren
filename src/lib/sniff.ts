@@ -119,3 +119,20 @@ export function isFallbackDisplayName(name: string): boolean {
 	if (!name.includes(".")) return true;
 	return Object.values(FALLBACK_LABELS).includes(name);
 }
+
+/** Recover a real display name from a managed-copy or desktop path
+ * (docs/15 #1): open-with imports keep the provider's DISPLAY_NAME
+ * as their file name, and desktop picks keep the OS name, so the
+ * basename heals a stored generic label. Returns null unless the
+ * basename looks specific — dotted, not a bare number, not itself a
+ * generic label — because this path must never invent a name. */
+export function realNameFromPath(path: string): string | null {
+	if (!path) return null;
+	const base = path.replace(/\\/g, "/").split("/").pop() ?? "";
+	const dot = base.lastIndexOf(".");
+	if (dot <= 0) return null;
+	const stem = base.slice(0, dot);
+	if (/^\d*$/.test(stem)) return null;
+	if (isFallbackDisplayName(base)) return null;
+	return base;
+}

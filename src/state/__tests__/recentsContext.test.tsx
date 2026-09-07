@@ -171,3 +171,102 @@ describe("RecentsContext callback identity (docs/15 #2)", () => {
 		});
 	});
 });
+
+describe("RecentsContext dashboard name healing (docs/15 #1)", () => {
+	let root: Root;
+	let container: HTMLDivElement;
+
+	beforeEach(() => {
+		localStorage.clear();
+		container = document.createElement("div");
+		document.body.appendChild(container);
+	});
+
+	afterEach(() => {
+		act(() => {
+			root.unmount();
+		});
+		container.remove();
+		(window as { __paperwrenAndroid?: unknown }).__paperwrenAndroid = undefined;
+	});
+
+	async function mount() {
+		const captured: Captured[] = [];
+		root = createRoot(container);
+		await act(async () => {
+			root.render(
+				<SettingsProvider>
+					<RecentsProvider>
+						<Probe captured={captured} />
+					</RecentsProvider>
+				</SettingsProvider>,
+			);
+		});
+		await act(async () => {
+			await Promise.resolve();
+		});
+		return captured;
+	}
+
+	it("heals a generic name from a managed-copy basename without a reopen", async () => {
+		const captured = await mount();
+		const latest = () => captured[captured.length - 1];
+		act(() => {
+			latest().recents.recordOpen({
+				name: "Document.pdf",
+				format: "pdf",
+				size: 10,
+				source:
+					"/data/user/0/app.paperwren.docs/files/imports/Quarterly budget.pdf",
+				reopen: {
+					kind: "managed-copy",
+					path: "/data/user/0/app.paperwren.docs/files/imports/Quarterly budget.pdf",
+				},
+			});
+		});
+		await act(async () => {
+			await new Promise((r) => setTimeout(r, 0));
+		});
+		expect(latest().recents.entries[0].name).toBe("Quarterly budget.pdf");
+	});
+
+	it("heals a content-URI entry through the Android name bridge", async () => {
+		(window as { __paperwrenAndroid?: unknown }).__paperwrenAndroid = {
+			displayName: () => "Real provider name.pdf",
+			contentSize: () => 0,
+		};
+		const captured = await mount();
+		const latest = () => captured[captured.length - 1];
+		act(() => {
+			latest().recents.recordOpen({
+				name: "Document.pdf",
+				format: "pdf",
+				size: 10,
+				source: "content://providers/1284",
+				reopen: { kind: "persisted-uri", uri: "content://providers/1284" },
+			});
+		});
+		await act(async () => {
+			await new Promise((r) => setTimeout(r, 0));
+		});
+		expect(latest().recents.entries[0].name).toBe("Real provider name.pdf");
+	});
+
+	it("never overwrites a specific stored name", async () => {
+		const captured = await mount();
+		const latest = () => captured[captured.length - 1];
+		act(() => {
+			latest().recents.recordOpen({
+				name: "my real notes.txt",
+				format: "txt",
+				size: 10,
+				source: "/imports/other.pdf",
+				reopen: { kind: "managed-copy", path: "/imports/other.pdf" },
+			});
+		});
+		await act(async () => {
+			await new Promise((r) => setTimeout(r, 0));
+		});
+		expect(latest().recents.entries[0].name).toBe("my real notes.txt");
+	});
+});

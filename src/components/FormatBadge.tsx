@@ -180,7 +180,7 @@ export function formatCssVar(format: FileFormat): {
 const Badge = styled.div<{ $format: FileFormat; $size: number }>`
 	width: ${({ $size }) => $size}px;
 	height: ${({ $size }) => $size}px;
-	border-radius: 8px;
+	border-radius: 12px;
 	background: ${({ $format }) => formatCssVar($format).container};
 	color: ${({ $format }) => formatCssVar($format).base};
 	display: flex;
@@ -188,6 +188,19 @@ const Badge = styled.div<{ $format: FileFormat; $size: number }>`
 	justify-content: center;
 	flex-shrink: 0;
 	position: relative;
+
+	/* Soft ring in the format ink (the container tint alone
+	 disappears against light surfaces); a pseudo-element keeps the
+	 ring at low opacity without color-mix support. */
+	&::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		border: 1px solid currentColor;
+		opacity: 0.24;
+		pointer-events: none;
+	}
 `;
 
 export function FormatBadge({

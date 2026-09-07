@@ -7,6 +7,7 @@ import {
 	displayNameFor,
 	isFallbackDisplayName,
 	isLegacyOffice,
+	realNameFromPath,
 	sniffFormat,
 } from "@/lib/sniff";
 import { traceOpen } from "@/lib/trace";
@@ -154,15 +155,22 @@ export function ViewerScreen({
 		// read: a recents entry stored with a generic label or an
 		// opaque numeric segment re-queries the provider on reopen and
 		// adopts the real DISPLAY_NAME when the provider answers.
+		// Managed copies and desktop paths heal from their basename,
+		// which is the original provider/OS name by construction.
 		// recordOpen then updates the existing entry in place — id and
 		// position are derived from the unchanged source, so nothing
 		// about the entry's history or pin state is lost.
+		const pathHeal =
+			file.reopen?.kind === "managed-copy" ||
+			file.reopen?.kind === "desktop-path"
+				? realNameFromPath(file.reopen.path)
+				: null;
 		const nameQuery: Promise<string | null> =
 			file.nameVerified || !isFallbackDisplayName(file.name)
 				? Promise.resolve(null)
 				: file.reopen?.kind === "persisted-uri"
 					? backend.resolveContentName(file.reopen.uri).catch(() => null)
-					: Promise.resolve(null);
+					: Promise.resolve(pathHeal);
 
 		Promise.all([read, nameQuery])
 			.then(([result, healed]) => {

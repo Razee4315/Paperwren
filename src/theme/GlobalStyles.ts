@@ -250,6 +250,16 @@ export const GlobalStyles = createGlobalStyle`
       transform: none;
     }
   }
+  /* Pop-in for anchored menus: transform only, so a throttled or
+     frozen animation can never leave the menu transparent. */
+  @keyframes pw-menu-in {
+    from {
+      transform: translateY(-4px) scale(0.98);
+    }
+    to {
+      transform: none;
+    }
+  }
 
   * {
     box-sizing: border-box;

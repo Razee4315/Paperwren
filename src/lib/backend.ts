@@ -179,9 +179,11 @@ const browserBackend: Backend = {
 		if (!file) return { ok: false, failure: "not_found" };
 		return { ok: true, buffer: await file.arrayBuffer() };
 	},
-	async resolveContentName() {
-		// No content providers outside Android/Tauri.
-		return null;
+	async resolveContentName(source: string) {
+		// The Android bridge lives on the WebView, not on a backend:
+		// query it whenever it is present so name healing works on
+		// every path; off-Android this returns null.
+		return queryBridgeName(source);
 	},
 	async storeGet(key) {
 		const raw = localStorage.getItem(`paperwren.${key}`);

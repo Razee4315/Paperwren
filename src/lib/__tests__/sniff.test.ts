@@ -4,6 +4,7 @@ import {
 	displayNameFor,
 	isFallbackDisplayName,
 	isLegacyOffice,
+	realNameFromPath,
 	sniffFormat,
 } from "../sniff";
 
@@ -111,5 +112,26 @@ describe("isFallbackDisplayName", () => {
 		// A user's genuine "Document.pdf" is specific and dotted:
 		// healing must not second-guess it.
 		expect(isFallbackDisplayName("report (1).pdf")).toBe(false);
+	});
+});
+
+describe("realNameFromPath", () => {
+	it("recovers the provider name from a managed imports copy", () => {
+		expect(
+			realNameFromPath(
+				"/data/user/0/app.paperwren.docs/files/imports/SaqlainAbbas_CV (1).pdf",
+			),
+		).toBe("SaqlainAbbas_CV (1).pdf");
+		expect(realNameFromPath("C:\\Users\\me\\Desktop\\budget 2026.xlsx")).toBe(
+			"budget 2026.xlsx",
+		);
+	});
+
+	it("rejects basenames that would invent or keep a generic name", () => {
+		expect(realNameFromPath("/imports/1284.pdf")).toBeNull();
+		expect(realNameFromPath("/imports/document")).toBeNull();
+		expect(realNameFromPath("/imports/Document.pdf")).toBeNull();
+		expect(realNameFromPath("/imports/.pdf")).toBeNull();
+		expect(realNameFromPath("")).toBeNull();
 	});
 });
