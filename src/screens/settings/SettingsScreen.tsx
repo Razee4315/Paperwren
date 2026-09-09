@@ -101,7 +101,10 @@ const Page = styled.div`
 	background: var(--bg);
 	display: flex;
 	flex-direction: column;
-	z-index: 30;
+	/* Above Home's FAB (500): the open-file action must not poke
+	   through a full settings screen. Still below the opening page
+	   (950), sheets (1100) and dialogs (1200). */
+	z-index: 600;
 	animation: pw-page-in ${motion.dur.fast} ${motion.ease.enter};
 	@keyframes pw-page-in {
 		from {
