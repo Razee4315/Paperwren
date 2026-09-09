@@ -53,6 +53,10 @@ interface Backend {
 	clearCache(): Promise<void>;
 	importsStats(): Promise<{ bytes: number }>;
 	clearImports(): Promise<void>;
+	/** Best-effort deletion of managed copies whose recents entry is
+	 * gone (imports eviction). Names are bare filenames; the Rust
+	 * command re-validates them against the imports dir. */
+	removeManagedCopies(names: string[]): Promise<void>;
 }
 
 // ---------- Browser backend (development and web preview) ----------
@@ -216,6 +220,7 @@ const browserBackend: Backend = {
 		return { bytes: 0 };
 	},
 	async clearImports() {},
+	async removeManagedCopies() {},
 };
 
 // ---------- Tauri backend ----------
@@ -350,6 +355,14 @@ const tauriBackend: Backend = {
 	},
 	async clearImports() {
 		await tauriInvoke<void>("clear_imports");
+	},
+	async removeManagedCopies(names) {
+		try {
+			await tauriInvoke<number>("imports_remove", { names });
+		} catch {
+			// Eviction is hygiene, not correctness: an undeletable
+			// orphan stays visible in Settings storage stats.
+		}
 	},
 };
 

@@ -106,16 +106,50 @@ describe("RecentsContext callback identity (docs/15 #2)", () => {
 		expect(captured[captured.length - 1].recents.recordOpen).toBe(before);
 	});
 
-	it("still updates when a recents-relevant setting changes", async () => {
+	it("keeps recordOpen stable when a recents-relevant setting changes, and honors the new limit", async () => {
+		// The whole point of docs/15 #2: recordOpen's identity is what
+		// the viewer's read effect depends on. A settings change that
+		// replaced it re-read the open document — so the limit now
+		// travels through a ref and must take effect WITHOUT an
+		// identity change.
 		const captured = await mount();
-		const before = captured[captured.length - 1].recents.recordOpen;
+		const latest = () => captured[captured.length - 1];
+		const before = latest().recents.recordOpen;
 
 		await act(async () => {
-			captured[captured.length - 1].settings.update("files.recents_limit", 20);
+			latest().settings.update("files.recents_limit", 20);
 		});
 
-		const after = captured[captured.length - 1].recents.recordOpen;
-		expect(after).not.toBe(before);
+		expect(latest().recents.recordOpen).toBe(before);
+
+		// The new limit is honored on the next open: 21 unpinned
+		// entries recorded under limit 20 leave the oldest evicted.
+		for (let i = 0; i < 21; i++) {
+			act(() => {
+				latest().recents.recordOpen({
+					name: `file-${i}.pdf`,
+					format: "pdf",
+					size: 10,
+					source: `content://providers/${i}`,
+					reopen: { kind: "persisted-uri", uri: `content://providers/${i}` },
+				});
+			});
+		}
+		expect(latest().recents.entries).toHaveLength(20);
+		// Newest kept, oldest evicted.
+		expect(latest().recents.entries.some((e) => e.name === "file-0.pdf")).toBe(
+			false,
+		);
+		expect(latest().recents.entries.some((e) => e.name === "file-20.pdf")).toBe(
+			true,
+		);
+
+		// Drain the serialized persistence queue so this test's writes
+		// land BEFORE the next test clears localStorage — a write
+		// flushing after the clear would leak entries into it.
+		await act(async () => {
+			await new Promise((r) => setTimeout(r, 0));
+		});
 	});
 
 	it("recordOpen heals an existing entry in place, keeping position and pin", async () => {

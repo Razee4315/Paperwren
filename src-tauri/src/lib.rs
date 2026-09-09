@@ -101,8 +101,17 @@ fn dir_size(path: &PathBuf) -> u64 {
     let mut total = 0;
     if let Ok(entries) = fs::read_dir(path) {
         for entry in entries.flatten() {
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+            // Never follow symlinks: a link loop in a cache dir would
+            // recurse forever (fatal under panic=abort), and a link
+            // pointing outside the dir is not ours to size.
+            if file_type.is_symlink() {
+                continue;
+            }
             let p = entry.path();
-            if p.is_dir() {
+            if file_type.is_dir() {
                 total += dir_size(&p);
             } else if let Ok(meta) = entry.metadata() {
                 total += meta.len();
@@ -112,14 +121,20 @@ fn dir_size(path: &PathBuf) -> u64 {
     total
 }
 
+// Cache/import maintenance runs off the main thread: async commands
+// execute on Tauri's command thread pool, while sync commands run on
+// the platform main loop. dir_size/remove_dir_all over an imports
+// dir holding large documents would otherwise block the UI (ANR on
+// Android).
+
 #[tauri::command]
-fn cache_stats(app: tauri::AppHandle) -> Result<CacheStats, String> {
+async fn cache_stats(app: tauri::AppHandle) -> Result<CacheStats, String> {
     let root = cache_root(&app)?;
     Ok(CacheStats { bytes: dir_size(&root) })
 }
 
 #[tauri::command]
-fn clear_cache(app: tauri::AppHandle) -> Result<CacheStats, String> {
+async fn clear_cache(app: tauri::AppHandle) -> Result<CacheStats, String> {
     let root = cache_root(&app)?;
     if root.exists() {
         fs::remove_dir_all(&root).map_err(|e| e.to_string())?;
@@ -128,7 +143,7 @@ fn clear_cache(app: tauri::AppHandle) -> Result<CacheStats, String> {
 }
 
 #[tauri::command]
-fn imports_stats(app: tauri::AppHandle) -> Result<CacheStats, String> {
+async fn imports_stats(app: tauri::AppHandle) -> Result<CacheStats, String> {
     let root = imports_root(&app)?;
     Ok(CacheStats {
         bytes: dir_size(&root),
@@ -139,12 +154,45 @@ fn imports_stats(app: tauri::AppHandle) -> Result<CacheStats, String> {
 /// marks the affected entries unavailable rather than calling this
 /// under a control labeled only "Clear cache".
 #[tauri::command]
-fn clear_imports(app: tauri::AppHandle) -> Result<CacheStats, String> {
+async fn clear_imports(app: tauri::AppHandle) -> Result<CacheStats, String> {
     let root = imports_root(&app)?;
     if root.exists() {
         fs::remove_dir_all(&root).map_err(|e| e.to_string())?;
     }
     Ok(CacheStats { bytes: 0 })
+}
+
+/// Delete specific managed copies (recents eviction). Only bare
+/// filenames are accepted: anything that is not a plain existing file
+/// directly inside the imports dir is ignored, so this can never
+/// reach outside the app's own store no matter what the webview sends.
+#[tauri::command]
+async fn imports_remove(
+    app: tauri::AppHandle,
+    names: Vec<String>,
+) -> Result<usize, String> {
+    let root = imports_root(&app)?;
+    let mut removed = 0;
+    for name in names {
+        // Reject separators, dot segments, and empty names outright.
+        if name.is_empty()
+            || name.contains('/')
+            || name.contains('\\')
+            || name == "."
+            || name == ".."
+            || name.starts_with('.')
+        {
+            continue;
+        }
+        let path = root.join(name);
+        if let Ok(meta) = fs::symlink_metadata(&path) {
+            if meta.is_file() {
+                let _ = fs::remove_file(&path);
+                removed += 1;
+            }
+        }
+    }
+    Ok(removed)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -158,7 +206,8 @@ pub fn run() {
             cache_stats,
             clear_cache,
             imports_stats,
-            clear_imports
+            clear_imports,
+            imports_remove
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -504,17 +504,27 @@ function ViewerPage() {
 
 function FilesPage() {
 	const { settings, update } = useSettings();
-	const { clearAll, restore, entries } = useRecents();
-	const [cacheBytes, setCacheBytes] = useState<number | null>(null);
+	const { clearAll, restore, entries, markUnavailable } = useRecents();
+	const [storedBytes, setStoredBytes] = useState<number | null>(null);
 	const [confirmClear, setConfirmClear] = useState(false);
 	const [confirmRecents, setConfirmRecents] = useState(false);
 
 	useEffect(() => {
 		backend
-			.cacheStats()
-			.then((s) => setCacheBytes(s.bytes))
-			.catch(() => setCacheBytes(null));
+			.importsStats()
+			.then((s) => setStoredBytes(s.bytes))
+			.catch(() => setStoredBytes(null));
 	}, []);
+
+	// The managed imports store is the only file cache the app
+	// actually keeps: copies of files opened through "Open with",
+	// retained so their recents can reopen. (The old "Clear cache"
+	// card pointed at a directory nothing ever wrote — it always
+	// reported 0 B and cleared nothing.)
+	const managedEntries = entries.filter(
+		(e) => e.reopen?.kind === "managed-copy",
+	);
+	const managedCount = managedEntries.length;
 
 	return (
 		<Group>
@@ -560,15 +570,15 @@ function FilesPage() {
 				)}
 			</Card>
 
-			<GroupLabel>Cache</GroupLabel>
+			<GroupLabel>Stored files</GroupLabel>
 			<Card>
-				<Row onClick={() => setConfirmClear(true)}>
+				<Row onClick={() => managedCount > 0 && setConfirmClear(true)}>
 					<RowText>
-						<RowTitle>Clear cache</RowTitle>
+						<RowTitle>Clear stored copies</RowTitle>
 						<RowDesc>
-							{cacheBytes === null
-								? "Temporary copies of opened files"
-								: `${formatBytes(cacheBytes)} of temporary file copies`}
+							{storedBytes === null
+								? "Copies of files opened through Open with"
+								: `${formatBytes(storedBytes)} of copies of opened files`}
 						</RowDesc>
 					</RowText>
 					<ChevronRight size={18} color="var(--ink-3)" />
@@ -594,16 +604,17 @@ function FilesPage() {
 
 			<ConfirmDialog
 				open={confirmClear}
-				title="Clear cache?"
-				message="Temporary copies of files you opened will be deleted. The originals are not touched."
+				title="Clear stored copies?"
+				message="Copies kept so files from Open with can reopen will be deleted. The originals are not touched. Those recents will show as unavailable until you open the files again."
 				confirmLabel="Clear"
 				variant="destructive"
 				onConfirm={async () => {
-					await backend.clearCache();
-					const s = await backend.cacheStats();
-					setCacheBytes(s.bytes);
+					await backend.clearImports();
+					for (const e of managedEntries) markUnavailable(e.id);
+					const s = await backend.importsStats();
+					setStoredBytes(s.bytes);
 					showSnackbar({
-						message: `Cache cleared, ${formatBytes(s.bytes)} left.`,
+						message: `Stored copies cleared, ${formatBytes(s.bytes)} left.`,
 					});
 				}}
 				onDismiss={() => setConfirmClear(false)}

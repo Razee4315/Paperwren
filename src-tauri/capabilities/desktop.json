@@ -1,22 +1,14 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "desktop-capability",
-	"description": "Desktop windows. Paperwren is a viewer: the fs plugin gets read-only access so picked files can be read. No write, no network permissions.",
+	"description": "Desktop windows. Paperwren is a viewer: the fs plugin gets read-only access so picked files can be read. No write, no network permissions. The broad read scope is load-bearing for one feature the dialog runtime scope cannot cover: reopening a recent from a PREVIOUS session resolves a plain path with no fresh user gesture. fs:default is already read-only, so the exposure is read-only by construction; desktop builds are internal (docs/12).",
 	"platforms": ["windows", "macOS", "linux"],
 	"windows": ["main"],
 	"permissions": [
 		"core:default",
-		"core:event:default",
-		"core:window:default",
-		"core:app:default",
-		"dialog:default",
 		"dialog:allow-open",
 		{
 			"identifier": "fs:default",
-			"allow": [{ "path": "**" }, { "path": "**/*" }]
-		},
-		{
-			"identifier": "fs:allow-read-file",
 			"allow": [{ "path": "**" }, { "path": "**/*" }]
 		}
 	]

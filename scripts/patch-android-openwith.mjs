@@ -43,6 +43,7 @@ const MAINACTIVITY_IMPORTS = [
 	"import androidx.core.content.IntentCompat",
 	"import android.os.Handler",
 	"import android.os.Looper",
+	"import android.widget.Toast",
 	"import org.json.JSONObject",
 	"import java.io.File",
 ];
@@ -187,11 +188,19 @@ const BLOCK_INGEST = `
         n++
       }
       if (!target.exists() || target.length() == 0L) {
-        val tmp = File(imports, ".$base.$$.tmp")
+        // createTempFile is unique per call: a double-dollar suffix is
+        // a literal in Kotlin string templates, NOT the pid, so two
+        // concurrent ingests of the same name used to share one temp
+        // path and could delete or publish each other's half-written
+        // copy. The finally below only ever deletes OUR temp file.
+        val tmp = File.createTempFile(".$base.", ".tmp", imports)
         try {
           contentResolver.openInputStream(uri)?.use { input ->
             tmp.outputStream().use { output -> input.copyTo(output) }
-          } ?: return
+          } ?: run {
+            tmp.delete()
+            return
+          }
           if (tmp.length() == 0L) {
             tmp.delete()
             return
@@ -211,7 +220,11 @@ const BLOCK_INGEST = `
         deliverPendingFile(0)
       }
     } catch (e: Exception) {
-      // Leave the app running; the file simply does not open.
+      // The file does not open, but silence reads as a broken app:
+      // say so on the main looper instead of failing quietly.
+      Handler(Looper.getMainLooper()).post {
+        Toast.makeText(this, "Paperwren couldn't open the shared file.", Toast.LENGTH_LONG).show()
+      }
     }
   }`;
 
@@ -290,9 +303,14 @@ const BLOCK_NAME_BRIDGE = `
       }
       return
     }
-    webView.addJavascriptInterface(object : Any() {
+    // addJavascriptInterface exposes the object to EVERY frame of
+    // this WebView for its lifetime, so each method re-checks the
+    // page origin at call time instead of trusting install time.
+    val bridge = object : Any() {
+      private fun originStillOk(): Boolean = isAppOrigin(webView.url)
       @JavascriptInterface
       fun displayName(uri: String): String {
+        if (!originStillOk()) return ""
         return try {
           queryDisplayName(Uri.parse(uri))
         } catch (e: Exception) {
@@ -302,18 +320,26 @@ const BLOCK_NAME_BRIDGE = `
 
       @JavascriptInterface
       fun contentSize(uri: String): Long {
+        if (!originStillOk()) return 0L
         return try {
           querySize(Uri.parse(uri))
         } catch (e: Exception) {
           0L
         }
       }
-    }, "__paperwrenAndroid")
+    }
+    webView.addJavascriptInterface(bridge, "__paperwrenAndroid")
   }`;
 
 /** Class-body pieces in canonical order. `marker` is a string that
  * appears exactly once in a correctly patched file, so each piece is
- * added only when missing and never duplicated (docs/15 #1 step 4). */
+ * added only when missing and never duplicated (docs/15 #1 step 4).
+ * `upgradeWhen` names a substring present ONLY in a superseded
+ * revision of the same block: when it is found in an already-patched
+ * activity, the whole function is replaced in place — otherwise the
+ * activity patched by an older script revision would keep its stale
+ * code forever. The string must therefore never appear in the new
+ * code (the dry run's idempotency check enforces this). */
 const CLASS_BLOCKS = [
 	{ marker: "override fun onNewIntent", code: BLOCK_ONNEWINTENT },
 	{ marker: "private var pendingPath", code: BLOCK_FIELDS },
@@ -323,7 +349,14 @@ const CLASS_BLOCKS = [
 	{ marker: "private fun querySize(", code: BLOCK_QUERY_SIZE },
 	{ marker: "private fun inboxName(", code: BLOCK_INBOX_NAME },
 	{ marker: "private fun sanitizeName(", code: BLOCK_SANITIZE_NAME },
-	{ marker: "private fun ingestIncomingFile(", code: BLOCK_INGEST },
+	{
+		marker: "private fun ingestIncomingFile(",
+		code: BLOCK_INGEST,
+		// The old per-ingest temp path literal (double-dollar, not the
+		// pid) — unique temp files replaced it. Never appears in the
+		// new block's code or comments.
+		upgradeWhen: ".$base.$$.tmp",
+	},
 	{ marker: "private fun isAppOrigin(", code: BLOCK_IS_APP_ORIGIN },
 	{ marker: "private fun deliverPendingFile(", code: BLOCK_DELIVER },
 	{ marker: "private fun findWebView(", code: BLOCK_FIND_WEBVIEW },
@@ -331,7 +364,13 @@ const CLASS_BLOCKS = [
 		marker: "private fun findWebViewInGroup(",
 		code: BLOCK_FIND_WEBVIEW_IN_GROUP,
 	},
-	{ marker: "private fun installNameBridge(", code: BLOCK_NAME_BRIDGE },
+	{
+		marker: "private fun installNameBridge(",
+		code: BLOCK_NAME_BRIDGE,
+		// The old bridge registered an inline object directly; the
+		// upgraded one binds a named val and re-checks origin per call.
+		upgradeWhen: '}, "__paperwrenAndroid")',
+	},
 ];
 
 const ACTION_VIEW_FILTER = `
@@ -347,7 +386,6 @@ const ACTION_VIEW_FILTER = `
             <data android:mimeType="text/csv" />
             <data android:mimeType="text/plain" />
             <data android:mimeType="text/markdown" />
-            <data android:mimeType="application/octet-stream" />
         </intent-filter>
         <intent-filter>
             <action android:name="android.intent.action.SEND" />
@@ -359,7 +397,6 @@ const ACTION_VIEW_FILTER = `
             <data android:mimeType="text/csv" />
             <data android:mimeType="text/plain" />
             <data android:mimeType="text/markdown" />
-            <data android:mimeType="application/octet-stream" />
         </intent-filter>`;
 
 const braces = (s) => {
@@ -428,8 +465,21 @@ function ensureOnCreateHooks(original, { nameBridge = true } = {}) {
 	return { src, added: missing };
 }
 
+/** Replace the body of the function starting at `block.marker` with
+ * the block's current code, keeping everything around it intact. */
+function upgradeClassBlock(src, block) {
+	const start = src.indexOf(block.marker);
+	if (start === -1)
+		fail(`Upgradable block marker missing: ${block.marker}`, src);
+	const end = functionBodyEnd(src, block.marker);
+	if (end === -1) fail(`Upgradable block body not found: ${block.marker}`, src);
+	return `${src.slice(0, start)}${block.code}${src.slice(end + 1)}`;
+}
+
 /** Add each missing class-body piece before the class's closing
- * brace, in canonical order, never duplicating a present one. */
+ * brace, in canonical order, never duplicating a present one. A
+ * piece whose `upgradeWhen` signature is found replaces the stale
+ * revision of itself in place. */
 function ensureClassBlocks(original, { nameBridge = true } = {}) {
 	const classIdx = original.indexOf("class MainActivity");
 	if (classIdx === -1) fail("MainActivity class not found.", original);
@@ -439,7 +489,13 @@ function ensureClassBlocks(original, { nameBridge = true } = {}) {
 		if (block.marker === "private fun installNameBridge(" && !nameBridge) {
 			continue;
 		}
-		if (src.includes(block.marker)) continue;
+		if (src.includes(block.marker)) {
+			if (block.upgradeWhen && src.includes(block.upgradeWhen)) {
+				src = upgradeClassBlock(src, block);
+				added.push(`${block.marker} upgraded`);
+			}
+			continue;
+		}
 		const lastBrace = src.lastIndexOf("}");
 		if (lastBrace < classIdx) fail("Class closing brace not found.", src);
 		src = `${src.slice(0, lastBrace)}\n${block.code}\n${src.slice(lastBrace)}`;
@@ -527,16 +583,30 @@ function patchMainActivity(original, { nameBridge = true } = {}) {
 function patchManifest(original) {
 	let src = original;
 	if (src.includes("android.intent.action.VIEW")) {
-		console.log("AndroidManifest.xml already patched.");
-		return src;
+		console.log(
+			"AndroidManifest.xml already patched; checking intent filters.",
+		);
+	} else {
+		// Anchor: the end of the launcher intent filter inside the activity.
+		const anchor = src.indexOf("</intent-filter>");
+		if (anchor === -1) fail("No intent-filter found in manifest.", src);
+		const insertAt = anchor + "</intent-filter>".length;
+		src = src.slice(0, insertAt) + ACTION_VIEW_FILTER + src.slice(insertAt);
+		if (braces(src) !== 0 || (src.match(/<intent-filter/g) || []).length < 2) {
+			fail("Manifest patch produced unexpected structure.", src);
+		}
 	}
-	// Anchor: the end of the launcher intent filter inside the activity.
-	const anchor = src.indexOf("</intent-filter>");
-	if (anchor === -1) fail("No intent-filter found in manifest.", src);
-	const insertAt = anchor + "</intent-filter>".length;
-	src = src.slice(0, insertAt) + ACTION_VIEW_FILTER + src.slice(insertAt);
-	if (braces(src) !== 0 || (src.match(/<intent-filter/g) || []).length < 2) {
-		fail("Manifest patch produced unexpected structure.", src);
+	// Upgrade, applied to fresh and existing patches alike:
+	// application/octet-stream made Paperwren a candidate in every
+	// "Open with" sheet on the device (APKs, archives, anything
+	// binary), each ending in the unsupported dialog. Properly typed
+	// documents reach the app through their MIME types.
+	if (src.includes("application/octet-stream")) {
+		src = src
+			.split("\n")
+			.filter((line) => !line.includes("application/octet-stream"))
+			.join("\n");
+		console.log("Removed application/octet-stream from the intent filters.");
 	}
 	return src;
 }
@@ -596,6 +666,84 @@ if (mode === "check") {
 	}
 	console.log(
 		"Dry run OK: clean patch, idempotent re-patch, and legacy-activity upgrade all pass.",
+	);
+
+	// 4. Revision upgrades: an activity patched by the PREVIOUS
+	// revision of this script (shared temp path, install-time-only
+	// bridge origin check) is upgraded in place to the current code,
+	// once, with no duplication, and stays idempotent afterwards.
+	if (patchMainActivity(upgraded) !== upgraded) {
+		fail(
+			"Dry run: re-patching the upgraded activity was not a no-op.",
+			upgraded,
+		);
+	}
+	console.log("Dry run OK: upgraded activity is stable under re-patch.");
+
+	// 5. Stale-revision upgrade: an activity carrying the PREVIOUS
+	// revision's ingest/bridge code (shared temp path, inline bridge
+	// registration) is rewritten in place, exactly once, and is
+	// idempotent afterwards.
+	const stale = upgraded
+		.replace(
+			'File.createTempFile(".$base.", ".tmp", imports)',
+			// Replacement function: "$$" inside a plain replacement
+			// string would collapse to "$" and the stale marker would
+			// never match.
+			() => 'File(imports, ".$base.$$.tmp")',
+		)
+		// Faithfully reconstruct the old bridge shape: registration
+		// inline in the call, no local binding, no per-call origin
+		// re-check.
+		.replace(
+			/\/\/ addJavascriptInterface exposes[\s\S]*?webView\.addJavascriptInterface\(bridge, "__paperwrenAndroid"\)/,
+			`    webView.addJavascriptInterface(object : Any() {
+      @JavascriptInterface
+      fun displayName(uri: String): String {
+        return try {
+          queryDisplayName(Uri.parse(uri))
+        } catch (e: Exception) {
+          ""
+        }
+      }
+
+      @JavascriptInterface
+      fun contentSize(uri: String): Long {
+        return try {
+          querySize(Uri.parse(uri))
+        } catch (e: Exception) {
+          0L
+        }
+      }
+    }, "__paperwrenAndroid")`,
+		);
+	if (stale === upgraded) {
+		fail("Dry run: stale-revision simulation did not change the file.", stale);
+	}
+	const reupgraded = patchMainActivity(stale);
+	if (reupgraded.includes(".$base.$$.tmp")) {
+		fail("Revision upgrade kept the shared temp file path.", reupgraded);
+	}
+	if (!reupgraded.includes("File.createTempFile")) {
+		fail("Revision upgrade lost the unique temp file.", reupgraded);
+	}
+	if (reupgraded.includes('}, "__paperwrenAndroid")')) {
+		fail("Revision upgrade kept the inline bridge registration.", reupgraded);
+	}
+	for (const method of [
+		"private fun ingestIncomingFile(",
+		"private fun installNameBridge(",
+	]) {
+		const n = countOccurrences(reupgraded, method);
+		if (n !== 1) {
+			fail(`Revision upgrade produced ${n} copies of ${method}`, reupgraded);
+		}
+	}
+	if (patchMainActivity(reupgraded) !== reupgraded) {
+		fail("Dry run: revision-upgraded activity is not idempotent.", reupgraded);
+	}
+	console.log(
+		"Dry run OK: stale-revision activity upgrades in place and stays idempotent.",
 	);
 	process.exit(0);
 }

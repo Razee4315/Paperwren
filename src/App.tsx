@@ -172,29 +172,34 @@ function Root() {
 		const drain = () => {
 			const queue = window.__paperwrenFiles;
 			if (!queue || queue.length === 0) return;
-			const next = queue.splice(0, queue.length).pop();
-			if (!next) return;
-			const key = `${next.path}|${next.name}`;
-			if (key === lastBridged.current) return; // duplicate delivery
-			lastBridged.current = key;
-			bridgeHandled.current = true;
-			traceOpen("bridge:delivered", next.name);
-			const nameError = validateFileName(next.name);
-			if (nameError) {
-				setOpenError(nameError);
-				return;
+			// Open EVERY payload: the previous revision spliced the whole
+			// queue and kept only the last entry, silently dropping any
+			// file delivered between cold start and first drain. The
+			// navigation stack already supports viewers stacked N deep.
+			const pending = queue.splice(0, queue.length);
+			for (const next of pending) {
+				const key = `${next.path}|${next.name}`;
+				if (key === lastBridged.current) continue; // duplicate delivery
+				lastBridged.current = key;
+				bridgeHandled.current = true;
+				traceOpen("bridge:delivered", next.name);
+				const nameError = validateFileName(next.name);
+				if (nameError) {
+					setOpenError(nameError);
+					continue;
+				}
+				const file: FileMeta = {
+					name: next.name,
+					format: guessFormat(next.name),
+					size: next.size,
+					ref: next.path,
+					source: next.path,
+					reopen: { kind: "managed-copy", path: next.path },
+				};
+				backend.storeSet(STORAGE_KEYS.onboarded, true).catch(() => {});
+				setPhase("app");
+				openViewer(file);
 			}
-			const file: FileMeta = {
-				name: next.name,
-				format: guessFormat(next.name),
-				size: next.size,
-				ref: next.path,
-				source: next.path,
-				reopen: { kind: "managed-copy", path: next.path },
-			};
-			backend.storeSet(STORAGE_KEYS.onboarded, true).catch(() => {});
-			setPhase("app");
-			openViewer(file);
 		};
 		drain();
 		window.addEventListener("paperwren-file", drain);

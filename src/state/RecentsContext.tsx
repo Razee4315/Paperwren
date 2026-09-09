@@ -80,17 +80,41 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 	// made every appearance change (theme, pure black) replace the
 	// callbacks, and the viewer's read effect — which depends on
 	// recordOpen — restarted the byte read whenever the theme changed.
+	// The limit lives behind a ref for the same reason: changing
+	// "keep N recents" in Settings must not re-read the document the
+	// user is currently reading (the read effect depends on
+	// recordOpen's identity).
 	const saveRecents = settings["files.save_recents"];
 	const recentsLimit = settings["files.recents_limit"];
+	const recentsSettingsRef = useRef({ saveRecents, recentsLimit });
+	recentsSettingsRef.current = { saveRecents, recentsLimit };
+
+	/** Delete the managed copies of entries that left the list.
+	 * Fire-and-forget hygiene: a failed eviction stays visible in
+	 * Settings storage stats rather than blocking the UI. */
+	const evictManagedCopies = useCallback((removed: RecentsEntry[]) => {
+		const names = removed
+			.map((e) =>
+				e.reopen?.kind === "managed-copy"
+					? e.reopen.path.split(/[\\/]/).pop()
+					: null,
+			)
+			.filter((n): n is string => !!n);
+		if (names.length > 0) {
+			backend.removeManagedCopies(names).catch(() => {});
+		}
+	}, []);
 
 	const recordOpen = useCallback<RecentsContextValue["recordOpen"]>(
 		(entry) => {
-			if (!saveRecents) return;
+			if (!recentsSettingsRef.current.saveRecents) return;
 			const id = idForSource(entry.source);
 			const now = Date.now();
 			setEntries((prev) => {
+				const { recentsLimit: limit } = recentsSettingsRef.current;
 				const existing = prev.find((e) => e.id === id);
 				let next: RecentsEntry[];
+				let evicted: RecentsEntry[];
 				if (existing) {
 					next = prev.map((e) =>
 						e.id === id
@@ -99,27 +123,29 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 								{ ...e, ...entry, lastOpenedAt: now, unavailable: undefined }
 							: e,
 					);
+					evicted = [];
 				} else {
 					next = [
 						{ ...entry, id, addedAt: now, lastOpenedAt: now, pinned: false },
 						...prev,
 					];
+					evicted = [];
 				}
-				const limit = recentsLimit;
 				if (limit > 0) {
-					next = [
-						...next.filter((e) => e.pinned),
-						...next
-							.filter((e) => !e.pinned)
-							.sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)
-							.slice(0, limit),
-					];
+					const keepUnpinned = next
+						.filter((e) => !e.pinned)
+						.sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)
+						.slice(0, limit);
+					const keptIds = new Set(keepUnpinned.map((e) => e.id));
+					evicted = next.filter((e) => !e.pinned && !keptIds.has(e.id));
+					next = [...next.filter((e) => e.pinned), ...keepUnpinned];
 				}
 				persist(next);
+				if (evicted.length > 0) evictManagedCopies(evicted);
 				return next;
 			});
 		},
-		[persist, saveRecents, recentsLimit],
+		[persist, evictManagedCopies],
 	);
 
 	const updatePosition = useCallback<RecentsContextValue["updatePosition"]>(
@@ -158,12 +184,14 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 	const remove = useCallback<RecentsContextValue["remove"]>(
 		(id) => {
 			setEntries((prev) => {
+				const victim = prev.find((e) => e.id === id);
+				if (victim) evictManagedCopies([victim]);
 				const next = prev.filter((e) => e.id !== id);
 				persist(next);
 				return next;
 			});
 		},
-		[persist],
+		[persist, evictManagedCopies],
 	);
 
 	const markUnavailable = useCallback<RecentsContextValue["markUnavailable"]>(
@@ -231,13 +259,18 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		[persist],
 	);
 
-	// Turning recents off wipes the list immediately (docs/08).
+	// Turning recents off wipes the list immediately (docs/08) — and
+	// evicts the managed copies with it: "stop keeping history" also
+	// means stop keeping the reopen-critical files. "Clear all" in the
+	// UI does NOT evict: its snackbar offers Undo, and a restored
+	// recent pointing at a deleted file would be a broken promise.
 	useEffect(() => {
 		if (ready && !saveRecents && entries.length > 0) {
+			evictManagedCopies(entries);
 			setEntries([]);
 			persist([]);
 		}
-	}, [ready, saveRecents, entries.length, persist]);
+	}, [ready, saveRecents, entries, persist, evictManagedCopies]);
 
 	// Name healing at the dashboard (docs/15 #1): entries stored with a
 	// generic label get their real name back WITHOUT requiring a
