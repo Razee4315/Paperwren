@@ -1,5 +1,5 @@
+import { BrandMark } from "@/components/BrandMark";
 import { type FileFormat, FormatBadge } from "@/components/FormatBadge";
-import { WrenMark } from "@/components/WrenMark";
 import { InkProgress } from "@/components/ui";
 import { radius, space, type } from "@/theme";
 import styled from "styled-components";
@@ -36,7 +36,8 @@ const Stage = styled.div<{ $elevated: boolean }>`
 `;
 
 const MarkWrap = styled.div`
-	color: var(--accent);
+	border-radius: ${radius.xl};
+	filter: drop-shadow(0 14px 26px rgba(20, 12, 4, 0.26));
 	animation: pw-wren-float 2.6s ease-in-out infinite alternate;
 	@keyframes pw-wren-float {
 		from {
@@ -149,7 +150,7 @@ export function OpeningScreen({
 			$elevated={elevated}
 		>
 			<MarkWrap>
-				<WrenMark size={128} />
+				<BrandMark size={104} title="" />
 			</MarkWrap>
 			<NameCol>
 				<FormatBadge format={format} size={44} />

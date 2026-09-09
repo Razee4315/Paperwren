@@ -3,7 +3,7 @@ import { buildSnippet, findMatches } from "../text";
 
 describe("buildSnippet", () => {
 	it("wraps a match with context and marks cuts", () => {
-		const text = "a".repeat(100) + " needle " + "b".repeat(100);
+		const text = `${"a".repeat(100)} needle ${"b".repeat(100)}`;
 		const snippet = buildSnippet(text, 100, 6);
 		expect(snippet.startsWith("...")).toBe(true);
 		expect(snippet.endsWith("...")).toBe(true);

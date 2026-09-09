@@ -1,79 +1,56 @@
-import { motion, radius } from "@/theme";
+import { BrandMark } from "@/components/BrandMark";
+import { motion, radius, space } from "@/theme";
 import styled from "styled-components";
 
 /**
- * SCR-01 Splash (docs/04 section 3.1): the launcher mark's top
- * sheet rotates from -12deg to 0 while the wordmark fades up,
- * total 480ms, then straight to content.
+ * SCR-01 Splash (docs/04 section 3.1): the real brand tile settles
+ * into place, the wordmark and tagline rise to meet it. One 480ms
+ * gesture, then straight to content. Matches SPLASH_MS in App so
+ * the reveal never stalls the start.
  */
 
 const Container = styled.div`
 	position: fixed;
 	inset: 0;
-	background: var(--bg);
+	/* A whisper of brand warmth at the top; ink paper everywhere else. */
+	background:
+		radial-gradient(
+			120% 80% at 50% -12%,
+			var(--accent-tint) 0%,
+			transparent 58%
+		),
+		var(--bg);
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	gap: 24px;
+	gap: ${space[6]};
 	z-index: 2000;
 `;
 
-const Stack = styled.div`
-	position: relative;
-	width: 96px;
-	height: 96px;
-	animation: pw-settle ${motion.dur.settle} ${motion.ease.enter};
-	@keyframes pw-settle {
+const TileWrap = styled.div`
+	animation: pw-tile-settle ${motion.dur.settle} ${motion.ease.enter} both;
+	@keyframes pw-tile-settle {
 		from {
 			opacity: 0;
-			transform: translateY(8px);
+			transform: translateY(12px) scale(0.92);
 		}
 	}
-`;
-
-const SheetBase = styled.div`
-	position: absolute;
-	inset: 8px;
-	border-radius: ${radius.m};
-`;
-
-const SheetBack = styled(SheetBase)`
-	background: var(--fmt-xlsx);
-	transform: rotate(-12deg);
-	opacity: 0.85;
-`;
-
-const SheetMid = styled(SheetBase)`
-	background: var(--fmt-docx);
-	opacity: 0.85;
-`;
-
-const SheetTop = styled(SheetBase)`
-	background: var(--fmt-pdf);
-	transform-origin: center;
-	animation: pw-unfold ${motion.dur.settle} ${motion.ease.enter};
-	@keyframes pw-unfold {
-		from {
-			transform: rotate(-12deg);
-		}
-		to {
-			transform: rotate(12deg);
-		}
-	}
+	filter: drop-shadow(0 18px 32px rgba(20, 12, 4, 0.28));
+	border-radius: ${radius.xl};
 `;
 
 const Wordmark = styled.h1`
 	font-family: var(--font-display);
-	font-size: 32px;
+	font-size: 36px;
 	font-weight: 600;
-	letter-spacing: -0.01em;
+	letter-spacing: -0.015em;
 	color: var(--ink-1);
-	animation: pw-fade-up ${motion.dur.settle} ${motion.ease.enter};
-	@keyframes pw-fade-up {
+	animation: pw-rise ${motion.dur.settle} ${motion.ease.enter} 90ms both;
+	@keyframes pw-rise {
 		from {
 			opacity: 0;
-			transform: translateY(8px);
+			transform: translateY(10px);
 		}
 	}
 
@@ -82,17 +59,27 @@ const Wordmark = styled.h1`
 	}
 `;
 
+const Tagline = styled.p`
+	font-family: var(--font-ui);
+	font-size: 0.875rem;
+	font-weight: 500;
+	letter-spacing: 0.02em;
+	color: var(--ink-3);
+	animation: pw-rise ${motion.dur.settle} ${motion.ease.enter} 170ms both;
+`;
+
 export function Splash() {
 	return (
 		<Container data-testid="splash">
-			<Stack aria-hidden="true">
-				<SheetBack />
-				<SheetMid />
-				<SheetTop />
-			</Stack>
-			<Wordmark>
-				Paper<span>wren</span>
-			</Wordmark>
+			<TileWrap aria-hidden="true">
+				<BrandMark size={104} title="" />
+			</TileWrap>
+			<div>
+				<Wordmark>
+					Paper<span>wren</span>
+				</Wordmark>
+				<Tagline>Open anything. Instantly.</Tagline>
+			</div>
 		</Container>
 	);
 }

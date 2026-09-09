@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/BrandMark";
 import {
 	type FileFormat,
 	FormatBadge,
@@ -44,8 +45,6 @@ import styled from "styled-components";
  * Unavailable files stay honest (dimmed with a repair hint).
  */
 
-const LOGO_SRC = "/assets/icon.svg";
-
 const Page = styled.div`
 	flex: 1;
 	display: flex;
@@ -71,23 +70,17 @@ const Brand = styled.div`
 	min-width: 0;
 `;
 
-/** The actual app icon inside a thin accent ring — the brand tile
- * from the launcher, kept legible on every theme surface. */
-const LogoRing = styled.div`
+/** The launcher tile itself — the folded-paper wren on its black
+ * tile, inlined so it is crisp on every density and theme. A hair
+ * of border keeps it separable from dark surfaces. */
+const LogoTile = styled.div`
 	width: 40px;
 	height: 40px;
-	padding: 2px;
 	border-radius: 13px;
-	background: linear-gradient(135deg, var(--accent) 0%, var(--success) 100%);
 	flex-shrink: 0;
-	box-shadow: var(--shadow-1);
-`;
-
-const LogoImg = styled.img`
-	display: block;
-	width: 100%;
-	height: 100%;
-	border-radius: 11px;
+	box-shadow:
+		0 0 0 1px var(--border),
+		var(--shadow-1);
 `;
 
 const Title = styled.h1`
@@ -843,9 +836,9 @@ export function Home({
 		<Page data-testid="home">
 			<AppBar>
 				<Brand>
-					<LogoRing>
-						<LogoImg src={LOGO_SRC} alt="" aria-hidden="true" />
-					</LogoRing>
+					<LogoTile>
+						<BrandMark size={40} title="" />
+					</LogoTile>
 					<Title>Paperwren</Title>
 				</Brand>
 				<AppBarActions>
