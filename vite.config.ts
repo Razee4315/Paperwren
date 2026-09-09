@@ -45,9 +45,11 @@ export default defineConfig((): UserConfig => {
 			sourcemap: !!process.env.TAURI_DEBUG,
 			rollupOptions: {
 				output: {
+					// pdf.js is split so the main chunk stays light; SheetJS
+					// lives only in the parse-worker graph (an "xlsx" entry
+					// here emitted a dead 1-byte chunk).
 					manualChunks: {
 						pdfjs: ["pdfjs-dist"],
-						xlsx: ["xlsx"],
 					},
 				},
 			},

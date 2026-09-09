@@ -1,3 +1,4 @@
+import { OpeningScreen } from "@/components/OpeningScreen";
 import { SnackbarProvider, showSnackbar } from "@/components/ui";
 import { backend, guessFormat, idForSource } from "@/lib/backend";
 import { nextOpenId, traceOpen } from "@/lib/trace";
@@ -6,7 +7,6 @@ import { Home } from "@/screens/Home";
 import { Splash } from "@/screens/Splash";
 import { Onboarding } from "@/screens/onboarding/Onboarding";
 import { SettingsScreen } from "@/screens/settings/SettingsScreen";
-import { ViewerScreen } from "@/screens/viewer/ViewerScreen";
 import { NavigationProvider, useNavigation } from "@/state/NavigationContext";
 import { RecentsProvider, useRecents } from "@/state/RecentsContext";
 import { SettingsProvider } from "@/state/SettingsContext";
@@ -16,9 +16,26 @@ import {
 	validateFileName,
 } from "@/state/openFlow";
 import { GlobalStyles } from "@/theme";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	Suspense,
+	lazy,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 
 const SPLASH_MS = 480;
+
+// The whole viewer engine (pdf.js wrapper, DOCX, XLSX, search) is
+// the app's largest code mass; Home should not parse it at cold
+// start. Split at the screen boundary — the opening page doubles as
+// the Suspense fallback so the split is never visible as a void.
+const ViewerScreen = lazy(() =>
+	import("@/screens/viewer/ViewerScreen").then((m) => ({
+		default: m.ViewerScreen,
+	})),
+);
 
 function Root() {
 	const { remove, replaceSource } = useRecents();
@@ -239,20 +256,32 @@ function Root() {
 						key={`viewer-${screen.file.source}-${stackKey}`}
 						style={isTop ? undefined : { display: "none" }}
 					>
-						<ViewerScreen
-							file={screen.file}
-							onClose={handleBack}
-							onMissingFile={handleBack}
-							onRemoved={(id) => {
-								remove(id);
-								showSnackbar({ message: "Removed from recents." });
-								handleBack();
-							}}
-							onRepair={() => {
-								repairTarget.current = idForSource(screen.file.source);
-								pickAndOpen();
-							}}
-						/>
+						<Suspense
+							fallback={
+								<OpeningScreen
+									name={screen.file.name}
+									format={screen.file.format}
+									progress={null}
+									elevated={isTop}
+									delay={false}
+								/>
+							}
+						>
+							<ViewerScreen
+								file={screen.file}
+								onClose={handleBack}
+								onMissingFile={handleBack}
+								onRemoved={(id) => {
+									remove(id);
+									showSnackbar({ message: "Removed from recents." });
+									handleBack();
+								}}
+								onRepair={() => {
+									repairTarget.current = idForSource(screen.file.source);
+									pickAndOpen();
+								}}
+							/>
+						</Suspense>
 					</div>
 				);
 			})}

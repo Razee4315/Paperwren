@@ -290,6 +290,16 @@ const tauriBackend: Backend = {
 	async readBytes(ref) {
 		const { readFile } = await import("@tauri-apps/plugin-fs");
 		const bytes = await readFile(ref);
+		// plugin-fs readFile returns a fresh whole-file Uint8Array at
+		// offset 0; hand its buffer straight through. The previous
+		// unconditional .slice() copied the entire file a second time
+		// (peak ~2x file size on every open).
+		if (
+			bytes.byteOffset === 0 &&
+			bytes.byteLength === bytes.buffer.byteLength
+		) {
+			return bytes.buffer as ArrayBuffer;
+		}
 		return bytes.buffer.slice(
 			bytes.byteOffset,
 			bytes.byteOffset + bytes.byteLength,

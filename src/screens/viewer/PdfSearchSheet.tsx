@@ -28,15 +28,25 @@ export interface SearchHit {
 	snippet: string;
 }
 
-interface CharRef {
-	item: number;
-	offset: number;
+/** The parts of a pdf.js text item the match layer needs to place
+ * highlights. A slim copy: keeping full pdf.js items alive would pin
+ * the whole extraction per page. */
+export interface PageTextItem {
+	str: string;
+	transform: number[];
+	width: number;
+	height: number;
+	/** pdf.js hasEOL: a line break follows this item in reading order. */
+	eol: boolean;
 }
 
 interface PageTextIndex {
 	items: string[];
 	normalized: string;
-	map: CharRef[];
+	/** Per-character back-references (parallel arrays): mapItem[idx]
+	 * is the text item, mapOffset[idx] the char inside it. */
+	mapItem: number[];
+	mapOffset: number[];
 	/** The page reported no extractable text (image-only scan or an
 	 * extraction that came back empty). */
 	empty: boolean;
@@ -62,7 +72,48 @@ function buildSnippet(
 
 /** Per-document page-text cache with in-flight deduplication (audit
  * PDF-09): extraction runs once per page per document no matter how
- * many searches race. */
+ * many searches race — or how many consumers need the text. The
+ * search sheet and the viewer's match-highlight layer share this
+ * cache, which halves extraction work exactly when the user just
+ * searched. */
+const itemCache = new WeakMap<
+	PdfDocument,
+	Map<number, Promise<PageTextItem[]>>
+>();
+
+export function pageTextItems(
+	doc: PdfDocument,
+	pageNum: number,
+): Promise<PageTextItem[]> {
+	let pages = itemCache.get(doc);
+	if (!pages) {
+		pages = new Map<number, Promise<PageTextItem[]>>();
+		itemCache.set(doc, pages);
+	}
+	const cached = pages.get(pageNum);
+	if (cached) return cached;
+	const promise = (async () => {
+		const page = await doc.getPage(pageNum);
+		const content = await page.getTextContent();
+		const items: PageTextItem[] = [];
+		for (const item of content.items) {
+			if (!("str" in item)) continue;
+			items.push({
+				str: item.str,
+				transform: item.transform,
+				width: item.width,
+				height: item.height,
+				eol: "hasEOL" in item && item.hasEOL,
+			});
+		}
+		return items;
+	})();
+	pages.set(pageNum, promise);
+	return promise;
+}
+
+/** Derived search index cache: pageTextItems feeds it, so extraction
+ * happens once even when both caches fill. */
 const indexCache = new WeakMap<
 	PdfDocument,
 	Map<number, Promise<PageTextIndex>>
@@ -80,29 +131,34 @@ function pageTextIndex(
 	const cached = pages.get(pageNum);
 	if (cached) return cached;
 	const promise = (async () => {
-		const page = await doc.getPage(pageNum);
-		const content = await page.getTextContent();
+		const rawItems = await pageTextItems(doc, pageNum);
 		const items: string[] = [];
+		// Parallel per-character maps instead of one object per char:
+		// a text-heavy page previously allocated millions of short-
+		// lived CharRef objects on the main thread.
+		const mapItem: number[] = [];
+		const mapOffset: number[] = [];
 		let normalized = "";
-		const map: CharRef[] = [];
-		for (let i = 0; i < content.items.length; i++) {
-			const item = content.items[i];
-			if (!("str" in item)) continue;
-			const str = item.str;
+		for (let i = 0; i < rawItems.length; i++) {
+			const raw = rawItems[i];
+			const str = raw.str;
 			items.push(str);
 			for (let k = 0; k < str.length; k++) {
 				normalized += str[k].toLowerCase();
-				map.push({ item: i, offset: k });
+				mapItem.push(i);
+				mapOffset.push(k);
 			}
-			if ("hasEOL" in item && item.hasEOL) {
+			if (raw.eol) {
 				normalized += "\n";
-				map.push({ item: i, offset: str.length });
+				mapItem.push(i);
+				mapOffset.push(str.length);
 			}
 		}
 		return {
 			items,
 			normalized,
-			map,
+			mapItem,
+			mapOffset,
 			empty: normalized.trim().length === 0,
 		};
 	})();
@@ -211,6 +267,17 @@ export function PdfSearchSheet({
 				let count = 0;
 				let textless = 0;
 				let errored = 0;
+				let lastPublish = Date.now();
+				const publish = (p: number, force: boolean) => {
+					const now = Date.now();
+					if (!force && now - lastPublish < 100) return;
+					lastPublish = now;
+					setSearched(p);
+					setMatchCount(count);
+					setHits([...found]);
+					setTextlessPages(textless);
+					setErroredPages(errored);
+				};
 				for (let p = 1; p <= doc.numPages; p++) {
 					if (id !== runId.current) return;
 					try {
@@ -219,14 +286,19 @@ export function PdfSearchSheet({
 						let idx = index.normalized.indexOf(needle);
 						while (idx !== -1) {
 							count++;
-							const startRef = index.map[idx];
-							const endRef = index.map[idx + needle.length - 1] ?? startRef;
+							const startItem = index.mapItem[idx];
+							const endIdx = idx + needle.length - 1;
+							const startOffset = index.mapOffset[idx];
+							const endOffset =
+								endIdx < index.mapOffset.length
+									? index.mapOffset[endIdx]
+									: startOffset;
 							if (found.length < RENDERED_HIT_LIMIT) {
 								found.push({
 									page: p,
-									itemIndex: startRef.item,
-									startInItem: startRef.offset,
-									length: endRef.offset - startRef.offset + 1,
+									itemIndex: startItem,
+									startInItem: startOffset,
+									length: endOffset - startOffset + 1,
 									snippet: buildSnippet(index.normalized, idx, needle.length),
 								});
 							}
@@ -241,11 +313,10 @@ export function PdfSearchSheet({
 						errored++;
 					}
 					if (id !== runId.current) return;
-					setSearched(p);
-					setMatchCount(count);
-					setHits([...found]);
-					setTextlessPages(textless);
-					setErroredPages(errored);
+					// Throttled: state per page re-rendered the list for
+					// every page of large documents; 10Hz keeps progress
+					// honest without competing with the reader.
+					publish(p, p === doc.numPages);
 				}
 				setBusy(false);
 			};

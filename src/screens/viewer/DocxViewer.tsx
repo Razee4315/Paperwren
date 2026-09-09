@@ -144,6 +144,84 @@ export function DocxViewer({
 	const lastStableAnchorRef = useRef<DocxAnchor | null>(null);
 	const pendingCorrectionRef = useRef<DocxAnchor | null>(null);
 
+	/**
+	 * Cached section geometry in container space. The scroll handler
+	 * used to read one rect per section per event — O(sections) forced
+	 * layouts every frame. Now measurements are taken once per layout
+	 * (render, zoom, resize) and scroll events binary-search them. The
+	 * single rect read left is in captureCorrection, once per zoom
+	 * commit, not per frame.
+	 */
+	interface SectionLayout {
+		tops: number[];
+		heights: number[];
+		lefts: number[];
+		widths: number[];
+		/** The container's content-space origin within the scroller. */
+		containerTop: number;
+		containerLeft: number;
+	}
+	const layoutRef = useRef<SectionLayout | null>(null);
+
+	const measureSections = useCallback((): SectionLayout | null => {
+		const container = containerRef.current;
+		const el = scrollRef.current;
+		if (!container || !el) return null;
+		const sections = container.querySelectorAll<HTMLElement>("section.docx");
+		if (sections.length === 0) return null;
+		const crect = container.getBoundingClientRect();
+		const erect = el.getBoundingClientRect();
+		const tops: number[] = new Array(sections.length);
+		const heights: number[] = new Array(sections.length);
+		const lefts: number[] = new Array(sections.length);
+		const widths: number[] = new Array(sections.length);
+		sections.forEach((section, i) => {
+			const r = section.getBoundingClientRect();
+			tops[i] = r.top - crect.top;
+			heights[i] = r.height;
+			lefts[i] = r.left - crect.left;
+			widths[i] = r.width;
+		});
+		return {
+			tops,
+			heights,
+			lefts,
+			widths,
+			containerTop: crect.top - erect.top + el.scrollTop,
+			containerLeft: crect.left - erect.left + el.scrollLeft,
+		};
+	}, []);
+
+	// Any container size change (document render, zoom, viewport) or
+	// zoom commit invalidates the cache; the next scroll re-measures.
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container || typeof ResizeObserver === "undefined") return;
+		const ro = new ResizeObserver(() => {
+			layoutRef.current = null;
+		});
+		ro.observe(container);
+		return () => ro.disconnect();
+	}, []);
+
+	/** Index of the section covering the given container-space Y, or
+	 * the nearest one when the point sits in a gap. */
+	const sectionIndexAt = useCallback(
+		(layout: SectionLayout, y: number): number => {
+			const { tops, heights } = layout;
+			let lo = 0;
+			let hi = tops.length - 1;
+			while (lo < hi) {
+				const mid = (lo + hi + 1) >> 1;
+				if (tops[mid] <= y) lo = mid;
+				else hi = mid - 1;
+			}
+			if (heights[lo] <= 0 && lo + 1 < tops.length) return lo + 1;
+			return lo;
+		},
+		[],
+	);
+
 	/** Capture the current reading point (section-local fractions plus
 	 * its on-screen client position) BEFORE a relayout commits. */
 	const captureCorrection = useCallback((): DocxAnchor | null => {
@@ -152,21 +230,31 @@ export function DocxViewer({
 		if (!container || !el) return null;
 		const sections = container.querySelectorAll<HTMLElement>("section.docx");
 		if (sections.length === 0) return null;
-		// Prefer the stable anchor from scroll state; fall back to the
-		// section nearest the viewport center.
 		const srect = el.getBoundingClientRect();
 		const centerY = srect.top + el.clientHeight / 2;
+		// Cached geometry decides the section; only the winning section
+		// gets one live rect read.
+		const layout = layoutRef.current ?? measureSections();
+		layoutRef.current = layout;
 		let best = 0;
-		let bestDistance = Number.POSITIVE_INFINITY;
-		sections.forEach((section, index) => {
-			const r = section.getBoundingClientRect();
-			if (r.height <= 0) return;
-			const d = Math.abs(r.top + r.height / 2 - centerY);
-			if (d < bestDistance) {
-				bestDistance = d;
-				best = index;
-			}
-		});
+		if (layout) {
+			best = sectionIndexAt(
+				layout,
+				centerY - srect.top + el.scrollTop - layout.containerTop,
+			);
+		} else {
+			// No cache yet: fall back to the nearest-section scan.
+			let bestDistance = Number.POSITIVE_INFINITY;
+			sections.forEach((section, index) => {
+				const r = section.getBoundingClientRect();
+				if (r.height <= 0) return;
+				const d = Math.abs(r.top + r.height / 2 - centerY);
+				if (d < bestDistance) {
+					bestDistance = d;
+					best = index;
+				}
+			});
+		}
 		const rect = sections[best].getBoundingClientRect();
 		if (rect.width <= 0 || rect.height <= 0) return null;
 		const stable = lastStableAnchorRef.current;
@@ -180,7 +268,7 @@ export function DocxViewer({
 			clientX: rect.left + fx * rect.width,
 			clientY: rect.top + fy * rect.height,
 		};
-	}, []);
+	}, [measureSections, sectionIndexAt]);
 
 	/** Re-align after a relayout: put the captured section point back
 	 * under its client position, clamped to scroll bounds. */
@@ -215,14 +303,18 @@ export function DocxViewer({
 		};
 	}, []);
 
-	// Pre-paint realignment after every zoom/relayout commit.
+	// Pre-paint realignment after every zoom/relayout commit, then a
+	// synchronous re-measure so the scroll handler's cache matches the
+	// new layout without waiting for the ResizeObserver tick.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional
 	useLayoutEffect(() => {
 		const tx = pendingCorrectionRef.current;
-		if (!tx) return;
-		pendingCorrectionRef.current = null;
-		applyCorrection(tx);
-	}, [zoom, applyCorrection]);
+		if (tx) {
+			pendingCorrectionRef.current = null;
+			applyCorrection(tx);
+		}
+		layoutRef.current = measureSections();
+	}, [zoom, applyCorrection, measureSections]);
 
 	/** Change zoom with anchor preservation. */
 	const changeZoom = useCallback(
@@ -403,31 +495,62 @@ export function DocxViewer({
 
 	const onScroll = useCallback(() => {
 		// Keep the stable reading anchor fresh: the section under the
-		// viewport center with its on-screen point.
+		// viewport center with its on-screen point. Geometry comes from
+		// the cached layout (binary search) — zero rect reads per frame.
 		const container = containerRef.current;
 		const el = scrollRef.current;
 		if (container && el) {
-			const sections = container.querySelectorAll<HTMLElement>("section.docx");
-			const srect = el.getBoundingClientRect();
-			const centerY = srect.top + el.clientHeight / 2;
-			const centerX = srect.left + el.clientWidth / 2;
-			sections.forEach((section, index) => {
-				const r = section.getBoundingClientRect();
-				if (r.height <= 0) return;
-				if (centerY >= r.top && centerY <= r.bottom) {
-					setVisibleSection((prev) => (prev === index ? prev : index));
-					lastStableAnchorRef.current = {
-						sectionIndex: index,
-						x: (centerX - r.left) / r.width,
-						y: (centerY - r.top) / r.height,
-						clientX: centerX,
-						clientY: centerY,
-					};
+			const layout = layoutRef.current ?? measureSections();
+			layoutRef.current = layout;
+			const centerY = el.clientHeight / 2;
+			const centerX = el.clientWidth / 2;
+			if (layout) {
+				const cy = el.scrollTop + centerY - layout.containerTop;
+				const cx = el.scrollLeft + centerX - layout.containerLeft;
+				let index = sectionIndexAt(layout, cy);
+				if (layout.heights[index] <= 0 && index + 1 < layout.tops.length) {
+					index += 1;
 				}
-			});
+				setVisibleSection((prev) => (prev === index ? prev : index));
+				lastStableAnchorRef.current = {
+					sectionIndex: index,
+					x:
+						layout.widths[index] > 0
+							? (cx - layout.lefts[index]) / layout.widths[index]
+							: 0.5,
+					y:
+						layout.heights[index] > 0
+							? (cy - layout.tops[index]) / layout.heights[index]
+							: 0.5,
+					clientX: centerX,
+					clientY: centerY,
+				};
+			} else {
+				// Cache unavailable (no ResizeObserver / empty render):
+				// rare fallback scan, identical semantics to before.
+				const sections =
+					container.querySelectorAll<HTMLElement>("section.docx");
+				const srect = el.getBoundingClientRect();
+				const vcy = srect.top + centerY;
+				const vcx = srect.left + centerX;
+				sections.forEach((section, index) => {
+					const r = section.getBoundingClientRect();
+					if (r.height <= 0) return;
+					if (vcy >= r.top && vcy <= r.bottom) {
+						setVisibleSection((prev) => (prev === index ? prev : index));
+						lastStableAnchorRef.current = {
+							sectionIndex: index,
+							x: (vcx - r.left) / r.width,
+							y: (vcy - r.top) / r.height,
+							clientX: vcx,
+							clientY: vcy,
+						};
+					}
+				});
+			}
 		}
 		persistPositionSoon();
-	}, [persistPositionSoon]);
+	}, [persistPositionSoon, measureSections, sectionIndexAt]);
 
 	// Flush the pending write on unmount and backgrounding instead of
 	// dropping it (audit section 8: close/background flushing).

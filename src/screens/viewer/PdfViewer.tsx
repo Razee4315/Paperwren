@@ -50,7 +50,11 @@ import styled from "styled-components";
 // pdf.js text-layer styles scope everything under .textLayer; they
 // cannot reset the app (audit PDF-09).
 import "pdfjs-dist/web/pdf_viewer.css";
-import { PdfSearchSheet, type SearchHit } from "./PdfSearchSheet";
+import {
+	PdfSearchSheet,
+	type SearchHit,
+	pageTextItems,
+} from "./PdfSearchSheet";
 import {
 	type ChromeApi,
 	ViewerShell,
@@ -152,21 +156,27 @@ const ScrollWrap = styled.div`
    center them. Flex centering of an overflowing child is what made
    the left side unreachable. The pinch preview transform is applied
    here and always cleared before final measurement (audit PDF-01). */
-const Pages = styled.div<{ $darken: boolean }>`
+const Pages = styled.div`
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
 	gap: ${PAGE_GAP}px;
 	width: max-content;
 	min-width: 100%;
-	filter: ${({ $darken }) => ($darken ? "invert(0.92) hue-rotate(180deg)" : "none")};
+	/* Dark-reading inverts each page box (below), not this column:
+	 * a filter on a max-content wrapper promotes a document-sized
+	 * raster during plain scrolling. */
 	/* will-change: transform is applied ONLY while a pinch preview is
 	   live (schedulePreview) — a permanent promotion would keep a
 	   composited layer the size of the whole document column alive
 	   during plain scrolling. */
 `;
 
-const PageBox = styled.div<{ $width: number; $height: number }>`
+const PageBox = styled.div<{
+	$width: number;
+	$height: number;
+	$darken: boolean;
+}>`
 	width: ${({ $width }) => $width}px;
 	height: ${({ $height }) => $height}px;
 	background: white;
@@ -175,6 +185,8 @@ const PageBox = styled.div<{ $width: number; $height: number }>`
 	position: relative;
 	overflow: hidden;
 	flex-shrink: 0;
+	filter: ${({ $darken }) =>
+		$darken ? "invert(0.92) hue-rotate(180deg)" : "none"};
 	/* Centers when narrower than the wrapper; harmless when the
 	   wrapper is exactly the page width. */
 	margin-inline: auto;
@@ -591,8 +603,11 @@ export function PdfViewer({
 		const publish = () => {
 			if (cancelled) return;
 			// Relayout must not move the reading point. Skip while a
-			// pinch is previewing; the pinch commit re-anchors anyway.
-			if (gestureRef.current?.phase !== "pinching") {
+			// pinch is previewing (the pinch commit re-anchors anyway),
+			// and until position restore has run — before that there is
+			// no reading point to protect, and the restore effect sets
+			// the point itself.
+			if (restored.current && gestureRef.current?.phase !== "pinching") {
 				const tx = captureCorrection();
 				if (tx) commitAnchor(tx);
 			}
@@ -628,8 +643,11 @@ export function PdfViewer({
 				if (cancelled) return;
 			}
 			publish();
-			for (let start = 1; start <= doc.numPages; start += 12) {
-				const end = Math.min(doc.numPages, start + 11);
+			// Bounded sweep; 48-page batches keep a 600-page document at
+			// ~13 publishes instead of 50, each publish costing a full
+			// layout pass in the consumers of pageMetas.
+			for (let start = 1; start <= doc.numPages; start += 48) {
+				const end = Math.min(doc.numPages, start + 47);
 				const batch = await Promise.all(
 					Array.from({ length: end - start + 1 }, (_, i) =>
 						readPage(start + i),
@@ -677,6 +695,20 @@ export function PdfViewer({
 		});
 	}, [doc, fitMode, manualScale, pageMetas, userRotation, viewport, bounds]);
 	pageBoxesRef.current = pageBoxes;
+
+	/**
+	 * Geometry signature of the whole layout. The render effect below
+	 * restarts only when this changes, not on every `pageBoxes` array
+	 * identity: the metadata sweep publishes in batches, and tearing
+	 * down render tasks + retained rasters + the IntersectionObserver
+	 * per publish made large documents re-render pages that were
+	 * already correct. Dimensions are part of the signature so a box
+	 * that changes shape without changing scale still restarts.
+	 */
+	const pageLayoutSig = useMemo(
+		() => pageBoxes.map((b) => `${b.width}x${b.height}@${b.scale}`).join("|"),
+		[pageBoxes],
+	);
 
 	// Absolute content-space tops of every page, refreshed whenever the
 	// layout changes; drives current-page tracking and anchor capture
@@ -1423,7 +1455,7 @@ export function PdfViewer({
 	// `finally`. ---
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional
 	useEffect(() => {
-		if (!doc || pageBoxes.length === 0) return;
+		if (!doc || pageBoxesRef.current.length === 0) return;
 		const generation = ++renderGenerationRef.current;
 		let cancelled = false;
 		const inflight = new Set<number>();
@@ -1458,11 +1490,12 @@ export function PdfViewer({
 		// semantic layers) for the CURRENT scale/DPR/rotation must not
 		// be re-rendered when it scrolls back into range.
 		const renderSigFor = (pageNum: number): string => {
-			const box = pageBoxes[pageNum - 1] ?? pageBoxes[0];
+			const boxes = pageBoxesRef.current;
+			const box = boxes[pageNum - 1] ?? boxes[0];
 			return `${box.scale}:${window.devicePixelRatio}:${totalRotationFor(pageNum)}`;
 		};
 		const semanticSigFor = (pageNum: number): string =>
-			`${(pageBoxes[pageNum - 1] ?? pageBoxes[0]).scale}:${totalRotationFor(pageNum)}`;
+			`${(pageBoxesRef.current[pageNum - 1] ?? pageBoxesRef.current[0]).scale}:${totalRotationFor(pageNum)}`;
 		// Removes only viewer-owned children. React-managed overlays
 		// (search highlights, Retry UI) stay owned by React.
 		const clearPageLayers = (el: HTMLElement) => {
@@ -1608,7 +1641,8 @@ export function PdfViewer({
 			try {
 				const page = await doc.getPage(pageNum);
 				if (cancelled || !visiblePages.has(pageNum)) return;
-				const displayBox = pageBoxes[pageNum - 1] ?? pageBoxes[0];
+				const boxes = pageBoxesRef.current;
+				const displayBox = boxes[pageNum - 1] ?? boxes[0];
 				const outputScale = computeOutputScale(
 					displayBox.width,
 					displayBox.height,
@@ -1774,7 +1808,8 @@ export function PdfViewer({
 								.getPage(pageNum)
 								.then((page) => {
 									if (cancelled || !visiblePages.has(pageNum)) return;
-									const box = pageBoxes[pageNum - 1] ?? pageBoxes[0];
+									const boxes = pageBoxesRef.current;
+									const box = boxes[pageNum - 1] ?? boxes[0];
 									return attachSemanticLayers(pageNum, page, el, box.scale);
 								})
 								.catch(() => {});
@@ -1838,7 +1873,9 @@ export function PdfViewer({
 			observer.disconnect();
 			retryDemandRef.current = null;
 		};
-	}, [doc, pageBoxes, totalRotationFor]);
+		// pageLayoutSig, not the pageBoxes identity: sweep publishes must
+		// not tear down live render tasks for an unchanged layout.
+	}, [doc, pageLayoutSig, totalRotationFor]);
 
 	// Initialize the fit mode from settings once (manual zoom keeps an
 	// absolute scale; the settings mode only picks the initial fit).
@@ -2021,7 +2058,7 @@ export function PdfViewer({
 				onLostPointerCapture={onLostPointerCapture}
 				data-testid="pdf-scroll"
 			>
-				<Pages ref={pagesRef} $darken={darkenPages}>
+				<Pages ref={pagesRef}>
 					{doc && (
 						<PageStack
 							doc={doc}
@@ -2031,6 +2068,7 @@ export function PdfViewer({
 							totalRotationFor={totalRotationFor}
 							pageRefs={pageRefs}
 							onRetry={handlePageRetry}
+							darkenPages={darkenPages}
 						/>
 					)}
 				</Pages>
@@ -2294,6 +2332,7 @@ const PageStack = memo(function PageStack({
 	totalRotationFor,
 	pageRefs,
 	onRetry,
+	darkenPages,
 }: {
 	doc: PdfDocument;
 	pageBoxes: DisplayBox[];
@@ -2302,6 +2341,7 @@ const PageStack = memo(function PageStack({
 	totalRotationFor: (pageNumber: number) => number;
 	pageRefs: MutableRefObject<Map<number, HTMLDivElement>>;
 	onRetry: (pageNum: number) => void;
+	darkenPages: boolean;
 }) {
 	return (
 		<>
@@ -2315,6 +2355,7 @@ const PageStack = memo(function PageStack({
 					}}
 					$width={pageBoxes[i]?.width ?? 600}
 					$height={pageBoxes[i]?.height ?? 800}
+					$darken={darkenPages}
 				>
 					{pageErrors.has(i + 1) && (
 						<PageError>
@@ -2366,6 +2407,57 @@ async function acquireThumbSlot(): Promise<() => void> {
 	});
 }
 
+/** Cross-open thumbnail cache: canvases survive tile detach and sheet
+ * close, so reopening Pages is an attach instead of a re-render.
+ * Keyed by the document (WeakMap — freed with it) with a small
+ * insertion-order LRU per doc; the key carries rotation and scale so
+ * a stale-geometry canvas is never reused. */
+const THUMB_CACHE_MAX = 60;
+const thumbCanvases = new WeakMap<
+	PdfDocument,
+	Map<string, HTMLCanvasElement>
+>();
+
+function thumbCacheKey(
+	pageNum: number,
+	rotation: number,
+	scale: number,
+): string {
+	return `${pageNum}@${rotation}@${scale.toFixed(3)}`;
+}
+
+function takeThumbCanvas(
+	doc: PdfDocument,
+	key: string,
+): HTMLCanvasElement | null {
+	const pages = thumbCanvases.get(doc);
+	const canvas = pages?.get(key);
+	if (pages && canvas) {
+		// Refresh LRU position.
+		pages.delete(key);
+		pages.set(key, canvas);
+	}
+	return canvas ?? null;
+}
+
+function putThumbCanvas(
+	doc: PdfDocument,
+	key: string,
+	canvas: HTMLCanvasElement,
+) {
+	let pages = thumbCanvases.get(doc);
+	if (!pages) {
+		pages = new Map<string, HTMLCanvasElement>();
+		thumbCanvases.set(doc, pages);
+	}
+	pages.set(key, canvas);
+	while (pages.size > THUMB_CACHE_MAX) {
+		const oldest = pages.keys().next().value;
+		if (oldest === undefined) break;
+		pages.delete(oldest);
+	}
+}
+
 function ThumbPage({
 	doc,
 	pageNum,
@@ -2376,6 +2468,10 @@ function ThumbPage({
 	rotation: number;
 }) {
 	const ref = useRef<HTMLDivElement | null>(null);
+	// Crisp on high-density screens without over-rendering: the fixed
+	// 0.25 looked soft from 2x DPR up.
+	const thumbScale = 0.25 * Math.min(2, Math.max(1, window.devicePixelRatio));
+	const cacheKey = thumbCacheKey(pageNum, rotation, thumbScale);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -2386,25 +2482,32 @@ function ThumbPage({
 			(entries) => {
 				const visible = entries.some((entry) => entry.isIntersecting);
 				if (!visible) {
-					// Retention window: a tile that scrolls out releases its
-					// raster and cancels pending work; it re-renders on
-					// re-entry (audit PDF-08 item 10).
+					// Detach the tile's raster; the canvas itself stays in
+					// the cache, so scrolling back or reopening the sheet
+					// re-attaches instead of re-rendering.
 					if (task) {
 						task.cancel();
 						task = null;
 					}
-					const canvas = el.querySelector("canvas");
-					if (canvas) el.replaceChildren();
+					if (el.querySelector("canvas")) el.replaceChildren();
 					return;
 				}
 				if (task || el.querySelector("canvas")) return;
+				const cached = takeThumbCanvas(doc, cacheKey);
+				if (cached) {
+					el.replaceChildren(cached);
+					return;
+				}
 				doc
 					.getPage(pageNum)
 					.then(async (page) => {
 						if (cancelled) return;
 						// Same total rotation as the reader: thumbnails match
 						// the displayed orientation and aspect (audit PDF-05).
-						const viewport = page.getViewport({ scale: 0.25, rotation });
+						const viewport = page.getViewport({
+							scale: thumbScale,
+							rotation,
+						});
 						const canvas = document.createElement("canvas");
 						canvas.width = Math.max(1, Math.floor(viewport.width));
 						canvas.height = Math.max(1, Math.floor(viewport.height));
@@ -2416,6 +2519,7 @@ function ThumbPage({
 							task = page.render({ canvasContext: ctx, viewport });
 							await task.promise;
 							if (!cancelled && ref.current) {
+								putThumbCanvas(doc, cacheKey, canvas);
 								ref.current.replaceChildren(canvas);
 							}
 						} finally {
@@ -2436,7 +2540,7 @@ function ThumbPage({
 			// path's finally block.
 			task?.cancel();
 		};
-	}, [doc, pageNum, rotation]);
+	}, [doc, pageNum, rotation, cacheKey, thumbScale]);
 
 	return (
 		<div
@@ -2523,12 +2627,15 @@ function PdfMatchLayer({
 				const pdfjs = await loadPdfjs();
 				const page = await doc.getPage(pageNum);
 				const viewport = page.getViewport({ scale, rotation });
-				const content = await page.getTextContent();
+				// Shared extraction cache (PdfSearchSheet): search already
+				// pulled this page's text; re-extracting here doubled the
+				// worker work exactly when the user just searched.
+				const items = await pageTextItems(doc, pageNum);
 				if (cancelled) return;
 				const computed: MatchRect[] = [];
 				for (const { hit } of hits) {
-					const item = content.items[hit.itemIndex];
-					if (!item || !("str" in item)) continue;
+					const item = items[hit.itemIndex];
+					if (!item) continue;
 					const str = item.str;
 					if (str.length === 0) continue;
 					const m = pdfjs.Util.transform(viewport.transform, item.transform);

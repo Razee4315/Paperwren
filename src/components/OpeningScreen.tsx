@@ -2,6 +2,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { type FileFormat, FormatBadge } from "@/components/FormatBadge";
 import { InkProgress } from "@/components/ui";
 import { radius, space, type } from "@/theme";
+import { useEffect, useState } from "react";
 import styled from "styled-components";
 
 /**
@@ -10,7 +11,15 @@ import styled from "styled-components";
  * blank void). Used for the byte-read phase in the viewer dispatcher
  * and the parse phases of the PDF and DOCX viewers, with real
  * progress whenever the loader under the hood reports one.
+ *
+ * Fast local files parse in under ~150ms; showing a loader for them
+ * reads as a flash. So the stage holds off for SHOW_DELAY_MS and
+ * only appears if work is still ongoing — unless real progress has
+ * already been reported, which means a genuinely slow read is
+ * underway and the page shows instantly.
  */
+
+const SHOW_DELAY_MS = 150;
 
 const Stage = styled.div<{ $elevated: boolean }>`
 	position: fixed;
@@ -133,6 +142,7 @@ export function OpeningScreen({
 	format,
 	progress,
 	elevated = false,
+	delay = true,
 }: {
 	name: string;
 	format: FileFormat;
@@ -141,7 +151,25 @@ export function OpeningScreen({
 	/** Standalone mode (before the viewer shell mounts): raised above
 	 * the previous screen's floating chrome so nothing pokes through. */
 	elevated?: boolean;
+	/** False skips the anti-flash hold — for mounts that ARE the
+	 * immediate feedback (e.g. the lazy-viewer Suspense fallback). */
+	delay?: boolean;
 }) {
+	const [pastDelay, setPastDelay] = useState(false);
+	useEffect(() => {
+		if (!delay) {
+			setPastDelay(true);
+			return;
+		}
+		const t = window.setTimeout(() => setPastDelay(true), SHOW_DELAY_MS);
+		return () => window.clearTimeout(t);
+	}, [delay]);
+	// A slow read already in progress skips the hold: the page is
+	// there to explain real waiting, never to flash on fast opens.
+	const slowUnderway = progress !== null && progress > 0.2;
+	if (!pastDelay && !slowUnderway) {
+		return null;
+	}
 	return (
 		<Stage
 			data-testid="opening-screen"

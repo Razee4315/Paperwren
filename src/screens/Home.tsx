@@ -385,7 +385,8 @@ const UnavailableChip = styled.span`
 	font-weight: 600;
 `;
 
-/** Continue reading spotlight for the most recent healthy document. */
+/** Continue reading spotlight for the most recent healthy document:
+ * the one warm, branded card on an otherwise quiet page. */
 const ContinueCard = styled.button`
 	display: flex;
 	align-items: center;
@@ -393,15 +394,19 @@ const ContinueCard = styled.button`
 	width: 100%;
 	padding: ${space[4]};
 	margin-top: ${space[3]};
-	background: var(--surface);
-	border: 1px solid var(--border);
+	background: linear-gradient(115deg, var(--accent-tint) 0%, var(--surface) 55%);
+	border: 1px solid var(--accent-container);
 	border-radius: ${radius.xl};
 	cursor: pointer;
 	text-align: left;
 	font-family: inherit;
 	box-shadow: var(--shadow-1);
-	transition: transform ${motion.dur.instant} ${motion.ease.standard};
+	transition: transform ${motion.dur.instant} ${motion.ease.standard},
+		box-shadow ${motion.dur.standard} ${motion.ease.standard};
 
+	&:hover {
+		box-shadow: var(--shadow-2);
+	}
 	&:active {
 		transform: scale(0.99);
 	}
@@ -417,9 +422,10 @@ const ContinueBody = styled.span`
 
 const ContinueTitle = styled.span`
 	${type.caption};
-	color: var(--ink-3);
+	color: var(--accent-strong);
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
+	font-weight: 700;
 `;
 
 const ContinueName = styled.span`
@@ -448,10 +454,31 @@ const ContinueCta = styled.span`
 `;
 
 const Skeleton = styled.div<{ $w?: string }>`
+	position: relative;
+	overflow: hidden;
 	height: 76px;
 	border-radius: ${radius.l};
 	background: var(--surface-2);
 	margin-bottom: ${space[2]};
+
+	&::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		transform: translateX(-100%);
+		background: linear-gradient(
+			90deg,
+			transparent,
+			color-mix(in srgb, var(--ink-1) 4%, transparent),
+			transparent
+		);
+		animation: pw-skeleton-shimmer 1.6s ease infinite;
+	}
+	@keyframes pw-skeleton-shimmer {
+		to {
+			transform: translateX(100%);
+		}
+	}
 `;
 
 const ChipsSkeleton = styled.div`
@@ -461,10 +488,26 @@ const ChipsSkeleton = styled.div`
 `;
 
 const ChipSkeleton = styled.div`
+	position: relative;
+	overflow: hidden;
 	width: 84px;
 	height: 34px;
 	border-radius: ${radius.full};
 	background: var(--surface-2);
+
+	&::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		transform: translateX(-100%);
+		background: linear-gradient(
+			90deg,
+			transparent,
+			color-mix(in srgb, var(--ink-1) 4%, transparent),
+			transparent
+		);
+		animation: pw-skeleton-shimmer 1.6s ease infinite;
+	}
 `;
 
 const NoMatch = styled.div`
@@ -493,20 +536,36 @@ const EmptyState = styled.div`
 
 const EmptyArt = styled.div`
 	position: relative;
-	width: 140px;
-	height: 110px;
+	width: 150px;
+	height: 118px;
+	animation: pw-empty-float 4s ${motion.ease.standard} infinite alternate;
+	@keyframes pw-empty-float {
+		from {
+			transform: translateY(-3px);
+		}
+		to {
+			transform: translateY(3px);
+		}
+	}
 `;
 
-const EmptySheet = styled.div<{ $color: string; $rot: string; $op?: number }>`
+const EmptySheet = styled.div<{
+	$color: string;
+	$rot: string;
+	$left: number;
+	$top: number;
+	$op?: number;
+}>`
 	position: absolute;
-	width: 52px;
-	height: 68px;
+	width: 54px;
+	height: 70px;
 	border-radius: ${radius.m};
 	background: ${({ $color }) => $color};
 	opacity: ${({ $op }) => $op ?? 1};
-	left: 44px;
-	top: 20px;
+	left: ${({ $left }) => $left}px;
+	top: ${({ $top }) => $top}px;
 	transform: rotate(${({ $rot }) => $rot});
+	box-shadow: var(--shadow-1);
 `;
 
 const EmptyHeadline = styled.h2`
@@ -618,9 +677,21 @@ type SortKey = "recent" | "name" | "size";
 function EmptyIllustration() {
 	return (
 		<EmptyArt aria-hidden="true">
-			<EmptySheet $color="var(--fmt-xlsx)" $rot="-12deg" $op={0.85} />
-			<EmptySheet $color="var(--fmt-docx)" $rot="0deg" $op={0.85} />
-			<EmptySheet $color="var(--fmt-pdf)" $rot="10deg" />
+			<EmptySheet
+				$color="var(--fmt-xlsx)"
+				$rot="-14deg"
+				$op={0.85}
+				$left={10}
+				$top={26}
+			/>
+			<EmptySheet
+				$color="var(--fmt-docx)"
+				$rot="-4deg"
+				$op={0.92}
+				$left={44}
+				$top={18}
+			/>
+			<EmptySheet $color="var(--fmt-pdf)" $rot="9deg" $left={80} $top={12} />
 		</EmptyArt>
 	);
 }
