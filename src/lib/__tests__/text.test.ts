@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSnippet, findMatches } from "../text";
+import { buildSnippet, findMatches, middleTruncate } from "../text";
 
 describe("buildSnippet", () => {
 	it("wraps a match with context and marks cuts", () => {
@@ -40,5 +40,46 @@ describe("findMatches", () => {
 	it("finds adjacent matches without overlap", () => {
 		const hits = findMatches("ababab", "ab", 1, 10);
 		expect(hits).toHaveLength(3);
+	});
+});
+
+describe("middleTruncate", () => {
+	// Monospace-ish measure: one unit per character, so budgets read
+	// as character counts.
+	const measure = (s: string) => s.length * 10;
+
+	it("returns the text untouched when it fits", () => {
+		expect(middleTruncate("report.pdf", 100, measure)).toBe("report.pdf");
+		expect(middleTruncate("report.pdf", measure("report.pdf"), measure)).toBe(
+			"report.pdf",
+		);
+	});
+
+	it("keeps BOTH ends and the extension when cutting", () => {
+		const out = middleTruncate("Quarterly financial report.pdf", 150, measure);
+		expect(out.startsWith("Qua")).toBe(true);
+		expect(out.endsWith("report.pdf")).toBe(true);
+		expect(out).toContain("…");
+		expect(measure(out)).toBeLessThanOrEqual(150);
+	});
+
+	it("fits an arbitrarily tight budget with extension intact", () => {
+		const out = middleTruncate(
+			"an extremely long document name that will never fit.xlsx",
+			80,
+			measure,
+		);
+		expect(measure(out)).toBeLessThanOrEqual(80);
+		expect(out.endsWith(".xlsx")).toBe(true);
+	});
+
+	it("degrades to the extension, then a bare ellipsis, when tiny", () => {
+		expect(middleTruncate("document.pdf", 50, measure)).toBe("….pdf");
+		expect(middleTruncate("document.pdf", 5, measure)).toBe("…");
+	});
+
+	it("handles extensionless names", () => {
+		const out = middleTruncate("README", 30, measure);
+		expect(measure(out)).toBeLessThanOrEqual(30);
 	});
 });

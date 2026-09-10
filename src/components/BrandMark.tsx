@@ -1,12 +1,19 @@
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 import styled from "styled-components";
 
 /**
  * The Paperwren brand tile — the launcher icon (assets/brand/
  * app-icon.svg) inlined as React so it renders crisp at any size on
- * any surface with zero image fetches. One black rounded tile, one
+ * any surface with zero image fetches. One rounded tile, one
  * folded-paper wren. Defs are prefixed per instance (useId) so any
  * number of marks can coexist on a page without gradient collisions.
+ *
+ * Two variants:
+ *  - "tile"  — the launcher look: black tile, white wren. Right on
+ *              light surfaces and on glowing brand moments.
+ *  - "paper" — inverted: warm paper tile, ink wren. The same mark
+ *              on dark themes, where a black tile would melt into
+ *              the background.
  */
 
 const WREN_PATH = `
@@ -24,17 +31,95 @@ const WREN_PATH = `
 	L 144 278
 	Z`;
 
+interface BrandPalette {
+	bg0: string;
+	bg1: string;
+	bg2: string;
+	ambient: string;
+	rim: [number, number, number];
+	paper: [string, string];
+	tailFold: [string, string];
+	facetTop: string;
+	facetLeft: string;
+	foldLine: string;
+	bodyShade: string;
+	wedge: string;
+	wedgeOpacity: number;
+	wing: [string, string];
+	fold: [string, string];
+	wingStroke: number;
+	foldGuide: string;
+	foldGuideOpacity: number;
+	ribStroke: number;
+	beak: string;
+	eye: string;
+}
+
+const PALETTES: Record<"tile" | "paper", BrandPalette> = {
+	tile: {
+		bg0: "#2B2B2B",
+		bg1: "#141414",
+		bg2: "#000000",
+		ambient: "#FFFFFF",
+		rim: [0.22, 0.05, 0.1],
+		paper: ["#FFFFFF", "#EDEDED"],
+		tailFold: ["#EFEFEF", "#C4C4C4"],
+		facetTop: "#F7F7F7",
+		facetLeft: "#D9D9D9",
+		foldLine: "#FFFFFF",
+		bodyShade: "#E3E3E3",
+		wedge: "#8C8C8C",
+		wedgeOpacity: 0.12,
+		wing: ["#F8F8F8", "#DCDCDC"],
+		fold: ["#D6D6D6", "#ADADAD"],
+		wingStroke: 0.8,
+		foldGuide: "#9A9A9A",
+		foldGuideOpacity: 0.3,
+		ribStroke: 0.6,
+		beak: "#DADADA",
+		eye: "#0A0A0A",
+	},
+	paper: {
+		bg0: "#FFFFFF",
+		bg1: "#F1ECE2",
+		bg2: "#E5DFD3",
+		ambient: "#000000",
+		rim: [0.09, 0.03, 0.06],
+		paper: ["#454545", "#191919"],
+		tailFold: ["#565656", "#2A2A2A"],
+		facetTop: "#5E5E5E",
+		facetLeft: "#424242",
+		foldLine: "#FFFFFF",
+		bodyShade: "#383838",
+		wedge: "#FFFFFF",
+		wedgeOpacity: 0.08,
+		wing: ["#6E6E6E", "#3E3E3E"],
+		fold: ["#5A5A5A", "#303030"],
+		wingStroke: 0.35,
+		foldGuide: "#FFFFFF",
+		foldGuideOpacity: 0.16,
+		ribStroke: 0.22,
+		beak: "#DADADA",
+		eye: "#F2EDE4",
+	},
+};
+
 export function BrandMark({
 	size = 96,
 	title = "Paperwren",
 	rounded = true,
+	variant = "tile",
 }: {
 	size?: number;
 	title?: string;
 	/** Square corners for edge-to-edge placements (Android adaptive). */
 	rounded?: boolean;
+	/** "tile" = launcher look (black tile, white wren); "paper" =
+	 * inverted (paper tile, ink wren) for dark-theme surfaces. */
+	variant?: "tile" | "paper";
 }) {
 	const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+	const p = PALETTES[variant];
 	const id = {
 		background: `pw-bg-${uid}`,
 		ambient: `pw-amb-${uid}`,
@@ -67,9 +152,9 @@ export function BrandMark({
 					y2="492"
 					gradientUnits="userSpaceOnUse"
 				>
-					<stop stopColor="#2B2B2B" />
-					<stop offset="0.52" stopColor="#141414" />
-					<stop offset="1" stopColor="#000000" />
+					<stop stopColor={p.bg0} />
+					<stop offset="0.52" stopColor={p.bg1} />
+					<stop offset="1" stopColor={p.bg2} />
 				</linearGradient>
 				<radialGradient
 					id={id.ambient}
@@ -79,8 +164,8 @@ export function BrandMark({
 					gradientTransform="translate(164 116) rotate(48) scale(420)"
 					gradientUnits="userSpaceOnUse"
 				>
-					<stop stopColor="#FFFFFF" stopOpacity="0.07" />
-					<stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+					<stop stopColor={p.ambient} stopOpacity="0.07" />
+					<stop offset="1" stopColor={p.ambient} stopOpacity="0" />
 				</radialGradient>
 				<linearGradient
 					id={id.paper}
@@ -90,8 +175,8 @@ export function BrandMark({
 					y2="350"
 					gradientUnits="userSpaceOnUse"
 				>
-					<stop stopColor="#FFFFFF" />
-					<stop offset="1" stopColor="#EDEDED" />
+					<stop stopColor={p.paper[0]} />
+					<stop offset="1" stopColor={p.paper[1]} />
 				</linearGradient>
 				<linearGradient
 					id={id.tailFold}
@@ -101,8 +186,8 @@ export function BrandMark({
 					y2="291"
 					gradientUnits="userSpaceOnUse"
 				>
-					<stop stopColor="#EFEFEF" />
-					<stop offset="1" stopColor="#C4C4C4" />
+					<stop stopColor={p.tailFold[0]} />
+					<stop offset="1" stopColor={p.tailFold[1]} />
 				</linearGradient>
 				<linearGradient
 					id={id.wing}
@@ -112,8 +197,8 @@ export function BrandMark({
 					y2="333"
 					gradientUnits="userSpaceOnUse"
 				>
-					<stop stopColor="#F8F8F8" />
-					<stop offset="1" stopColor="#DCDCDC" />
+					<stop stopColor={p.wing[0]} />
+					<stop offset="1" stopColor={p.wing[1]} />
 				</linearGradient>
 				<linearGradient
 					id={id.fold}
@@ -123,8 +208,8 @@ export function BrandMark({
 					y2="257"
 					gradientUnits="userSpaceOnUse"
 				>
-					<stop stopColor="#D6D6D6" />
-					<stop offset="1" stopColor="#ADADAD" />
+					<stop stopColor={p.fold[0]} />
+					<stop offset="1" stopColor={p.fold[1]} />
 				</linearGradient>
 				<linearGradient
 					id={id.rim}
@@ -134,15 +219,15 @@ export function BrandMark({
 					y2="492"
 					gradientUnits="userSpaceOnUse"
 				>
-					<stop stopColor="#FFFFFF" stopOpacity="0.22" />
-					<stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.05" />
-					<stop offset="1" stopColor="#FFFFFF" stopOpacity="0.1" />
+					<stop stopColor={p.ambient} stopOpacity={p.rim[0]} />
+					<stop offset="0.5" stopColor={p.ambient} stopOpacity={p.rim[1]} />
+					<stop offset="1" stopColor={p.ambient} stopOpacity={p.rim[2]} />
 				</linearGradient>
 				<path id={id.wren} d={WREN_PATH} />
 			</defs>
 
 			{/* tile */}
-			<rect width="512" height="512" rx={rx} fill="#000000" />
+			<rect width="512" height="512" rx={rx} fill={p.bg2} />
 			<rect width="512" height="512" rx={rx} fill={`url(#${id.background})`} />
 			<rect width="512" height="512" rx={rx} fill={`url(#${id.ambient})`} />
 			<rect
@@ -177,11 +262,11 @@ export function BrandMark({
 						d="M104 164 L220 226 L186 294 L144 278 Z"
 						fill={`url(#${id.tailFold})`}
 					/>
-					<path d="M104 164 L220 226 L167 249 Z" fill="#F7F7F7" />
-					<path d="M104 164 L167 249 L144 278 Z" fill="#D9D9D9" />
+					<path d="M104 164 L220 226 L167 249 Z" fill={p.facetTop} />
+					<path d="M104 164 L167 249 L144 278 Z" fill={p.facetLeft} />
 					<path
 						d="M109 173 L167 249 L211 230"
-						stroke="#FFFFFF"
+						stroke={p.foldLine}
 						strokeOpacity="0.4"
 						strokeWidth="1.5"
 						strokeLinejoin="round"
@@ -195,12 +280,12 @@ export function BrandMark({
 							C211 328 198 313 186 294
 							Z
 						"
-						fill="#E3E3E3"
+						fill={p.bodyShade}
 					/>
 					<path
 						d="M199 258 L287 213 L316 250 L265 339 Z"
-						fill="#8C8C8C"
-						opacity="0.12"
+						fill={p.wedge}
+						opacity={p.wedgeOpacity}
 					/>
 					<path
 						d="M194 252 L286 208 L310 247 L260 331 Z"
@@ -209,25 +294,25 @@ export function BrandMark({
 					<path d="M286 208 L278 247 L310 247 Z" fill={`url(#${id.fold})`} />
 					<path
 						d="M194 252 L286 208 L310 247"
-						stroke="#FFFFFF"
-						strokeOpacity="0.8"
+						stroke={p.foldLine}
+						strokeOpacity={p.wingStroke}
 						strokeWidth="2"
 						strokeLinejoin="round"
 					/>
 					<path
 						d="M278 247 L310 247"
-						stroke="#9A9A9A"
-						strokeOpacity="0.3"
+						stroke={p.foldGuide}
+						strokeOpacity={p.foldGuideOpacity}
 						strokeWidth="1.5"
 					/>
 					<path
 						d="M194 252 L260 331"
-						stroke="#FFFFFF"
-						strokeOpacity="0.6"
+						stroke={p.foldLine}
+						strokeOpacity={p.ribStroke}
 						strokeWidth="1.5"
 					/>
-					<path d="M376 225 L408 225 L375 239 Z" fill="#DADADA" />
-					<circle cx="348" cy="211" r="5.5" fill="#0A0A0A" />
+					<path d="M376 225 L408 225 L375 239 Z" fill={p.beak} />
+					<circle cx="348" cy="211" r="5.5" fill={p.eye} />
 				</g>
 			</g>
 		</Svg>
@@ -238,3 +323,34 @@ const Svg = styled.svg`
 	display: block;
 	flex-shrink: 0;
 `;
+
+/**
+ * The brand variant that reads well on the CURRENT app theme: the
+ * launcher's black tile on light themes, the inverted paper tile on
+ * dark ones (where a black tile melts into the background). Follows
+ * the `data-theme` attribute the SettingsProvider writes to <html>,
+ * so it stays correct for system-theme changes too.
+ */
+function brandVariantForTheme(): "tile" | "paper" {
+	const theme = document.documentElement.getAttribute("data-theme");
+	return theme === "paper" || theme === "sepia" || theme === null
+		? "tile"
+		: "paper";
+}
+
+export function useBrandVariant(): "tile" | "paper" {
+	const [variant, setVariant] = useState<"tile" | "paper">(
+		brandVariantForTheme,
+	);
+	useEffect(() => {
+		const observer = new MutationObserver(() => {
+			setVariant(brandVariantForTheme());
+		});
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ["data-theme"],
+		});
+		return () => observer.disconnect();
+	}, []);
+	return variant;
+}

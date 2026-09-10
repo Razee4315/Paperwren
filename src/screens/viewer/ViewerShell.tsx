@@ -1,4 +1,5 @@
 import { IconButton, InkProgress } from "@/components/ui";
+import { middleTruncate } from "@/lib/text";
 import { useNavigation } from "@/state/NavigationContext";
 import { motion, space, type as typeScale } from "@/theme";
 import { ArrowLeft } from "lucide-react";
@@ -85,6 +86,45 @@ const Dot = styled.span<{ $color: string }>`
 	flex-shrink: 0;
 	margin-right: ${space[2]};
 `;
+
+/**
+ * CSS ellipsis cuts a filename from the tail ("Quarterly rep…"),
+ * which is where the distinctive words usually are. This truncates
+ * from the MIDDLE instead — start and end stay on screen, the
+ * extension always rides along — re-measured on every resize.
+ */
+function TruncatedFileName({ name }: { name: string }) {
+	const ref = useRef<HTMLSpanElement | null>(null);
+	const [display, setDisplay] = useState(name);
+
+	useEffect(() => {
+		const el = ref.current;
+		if (!el) return;
+		const canvas = document.createElement("canvas");
+		const ctx = canvas.getContext("2d");
+		if (!ctx) return;
+		let raf = 0;
+		const update = () => {
+			const cs = getComputedStyle(el);
+			ctx.font = cs.font || `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+			setDisplay(
+				middleTruncate(name, el.clientWidth, (s) => ctx.measureText(s).width),
+			);
+		};
+		const ro = new ResizeObserver(() => {
+			cancelAnimationFrame(raf);
+			raf = requestAnimationFrame(update);
+		});
+		ro.observe(el);
+		update();
+		return () => {
+			ro.disconnect();
+			cancelAnimationFrame(raf);
+		};
+	}, [name]);
+
+	return <FileName ref={ref}>{display}</FileName>;
+}
 
 const ProgressSlot = styled.div`
 	position: absolute;
@@ -352,7 +392,7 @@ export function ViewerShell({
 						>
 							<ArrowLeft size={22} />
 						</IconButton>
-						<FileName>{name}</FileName>
+						<TruncatedFileName name={name} />
 						<Dot $color={formatColor} aria-hidden="true" />
 						{topActions}
 					</TopRow>

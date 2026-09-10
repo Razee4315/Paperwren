@@ -1,4 +1,4 @@
-import { BrandMark } from "@/components/BrandMark";
+import { BrandMark, useBrandVariant } from "@/components/BrandMark";
 import {
 	type FileFormat,
 	FormatBadge,
@@ -902,13 +902,16 @@ export function Home({
 	);
 
 	const hasList = entries.length > 0;
+	// The tile inverts to warm paper on dark themes; black-on-dark
+	// melted into the background.
+	const brandVariant = useBrandVariant();
 
 	return (
 		<Page data-testid="home">
 			<AppBar>
 				<Brand>
 					<LogoTile>
-						<BrandMark size={40} title="" />
+						<BrandMark size={40} title="" variant={brandVariant} />
 					</LogoTile>
 					<Title>Paperwren</Title>
 				</Brand>
