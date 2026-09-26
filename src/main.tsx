@@ -1,15 +1,17 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
 import "@fontsource-variable/manrope";
-import "@fontsource-variable/fraunces";
+import "./styles/global.css";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
 import App from "./App";
-import "./index.css";
-import { applyShellClass } from "./lib/env";
+import { isTouch } from "./lib/env";
 
-applyShellClass();
+document.documentElement.classList.toggle("touch", isTouch);
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-	<React.StrictMode>
-		<App />
-	</React.StrictMode>,
-);
+const root = document.getElementById("root");
+if (root) {
+	createRoot(root).render(
+		<StrictMode>
+			<App />
+		</StrictMode>,
+	);
+}

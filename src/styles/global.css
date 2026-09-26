@@ -1,0 +1,229 @@
+/*
+ * Paperwren design tokens. One accent, neutral surfaces, format
+ * colours that match what people already associate with each file
+ * type. Themes are a single attribute on <html>: data-theme =
+ * light | dark | black. Components only ever read variables.
+ */
+
+:root {
+	--font: "Manrope Variable", "Manrope", system-ui, -apple-system, "Segoe UI",
+		Roboto, sans-serif;
+	--mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo,
+		monospace;
+
+	--r-s: 8px;
+	--r-m: 12px;
+	--r-l: 16px;
+	--r-xl: 24px;
+
+	--ease: cubic-bezier(0.2, 0, 0, 1);
+	--ease-out: cubic-bezier(0.05, 0.7, 0.1, 1);
+	--t-fast: 140ms;
+	--t-med: 220ms;
+
+	--safe-top: env(safe-area-inset-top, 0px);
+	--safe-bottom: env(safe-area-inset-bottom, 0px);
+	--safe-left: env(safe-area-inset-left, 0px);
+	--safe-right: env(safe-area-inset-right, 0px);
+
+	--bar-h: 56px;
+	--content-max: 720px;
+}
+
+:root,
+:root[data-theme="light"] {
+	color-scheme: light;
+	--bg: #f6f6f4;
+	--surface: #ffffff;
+	--surface-2: #f0f0ed;
+	--surface-3: #e6e6e2;
+	--line: #e3e3de;
+	--line-strong: #cfcfc9;
+
+	--text: #18181b;
+	--text-2: #52525b;
+	--text-3: #8a8a93;
+
+	--accent: #c2410c;
+	--accent-hover: #a8380a;
+	--accent-soft: #fdeee6;
+	--on-accent: #ffffff;
+
+	--danger: #c62828;
+	--success: #2e7d32;
+	--highlight: rgba(250, 204, 21, 0.45);
+	--highlight-active: rgba(249, 115, 22, 0.55);
+
+	--fmt-pdf: #d93025;
+	--fmt-doc: #2b6cd4;
+	--fmt-sheet: #1f8a4c;
+	--fmt-slides: #d9661f;
+	--fmt-text: #6b7280;
+
+	--shadow-1: 0 1px 2px rgba(16, 16, 20, 0.06), 0 1px 3px rgba(16, 16, 20, 0.05);
+	--shadow-2: 0 4px 16px rgba(16, 16, 20, 0.1), 0 1px 3px rgba(16, 16, 20, 0.06);
+	--shadow-3: 0 12px 40px rgba(16, 16, 20, 0.18);
+	--scrim: rgba(12, 12, 14, 0.42);
+	--canvas: #e9e9e5;
+}
+
+:root[data-theme="dark"],
+:root[data-theme="black"] {
+	color-scheme: dark;
+	--bg: #121214;
+	--surface: #1b1b1f;
+	--surface-2: #242429;
+	--surface-3: #2e2e34;
+	--line: #2c2c32;
+	--line-strong: #3b3b43;
+
+	--text: #f1f1f3;
+	--text-2: #b4b4bd;
+	--text-3: #7c7c86;
+
+	--accent: #fb8a5a;
+	--accent-hover: #fda47e;
+	--accent-soft: #3a2218;
+	--on-accent: #1a0d07;
+
+	--danger: #f28b82;
+	--success: #81c995;
+	--highlight: rgba(250, 204, 21, 0.4);
+	--highlight-active: rgba(249, 115, 22, 0.6);
+
+	--fmt-pdf: #f28b82;
+	--fmt-doc: #8ab4f8;
+	--fmt-sheet: #81c995;
+	--fmt-slides: #fbbc6a;
+	--fmt-text: #a1a1aa;
+
+	--shadow-1: none;
+	--shadow-2: 0 4px 16px rgba(0, 0, 0, 0.4);
+	--shadow-3: 0 12px 40px rgba(0, 0, 0, 0.6);
+	--scrim: rgba(0, 0, 0, 0.6);
+	--canvas: #0d0d0f;
+}
+
+:root[data-theme="black"] {
+	--bg: #000000;
+	--surface: #0e0e10;
+	--surface-2: #18181b;
+	--surface-3: #232327;
+	--line: #202024;
+	--canvas: #000000;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+	-webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+	height: 100%;
+}
+
+body {
+	font-family: var(--font);
+	font-size: 15px;
+	line-height: 1.5;
+	color: var(--text);
+	background: var(--bg);
+	-webkit-font-smoothing: antialiased;
+	overflow: hidden;
+	overscroll-behavior: none;
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
+	color: inherit;
+}
+
+button {
+	cursor: pointer;
+	background: none;
+	border: none;
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+::selection {
+	background: var(--accent-soft);
+}
+
+html.touch input,
+html.touch textarea {
+	font-size: 16px; /* prevents focus zoom on mobile */
+}
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--line-strong) transparent;
+}
+html.touch * {
+	scrollbar-width: none;
+}
+html.touch ::-webkit-scrollbar {
+	display: none;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+
+/* Search highlights (CSS Custom Highlight API): no DOM mutation. */
+::highlight(pw-find) {
+	background-color: var(--highlight);
+	color: inherit;
+}
+::highlight(pw-find-active) {
+	background-color: var(--highlight-active);
+	color: inherit;
+}
+
+@keyframes pw-fade-in {
+	from {
+		opacity: 0;
+	}
+}
+@keyframes pw-rise {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+}
+@keyframes pw-sheet-up {
+	from {
+		transform: translateY(100%);
+	}
+}
+@keyframes pw-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 1ms !important;
+		transition-duration: 1ms !important;
+	}
+}

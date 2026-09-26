@@ -1,233 +1,218 @@
-import { guessFormat, idForSource } from "./backend";
-import { displayNameFor } from "./sniff";
-import type {
-	DocxPositionMode,
-	FilePosition,
-	RecentsEntry,
-	ReopenDescriptor,
-} from "./types";
+/**
+ * Recents as pure functions over an array, so every rule (dedupe,
+ * pin ordering, limit eviction, legacy migration) is unit-tested
+ * without React.
+ */
 
-const FORMATS = new Set([
-	"pdf",
-	"docx",
-	"xlsx",
-	"pptx",
-	"csv",
-	"txt",
-	"unknown",
-]);
+import { ALL_FORMATS, type FileFormat, formatFromName } from "./formats";
+import type { Position, RecentEntry, Reopen } from "./types";
 
-const finiteNonNegative = (value: unknown, fallback = 0) =>
-	typeof value === "number" && Number.isFinite(value) && value >= 0
-		? value
-		: fallback;
-
-const unitFraction = (value: unknown, fallback = 0) =>
-	typeof value === "number" && Number.isFinite(value)
-		? Math.min(1, Math.max(0, value))
-		: fallback;
-
-const nonNegativeFinite = (value: unknown) =>
-	typeof value === "number" && Number.isFinite(value) && value >= 0
-		? value
-		: undefined;
-
-/** Zero-based page index of a stored position, whatever shape it is
- * (legacy page field or a versioned pdf/docx location). */
-export function positionPageIndex(
-	position: FilePosition | undefined,
-): number | undefined {
-	if (!position) return undefined;
-	if (isVersionedPosition(position)) {
-		if (position.kind === "pdf" || position.kind === "docx") {
-			return position.location.pageIndex;
-		}
-		return undefined;
+/** Stable id from the reopen identity (djb2, base36). */
+export function idForReopen(reopen: Reopen): string {
+	const key =
+		reopen.kind === "uri"
+			? reopen.uri
+			: reopen.kind === "browser"
+				? `browser:${reopen.key}`
+				: reopen.path;
+	let hash = 5381;
+	for (let i = 0; i < key.length; i++) {
+		hash = ((hash << 5) + hash + key.charCodeAt(i)) | 0;
 	}
-	return position.page;
+	return `f${(hash >>> 0).toString(36)}`;
 }
 
-/** Type guard for the versioned union members. */
-export function isVersionedPosition(
-	position: FilePosition,
-): position is Extract<FilePosition, { version: 2 }> {
-	return "version" in position;
+const finite = (v: unknown, fallback = 0) =>
+	typeof v === "number" && Number.isFinite(v) ? v : fallback;
+
+function cleanReopen(value: unknown): Reopen | null {
+	if (!value || typeof value !== "object") return null;
+	const r = value as Record<string, unknown>;
+	if (r.kind === "uri" && typeof r.uri === "string")
+		return { kind: "uri", uri: r.uri };
+	if ((r.kind === "managed" || r.kind === "path") && typeof r.path === "string")
+		return { kind: r.kind, path: r.path };
+	if (r.kind === "browser" && typeof r.key === "string")
+		return { kind: "browser", key: r.key };
+	return null;
 }
 
-/** Validate a versioned position payload (docs/14 audit section 8).
- * v2 payloads are checked field by field (finite numbers, integer
- * page indexes, sane bounds, known kinds/modes); legacy
- * {page,zoom,scrollRatio} values keep their documented decoding.
- * Anything untrustworthy is dropped rather than persisted. */
-function cleanPosition(value: unknown): FilePosition | undefined {
+export function cleanPosition(value: unknown): Position | undefined {
 	if (!value || typeof value !== "object") return undefined;
-	const raw = value as Record<string, unknown>;
-
-	if (raw.version === 2) {
-		if (raw.kind === "pdf" || raw.kind === "docx") {
-			const loc = raw.location;
-			if (!loc || typeof loc !== "object") return undefined;
-			const l = loc as Record<string, unknown>;
-			const pageIndex = nonNegativeFinite(l.pageIndex);
-			if (pageIndex === undefined || !Number.isInteger(pageIndex)) {
-				return undefined;
-			}
-			const modes = ["width", "page", "manual"] as const;
-			const mode = modes.find((m) => m === raw.mode);
-			if (!mode) return undefined;
-			const location = {
-				pageIndex,
-				x: unitFraction(l.x),
-				y: unitFraction(l.y),
-				viewportX: unitFraction(l.viewportX, 0.5),
-				viewportY: unitFraction(l.viewportY, 0.5),
-			};
-			const scale = nonNegativeFinite(raw.scale);
-			if (raw.kind === "pdf") {
-				const rotation =
-					([0, 90, 180, 270] as const).find((r) => r === raw.rotation) ?? 0;
-				return {
-					version: 2,
-					kind: "pdf",
-					location,
-					mode,
-					rotation,
-					scale: mode === "manual" && scale !== undefined ? scale : undefined,
-				};
-			}
-			const docxMode: DocxPositionMode = mode === "page" ? "manual" : mode;
+	const p = value as Record<string, unknown>;
+	switch (p.kind) {
+		case "pdf":
+			if (typeof p.scale !== "string") return undefined;
 			return {
-				version: 2,
-				kind: "docx",
-				location,
-				mode: docxMode,
-				scale: docxMode === "manual" && scale !== undefined ? scale : undefined,
+				kind: "pdf",
+				page: Math.max(1, Math.floor(finite(p.page, 1))),
+				scale: p.scale,
+				top: finite(p.top),
+				left: finite(p.left),
+				rotation: [0, 90, 180, 270].includes(p.rotation as number)
+					? (p.rotation as number)
+					: 0,
 			};
-		}
-		if (raw.kind === "sheet") {
-			if (typeof raw.sheetName !== "string" || raw.sheetName.length === 0) {
-				return undefined;
-			}
-			const row = nonNegativeFinite(raw.row);
-			const col = nonNegativeFinite(raw.col);
-			if (row === undefined || col === undefined) return undefined;
+		case "scroll":
 			return {
-				version: 2,
+				kind: "scroll",
+				ratio: Math.min(1, Math.max(0, finite(p.ratio))),
+				zoom: typeof p.zoom === "number" && p.zoom > 0 ? p.zoom : undefined,
+			};
+		case "sheet":
+			return {
 				kind: "sheet",
-				sheetName: raw.sheetName,
-				row: Math.floor(row),
-				col: Math.floor(col),
-				offsetX: nonNegativeFinite(raw.offsetX) ?? 0,
-				offsetY: nonNegativeFinite(raw.offsetY) ?? 0,
+				sheet: Math.max(0, Math.floor(finite(p.sheet))),
+				top: Math.max(0, finite(p.top)),
+				left: Math.max(0, finite(p.left)),
 			};
-		}
-		return undefined;
+		case "slides":
+			return {
+				kind: "slides",
+				slide: Math.max(0, Math.floor(finite(p.slide))),
+			};
+		default:
+			return undefined;
 	}
-
-	// Legacy union: {page, zoom, scrollRatio}.
-	const position: FilePosition = {};
-	if (typeof raw.page === "number" && raw.page >= 0) position.page = raw.page;
-	if (typeof raw.zoom === "number" && raw.zoom > 0) position.zoom = raw.zoom;
-	if (typeof raw.scrollRatio === "number" && raw.scrollRatio >= 0) {
-		position.scrollRatio = Math.min(1, raw.scrollRatio);
-	}
-	return Object.keys(position).length > 0 ? position : undefined;
 }
 
-/** Derive a reopen descriptor from a legacy `source` string. The
- * source scheme decides the mechanism; a wrong guess surfaces as a
- * typed reopen failure instead of a silent generic name. */
-export function reopenFromSource(source: string): ReopenDescriptor {
-	if (source.startsWith("content://")) {
-		return { kind: "persisted-uri", uri: source };
-	}
-	if (/[\\/]/.test(source)) {
-		// Managed open-with copies live under the app's imports dir;
-		// desktop picks are plain filesystem paths.
-		const normalized = source.replace(/\\/g, "/");
-		if (normalized.includes("/imports/")) {
-			return { kind: "managed-copy", path: source };
-		}
-		return { kind: "desktop-path", path: source };
-	}
-	// Browser dev keys ("browser:name") and anything opaque.
-	return { kind: "managed-copy", path: source };
+function cleanFormat(value: unknown, name: string): FileFormat {
+	return ALL_FORMATS.includes(value as FileFormat)
+		? (value as FileFormat)
+		: formatFromName(name);
 }
 
-function cleanReopen(value: unknown, source: string): ReopenDescriptor {
-	if (!value || typeof value !== "object") return reopenFromSource(source);
-	const raw = value as Record<string, unknown>;
-	if (raw.kind === "persisted-uri" && typeof raw.uri === "string") {
-		return { kind: "persisted-uri", uri: raw.uri };
-	}
-	if (
-		(raw.kind === "managed-copy" || raw.kind === "desktop-path") &&
-		typeof raw.path === "string"
-	) {
-		return { kind: raw.kind, path: raw.path };
-	}
-	return reopenFromSource(source);
-}
-
-/** Validate old persisted entries before they reach the dashboard.
- * Every legacy shape is accepted, deduplicated by reopen identity,
- * and never dropped silently (audit section 19). */
-export function normalizeRecents(value: unknown): RecentsEntry[] {
+/** Validate stored entries; drop unusable ones, dedupe by id. */
+export function normalizeRecents(value: unknown): RecentEntry[] {
 	if (!Array.isArray(value)) return [];
-	const byId = new Map<string, RecentsEntry>();
+	const byId = new Map<string, RecentEntry>();
 	for (const item of value) {
 		if (!item || typeof item !== "object") continue;
 		const raw = item as Record<string, unknown>;
-		if (typeof raw.source !== "string" || raw.source.trim().length === 0)
-			continue;
-		const source = raw.source;
-		const reopen = cleanReopen(raw.reopen, source);
-		// Identity is the durable descriptor, not the display name.
-		const id =
-			typeof raw.id === "string" && raw.id.length > 0
-				? raw.id
-				: idForSource(source);
-		const rawName =
-			typeof raw.name === "string" && raw.name.trim().length > 0
+		const reopen = cleanReopen(raw.reopen);
+		if (!reopen) continue;
+		const name =
+			typeof raw.name === "string" && raw.name.trim()
 				? raw.name.trim()
-				: "Untitled file";
-		const storedFormat =
-			typeof raw.format === "string" && FORMATS.has(raw.format)
-				? (raw.format as RecentsEntry["format"])
-				: "unknown";
-		const nameFormat = guessFormat(rawName);
-		const sourceFormat = guessFormat(source);
-		const format =
-			storedFormat !== "unknown"
-				? storedFormat
-				: nameFormat !== "unknown"
-					? nameFormat
-					: sourceFormat;
-		const opaqueName = /^\d+$/.test(rawName);
-		const name = opaqueName
-			? format !== "unknown"
-				? displayNameFor(rawName, format)
-				: "Document"
-			: rawName;
-		const addedAt = finiteNonNegative(raw.addedAt);
-		const lastOpenedAt = finiteNonNegative(raw.lastOpenedAt, addedAt);
-		const entry: RecentsEntry = {
-			id,
+				: "Untitled";
+		const entry: RecentEntry = {
+			id: idForReopen(reopen),
 			name,
-			format,
-			size: finiteNonNegative(raw.size),
-			source,
+			format: cleanFormat(raw.format, name),
+			size: Math.max(0, finite(raw.size)),
 			reopen,
-			addedAt,
-			lastOpenedAt,
+			openedAt: finite(raw.openedAt),
 			pinned: raw.pinned === true,
 			position: cleanPosition(raw.position),
 			unavailable: raw.unavailable === true || undefined,
 		};
-		const previous = byId.get(id);
-		if (!previous || entry.lastOpenedAt >= previous.lastOpenedAt) {
-			byId.set(id, entry);
-		}
+		const prev = byId.get(entry.id);
+		if (!prev || entry.openedAt >= prev.openedAt) byId.set(entry.id, entry);
 	}
-	return [...byId.values()];
+	return sortRecents([...byId.values()]);
+}
+
+/** Convert the pre-redesign recents shape. Only the PDF page of the
+ * old position survives; other viewers restart at the top. */
+export function migrateLegacyRecents(value: unknown): RecentEntry[] {
+	if (!Array.isArray(value)) return [];
+	const converted = value.map((item) => {
+		if (!item || typeof item !== "object") return null;
+		const raw = item as Record<string, unknown>;
+		const source = typeof raw.source === "string" ? raw.source : "";
+		const old = (raw.reopen ?? {}) as Record<string, unknown>;
+		let reopen: Reopen | null = null;
+		if (old.kind === "persisted-uri" && typeof old.uri === "string")
+			reopen = { kind: "uri", uri: old.uri };
+		else if (old.kind === "managed-copy" && typeof old.path === "string")
+			reopen = old.path.startsWith("browser:")
+				? { kind: "browser", key: old.path.slice(8) }
+				: { kind: "managed", path: old.path };
+		else if (old.kind === "desktop-path" && typeof old.path === "string")
+			reopen = { kind: "path", path: old.path };
+		else if (source.startsWith("content://"))
+			reopen = { kind: "uri", uri: source };
+		else if (source.startsWith("browser:"))
+			reopen = { kind: "browser", key: source.slice(8) };
+		else if (source.includes("/imports/"))
+			reopen = { kind: "managed", path: source };
+		else if (source) reopen = { kind: "path", path: source };
+		if (!reopen) return null;
+		const pos = raw.position as Record<string, unknown> | undefined;
+		const loc = pos?.location as Record<string, unknown> | undefined;
+		let position: Position | undefined;
+		if (pos?.kind === "pdf" && loc && typeof loc.pageIndex === "number") {
+			position = {
+				kind: "pdf",
+				page: loc.pageIndex + 1,
+				scale: pos.mode === "page" ? "page-fit" : "page-width",
+				top: 0,
+				left: 0,
+				rotation: typeof pos.rotation === "number" ? pos.rotation : 0,
+			};
+		}
+		return {
+			name: raw.name,
+			format: raw.format,
+			size: raw.size,
+			reopen,
+			openedAt: raw.lastOpenedAt ?? raw.addedAt,
+			pinned: raw.pinned,
+			position,
+			unavailable: raw.unavailable,
+		};
+	});
+	return normalizeRecents(converted.filter(Boolean));
+}
+
+/** Pinned first, then most recently opened. */
+export function sortRecents(list: RecentEntry[]): RecentEntry[] {
+	return [...list].sort((a, b) =>
+		a.pinned !== b.pinned ? (a.pinned ? -1 : 1) : b.openedAt - a.openedAt,
+	);
+}
+
+/** Record an open: update in place (clearing `unavailable`) or add,
+ * then trim unpinned entries beyond `limit`. Returns the evicted
+ * entries so their managed copies can be deleted. */
+export function recordOpen(
+	list: RecentEntry[],
+	entry: Omit<RecentEntry, "pinned" | "openedAt" | "id"> & { id: string },
+	now: number,
+	limit: number,
+): { list: RecentEntry[]; evicted: RecentEntry[] } {
+	const existing = list.find((e) => e.id === entry.id);
+	const merged: RecentEntry = existing
+		? {
+				...existing,
+				...entry,
+				position: entry.position ?? existing.position,
+				pinned: existing.pinned,
+				openedAt: now,
+				unavailable: undefined,
+			}
+		: { ...entry, pinned: false, openedAt: now };
+	const next = sortRecents([merged, ...list.filter((e) => e.id !== entry.id)]);
+	const pinned = next.filter((e) => e.pinned);
+	const unpinned = next.filter((e) => !e.pinned);
+	return {
+		list: [...pinned, ...unpinned.slice(0, limit)],
+		evicted: unpinned.slice(limit),
+	};
+}
+
+export function updateEntry(
+	list: RecentEntry[],
+	id: string,
+	patch: Partial<RecentEntry>,
+): RecentEntry[] {
+	return sortRecents(list.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+}
+
+/** Managed-copy path relative to the imports directory, as the Rust
+ * housekeeping commands expect it. */
+export function managedRelPath(path: string): string | null {
+	const normalized = path.replace(/\\/g, "/");
+	const at = normalized.lastIndexOf("/imports/");
+	return at === -1 ? null : normalized.slice(at + "/imports/".length);
 }

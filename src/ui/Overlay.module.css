@@ -1,0 +1,158 @@
+.scrim {
+	position: fixed;
+	inset: 0;
+	background: var(--scrim);
+	z-index: 100;
+	animation: pw-fade-in var(--t-med) var(--ease);
+}
+
+.sheet {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 101;
+	margin: 0 auto;
+	max-width: 560px;
+	max-height: calc(100dvh - 48px - var(--safe-top));
+	display: flex;
+	flex-direction: column;
+	background: var(--surface);
+	border-radius: var(--r-xl) var(--r-xl) 0 0;
+	box-shadow: var(--shadow-3);
+	padding-bottom: var(--safe-bottom);
+	animation: pw-sheet-up var(--t-med) var(--ease-out);
+	outline: none;
+	touch-action: pan-y;
+}
+.handle {
+	width: 36px;
+	height: 4px;
+	border-radius: 999px;
+	background: var(--line-strong);
+	margin: 10px auto 2px;
+	flex-shrink: 0;
+}
+.sheetHead {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 12px 6px 20px;
+	min-height: 52px;
+}
+.sheetTitle {
+	flex: 1;
+	min-width: 0;
+	font-size: 17px;
+	font-weight: 700;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.sheetBody {
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 0 12px 16px;
+	flex: 1;
+	min-height: 0;
+}
+
+.dialogWrap {
+	position: fixed;
+	inset: 0;
+	z-index: 110;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+}
+.dialog {
+	position: relative;
+	width: 100%;
+	max-width: 400px;
+	background: var(--surface);
+	border-radius: var(--r-xl);
+	box-shadow: var(--shadow-3);
+	padding: 24px 24px 16px;
+	animation: pw-rise var(--t-med) var(--ease-out);
+}
+.dialogTitle {
+	font-size: 19px;
+	font-weight: 700;
+	margin-bottom: 8px;
+}
+.dialogBody {
+	color: var(--text-2);
+	margin-bottom: 20px;
+}
+.dialogActions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.item {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	width: 100%;
+	min-height: 52px;
+	padding: 10px 12px;
+	border-radius: var(--r-m);
+	text-align: left;
+	color: var(--text);
+}
+.item:hover:not(:disabled) {
+	background: var(--surface-2);
+}
+.item:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+.item svg {
+	flex-shrink: 0;
+	color: var(--text-2);
+}
+.itemDanger,
+.itemDanger svg {
+	color: var(--danger);
+}
+.itemText {
+	flex: 1;
+	min-width: 0;
+}
+.itemHint {
+	display: block;
+	font-size: 13px;
+	color: var(--text-3);
+}
+
+.toast {
+	position: fixed;
+	left: 16px;
+	right: 16px;
+	bottom: calc(20px + var(--safe-bottom));
+	z-index: 120;
+	margin: 0 auto;
+	max-width: 480px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 12px 12px 16px;
+	border-radius: var(--r-m);
+	background: var(--text);
+	color: var(--bg);
+	box-shadow: var(--shadow-3);
+	font-size: 14px;
+	animation: pw-rise var(--t-med) var(--ease-out);
+}
+.toast span {
+	flex: 1;
+}
+.toastAction {
+	font-weight: 700;
+	color: var(--accent-soft);
+	padding: 6px 10px;
+	border-radius: var(--r-s);
+}

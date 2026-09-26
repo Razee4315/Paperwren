@@ -31,6 +31,7 @@ Read in order for onboarding, or jump to what you need.
 | 10 | [Technical Architecture](10-architecture.md) | Tauri + WebView plan, libraries, Android integration | ✅ Final draft |
 | 11 | [Privacy & Compliance](11-privacy.md) | Data stance, privacy policy draft, Play Data Safety | ✅ Final draft |
 | 12 | [Production Readiness & Launch](12-production.md) | QA plan, test corpus, Play Store listing, release process | ✅ Final draft |
+| 13 | [Full audit and redesign](13-redesign.md) | What the v0.10 audit found and what replaced it (authoritative over 01–12 on mechanics) | ✅ Current |
 
 ---
 

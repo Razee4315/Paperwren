@@ -1,177 +1,171 @@
 import { describe, expect, it } from "vitest";
-import { normalizeRecents } from "../recents";
+import {
+	cleanPosition,
+	idForReopen,
+	managedRelPath,
+	migrateLegacyRecents,
+	normalizeRecents,
+	recordOpen,
+} from "../recents";
+import type { RecentEntry, Reopen } from "../types";
 
-describe("normalizeRecents", () => {
-	it("drops invalid rows and repairs unsafe persisted fields", () => {
-		const result = normalizeRecents([
-			null,
-			{ source: "", name: "bad" },
-			{
-				source: "/docs/report.pdf",
-				name: "  report.pdf  ",
-				format: "broken",
-				size: Number.NaN,
-				addedAt: -10,
-				lastOpenedAt: "yesterday",
-				pinned: "yes",
-				position: { page: -4, scrollRatio: 4 },
-			},
-		]);
-		expect(result).toHaveLength(1);
-		expect(result[0]).toMatchObject({
-			name: "report.pdf",
-			format: "pdf",
-			size: 0,
-			addedAt: 0,
-			lastOpenedAt: 0,
-			pinned: false,
-			position: { scrollRatio: 1 },
-		});
-	});
+const uri = (n: number): Reopen => ({
+	kind: "uri",
+	uri: `content://docs/${n}`,
+});
+const entry = (n: number, extra: Partial<RecentEntry> = {}): RecentEntry => ({
+	id: idForReopen(uri(n)),
+	name: `f${n}.pdf`,
+	format: "pdf",
+	size: 10,
+	reopen: uri(n),
+	openedAt: n,
+	pinned: false,
+	...extra,
+});
 
-	it("deduplicates the same source and keeps its newest record", () => {
-		const result = normalizeRecents([
-			{ source: "/a.pdf", name: "old", format: "pdf", lastOpenedAt: 1 },
-			{ source: "/a.pdf", name: "new", format: "pdf", lastOpenedAt: 2 },
-		]);
-		expect(result).toHaveLength(1);
-		expect(result[0].name).toBe("new");
-	});
-
-	it("repairs old extension-based and opaque Android labels", () => {
-		const [named, opaque] = normalizeRecents([
-			{ source: "/a/report.pdf", name: "report.pdf", format: "unknown" },
-			{ source: "content://provider/1284", name: "1284", format: "unknown" },
-		]);
-		expect(named).toMatchObject({ name: "report.pdf", format: "pdf" });
-		expect(opaque).toMatchObject({ name: "Document", format: "unknown" });
+describe("idForReopen", () => {
+	it("is stable and distinguishes sources", () => {
+		expect(idForReopen(uri(1))).toBe(idForReopen(uri(1)));
+		expect(idForReopen(uri(1))).not.toBe(idForReopen(uri(2)));
+		expect(idForReopen({ kind: "browser", key: "a" })).not.toBe(
+			idForReopen({ kind: "path", path: "a" }),
+		);
 	});
 });
 
-describe("versioned positions (docs/14 audit section 8)", () => {
-	it("keeps v2 pdf payloads intact through normalization", () => {
-		const position = {
-			version: 2,
+describe("recordOpen", () => {
+	it("adds new entries on top", () => {
+		const { list } = recordOpen([entry(1)], { ...entry(2) }, 100, 50);
+		expect(list.map((e) => e.name)).toEqual(["f2.pdf", "f1.pdf"]);
+	});
+
+	it("updates in place, clears unavailable, keeps pin and position", () => {
+		const start = [
+			entry(1, {
+				pinned: true,
+				unavailable: true,
+				position: { kind: "slides", slide: 3 },
+			}),
+		];
+		const { list } = recordOpen(
+			start,
+			{ ...entry(1), name: "renamed.pdf", position: undefined },
+			500,
+			50,
+		);
+		expect(list).toHaveLength(1);
+		expect(list[0]).toMatchObject({
+			name: "renamed.pdf",
+			pinned: true,
+			openedAt: 500,
+			unavailable: undefined,
+		});
+		expect(list[0].position).toEqual({ kind: "slides", slide: 3 });
+	});
+
+	it("evicts the oldest unpinned entries beyond the limit", () => {
+		const start = [entry(1, { pinned: true }), entry(2), entry(3)];
+		const { list, evicted } = recordOpen(start, entry(4), 1000, 2);
+		expect(list.map((e) => e.name)).toEqual(["f1.pdf", "f4.pdf", "f3.pdf"]);
+		expect(evicted.map((e) => e.name)).toEqual(["f2.pdf"]);
+	});
+});
+
+describe("normalizeRecents", () => {
+	it("drops garbage, dedupes by id, sorts pinned first", () => {
+		const list = normalizeRecents([
+			null,
+			{ name: "no reopen" },
+			{ ...entry(1), openedAt: 5 },
+			{ ...entry(1), openedAt: 9, name: "newer.pdf" },
+			{ ...entry(2), pinned: true, format: "bogus", name: "x.docx" },
+		]);
+		expect(list.map((e) => e.name)).toEqual(["x.docx", "newer.pdf"]);
+		expect(list[0].format).toBe("docx");
+	});
+	it("returns [] for non-arrays", () => {
+		expect(normalizeRecents({})).toEqual([]);
+	});
+});
+
+describe("cleanPosition", () => {
+	it("validates each kind", () => {
+		expect(
+			cleanPosition({
+				kind: "pdf",
+				page: 3.7,
+				scale: "page-width",
+				top: 10,
+				left: 0,
+				rotation: 45,
+			}),
+		).toEqual({
 			kind: "pdf",
-			location: {
-				pageIndex: 7,
-				x: 0.25,
-				y: 0.75,
-				viewportX: 0.5,
-				viewportY: 0.5,
-			},
-			mode: "manual",
-			scale: 1.37,
-			rotation: 90,
-		};
-		const result = normalizeRecents([
-			{ source: "/a/doc.pdf", name: "doc.pdf", format: "pdf", position },
-		]);
-		expect(result[0].position).toEqual(position);
+			page: 3,
+			scale: "page-width",
+			top: 10,
+			left: 0,
+			rotation: 0,
+		});
+		expect(cleanPosition({ kind: "scroll", ratio: 7 })).toEqual({
+			kind: "scroll",
+			ratio: 1,
+			zoom: undefined,
+		});
+		expect(cleanPosition({ kind: "pdf" })).toBeUndefined();
+		expect(cleanPosition({ kind: "nope" })).toBeUndefined();
 	});
+});
 
-	it("keeps v2 sheet payloads with the sheet name", () => {
-		const position = {
-			version: 2,
-			kind: "sheet",
-			sheetName: "Q3",
-			row: 12,
-			col: 3,
-			offsetX: 44,
-			offsetY: 90,
-		};
-		const result = normalizeRecents([
-			{ source: "/a/book.xlsx", name: "book.xlsx", format: "xlsx", position },
-		]);
-		expect(result[0].position).toEqual(position);
-	});
-
-	it("rejects nonfinite, fractional-page, and out-of-range v2 fields", () => {
-		const result = normalizeRecents([
+describe("migrateLegacyRecents", () => {
+	it("converts every old reopen kind and keeps the PDF page", () => {
+		const list = migrateLegacyRecents([
 			{
-				source: "/a/bad.pdf",
-				name: "bad.pdf",
+				name: "a.pdf",
 				format: "pdf",
+				source: "content://x/1",
+				reopen: { kind: "persisted-uri", uri: "content://x/1" },
+				lastOpenedAt: 3,
+				pinned: true,
 				position: {
 					version: 2,
 					kind: "pdf",
-					location: {
-						pageIndex: 1.5,
-						x: Number.NaN,
-						y: 0,
-						viewportX: 0.5,
-						viewportY: 0.5,
-					},
-					mode: "manual",
+					location: { pageIndex: 4 },
+					mode: "page",
 					rotation: 90,
 				},
 			},
+			{ name: "b.docx", source: "/data/files/imports/b.docx", lastOpenedAt: 2 },
+			{ name: "c.xlsx", source: "browser:c.xlsx", lastOpenedAt: 1 },
 			{
-				source: "/a/bad2.pdf",
-				name: "bad2.pdf",
-				format: "pdf",
-				position: {
-					version: 2,
-					kind: "pdf",
-					location: {
-						pageIndex: 0,
-						x: 0,
-						y: 0,
-						viewportX: 0.5,
-						viewportY: 0.5,
-					},
-					mode: "sideways",
-					rotation: 45,
-				},
+				name: "d.txt",
+				source: "C:\\docs\\d.txt",
+				reopen: { kind: "desktop-path", path: "C:\\docs\\d.txt" },
 			},
 		]);
-		expect(result[0].position).toBeUndefined();
-		expect(result[1].position).toBeUndefined();
-	});
-
-	it("clamps v2 fractions into 0..1 and floors sheet offsets", () => {
-		const result = normalizeRecents([
-			{
-				source: "/a/clamp.pdf",
-				name: "clamp.pdf",
-				format: "pdf",
-				position: {
-					version: 2,
-					kind: "pdf",
-					location: {
-						pageIndex: 0,
-						x: 2,
-						y: -1,
-						viewportX: 0.25,
-						viewportY: 0.9,
-					},
-					mode: "width",
-					rotation: 0,
-				},
-			},
+		expect(list.map((e) => e.reopen.kind)).toEqual([
+			"uri",
+			"managed",
+			"browser",
+			"path",
 		]);
-		expect(result[0].position).toMatchObject({
-			version: 2,
+		expect(list[0].position).toMatchObject({
 			kind: "pdf",
-			location: { x: 1, y: 0, viewportX: 0.25, viewportY: 0.9 },
-			mode: "width",
-			rotation: 0,
+			page: 5,
+			scale: "page-fit",
+			rotation: 90,
 		});
+		expect(list[0].pinned).toBe(true);
 	});
+});
 
-	it("still decodes legacy positions after reopening the app", () => {
-		const result = normalizeRecents([
-			{
-				source: "/a/old.pdf",
-				name: "old.pdf",
-				format: "pdf",
-				position: { page: 3, zoom: 2.5, scrollRatio: 0.5 },
-			},
-		]);
-		expect(result[0].position).toEqual({
-			page: 3,
-			zoom: 2.5,
-			scrollRatio: 0.5,
-		});
+describe("managedRelPath", () => {
+	it("extracts the path under imports/", () => {
+		expect(
+			managedRelPath("/data/user/0/app/files/imports/ab12/Report.pdf"),
+		).toBe("ab12/Report.pdf");
+		expect(managedRelPath("C:\\x\\imports\\a.pdf")).toBe("a.pdf");
+		expect(managedRelPath("/tmp/other.pdf")).toBeNull();
 	});
 });

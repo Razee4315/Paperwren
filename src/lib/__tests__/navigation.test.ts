@@ -1,99 +1,61 @@
 import { describe, expect, it } from "vitest";
 import {
-	backWouldConsume,
-	initialNavigation,
-	navigationReducer,
+	type NavState,
+	canGoBack,
+	initialNav,
+	navReducer,
 } from "../navigation";
-import type { FileMeta } from "../types";
+import type { OpenRequest } from "../types";
 
-const file = (name: string): FileMeta => ({
-	name,
-	format: "pdf",
-	size: 10,
-	ref: name,
-	source: name,
-});
+const req: OpenRequest = {
+	id: "f1",
+	name: "a.pdf",
+	nameVerified: true,
+	size: 1,
+	reopen: { kind: "path", path: "/a.pdf" },
+};
 
-describe("navigationReducer Back priority", () => {
-	it("does not consume Back at Home with nothing above", () => {
-		expect(backWouldConsume(initialNavigation)).toBe(false);
-		const next = navigationReducer(initialNavigation, { type: "handle-back" });
-		expect(next).toBe(initialNavigation);
-	});
-
-	it("Home -> viewer -> Back returns Home, then Back is not consumed", () => {
-		let s = navigationReducer(initialNavigation, {
+describe("navReducer", () => {
+	it("stacks viewers and pops back to Home", () => {
+		let s: NavState = navReducer(initialNav, {
 			type: "push",
-			screen: { kind: "viewer", file: file("a.pdf") },
+			screen: { kind: "viewer", request: req, key: 1 },
 		});
-		expect(backWouldConsume(s)).toBe(true);
-		s = navigationReducer(s, { type: "handle-back" });
-		expect(s.screens).toHaveLength(1);
-		expect(s.screens[0].kind).toBe("home");
-		expect(backWouldConsume(s)).toBe(false);
-	});
-
-	it("settings subpage Back returns to Settings root before Home", () => {
-		let s = navigationReducer(initialNavigation, {
-			type: "open-settings",
-			subpage: "appearance",
-		});
-		s = navigationReducer(s, { type: "handle-back" });
-		expect(s.screens).toHaveLength(2);
-		expect(s.screens[1]).toEqual({ kind: "settings", subpage: null });
-		s = navigationReducer(s, { type: "handle-back" });
-		expect(s.screens).toHaveLength(1);
-		expect(backWouldConsume(s)).toBe(false);
-	});
-
-	it("dismisses the top overlay before popping a screen", () => {
-		let s = navigationReducer(initialNavigation, {
+		s = navReducer(s, {
 			type: "push",
-			screen: { kind: "viewer", file: file("a.pdf") },
-		});
-		s = navigationReducer(s, { type: "open-overlay", id: "pdf-tools" });
-		s = navigationReducer(s, { type: "open-overlay", id: "pdf-outline" });
-		s = navigationReducer(s, { type: "handle-back" });
-		expect(s.overlays.map((o) => o.id)).toEqual(["pdf-tools"]);
-		s = navigationReducer(s, { type: "handle-back" });
-		expect(s.overlays).toHaveLength(0);
-		expect(s.screens).toHaveLength(2);
-		s = navigationReducer(s, { type: "handle-back" });
-		expect(s.screens).toHaveLength(1);
-	});
-
-	it("stacks a second viewer instead of replacing the first", () => {
-		let s = navigationReducer(initialNavigation, {
-			type: "push",
-			screen: { kind: "viewer", file: file("a.pdf") },
-		});
-		s = navigationReducer(s, {
-			type: "push",
-			screen: { kind: "viewer", file: file("b.pdf") },
+			screen: { kind: "viewer", request: req, key: 2 },
 		});
 		expect(s.screens).toHaveLength(3);
-		s = navigationReducer(s, { type: "handle-back" });
-		expect(s.screens).toHaveLength(2);
-		expect(s.screens[1]).toMatchObject({ kind: "viewer", file: file("a.pdf") });
+		s = navReducer(s, { type: "pop" });
+		s = navReducer(s, { type: "pop" });
+		expect(s).toEqual(initialNav);
+		expect(navReducer(s, { type: "pop" })).toBe(s);
 	});
 
-	it("replacing with home clears screens and overlays", () => {
-		let s = navigationReducer(initialNavigation, {
+	it("never stacks Settings on Settings", () => {
+		const once = navReducer(initialNav, {
 			type: "push",
-			screen: { kind: "viewer", file: file("a.pdf") },
+			screen: { kind: "settings" },
 		});
-		s = navigationReducer(s, { type: "open-overlay", id: "pdf-tools" });
-		s = navigationReducer(s, { type: "replace", screen: { kind: "home" } });
-		expect(s.screens).toHaveLength(1);
-		expect(s.overlays).toHaveLength(0);
+		expect(
+			navReducer(once, { type: "push", screen: { kind: "settings" } }),
+		).toBe(once);
 	});
 
-	it("ignores duplicate overlay ids", () => {
-		let s = navigationReducer(initialNavigation, {
-			type: "open-overlay",
-			id: "x",
-		});
-		s = navigationReducer(s, { type: "open-overlay", id: "x" });
-		expect(s.overlays).toHaveLength(1);
+	it("tracks overlays without duplicates", () => {
+		let s = navReducer(initialNav, { type: "overlay-open", id: "sheet" });
+		s = navReducer(s, { type: "overlay-open", id: "sheet" });
+		expect(s.overlays).toEqual(["sheet"]);
+		expect(canGoBack(s)).toBe(true);
+		s = navReducer(s, { type: "overlay-close", id: "sheet" });
+		expect(canGoBack(s)).toBe(false);
+	});
+
+	it("home resets everything", () => {
+		const s = navReducer(
+			{ screens: [{ kind: "home" }, { kind: "settings" }], overlays: ["x"] },
+			{ type: "home" },
+		);
+		expect(s).toEqual(initialNav);
 	});
 });

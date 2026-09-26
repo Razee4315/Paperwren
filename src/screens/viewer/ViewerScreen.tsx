@@ -1,268 +1,151 @@
-import type { FileFormat } from "@/components/FormatBadge";
-import { OpeningScreen } from "@/components/OpeningScreen";
-import { Button, Dialog } from "@/components/ui";
-import { backend, idForSource } from "@/lib/backend";
-import { type OpenFailure, classifyOpenError, failureCopy } from "@/lib/errors";
+import { backend } from "@/lib/backend";
+import { type OpenFailure, classifyError, failureCopy } from "@/lib/errors";
+import { type FileFormat, extensionOf, sniffFormat } from "@/lib/formats";
+import type { OpenRequest, Position } from "@/lib/types";
+import { useRecents } from "@/state/recents";
+import { Button, Dialog, Spinner, StateView } from "@/ui";
 import {
-	displayNameFor,
-	isFallbackDisplayName,
-	isLegacyOffice,
-	realNameFromPath,
-	sniffFormat,
-} from "@/lib/sniff";
-import { traceOpen } from "@/lib/trace";
-import type { FileMeta, FilePosition } from "@/lib/types";
-import { useRecents } from "@/state/RecentsContext";
-import { useSettings } from "@/state/SettingsContext";
-import DOMPurify from "dompurify";
-import { marked } from "marked";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import styled from "styled-components";
-import { DocxViewer } from "./DocxViewer";
-import { PdfViewer } from "./PdfViewer";
-import { ViewerShell } from "./ViewerShell";
-import { XlsxViewer } from "./XlsxViewer";
+	type ComponentType,
+	Suspense,
+	lazy,
+	useCallback,
+	useEffect,
+	useState,
+} from "react";
+import type { ViewerProps } from "./types";
 
-/**
- * SCR-07..10 viewer dispatcher (docs/05): loads the bytes once
- * through the backend, decides the format by magic bytes (Android
- * pickers hand out extension-less content URIs), restores position
- * memory, and routes to the format viewer. Read failures are typed
- * (audit 15.3): every kind gets its own dialog and one recovery
- * path, never a generic "File not found".
- */
+// Each engine is its own chunk: opening a spreadsheet never loads pdf.js.
+const VIEWERS: Partial<Record<FileFormat, ComponentType<ViewerProps>>> = {};
+const pdf = lazy(() => import("./PdfView"));
+const docx = lazy(() => import("./DocxView"));
+const sheet = lazy(() => import("./SheetView"));
+const slides = lazy(() => import("./SlidesView"));
+const reflow = lazy(() => import("./ReflowView"));
+const text = lazy(() => import("./TextView"));
+Object.assign(VIEWERS, {
+	pdf,
+	docx,
+	xlsx: sheet,
+	xls: sheet,
+	ods: sheet,
+	csv: sheet,
+	pptx: slides,
+	doc: reflow,
+	ppt: reflow,
+	odt: reflow,
+	odp: reflow,
+	rtf: reflow,
+	md: text,
+	txt: text,
+});
 
-/** Best display name given what is known (docs/15 #1): a healed or
- * verified name wins outright — a provider may hand out real
- * extension-less names, and the sniffed bytes still decide the
- * viewer; an unverified name only gets the format's fallback label
- * when it carries no extension of its own. Takes primitives so read
- * effects can list exactly what they capture. */
-function bestDisplayName(
-	name: string,
-	nameVerified: boolean | undefined,
-	healed: string | null,
-	format: FileFormat,
-): string {
-	if (healed) return healed;
-	if (nameVerified) return name;
-	return displayNameFor(name, format);
+/** Content URIs often carry no extension; name the file after what
+ * the bytes turned out to be. Provider-verified names stay as-is. */
+function displayName(request: OpenRequest, format: FileFormat): string {
+	if (request.nameVerified || extensionOf(request.name) || format === "unknown")
+		return request.name;
+	return `${request.name}.${format}`;
 }
 
-export function ViewerScreen({
-	file,
+type Loaded = { data: ArrayBuffer; format: FileFormat; name: string };
+
+export default function ViewerScreen({
+	request,
+	active,
 	onClose,
-	onMissingFile,
-	onRemoved,
-	onRepair,
+	onLocate,
 }: {
-	file: FileMeta;
+	request: OpenRequest;
+	active: boolean;
 	onClose: () => void;
-	onMissingFile: () => void;
-	onRemoved: (id: string) => void;
-	/** Re-pick flow for an unavailable recent: replaces the entry. */
-	onRepair: () => void;
+	onLocate: () => void;
 }) {
-	const { settings } = useSettings();
-	const { entries, recordOpen, updatePosition, markUnavailable } = useRecents();
-	const [data, setData] = useState<ArrayBuffer | null>(null);
+	const { entries, record, setPosition, markUnavailable, remove } =
+		useRecents();
+	const [loaded, setLoaded] = useState<Loaded | null>(null);
 	const [failure, setFailure] = useState<OpenFailure | null>(null);
-	// A provider-verified name learned during this open (healed from a
-	// generic label or an opaque URI segment). Null until then.
-	const [healedName, setHealedName] = useState<string | null>(null);
-	// The format comes from the bytes, not the name: Android pickers
-	// hand out extension-less content URIs, and names lie anyway.
-	const [format, setFormat] = useState<FileFormat | null>(null);
-	// Checked once at read time: after the PDF viewer hands the
-	// buffer to pdf.js the buffer is detached, so render-time byte
-	// inspection would crash (audit 10.2 ownership semantics).
-	const [legacyOffice, setLegacyOffice] = useState(false);
-	const recentsId = idForSource(file.source);
+	// Position at open time; later writes must not re-trigger restores.
+	const [initialPosition] = useState<Position | undefined>(
+		() =>
+			request.position ?? entries.find((e) => e.id === request.id)?.position,
+	);
 
-	const entry = entries.find((e) => e.id === recentsId);
-
-	/** Fresh bytes for the PDF password retry, which cannot reuse
-	 * the buffer pdf.js took ownership of. */
-	const reloadDoc = useCallback(async (): Promise<ArrayBuffer | null> => {
-		try {
-			if (file.reopen) {
-				const result = await backend.openRecent({
-					id: recentsId,
-					name: file.name,
-					format: file.format,
-					size: file.size,
-					source: file.source,
-					reopen: file.reopen,
-					addedAt: 0,
-					lastOpenedAt: 0,
-					pinned: false,
-				});
-				return result.ok ? result.buffer : null;
-			}
-			return await backend.readBytes(file.ref);
-		} catch {
-			return null;
-		}
-	}, [
-		file.name,
-		file.ref,
-		file.source,
-		file.reopen,
-		file.format,
-		file.size,
-		recentsId,
-	]);
-
+	// biome-ignore lint/correctness/useExhaustiveDependencies: read once per request
 	useEffect(() => {
-		traceOpen(
-			"viewer:mount",
-			`#${file.openId ?? "?"} ${file.name}`,
-			file.openId,
-		);
-	}, [file.openId, file.name]);
-
-	useEffect(() => {
-		let cancelled = false;
-		traceOpen("read:start", file.reopen?.kind ?? "live-ref", file.openId);
-		const read = file.reopen
-			? backend.openRecent({
-					id: recentsId,
-					name: file.name,
-					format: file.format,
-					size: file.size,
-					source: file.source,
-					reopen: file.reopen,
-					addedAt: 0,
-					lastOpenedAt: 0,
-					pinned: false,
-				})
-			: backend
-					.readBytes(file.ref)
-					.then((buffer) =>
-						buffer.byteLength === 0
-							? ({ ok: false, failure: "corrupt" } as const)
-							: ({ ok: true, buffer } as const),
-					)
-					.catch(
-						(err) =>
-							({
-								ok: false,
-								failure: classifyOpenError(err),
-							}) as const,
-					);
-
-		// Metadata healing (docs/15 #1 step 5), in parallel with the
-		// read: a recents entry stored with a generic label or an
-		// opaque numeric segment re-queries the provider on reopen and
-		// adopts the real DISPLAY_NAME when the provider answers.
-		// Managed copies and desktop paths heal from their basename,
-		// which is the original provider/OS name by construction.
-		// recordOpen then updates the existing entry in place — id and
-		// position are derived from the unchanged source, so nothing
-		// about the entry's history or pin state is lost.
-		const pathHeal =
-			file.reopen?.kind === "managed-copy" ||
-			file.reopen?.kind === "desktop-path"
-				? realNameFromPath(file.reopen.path)
-				: null;
-		const nameQuery: Promise<string | null> =
-			file.nameVerified || !isFallbackDisplayName(file.name)
-				? Promise.resolve(null)
-				: file.reopen?.kind === "persisted-uri"
-					? backend.resolveContentName(file.reopen.uri).catch(() => null)
-					: Promise.resolve(pathHeal);
-
-		Promise.all([read, nameQuery])
-			.then(([result, healed]) => {
-				if (cancelled) return;
-				if (healed) {
-					traceOpen("name:healed", healed, file.openId);
-					setHealedName(healed);
-				}
-				if (!result.ok) {
-					traceOpen("read:failed", result.failure, file.openId);
-					if (result.failure !== "cancelled") {
-						setFailure(result.failure);
-					}
+		let alive = true;
+		backend
+			.read(request.reopen)
+			.then((data) => {
+				if (!alive) return;
+				if (data.byteLength === 0)
+					throw Object.assign(new Error("empty"), { failure: "empty" });
+				const format = sniffFormat(data, request.name);
+				if (format === "unknown") {
+					setFailure("unsupported");
 					return;
 				}
-				const buf = result.buffer;
-				const detected = sniffFormat(buf, file.name);
-				traceOpen(
-					"read:done",
-					`${buf.byteLength} bytes as ${detected}`,
-					file.openId,
-				);
-				setLegacyOffice(isLegacyOffice(buf));
-				setData(buf);
-				setFormat(detected);
-				if (detected !== "unknown") {
-					// Record from metadata as soon as ingestion succeeds;
-					// PDF.js parsing happens later and must not gate the
-					// recent (audit 4.5).
-					recordOpen({
-						name: bestDisplayName(
-							file.name,
-							file.nameVerified,
-							healed,
-							detected,
-						),
-						format: detected,
-						size: buf.byteLength,
-						source: file.source,
-						reopen: file.reopen,
-					});
-				}
+				const name = displayName(request, format);
+				record({
+					id: request.id,
+					name,
+					format,
+					size: data.byteLength,
+					reopen: request.reopen,
+					position: request.position,
+				});
+				setLoaded({ data, format, name });
 			})
-			.catch((err: unknown) => {
-				traceOpen("read:error", String(err), file.openId);
-				if (!cancelled) setFailure("read_failed");
+			.catch((err) => {
+				if (!alive) return;
+				const kind: OpenFailure =
+					err?.failure === "empty" ? "empty" : classifyError(err);
+				setFailure(kind);
+				if (
+					kind === "not_found" ||
+					kind === "permission" ||
+					kind === "unreadable"
+				)
+					markUnavailable(request.id);
 			});
 		return () => {
-			cancelled = true;
+			alive = false;
 		};
-	}, [
-		file.format,
-		file.name,
-		file.nameVerified,
-		file.openId,
-		file.ref,
-		file.size,
-		file.source,
-		file.reopen,
-		recentsId,
-		recordOpen,
-	]);
+	}, [request]);
 
-	const handlePosition = (pos: FilePosition) => {
-		updatePosition(recentsId, pos);
-	};
+	const onPosition = useCallback(
+		(p: Position) => setPosition(request.id, p),
+		[request.id, setPosition],
+	);
 
 	if (failure) {
-		// Reading failed: the recent is honestly marked unavailable so
-		// the dashboard can offer repair instead of pretending.
-		if (entry && !entry.unavailable) markUnavailable(recentsId);
-		const copy = failureCopy(failure, file.name);
+		const copy = failureCopy(failure, request.name);
+		const isRecent = entries.some((e) => e.id === request.id);
 		return (
 			<Dialog
 				open
 				title={copy.title}
-				onDismiss={onMissingFile}
+				onClose={onClose}
+				testId="open-error"
 				actions={
 					<>
-						<Button
-							variant="destructive"
-							onClick={() => {
-								onRemoved(recentsId);
-								onClose();
-							}}
-						>
-							Remove from recents
-						</Button>
+						{isRecent && copy.action === "locate" && (
+							<Button
+								variant="danger"
+								onClick={() => {
+									remove(request.id);
+									onClose();
+								}}
+							>
+								Remove
+							</Button>
+						)}
 						{copy.action === "locate" ? (
-							<Button onClick={onRepair}>Choose file again</Button>
-						) : null}
-						<Button onClick={onMissingFile}>OK</Button>
+							<Button onClick={onLocate}>Locate file</Button>
+						) : (
+							<Button onClick={onClose} data-testid="error-ok">
+								OK
+							</Button>
+						)}
 					</>
 				}
 			>
@@ -271,304 +154,51 @@ export function ViewerScreen({
 		);
 	}
 
-	if (!data) {
-		// Immediate feedback after picking: the branded opening page
-		// runs while the single read happens (docs/04: chrome never
-		// waits for content, and content gets a real loading page).
-		// Elevated: the viewer shell is not mounted yet, so the page
-		// must rise above the previous screen's FAB.
-		return (
-			<OpeningScreen
-				name={bestDisplayName(
-					file.name,
-					file.nameVerified,
-					healedName,
-					format ?? "unknown",
-				)}
-				format={format ?? "unknown"}
-				progress={null}
-				elevated
-			/>
-		);
-	}
-
-	if (!format) {
-		return (
-			<Dialog
-				open
-				title="Can't open this file"
-				onDismiss={onClose}
-				actions={<Button onClick={onClose}>OK</Button>}
-			>
-				The file seems to be damaged or is not valid.
-			</Dialog>
-		);
-	}
-
-	const displayName = bestDisplayName(
-		file.name,
-		file.nameVerified,
-		healedName,
-		format,
+	const spinner = (
+		<StateView>
+			<Spinner label={`Opening ${request.name}`} />
+		</StateView>
 	);
-	const viewerPosition = entry?.position;
-
-	if (legacyOffice) {
+	if (!loaded)
 		return (
-			<Dialog
-				open
-				title="Older Office format"
-				onDismiss={onClose}
-				actions={<Button onClick={onClose}>OK</Button>}
+			<div
+				style={{
+					position: "fixed",
+					inset: 0,
+					zIndex: 30,
+					background: "var(--canvas)",
+				}}
 			>
-				This file uses a legacy format Paperwren does not read yet. Save it as
-				the newer format from Word, Excel, or PowerPoint, or try another viewer.
-			</Dialog>
+				{spinner}
+			</div>
 		);
-	}
 
-	if (format === "pptx") {
-		return (
-			<Dialog
-				open
-				title="PowerPoint files"
-				onDismiss={onClose}
-				actions={<Button onClick={onClose}>OK</Button>}
-			>
-				PowerPoint viewing arrives in the v1.2 update. This build reads PDF,
-				Word, Excel, CSV, Markdown, and text files.
-			</Dialog>
-		);
-	}
-
-	if (format === "docx") {
-		return (
-			<DocxViewer
-				data={data}
-				name={displayName}
-				initialPosition={viewerPosition}
-				onPosition={handlePosition}
+	const View = VIEWERS[loaded.format];
+	if (!View) return null;
+	return (
+		<Suspense
+			fallback={
+				<div
+					style={{
+						position: "fixed",
+						inset: 0,
+						zIndex: 30,
+						background: "var(--canvas)",
+					}}
+				>
+					{spinner}
+				</div>
+			}
+		>
+			<View
+				data={loaded.data}
+				name={loaded.name}
+				format={loaded.format}
+				position={initialPosition}
+				onPosition={onPosition}
 				onClose={onClose}
+				active={active}
 			/>
-		);
-	}
-
-	if (format === "pdf") {
-		return (
-			<PdfViewer
-				data={data}
-				name={displayName}
-				openId={file.openId}
-				initialPosition={viewerPosition}
-				onPosition={handlePosition}
-				onClose={onClose}
-				onNeedData={reloadDoc}
-				darkenPages={settings["viewer.darken_pages"]}
-			/>
-		);
-	}
-
-	if (format === "xlsx" || format === "csv") {
-		return <XlsxViewer data={data} name={displayName} onClose={onClose} />;
-	}
-
-	if (format === "txt") {
-		const lower = file.name.toLowerCase();
-		if (lower.endsWith(".md") || lower.endsWith(".markdown")) {
-			return <MarkdownView data={data} name={displayName} onClose={onClose} />;
-		}
-		return <TextPlainView data={data} name={displayName} onClose={onClose} />;
-	}
-
-	return (
-		<Dialog
-			open
-			title="Unsupported file type"
-			onDismiss={onClose}
-			actions={<Button onClick={onClose}>OK</Button>}
-		>
-			Paperwren reads PDF, Word, Excel, and PowerPoint files.
-		</Dialog>
+		</Suspense>
 	);
 }
-
-function TextPlainView({
-	data,
-	name,
-	onClose,
-}: {
-	data: ArrayBuffer;
-	name: string;
-	onClose: () => void;
-}) {
-	const text = new TextDecoder().decode(data);
-	return (
-		<ViewerShell
-			name={name}
-			formatColor="var(--ink-3)"
-			progress={null}
-			onClose={onClose}
-			chromeAutohide={false}
-		>
-			<Pre>{text}</Pre>
-		</ViewerShell>
-	);
-}
-
-function MarkdownView({
-	data,
-	name,
-	onClose,
-}: {
-	data: ArrayBuffer;
-	name: string;
-	onClose: () => void;
-}) {
-	const html = useMemo(() => {
-		const text = new TextDecoder().decode(data);
-		const parsed = marked.parse(text, { async: false });
-		// File content is untrusted input; sanitize before it can
-		// touch the DOM of a webview with IPC access.
-		return DOMPurify.sanitize(parsed, {
-			FORBID_TAGS: ["style", "script", "iframe", "form"],
-		});
-	}, [data]);
-	return (
-		<ViewerShell
-			name={name}
-			formatColor="var(--ink-3)"
-			progress={null}
-			onClose={onClose}
-			chromeAutohide={false}
-		>
-			<MarkdownBody>
-				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: content is DOMPurify-sanitized two lines above */}
-				<article dangerouslySetInnerHTML={{ __html: html }} />
-			</MarkdownBody>
-		</ViewerShell>
-	);
-}
-
-const Pre = styled.pre`
-	position: absolute;
-	inset: 0;
-	overflow: auto;
-	padding: 16px;
-	/* Shared viewer insets (audit 14.4): first and last lines clear
-	   the toolbar and the bottom edge. */
-	padding-top: calc(var(--viewer-top-height, 56px) + 16px);
-	padding-bottom: calc(48px + var(--safe-area-bottom, 0px));
-	white-space: pre-wrap;
-	word-break: break-word;
-	font-size: 0.9375rem;
-	color: var(--ink-1);
-	font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
-`;
-
-/* Markdown reading typography, mapped onto Paper and Ink tokens. */
-const MarkdownBody = styled.div`
-	position: absolute;
-	inset: 0;
-	overflow: auto;
-	padding: 24px 20px calc(48px + var(--safe-area-bottom, 0px));
-	/* Shared viewer inset; a full-width scroller with an inner
-	   reading column (audit 14.4: no ambiguous centered inset-0
-	   margin-auto width). */
-	padding-top: calc(var(--viewer-top-height, 56px) + 16px);
-	width: 100%;
-
-	article {
-		max-width: 760px;
-		margin: 0 auto;
-		line-height: 1.65;
-		font-size: 1rem;
-		color: var(--ink-1);
-	}
-	h1,
-	h2,
-	h3,
-	h4 {
-		font-family: var(--font-display);
-		color: var(--ink-1);
-		margin: 1.4em 0 0.5em;
-		line-height: 1.25;
-	}
-	h1 {
-		font-size: 1.9em;
-		border-bottom: 1px solid var(--border);
-		padding-bottom: 0.3em;
-	}
-	h2 {
-		font-size: 1.5em;
-	}
-	h3 {
-		font-size: 1.2em;
-	}
-	p {
-		margin: 0.8em 0;
-	}
-	a {
-		color: var(--accent-strong);
-		text-decoration: underline;
-		text-underline-offset: 3px;
-	}
-	code {
-		background: var(--surface-2);
-		border: 1px solid var(--border);
-		border-radius: 6px;
-		padding: 0.1em 0.4em;
-		font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
-		font-size: 0.9em;
-	}
-	pre {
-		background: var(--surface-2);
-		border: 1px solid var(--border);
-		border-radius: 12px;
-		padding: 14px 16px;
-		overflow-x: auto;
-	}
-	pre code {
-		background: none;
-		border: none;
-		padding: 0;
-	}
-	blockquote {
-		border-left: 3px solid var(--accent);
-		margin: 1em 0;
-		padding: 0.2em 0 0.2em 1em;
-		color: var(--ink-2);
-	}
-	ul,
-	ol {
-		padding-left: 1.5em;
-		margin: 0.8em 0;
-	}
-	li {
-		margin: 0.3em 0;
-	}
-	table {
-		border-collapse: collapse;
-		margin: 1em 0;
-		width: 100%;
-		font-variant-numeric: tabular-nums;
-	}
-	th,
-	td {
-		border: 1px solid var(--border);
-		padding: 8px 12px;
-		text-align: left;
-	}
-	th {
-		background: var(--surface-2);
-		font-weight: 700;
-	}
-	img {
-		max-width: 100%;
-		border-radius: 8px;
-	}
-	hr {
-		border: none;
-		border-top: 1px solid var(--border);
-		margin: 2em 0;
-	}
-`;

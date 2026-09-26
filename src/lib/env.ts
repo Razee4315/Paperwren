@@ -1,39 +1,23 @@
-/**
- * One place decides what "in Tauri" means, and one place decides
- * what "should render mobile" means (docs and platform lessons:
- * three different facts, never conflate them).
- */
-
 declare global {
 	interface Window {
 		__TAURI_INTERNALS__?: unknown;
-		/** Android open-with bridge payloads (see index.html). */
-		__paperwrenFiles?: Array<{ path: string; name: string; size: number }>;
 	}
 }
 
-export const isTauriEnvironment =
+export const isTauri =
 	typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-/** Mobile shell: touch device or the ?mobile=1 dev override.
- * Every API access is guarded: jsdom tests and old WebViews lack
- * matchMedia, and the app must boot everywhere regardless. */
-export const isMobileShell: boolean = (() => {
+/** Touch-first device (phones, tablets) or the ?touch dev override. */
+export const isTouch: boolean = (() => {
 	if (typeof window === "undefined") return false;
-	if (new URLSearchParams(window.location.search).has("mobile")) return true;
-	if (new URLSearchParams(window.location.search).has("desktop")) return false;
+	const params = new URLSearchParams(window.location.search);
+	if (params.has("touch")) return true;
 	try {
-		const coarsePointer =
-			typeof window.matchMedia === "function" &&
-			window.matchMedia("(pointer: coarse)").matches;
-		const touchUA = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
-		return coarsePointer || touchUA;
+		return (
+			window.matchMedia?.("(pointer: coarse)").matches ||
+			/Android|iPhone|iPad/i.test(navigator.userAgent)
+		);
 	} catch {
 		return false;
 	}
 })();
-
-export function applyShellClass() {
-	if (typeof document === "undefined") return;
-	document.documentElement.classList.toggle("mobile", isMobileShell);
-}

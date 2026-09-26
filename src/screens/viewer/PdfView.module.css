@@ -1,0 +1,51 @@
+/* pdf.js requires an absolutely positioned scroll container. */
+.container {
+	position: absolute;
+	inset: 0;
+	overflow: auto;
+	overscroll-behavior: contain;
+	touch-action: pan-x pan-y;
+	outline: none;
+	background: var(--canvas);
+	--page-margin: 8px auto;
+	--page-border: none;
+}
+.container :global(.pdfViewer) {
+	padding: 4px 0 24px;
+}
+.container :global(.pdfViewer .page) {
+	box-shadow: var(--shadow-2);
+	border-radius: 2px;
+}
+.dark :global(.pdfViewer .page .canvasWrapper) {
+	filter: invert(0.88) hue-rotate(180deg);
+}
+.input {
+	width: 100%;
+	height: 46px;
+	padding: 0 14px;
+	border-radius: var(--r-m);
+	border: 1px solid var(--line-strong);
+	background: var(--surface-2);
+	outline: none;
+}
+.input:focus {
+	border-color: var(--accent);
+}
+.passwordHint {
+	margin-bottom: 12px;
+}
+.outline {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+	padding: 10px 12px;
+	border-radius: var(--r-s);
+	text-align: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.outline:hover {
+	background: var(--surface-2);
+}

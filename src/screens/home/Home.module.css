@@ -1,0 +1,241 @@
+.page {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	background: var(--bg);
+}
+
+.bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) 4px
+		calc(16px + var(--safe-left));
+	min-height: calc(60px + var(--safe-top));
+}
+.logo {
+	width: 32px;
+	height: 32px;
+	border-radius: 9px;
+	box-shadow: 0 0 0 1px var(--line);
+}
+.brand {
+	flex: 1;
+	font-size: 20px;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+.scroll {
+	flex: 1;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+.column {
+	max-width: var(--content-max);
+	margin: 0 auto;
+	padding: 4px calc(16px + var(--safe-right)) calc(120px + var(--safe-bottom))
+		calc(16px + var(--safe-left));
+}
+
+.search {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 48px;
+	padding: 0 6px 0 14px;
+	border-radius: var(--r-l);
+	background: var(--surface);
+	border: 1px solid var(--line);
+	color: var(--text-3);
+	transition: border-color var(--t-fast) var(--ease);
+}
+.search:focus-within {
+	border-color: var(--accent);
+}
+.search input {
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	border: none;
+	outline: none;
+	background: none;
+	color: var(--text);
+}
+.search input::placeholder {
+	color: var(--text-3);
+}
+
+.chips {
+	display: flex;
+	gap: 8px;
+	overflow-x: auto;
+	margin: 12px -16px 0;
+	padding: 2px 16px;
+	scrollbar-width: none;
+}
+.chip {
+	flex-shrink: 0;
+	height: 34px;
+	padding: 0 14px;
+	border-radius: 999px;
+	border: 1px solid var(--line);
+	background: var(--surface);
+	color: var(--text-2);
+	font-size: 14px;
+	font-weight: 600;
+	transition: background-color var(--t-fast) var(--ease), color var(--t-fast)
+		var(--ease);
+}
+.chip[aria-pressed="true"] {
+	background: var(--text);
+	border-color: var(--text);
+	color: var(--bg);
+}
+.count {
+	margin-left: 6px;
+	opacity: 0.6;
+	font-variant-numeric: tabular-nums;
+}
+
+.section {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 22px 4px 8px;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-3);
+}
+
+.list {
+	display: flex;
+	flex-direction: column;
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--r-l);
+	overflow: hidden;
+}
+
+.row {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 10px 4px 10px 14px;
+	min-height: 68px;
+	border-top: 1px solid var(--line);
+	animation: pw-rise var(--t-med) var(--ease-out) both;
+}
+.row:first-child {
+	border-top: none;
+}
+.rowMain {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	text-align: left;
+	align-self: stretch;
+}
+.row:hover {
+	background: var(--surface-2);
+}
+.rowText {
+	min-width: 0;
+	flex: 1;
+}
+.name {
+	display: block;
+	font-weight: 650;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.meta {
+	display: block;
+	font-size: 13px;
+	color: var(--text-3);
+	font-variant-numeric: tabular-nums;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.unavailable {
+	opacity: 0.6;
+}
+.warn {
+	color: var(--danger);
+}
+.pin {
+	color: var(--accent);
+	vertical-align: -2px;
+	margin-right: 4px;
+}
+
+.fab {
+	position: fixed;
+	right: calc(20px + var(--safe-right));
+	bottom: calc(20px + var(--safe-bottom));
+	z-index: 10;
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	height: 56px;
+	padding: 0 22px 0 18px;
+	border-radius: 18px;
+	background: var(--accent);
+	color: var(--on-accent);
+	font-weight: 700;
+	box-shadow: var(--shadow-2);
+	transition: transform var(--t-fast) var(--ease), background-color
+		var(--t-fast) var(--ease);
+}
+.fab:hover {
+	background: var(--accent-hover);
+}
+.fab:active {
+	transform: scale(0.96);
+}
+
+.empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 14px;
+	padding: 56px 16px 24px;
+}
+.tiles {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+.tiles > span:nth-child(odd) {
+	transform: translateY(6px);
+}
+.emptyTitle {
+	font-size: 22px;
+	font-weight: 800;
+	letter-spacing: -0.01em;
+}
+.emptyBody {
+	color: var(--text-2);
+	max-width: 340px;
+}
+.privacy {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 8px;
+	font-size: 13px;
+	color: var(--text-3);
+}
+.noMatch {
+	padding: 40px 16px;
+	text-align: center;
+	color: var(--text-2);
+}

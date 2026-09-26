@@ -187,11 +187,16 @@ function cellValue(cell: CellObject): {
 
 export function parseWorkbook(
 	XLSX: typeof XLSXNamespace,
-	data: ArrayBuffer,
+	data: ArrayBuffer | string,
 ): ParseResult {
 	let wb: WorkBook;
 	try {
-		wb = XLSX.read(data, { type: "array" });
+		// Text (CSV/TSV) arrives already decoded by the app so its
+		// encoding is detected once, consistently with the text viewer.
+		wb = XLSX.read(data, {
+			type: typeof data === "string" ? "string" : "array",
+			cellStyles: false,
+		});
 	} catch (e) {
 		return { ok: false, reason: "corrupt", detail: String(e) };
 	}

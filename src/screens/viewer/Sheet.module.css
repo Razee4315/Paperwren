@@ -1,0 +1,153 @@
+.scroller {
+	position: absolute;
+	inset: 0;
+	overflow: auto;
+	overscroll-behavior: contain;
+	background: var(--surface);
+	outline: none;
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+.surface {
+	position: relative;
+}
+.head {
+	position: sticky;
+	top: 0;
+	z-index: 3;
+	background: var(--surface-2);
+	border-bottom: 1px solid var(--line-strong);
+}
+.corner {
+	position: sticky;
+	left: 0;
+	z-index: 4;
+	height: 100%;
+	background: var(--surface-2);
+	border-right: 1px solid var(--line-strong);
+}
+.rail {
+	position: sticky;
+	left: 0;
+	z-index: 2;
+	background: var(--surface-2);
+	border-right: 1px solid var(--line-strong);
+}
+.colHead,
+.rowHead {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-3);
+	font-size: 12px;
+	font-weight: 600;
+	user-select: none;
+}
+.colHead {
+	top: 0;
+	height: 100%;
+	border-right: 1px solid var(--line);
+}
+.rowHead {
+	left: 0;
+	right: 0;
+	border-bottom: 1px solid var(--line);
+}
+.hot {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+.body {
+	position: absolute;
+}
+.cell {
+	position: absolute;
+	padding: 0 6px;
+	display: flex;
+	align-items: center;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	border-right: 1px solid var(--line);
+	border-bottom: 1px solid var(--line);
+	color: var(--text);
+	background: var(--surface);
+}
+.num {
+	justify-content: flex-end;
+}
+.merged {
+	white-space: normal;
+	justify-content: center;
+	text-align: center;
+	z-index: 1;
+}
+.selected {
+	position: absolute;
+	z-index: 2;
+	pointer-events: none;
+	border: 2px solid var(--accent);
+	background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.detail {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 48px;
+	padding: 4px calc(4px + var(--safe-right)) 4px calc(12px + var(--safe-left));
+	border-bottom: 1px solid var(--line);
+}
+.addr {
+	flex-shrink: 0;
+	min-width: 44px;
+	padding: 3px 8px;
+	border-radius: 6px;
+	background: var(--surface-2);
+	font-weight: 700;
+	font-size: 13px;
+	text-align: center;
+}
+.value {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.formula {
+	display: block;
+	font-family: var(--mono);
+	font-size: 12px;
+	color: var(--text-3);
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.tabs {
+	display: flex;
+	gap: 4px;
+	overflow-x: auto;
+	padding: 6px calc(8px + var(--safe-right)) 6px calc(8px + var(--safe-left));
+	scrollbar-width: none;
+}
+.tab {
+	flex-shrink: 0;
+	max-width: 200px;
+	height: 36px;
+	padding: 0 14px;
+	border-radius: var(--r-s);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--text-2);
+	font-weight: 600;
+	font-size: 14px;
+}
+.tab[aria-selected="true"] {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+.hiddenTab {
+	font-style: italic;
+	opacity: 0.7;
+}

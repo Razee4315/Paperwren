@@ -1,0 +1,130 @@
+.page {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: flex;
+	flex-direction: column;
+	background: var(--bg);
+	animation: pw-rise var(--t-med) var(--ease-out);
+}
+.bar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: calc(8px + var(--safe-top)) 8px 4px calc(4px + var(--safe-left));
+	min-height: calc(60px + var(--safe-top));
+}
+.title {
+	font-size: 20px;
+	font-weight: 800;
+}
+.scroll {
+	flex: 1;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+.column {
+	max-width: 640px;
+	margin: 0 auto;
+	padding: 4px calc(16px + var(--safe-right)) calc(40px + var(--safe-bottom))
+		calc(16px + var(--safe-left));
+}
+.group {
+	margin: 20px 4px 8px;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-3);
+}
+.card {
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--r-l);
+	overflow: hidden;
+}
+.card > * + * {
+	border-top: 1px solid var(--line);
+}
+.field {
+	padding: 14px 16px;
+}
+.label {
+	display: block;
+	margin-bottom: 10px;
+}
+.segmented {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: 1fr;
+	gap: 4px;
+	padding: 4px;
+	border-radius: var(--r-m);
+	background: var(--surface-2);
+}
+.segment {
+	min-height: 36px;
+	padding: 0 8px;
+	border-radius: 9px;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-2);
+	transition: background-color var(--t-fast) var(--ease);
+}
+.segment[aria-checked="true"] {
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: var(--shadow-1), 0 0 0 1px var(--line);
+}
+.action {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	min-height: 56px;
+	padding: 10px 16px;
+	text-align: left;
+}
+.action:hover:not(:disabled) {
+	background: var(--surface-2);
+}
+.action:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+.actionText {
+	flex: 1;
+}
+.hint {
+	display: block;
+	font-size: 13px;
+	color: var(--text-3);
+}
+.danger {
+	color: var(--danger);
+}
+.prose {
+	padding: 14px 16px;
+	color: var(--text-2);
+	font-size: 14px;
+}
+.prose p + p {
+	margin-top: 8px;
+}
+.licenses {
+	padding: 4px 16px 14px;
+	font-size: 13px;
+	color: var(--text-2);
+}
+.licenses li {
+	list-style: none;
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 6px 0;
+	border-bottom: 1px dashed var(--line);
+}
+.version {
+	font-variant-numeric: tabular-nums;
+	color: var(--text-3);
+}
