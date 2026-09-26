@@ -3,12 +3,12 @@ import { type FormatKind, KIND_LABEL, kindOf } from "@/lib/formats";
 import type { RecentEntry } from "@/lib/types";
 import { useRecents } from "@/state/recents";
 import {
-	Blobs,
 	EmptyScene,
 	FileBadge,
 	IconButton,
 	Sheet,
 	SheetItem,
+	Wren,
 	toast,
 } from "@/ui";
 import {
@@ -127,13 +127,12 @@ export function Home({
 	const pinned = visible.filter((e) => e.pinned);
 	const recent = visible.filter((e) => !e.pinned);
 
-	const row = (e: RecentEntry, i: number) => {
+	const row = (e: RecentEntry) => {
 		const ratio = e.position?.kind === "scroll" ? e.position.ratio : null;
 		return (
 			<div
 				key={e.id}
 				className={`${s.row} ${e.unavailable ? s.unavailable : ""}`}
-				style={{ animationDelay: `${Math.min(i, 12) * 45}ms` }}
 				data-testid="recent"
 			>
 				<button
@@ -181,19 +180,14 @@ export function Home({
 
 	return (
 		<div className={s.page} data-testid="home">
-			<Blobs />
 			<header className={s.bar}>
-				<img
-					className={s.logo}
-					src="/assets/icon.svg"
-					alt=""
-					width={38}
-					height={38}
-				/>
+				<span className={s.logo}>
+					<Wren size={30} />
+				</span>
 				<div className={s.brandCol}>
 					<span className={s.greeting}>{greeting()}</span>
 					<h1 className={s.brand}>
-						Paper<span className="grad-text">wren</span>
+						Paper<span className="brand-accent">wren</span>
 					</h1>
 				</div>
 				<IconButton
@@ -210,23 +204,16 @@ export function Home({
 					{ready && !hasAny && (
 						<div className={s.empty} data-testid="empty-state">
 							<EmptyScene />
-							<h2 className={s.emptyTitle}>
-								Open <span className="grad-text">any</span> document
-							</h2>
+							<h2 className={s.emptyTitle}>Open any document</h2>
 							<p className={s.emptyBody}>
 								Fast, private and offline. Everything you open shows up here.
 							</p>
 							<div className={s.formats}>
-								{SUPPORTED.map(([label, kind], i) => (
+								{SUPPORTED.map(([label, kind]) => (
 									<span
 										key={label}
 										className={s.fmt}
-										style={
-											{
-												"--c": KIND_COLOR[kind],
-												animationDelay: `${250 + i * 35}ms`,
-											} as CSSProperties
-										}
+										style={{ "--c": KIND_COLOR[kind] } as CSSProperties}
 									>
 										{label}
 									</span>
@@ -262,19 +249,14 @@ export function Home({
 								role="toolbar"
 								aria-label="Filter by type"
 							>
-								{FILTERS.filter((f) => f === "all" || counts[f]).map((f, i) => (
+								{FILTERS.filter((f) => f === "all" || counts[f]).map((f) => (
 									<button
 										type="button"
 										key={f}
 										className={s.chip}
 										aria-pressed={filter === f}
 										onClick={() => setFilter(f)}
-										style={
-											{
-												"--c": KIND_COLOR[f],
-												animationDelay: `${60 + i * 40}ms`,
-											} as CSSProperties
-										}
+										style={{ "--c": KIND_COLOR[f] } as CSSProperties}
 										data-testid={`filter-${f}`}
 									>
 										{f !== "all" && <span className={s.dot} />}
@@ -305,9 +287,7 @@ export function Home({
 									<h2 className={s.section}>
 										Recent <span className={s.bubble}>{recent.length}</span>
 									</h2>
-									<div className={s.list}>
-										{recent.map((e, i) => row(e, i + pinned.length))}
-									</div>
+									<div className={s.list}>{recent.map(row)}</div>
 								</>
 							)}
 						</>
@@ -321,7 +301,7 @@ export function Home({
 				onClick={onOpenFile}
 				data-testid="open-file"
 			>
-				<Plus size={22} strokeWidth={2.75} />
+				<Plus size={22} strokeWidth={2.5} />
 				Open file
 			</button>
 

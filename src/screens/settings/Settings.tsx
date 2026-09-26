@@ -3,16 +3,7 @@ import type { PdfZoom } from "@/lib/types";
 import { useNav } from "@/state/navigation";
 import { useRecents } from "@/state/recents";
 import { useSettings } from "@/state/settings";
-import {
-	AccentPicker,
-	Blobs,
-	Button,
-	Dialog,
-	IconButton,
-	Switch,
-	ThemePicker,
-	toast,
-} from "@/ui";
+import { Button, Dialog, IconButton, Switch, ThemePicker, toast } from "@/ui";
 import {
 	ArrowLeft,
 	BookOpen,
@@ -131,7 +122,6 @@ export function SettingsScreen() {
 
 	return (
 		<div className={s.page} data-testid="settings">
-			<Blobs />
 			<header className={s.bar}>
 				<IconButton label="Back" onClick={back} data-testid="settings-back">
 					<ArrowLeft size={22} />
@@ -143,14 +133,11 @@ export function SettingsScreen() {
 					<Group icon={<Palette size={15} />}>Appearance</Group>
 					<div className={s.card}>
 						<div className={s.field}>
-							<span className={s.label}>Colour</span>
-							<AccentPicker
-								value={settings.accent}
-								onChange={(v) => update("accent", v)}
-							/>
-						</div>
-						<div className={s.field}>
 							<span className={s.label}>Theme</span>
+							<span className={s.fieldHint}>
+								Each theme has its own calm colour. Auto follows your phone:
+								Paper by day, Ink at night.
+							</span>
 							<ThemePicker
 								value={settings.theme}
 								onChange={(v) => update("theme", v)}
@@ -179,7 +166,7 @@ export function SettingsScreen() {
 						/>
 						<Switch
 							label="Dark pages"
-							hint="Invert PDF pages in dark themes for night reading"
+							hint="Invert PDF pages in the Ink theme for night reading"
 							checked={settings.darkPages}
 							onChange={(v) => update("darkPages", v)}
 							testId="dark-pages"

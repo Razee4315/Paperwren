@@ -5,7 +5,7 @@
 	inset: 0;
 	background: var(--scrim);
 	z-index: 100;
-	animation: pw-fade-in var(--t-med) var(--ease);
+	animation: pw-fade-in var(--t-fast) var(--ease);
 }
 
 .sheet {
@@ -21,13 +21,12 @@
 	flex-direction: column;
 	background: var(--surface);
 	border-radius: var(--r-xl) var(--r-xl) 0 0;
-	box-shadow: var(--shadow-3);
+	border: 1px solid var(--line);
+	border-bottom: none;
 	padding-bottom: var(--safe-bottom);
-	animation: pw-sheet-up var(--t-slow) var(--spring);
+	animation: pw-sheet-up var(--t-slow) var(--ease);
 	outline: none;
 	touch-action: pan-y;
-	backdrop-filter: var(--glass);
-	-webkit-backdrop-filter: var(--glass);
 }
 .handle {
 	width: 36px;
@@ -76,12 +75,10 @@
 	max-width: 400px;
 	background: var(--surface);
 	border-radius: var(--r-xl);
-	box-shadow: var(--shadow-3);
+	border: 1px solid var(--line);
 	padding: 24px 24px 16px;
 	text-align: center;
-	animation: pw-pop var(--t-slow) var(--spring);
-	backdrop-filter: var(--glass);
-	-webkit-backdrop-filter: var(--glass);
+	animation: pw-rise var(--t-med) var(--ease);
 }
 .dialogTitle {
 	font-size: 19px;
@@ -115,23 +112,8 @@
 	text-align: left;
 	color: var(--text);
 }
-.item {
-	transition: transform var(--t-med) var(--spring);
-	animation: pw-rise var(--t-med) var(--ease-out) both;
-}
-.item:nth-child(2) {
-	animation-delay: 40ms;
-}
-.item:nth-child(3) {
-	animation-delay: 80ms;
-}
-.item:nth-child(4) {
-	animation-delay: 120ms;
-}
+.item:hover:not(:disabled),
 .item:active:not(:disabled) {
-	transform: scale(0.98);
-}
-.item:hover:not(:disabled) {
 	background: var(--surface-2);
 }
 .item:disabled {
@@ -171,18 +153,12 @@
 	border-radius: var(--r-m);
 	background: var(--text);
 	color: var(--bg);
-	box-shadow: var(--shadow-3);
 	font-size: 14px;
 	font-weight: 600;
-	animation: pw-toast var(--t-slow) var(--spring);
+	animation: pw-rise var(--t-med) var(--ease);
 }
 .toast span {
 	flex: 1;
-}
-@keyframes pw-toast {
-	from {
-		transform: translateY(24px) scale(0.9);
-	}
 }
 .toastAction {
 	font-weight: 800;

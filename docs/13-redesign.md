@@ -63,3 +63,25 @@ this document and the code are authoritative.
   persist across reloads, search/filter/pin/remove, PDF paging, zoom and
   find, Word find, slides, theme persistence, Back ordering, and error
   states (unsupported, damaged).
+
+## v0.11 · Flat, calm themes
+
+The v0.10 look (gradient accents, glass blur, drifting blobs, confetti,
+eight themes x five accents) was replaced with a flat system:
+
+- Three themes, each with its own accent: Paper (`light`), Sand
+  (`sepia`) and Ink (`dark`), plus Auto. Theme ids are unchanged so
+  stored settings keep working; retired themes are folded in by
+  `normalizeSettings` (black/aurora to Ink, paper/glass to Paper) and
+  the accent setting is dropped.
+- No gradients, backdrop blur or drop shadows; "shadow" tokens are
+  hairline rings. Motion is short, one-shot and without overshoot; the
+  loading bar is the only loop.
+- Page backgrounds carry a per-theme texture (paper fibre, sand grain,
+  ink splatter) as `--page-bg`, generated as inline SVG
+  (`feTurbulence` noise, seeded splatter circles). Reading surfaces
+  (`--canvas`, cards, the text viewer) stay plain.
+- The mascot is a flat wren defined once as path data (`WREN` in
+  `src/ui/Art.tsx`); `scripts/export-assets.tsx` places the same
+  geometry into the launcher icon (cream wren on a #2B6E66 tile), the
+  Android adaptive foreground and the favicon.

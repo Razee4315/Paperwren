@@ -20,17 +20,14 @@
 	min-height: calc(64px + var(--safe-top));
 }
 .logo {
-	width: 38px;
-	height: 38px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	flex-shrink: 0;
 	border-radius: 12px;
-	box-shadow: 0 0 0 1px var(--line), 0 6px 16px
-		color-mix(in srgb, var(--grad-b) 25%, transparent);
-	animation: pw-logo 900ms var(--spring) both;
-}
-@keyframes pw-logo {
-	from {
-		transform: scale(0.4) rotate(-20deg);
-	}
+	background: var(--accent-soft);
 }
 .brandCol {
 	flex: 1;
@@ -69,22 +66,16 @@
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	height: 50px;
+	height: 48px;
 	padding: 0 6px 0 16px;
-	border-radius: 16px;
-	background: color-mix(in srgb, var(--surface) 88%, transparent);
-	backdrop-filter: var(--glass);
-	-webkit-backdrop-filter: var(--glass);
+	border-radius: var(--r-m);
+	background: var(--surface);
 	border: 1px solid var(--line);
 	color: var(--text-3);
-	box-shadow: var(--shadow-1);
-	transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-med)
-		var(--ease);
-	animation: pw-rise var(--t-slow) var(--ease-out) both;
+	transition: border-color var(--t-fast) var(--ease);
 }
 .search:focus-within {
 	border-color: var(--accent);
-	box-shadow: 0 0 0 4px var(--accent-soft);
 	color: var(--accent);
 }
 .search input {
@@ -113,7 +104,7 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 7px;
-	height: 36px;
+	height: 34px;
 	padding: 0 14px;
 	border-radius: 999px;
 	border: 1px solid var(--line);
@@ -121,28 +112,22 @@
 	color: var(--text-2);
 	font-size: 14px;
 	font-weight: 700;
-	transition: transform var(--t-med) var(--spring), color var(--t-fast)
+	transition: background-color var(--t-fast) var(--ease), color var(--t-fast)
 		var(--ease);
-	animation: pw-rise var(--t-slow) var(--ease-out) both;
-}
-.chip:active {
-	transform: scale(0.92);
 }
 .chip[aria-pressed="true"] {
-	background: var(--grad);
-	border-color: transparent;
-	color: #fff;
-	box-shadow: 0 4px 14px color-mix(in srgb, var(--grad-b) 30%, transparent);
-	animation: pw-pop var(--t-slow) var(--spring);
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--on-accent);
 }
 .dot {
 	width: 8px;
 	height: 8px;
-	border-radius: 999px;
+	border-radius: 2px;
 	background: var(--c);
 }
 .chip[aria-pressed="true"] .dot {
-	background: #fff;
+	background: var(--on-accent);
 }
 .count {
 	opacity: 0.6;
@@ -154,9 +139,9 @@
 	align-items: center;
 	gap: 8px;
 	margin: 24px 4px 10px;
-	font-size: 13px;
+	font-size: 12px;
 	font-weight: 800;
-	letter-spacing: 0.05em;
+	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var(--text-3);
 }
@@ -170,37 +155,30 @@
 	color: var(--text-2);
 }
 
+/* One flat card per section; rows are divided by hairlines. */
 .list {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	border-radius: var(--r-l);
+	background: var(--surface);
+	border: 1px solid var(--line);
+	overflow: hidden;
 }
 
 .row {
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	padding: 8px 4px 8px 10px;
-	min-height: 72px;
-	border-radius: 18px;
-	background: var(--surface);
-	border: 1px solid var(--line);
-	box-shadow: var(--shadow-1);
-	transition: transform var(--t-med) var(--spring), box-shadow var(--t-med)
-		var(--ease);
-	animation: pw-row var(--t-slow) var(--ease-out) both;
+	padding: 8px 4px 8px 12px;
+	min-height: 70px;
+	transition: background-color var(--t-fast) var(--ease);
 }
-@keyframes pw-row {
-	from {
-		opacity: 0;
-		transform: translateY(14px) scale(0.98);
-	}
+.row + .row {
+	border-top: 1px solid var(--line);
 }
+.row:hover,
 .row:active {
-	transform: scale(0.98);
-}
-.row:hover {
-	box-shadow: var(--shadow-2);
+	background: var(--surface-2);
 }
 .rowMain {
 	flex: 1;
@@ -210,13 +188,6 @@
 	gap: 14px;
 	text-align: left;
 	align-self: stretch;
-}
-.rowMain > span:first-child {
-	transition: transform var(--t-med) var(--spring);
-}
-.row:hover .rowMain > span:first-child,
-.row:active .rowMain > span:first-child {
-	transform: rotate(-6deg) scale(1.05);
 }
 .rowText {
 	min-width: 0;
@@ -251,7 +222,7 @@
 	display: block;
 	height: 100%;
 	border-radius: inherit;
-	background: var(--grad);
+	background: var(--accent);
 }
 .unavailable {
 	opacity: 0.6;
@@ -273,50 +244,18 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 10px;
-	height: 58px;
-	padding: 0 24px 0 18px;
-	border-radius: 20px;
-	overflow: hidden;
-	background: var(--grad);
-	color: #fff;
+	height: 56px;
+	padding: 0 22px 0 18px;
+	border-radius: 16px;
+	background: var(--accent);
+	color: var(--on-accent);
 	font-weight: 800;
 	font-size: 16px;
-	box-shadow: 0 12px 30px color-mix(in srgb, var(--grad-b) 40%, transparent);
-	transition: transform var(--t-med) var(--spring);
-	animation: pw-fab 700ms var(--spring) 150ms both;
+	transition: background-color var(--t-fast) var(--ease);
 }
-@keyframes pw-fab {
-	from {
-		transform: translateY(90px) scale(0.7);
-	}
-}
-:global([data-accent="mono"][data-theme="dark"]) .fab,
-:global([data-accent="mono"][data-theme="black"]) .fab {
-	color: #09090b;
-}
-.fab::after {
-	content: "";
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	width: 40%;
-	background: linear-gradient(
-		90deg,
-		transparent,
-		rgba(255, 255, 255, 0.35),
-		transparent
-	);
-	animation: pw-shimmer 4.5s ease-in-out infinite;
-}
-.fab svg {
-	transition: transform var(--t-slow) var(--spring);
-}
+.fab:hover,
 .fab:active {
-	transform: scale(0.93);
-}
-.fab:active svg,
-.fab:hover svg {
-	transform: rotate(90deg);
+	background: var(--accent-hover);
 }
 
 .empty {
@@ -328,16 +267,14 @@
 	padding: 20px 8px 24px;
 }
 .emptyTitle {
-	font-size: 28px;
+	font-size: 26px;
 	font-weight: 800;
 	letter-spacing: -0.03em;
 	line-height: 1.15;
-	animation: pw-rise var(--t-slow) var(--ease-out) 100ms both;
 }
 .emptyBody {
 	color: var(--text-2);
 	max-width: 320px;
-	animation: pw-rise var(--t-slow) var(--ease-out) 180ms both;
 }
 .formats {
 	display: flex;
@@ -348,14 +285,13 @@
 	margin-top: 4px;
 }
 .fmt {
-	padding: 4px 10px;
-	border-radius: 999px;
+	padding: 3px 9px;
+	border-radius: 6px;
 	font-size: 12px;
 	font-weight: 800;
 	letter-spacing: 0.03em;
 	color: var(--c);
-	background: color-mix(in srgb, var(--c) 13%, var(--surface));
-	animation: pw-pop var(--t-slow) var(--spring) both;
+	background: color-mix(in srgb, var(--c) 12%, var(--surface));
 }
 .privacy {
 	display: flex;
@@ -369,7 +305,6 @@
 	font-size: 13px;
 	font-weight: 600;
 	color: var(--text-2);
-	animation: pw-rise var(--t-slow) var(--ease-out) 500ms both;
 }
 .privacy svg {
 	color: var(--success);

@@ -1,127 +1,61 @@
 import type { FileFormat } from "@/lib/formats";
 import { useBackClose } from "@/state/navigation";
 import { useSettings } from "@/state/settings";
-import { AccentPicker, Blobs, FileIcon, ThemePicker, Wren } from "@/ui";
-import { ArrowRight, Sparkles } from "lucide-react";
-import {
-	type CSSProperties,
-	useCallback,
-	useEffect,
-	useRef,
-	useState,
-} from "react";
+import { FileIcon, ThemePicker, Wren } from "@/ui";
+import { ArrowRight, Check, CloudOff, Lock, UserX } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import s from "./Onboarding.module.css";
 
-const ORBIT: FileFormat[] = [
+const GRID: FileFormat[] = [
 	"pdf",
 	"docx",
 	"xlsx",
 	"pptx",
-	"md",
-	"csv",
 	"odt",
+	"csv",
+	"md",
 	"txt",
 ];
 
 function HelloScene() {
 	return (
-		<div className={s.hello}>
-			<Wren size={220} />
-			<span className={s.bubble}>Hi! I'm Wren 👋</span>
+		<div className={s.disc}>
+			<Wren size={168} />
 		</div>
 	);
 }
 
 function FormatsScene() {
 	return (
-		<div className={s.orbit}>
-			<span className={s.ring} />
-			<div className={s.spinner}>
-				{ORBIT.map((f, i) => (
-					<span
-						key={f}
-						className={s.sat}
-						style={{ "--a": `${(360 / ORBIT.length) * i}deg` } as CSSProperties}
-					>
-						<span>
-							<span
-								className={s.pop}
-								style={{ "--d": `${120 + i * 70}ms` } as CSSProperties}
-							>
-								<FileIcon format={f} size={48} />
-							</span>
-						</span>
-					</span>
-				))}
-			</div>
-			<div className={s.core}>
-				<Wren size={96} animate={false} />
-			</div>
+		<div className={s.grid}>
+			{GRID.map((f) => (
+				<span key={f} className={s.cell}>
+					<FileIcon format={f} size={44} />
+				</span>
+			))}
 		</div>
 	);
 }
 
 function PrivacyScene() {
 	return (
-		<div className={s.shieldWrap}>
-			<span className={s.pulse} />
-			<span className={s.pulse} />
-			<span className={s.pulse} />
-			<svg className={s.shield} viewBox="0 0 130 150" aria-hidden="true">
-				<defs>
-					<linearGradient id="ob-shield" x1="0" y1="0" x2="1" y2="1">
-						<stop offset="0" style={{ stopColor: "var(--grad-a)" }} />
-						<stop offset="0.55" style={{ stopColor: "var(--grad-b)" }} />
-						<stop offset="1" style={{ stopColor: "var(--grad-c)" }} />
-					</linearGradient>
-				</defs>
-				<path
-					d="M65 4 L120 24 V70 C120 108 94 134 65 146 C36 134 10 108 10 70 V24 Z"
-					fill="url(#ob-shield)"
-				/>
-				<path
-					d="M65 4 L120 24 V70 C120 108 94 134 65 146 Z"
-					fill="#fff"
-					opacity="0.14"
-				/>
-				<path
-					className={s.lockShackle}
-					d="M50 70 V58 a15 15 0 0 1 30 0 V70"
-					fill="none"
-					stroke="#fff"
-					strokeWidth="7"
-					strokeLinecap="round"
-				/>
-				<rect x="42" y="68" width="46" height="36" rx="8" fill="#fff" />
-				<circle cx="65" cy="84" r="5" fill="var(--grad-b)" />
-				<rect x="63" y="86" width="4" height="9" rx="2" fill="var(--grad-b)" />
-			</svg>
-			<svg className={s.cloud} viewBox="0 0 70 50" aria-hidden="true">
-				<path
-					d="M18 40 a12 12 0 0 1 2 -24 a16 16 0 0 1 30 4 a10 10 0 0 1 2 20 Z"
-					fill="var(--surface)"
-					stroke="var(--line-strong)"
-					strokeWidth="2"
-				/>
-				<path
-					className={s.slash}
-					d="M10 6 L60 46"
-					stroke="var(--danger)"
-					strokeWidth="4"
-					strokeLinecap="round"
-				/>
-			</svg>
-			<div className={s.tags}>
-				{["No ads", "No accounts", "Offline"].map((t, i) => (
-					<span
-						key={t}
-						className={s.tag}
-						style={{ animationDelay: `${500 + i * 120}ms` }}
-					>
-						{t}
-					</span>
-				))}
+		<div className={s.privacy}>
+			<div className={s.disc}>
+				<span className={s.lock}>
+					<Lock size={64} strokeWidth={1.75} />
+				</span>
 			</div>
+			<ul className={s.tags}>
+				<li>
+					<CloudOff size={16} /> Offline
+				</li>
+				<li>
+					<UserX size={16} /> No accounts
+				</li>
+				<li>
+					<Check size={16} /> No ads
+				</li>
+			</ul>
 		</div>
 	);
 }
@@ -129,142 +63,56 @@ function PrivacyScene() {
 function CustomizeScene() {
 	const { settings, update } = useSettings();
 	return (
-		<div className={s.customize}>
-			<div className={s.panel}>
-				<span className={s.panelLabel}>Theme</span>
-				<ThemePicker
-					value={settings.theme}
-					onChange={(v) => update("theme", v)}
-				/>
-			</div>
-			<div className={s.panel}>
-				<span className={s.panelLabel}>Colour</span>
-				<AccentPicker
-					value={settings.accent}
-					onChange={(v) => update("accent", v)}
-				/>
-			</div>
+		<div className={s.panel}>
+			<ThemePicker
+				value={settings.theme}
+				onChange={(v) => update("theme", v)}
+			/>
 		</div>
 	);
 }
 
 const STEPS = [
 	{
-		title: (
-			<>
-				Meet <span className="grad-text">Paperwren</span>
-			</>
-		),
-		body: "The tiny, fast way to open every document on your phone.",
+		title: "Meet Paperwren",
+		body: "The small, quiet way to open every document on your phone.",
 		Scene: HelloScene,
 	},
 	{
-		title: (
-			<>
-				Opens <span className="grad-text">everything</span>
-			</>
-		),
+		title: "Opens everything",
 		body: "PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text. Even old .doc and .ppt files.",
 		Scene: FormatsScene,
 	},
 	{
-		title: (
-			<>
-				Private <span className="grad-text">by design</span>
-			</>
-		),
+		title: "Private by design",
 		body: "No internet, no accounts, no ads. Your files never leave your phone.",
 		Scene: PrivacyScene,
 	},
 	{
-		title: (
-			<>
-				Make it <span className="grad-text">yours</span>
-			</>
-		),
-		body: "Pick a look. You can change it any time in Settings.",
+		title: "Pick a look",
+		body: "Paper, Sand or Ink, all easy on the eyes. Change it any time in Settings.",
 		Scene: CustomizeScene,
 	},
 ];
 
-const CONFETTI_COLORS = [
-	"var(--grad-a)",
-	"var(--grad-b)",
-	"var(--grad-c)",
-	"var(--fmt-doc)",
-	"var(--fmt-sheet)",
-	"var(--fmt-slides)",
-];
-
-function Confetti() {
-	// Stable per mount; 42 pieces thrown in a fan.
-	const pieces = useRef(
-		Array.from({ length: 42 }, (_, i) => {
-			const angle = Math.PI * (i / 41) + Math.PI; // upper half-circle
-			const dist = 160 + Math.random() * 220;
-			return {
-				x: `${Math.cos(angle) * dist}px`,
-				y: `${Math.sin(angle) * dist + 240}px`,
-				r: `${Math.round(Math.random() * 720 - 360)}deg`,
-				c: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-				d: `${Math.round(Math.random() * 120)}ms`,
-			};
-		}),
-	).current;
-	return (
-		<div className={s.confetti} aria-hidden="true">
-			{pieces.map((p, i) => (
-				<i
-					key={i}
-					style={
-						{
-							"--x": p.x,
-							"--y": p.y,
-							"--r": p.r,
-							"--c": p.c,
-							"--d": p.d,
-						} as CSSProperties
-					}
-				/>
-			))}
-		</div>
-	);
-}
-
 /** First-run welcome. Swipe, tap Next, or skip; Back steps back. */
 export default function Onboarding({ onDone }: { onDone: () => void }) {
 	const [step, setStep] = useState(0);
-	const [dir, setDir] = useState(1);
-	const [leaving, setLeaving] = useState(false);
-	const [party, setParty] = useState(false);
 	const drag = useRef<{ x: number; y: number } | null>(null);
 	const last = step === STEPS.length - 1;
 
 	const go = useCallback((to: number) => {
-		setStep((cur) => {
-			const next = Math.max(0, Math.min(STEPS.length - 1, to));
-			setDir(next >= cur ? 1 : -1);
-			return next;
-		});
+		setStep(Math.max(0, Math.min(STEPS.length - 1, to)));
 	}, []);
 
 	const done = useRef(false);
-	const finish = useCallback(
-		(celebrate: boolean) => {
-			if (done.current) return;
-			done.current = true;
-			// Confetti first, then the whole welcome slides up to Home.
-			const lift = celebrate ? 650 : 0;
-			if (celebrate) setParty(true);
-			window.setTimeout(() => setLeaving(true), lift);
-			window.setTimeout(onDone, lift + 500);
-		},
-		[onDone],
-	);
+	const finish = useCallback(() => {
+		if (done.current) return;
+		done.current = true;
+		onDone();
+	}, [onDone]);
 
-	useBackClose("onboarding-step", step > 0 && !party && !leaving, () =>
-		go(step - 1),
-	);
+	useBackClose("onboarding-step", step > 0, () => go(step - 1));
 
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
@@ -279,7 +127,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 
 	return (
 		<div
-			className={`${s.root} ${leaving ? s.leaving : ""}`}
+			className={s.root}
 			data-testid="onboarding"
 			onPointerDown={(e) => {
 				drag.current = { x: e.clientX, y: e.clientY };
@@ -293,13 +141,12 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 					go(step + (dx < 0 ? 1 : -1));
 			}}
 		>
-			<Blobs />
 			<div className={s.top}>
 				{!last && (
 					<button
 						type="button"
 						className={s.skip}
-						onClick={() => finish(false)}
+						onClick={finish}
 						data-testid="onboarding-skip"
 					>
 						Skip
@@ -307,11 +154,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 				)}
 			</div>
 			<div className={s.stage}>
-				<div
-					key={step}
-					className={s.scene}
-					style={{ "--dir": dir } as CSSProperties}
-				>
+				<div key={step} className={s.scene}>
 					<Scene />
 				</div>
 			</div>
@@ -336,21 +179,12 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 				<button
 					type="button"
 					className={s.next}
-					onClick={() => (last ? finish(true) : go(step + 1))}
+					onClick={() => (last ? finish() : go(step + 1))}
 					data-testid="onboarding-next"
 				>
-					{last ? (
-						<>
-							Let's go <Sparkles size={20} />
-						</>
-					) : (
-						<>
-							Next <ArrowRight size={20} />
-						</>
-					)}
+					{last ? "Start reading" : "Next"} <ArrowRight size={20} />
 				</button>
 			</div>
-			{party && <Confetti />}
 		</div>
 	);
 }

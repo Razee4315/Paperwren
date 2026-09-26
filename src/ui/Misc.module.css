@@ -3,7 +3,6 @@
 .badge {
 	display: inline-flex;
 	flex-shrink: 0;
-	transition: transform var(--t-med) var(--spring);
 }
 
 .switchRow {
@@ -43,21 +42,14 @@
 	height: 22px;
 	border-radius: 999px;
 	background: var(--surface);
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-	transition: transform var(--t-med) var(--spring);
+	transition: transform var(--t-med) var(--ease);
 }
 .on {
-	background: var(--grad);
+	background: var(--accent);
 }
 .on::after {
 	transform: translateX(18px);
-	background: #fff;
-}
-.switchRow:active .track::after {
-	width: 26px;
-}
-.switchRow:active .on::after {
-	transform: translateX(14px);
+	background: var(--on-accent);
 }
 
 .spinner {

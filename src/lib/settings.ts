@@ -1,5 +1,4 @@
 import {
-	type Accent,
 	DEFAULT_SETTINGS,
 	type PdfZoom,
 	type ResolvedTheme,
@@ -7,21 +6,19 @@ import {
 	type ThemeSetting,
 } from "./types";
 
-export const THEMES: ThemeSetting[] = [
-	"system",
-	"light",
-	"dark",
-	"black",
-	"paper",
-	"sepia",
-	"glass",
-	"aurora",
-];
+export const THEMES: ThemeSetting[] = ["system", "light", "sepia", "dark"];
+
+/** Themes from v0.10 folded into the three that remain. */
+const RETIRED_THEMES: Record<string, ResolvedTheme> = {
+	black: "dark",
+	aurora: "dark",
+	paper: "light",
+	glass: "light",
+};
 
 export function isDarkTheme(theme: ResolvedTheme): boolean {
-	return theme === "dark" || theme === "black" || theme === "aurora";
+	return theme === "dark";
 }
-export const ACCENTS: Accent[] = ["sunset", "ocean", "forest", "berry", "mono"];
 const ZOOMS: PdfZoom[] = ["page-width", "page-fit", "auto"];
 const LIMITS = [20, 50, 100, 500];
 
@@ -35,8 +32,11 @@ export function normalizeSettings(value: unknown): Settings {
 	const bool = (v: unknown, fallback: boolean) =>
 		typeof v === "boolean" ? v : fallback;
 	return {
-		theme: pick(raw.theme, THEMES, DEFAULT_SETTINGS.theme),
-		accent: pick(raw.accent, ACCENTS, DEFAULT_SETTINGS.accent),
+		theme: pick(
+			RETIRED_THEMES[raw.theme as string] ?? raw.theme,
+			THEMES,
+			DEFAULT_SETTINGS.theme,
+		),
 		pdfZoom: pick(raw.pdfZoom, ZOOMS, DEFAULT_SETTINGS.pdfZoom),
 		rememberPosition: bool(
 			raw.rememberPosition,
@@ -54,15 +54,15 @@ export function migrateLegacySettings(value: unknown): Settings {
 	if (!value || typeof value !== "object") return { ...DEFAULT_SETTINGS };
 	const raw = value as Record<string, unknown>;
 	const legacyTheme = raw["appearance.theme"];
-	const pureBlack = raw["appearance.pure_black"] === true;
 	let theme: ThemeSetting = "system";
-	if (legacyTheme === "light" || legacyTheme === "sepia") theme = "light";
+	if (legacyTheme === "light") theme = "light";
+	else if (legacyTheme === "sepia") theme = "sepia";
 	else if (
 		legacyTheme === "dark" ||
 		legacyTheme === "moss" ||
 		legacyTheme === "slate"
 	)
-		theme = pureBlack ? "black" : "dark";
+		theme = "dark";
 	const zoom = raw["viewer.zoom_mode_pdf"];
 	const limit = raw["files.recents_limit"];
 	return normalizeSettings({

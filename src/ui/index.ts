@@ -8,6 +8,6 @@ export {
 	Switch,
 	formatColor,
 } from "./Misc";
-export { Blobs, EmptyScene, ErrorArt, PageLoader, Wren } from "./Art";
+export { EmptyScene, ErrorArt, PageLoader, Wren } from "./Art";
 export { FileIcon } from "./FileIcon";
-export { AccentPicker, ThemePicker } from "./Pickers";
+export { ThemePicker } from "./Pickers";

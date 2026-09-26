@@ -27,19 +27,28 @@ describe("settings", () => {
 				"files.save_recents": false,
 			}),
 		).toMatchObject({
-			theme: "black",
+			theme: "dark",
 			pdfZoom: "page-fit",
 			recentsLimit: 500,
 			keepRecents: false,
 		});
 		expect(migrateLegacySettings({ "appearance.theme": "sepia" }).theme).toBe(
-			"light",
+			"sepia",
 		);
+	});
+
+	it("folds retired v0.10 themes into the remaining three", () => {
+		expect(normalizeSettings({ theme: "black" }).theme).toBe("dark");
+		expect(normalizeSettings({ theme: "aurora" }).theme).toBe("dark");
+		expect(normalizeSettings({ theme: "paper" }).theme).toBe("light");
+		expect(normalizeSettings({ theme: "glass" }).theme).toBe("light");
+		expect(normalizeSettings({ theme: "sepia" }).theme).toBe("sepia");
+		expect(normalizeSettings({ accent: "ocean" })).toEqual(DEFAULT_SETTINGS);
 	});
 
 	it("resolves the system theme", () => {
 		expect(resolveTheme("system", true)).toBe("dark");
 		expect(resolveTheme("system", false)).toBe("light");
-		expect(resolveTheme("black", false)).toBe("black");
+		expect(resolveTheme("sepia", true)).toBe("sepia");
 	});
 });
