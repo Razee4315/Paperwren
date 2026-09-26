@@ -1,8 +1,11 @@
 /*
- * Paperwren design tokens. One accent, neutral surfaces, format
- * colours that match what people already associate with each file
- * type. Themes are a single attribute on <html>: data-theme =
- * light | dark | black. Components only ever read variables.
+ * Paperwren design tokens.
+ *
+ * Minimal surfaces, one expressive signature: a three-stop gradient
+ * (--grad) that the user picks in Settings (data-accent), plus vivid
+ * format colours people already associate with each file type.
+ * Themes are one attribute on <html>: data-theme = light | dark | black.
+ * Components only ever read variables.
  */
 
 :root {
@@ -13,13 +16,15 @@
 
 	--r-s: 8px;
 	--r-m: 12px;
-	--r-l: 16px;
-	--r-xl: 24px;
+	--r-l: 18px;
+	--r-xl: 26px;
 
 	--ease: cubic-bezier(0.2, 0, 0, 1);
 	--ease-out: cubic-bezier(0.05, 0.7, 0.1, 1);
+	--spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 	--t-fast: 140ms;
-	--t-med: 220ms;
+	--t-med: 240ms;
+	--t-slow: 420ms;
 
 	--safe-top: env(safe-area-inset-top, 0px);
 	--safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -28,90 +33,175 @@
 
 	--bar-h: 56px;
 	--content-max: 720px;
+
+	--grad: linear-gradient(
+		135deg,
+		var(--grad-a) 0%,
+		var(--grad-b) 55%,
+		var(--grad-c) 100%
+	);
 }
+
+/* ---------- Neutral themes ---------- */
 
 :root,
 :root[data-theme="light"] {
 	color-scheme: light;
-	--bg: #f6f6f4;
+	--bg: #f7f6f3;
 	--surface: #ffffff;
-	--surface-2: #f0f0ed;
-	--surface-3: #e6e6e2;
-	--line: #e3e3de;
-	--line-strong: #cfcfc9;
+	--surface-2: #f1efeb;
+	--surface-3: #e7e4de;
+	--line: #e8e5df;
+	--line-strong: #d3cfc7;
 
-	--text: #18181b;
-	--text-2: #52525b;
-	--text-3: #8a8a93;
+	--text: #17161c;
+	--text-2: #55535e;
+	--text-3: #8d8a96;
 
-	--accent: #c2410c;
-	--accent-hover: #a8380a;
-	--accent-soft: #fdeee6;
-	--on-accent: #ffffff;
+	--danger: #d92d20;
+	--success: #079455;
+	--highlight: rgba(253, 224, 71, 0.55);
+	--highlight-active: rgba(251, 146, 60, 0.6);
 
-	--danger: #c62828;
-	--success: #2e7d32;
-	--highlight: rgba(250, 204, 21, 0.45);
-	--highlight-active: rgba(249, 115, 22, 0.55);
+	--fmt-pdf: #f0443a;
+	--fmt-doc: #2f6bff;
+	--fmt-sheet: #0ea561;
+	--fmt-slides: #f59109;
+	--fmt-text: #7a6ff0;
 
-	--fmt-pdf: #d93025;
-	--fmt-doc: #2b6cd4;
-	--fmt-sheet: #1f8a4c;
-	--fmt-slides: #d9661f;
-	--fmt-text: #6b7280;
-
-	--shadow-1: 0 1px 2px rgba(16, 16, 20, 0.06), 0 1px 3px rgba(16, 16, 20, 0.05);
-	--shadow-2: 0 4px 16px rgba(16, 16, 20, 0.1), 0 1px 3px rgba(16, 16, 20, 0.06);
-	--shadow-3: 0 12px 40px rgba(16, 16, 20, 0.18);
-	--scrim: rgba(12, 12, 14, 0.42);
-	--canvas: #e9e9e5;
+	--shadow-1: 0 1px 2px rgba(23, 22, 28, 0.05), 0 1px 3px rgba(23, 22, 28, 0.04);
+	--shadow-2: 0 6px 20px rgba(23, 22, 28, 0.08), 0 1px 3px
+		rgba(23, 22, 28, 0.05);
+	--shadow-3: 0 18px 50px rgba(23, 22, 28, 0.18);
+	--scrim: rgba(18, 16, 24, 0.4);
+	--canvas: #ebe9e4;
+	--blob-opacity: 0.22;
 }
 
 :root[data-theme="dark"],
 :root[data-theme="black"] {
 	color-scheme: dark;
-	--bg: #121214;
-	--surface: #1b1b1f;
-	--surface-2: #242429;
-	--surface-3: #2e2e34;
-	--line: #2c2c32;
-	--line-strong: #3b3b43;
+	--bg: #111015;
+	--surface: #1a1920;
+	--surface-2: #23222a;
+	--surface-3: #2d2c35;
+	--line: #2a2931;
+	--line-strong: #3a3942;
 
-	--text: #f1f1f3;
-	--text-2: #b4b4bd;
-	--text-3: #7c7c86;
+	--text: #f3f2f7;
+	--text-2: #b7b5c2;
+	--text-3: #7f7d8a;
 
-	--accent: #fb8a5a;
-	--accent-hover: #fda47e;
-	--accent-soft: #3a2218;
-	--on-accent: #1a0d07;
-
-	--danger: #f28b82;
-	--success: #81c995;
+	--danger: #f97066;
+	--success: #47cd89;
 	--highlight: rgba(250, 204, 21, 0.4);
-	--highlight-active: rgba(249, 115, 22, 0.6);
+	--highlight-active: rgba(251, 146, 60, 0.6);
 
-	--fmt-pdf: #f28b82;
-	--fmt-doc: #8ab4f8;
-	--fmt-sheet: #81c995;
-	--fmt-slides: #fbbc6a;
-	--fmt-text: #a1a1aa;
+	--fmt-pdf: #ff6b61;
+	--fmt-doc: #6b9bff;
+	--fmt-sheet: #3ccb7f;
+	--fmt-slides: #fdb022;
+	--fmt-text: #a59cff;
 
 	--shadow-1: none;
-	--shadow-2: 0 4px 16px rgba(0, 0, 0, 0.4);
-	--shadow-3: 0 12px 40px rgba(0, 0, 0, 0.6);
-	--scrim: rgba(0, 0, 0, 0.6);
-	--canvas: #0d0d0f;
+	--shadow-2: 0 6px 20px rgba(0, 0, 0, 0.45);
+	--shadow-3: 0 18px 50px rgba(0, 0, 0, 0.65);
+	--scrim: rgba(0, 0, 0, 0.62);
+	--canvas: #0c0b10;
+	--blob-opacity: 0.16;
 }
 
 :root[data-theme="black"] {
 	--bg: #000000;
-	--surface: #0e0e10;
-	--surface-2: #18181b;
-	--surface-3: #232327;
-	--line: #202024;
+	--surface: #0d0d10;
+	--surface-2: #17171b;
+	--surface-3: #222227;
+	--line: #1e1e23;
 	--canvas: #000000;
+	--blob-opacity: 0.12;
 }
+
+/* ---------- Accent palettes (Settings > Colour) ---------- */
+
+:root,
+:root[data-accent="sunset"] {
+	--grad-a: #ff8a3d;
+	--grad-b: #f0447a;
+	--grad-c: #8b5cf6;
+	--accent: #e0336e;
+	--accent-hover: #c42760;
+	--accent-soft: #fde7ef;
+	--on-accent: #ffffff;
+}
+:root[data-accent="ocean"] {
+	--grad-a: #22d3ee;
+	--grad-b: #3b82f6;
+	--grad-c: #6366f1;
+	--accent: #2563eb;
+	--accent-hover: #1d4ed8;
+	--accent-soft: #e3edff;
+}
+:root[data-accent="forest"] {
+	--grad-a: #a3e635;
+	--grad-b: #10b981;
+	--grad-c: #0d9488;
+	--accent: #059669;
+	--accent-hover: #047857;
+	--accent-soft: #dcf7ec;
+}
+:root[data-accent="berry"] {
+	--grad-a: #f472b6;
+	--grad-b: #c026d3;
+	--grad-c: #7c3aed;
+	--accent: #a21caf;
+	--accent-hover: #86198f;
+	--accent-soft: #f8e4fb;
+}
+:root[data-accent="mono"] {
+	--grad-a: #52525b;
+	--grad-b: #27272a;
+	--grad-c: #09090b;
+	--accent: #18181b;
+	--accent-hover: #000000;
+	--accent-soft: #ececef;
+}
+
+:root[data-theme="dark"],
+:root[data-theme="black"] {
+	--accent: #ff6f9c;
+	--accent-hover: #ff8fb2;
+	--accent-soft: #3a1a28;
+}
+:root[data-theme="dark"][data-accent="ocean"],
+:root[data-theme="black"][data-accent="ocean"] {
+	--accent: #60a5fa;
+	--accent-hover: #93c5fd;
+	--accent-soft: #172554;
+}
+:root[data-theme="dark"][data-accent="forest"],
+:root[data-theme="black"][data-accent="forest"] {
+	--accent: #34d399;
+	--accent-hover: #6ee7b7;
+	--accent-soft: #0b2e22;
+}
+:root[data-theme="dark"][data-accent="berry"],
+:root[data-theme="black"][data-accent="berry"] {
+	--accent: #e879f9;
+	--accent-hover: #f0abfc;
+	--accent-soft: #3b0a45;
+}
+:root[data-theme="dark"][data-accent="mono"],
+:root[data-theme="black"][data-accent="mono"] {
+	--grad-a: #f4f4f5;
+	--grad-b: #d4d4d8;
+	--grad-c: #a1a1aa;
+	--accent: #f4f4f5;
+	--accent-hover: #ffffff;
+	--accent-soft: #27272a;
+	--on-accent: #09090b;
+}
+
+/* ---------- Base ---------- */
 
 *,
 *::before,
@@ -137,6 +227,7 @@ body {
 	-webkit-font-smoothing: antialiased;
 	overflow: hidden;
 	overscroll-behavior: none;
+	transition: background-color var(--t-med) var(--ease);
 }
 
 button,
@@ -151,6 +242,17 @@ button {
 	cursor: pointer;
 	background: none;
 	border: none;
+}
+
+/* Our own clear/close buttons replace the browser's. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+	-webkit-appearance: none;
+	appearance: none;
+	display: none;
+}
+input[type="number"]::-webkit-inner-spin-button {
+	-webkit-appearance: none;
 }
 
 :focus-visible {
@@ -187,6 +289,14 @@ html.touch ::-webkit-scrollbar {
 	white-space: nowrap;
 }
 
+/* Gradient text for brand moments. */
+.grad-text {
+	background: var(--grad);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
 /* Search highlights (CSS Custom Highlight API): no DOM mutation. */
 ::highlight(pw-find) {
 	background-color: var(--highlight);
@@ -197,6 +307,11 @@ html.touch ::-webkit-scrollbar {
 	color: inherit;
 }
 
+/* ---------- Motion library ----------
+ * Screen-level entrances animate transform only: an opacity keyframe
+ * can freeze at 0 when the Android WebView pauses animations around
+ * the system file picker. */
+
 @keyframes pw-fade-in {
 	from {
 		opacity: 0;
@@ -205,12 +320,92 @@ html.touch ::-webkit-scrollbar {
 @keyframes pw-rise {
 	from {
 		opacity: 0;
-		transform: translateY(8px);
+		transform: translateY(10px);
+	}
+}
+@keyframes pw-screen-in {
+	from {
+		transform: translateY(28px) scale(0.985);
+	}
+}
+@keyframes pw-screen-side {
+	from {
+		transform: translateX(40px);
 	}
 }
 @keyframes pw-sheet-up {
 	from {
 		transform: translateY(100%);
+	}
+}
+@keyframes pw-pop {
+	0% {
+		transform: scale(0.6);
+	}
+	60% {
+		transform: scale(1.08);
+	}
+	100% {
+		transform: scale(1);
+	}
+}
+@keyframes pw-float {
+	0%,
+	100% {
+		transform: translateY(0) rotate(var(--r, 0deg));
+	}
+	50% {
+		transform: translateY(-8px) rotate(var(--r, 0deg));
+	}
+}
+@keyframes pw-twinkle {
+	0%,
+	100% {
+		opacity: 0;
+		transform: scale(0.4) rotate(0deg);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1) rotate(45deg);
+	}
+}
+@keyframes pw-drift {
+	0%,
+	100% {
+		transform: translate(0, 0) scale(1);
+	}
+	33% {
+		transform: translate(24px, -18px) scale(1.08);
+	}
+	66% {
+		transform: translate(-18px, 14px) scale(0.95);
+	}
+}
+@keyframes pw-shimmer {
+	0%,
+	70% {
+		transform: translateX(-120%) skewX(-20deg);
+	}
+	100% {
+		transform: translateX(220%) skewX(-20deg);
+	}
+}
+@keyframes pw-wiggle {
+	0%,
+	100% {
+		transform: rotate(0);
+	}
+	20% {
+		transform: rotate(-8deg);
+	}
+	40% {
+		transform: rotate(6deg);
+	}
+	60% {
+		transform: rotate(-4deg);
+	}
+	80% {
+		transform: rotate(2deg);
 	}
 }
 @keyframes pw-spin {
@@ -224,6 +419,7 @@ html.touch ::-webkit-scrollbar {
 	*::before,
 	*::after {
 		animation-duration: 1ms !important;
+		animation-iteration-count: 1 !important;
 		transition-duration: 1ms !important;
 	}
 }

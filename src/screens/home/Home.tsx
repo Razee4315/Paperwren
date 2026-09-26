@@ -2,7 +2,15 @@ import { formatBytes } from "@/lib/backend";
 import { type FormatKind, KIND_LABEL, kindOf } from "@/lib/formats";
 import type { RecentEntry } from "@/lib/types";
 import { useRecents } from "@/state/recents";
-import { FileBadge, IconButton, Sheet, SheetItem, toast } from "@/ui";
+import {
+	Blobs,
+	EmptyScene,
+	FileBadge,
+	IconButton,
+	Sheet,
+	SheetItem,
+	toast,
+} from "@/ui";
 import {
 	Info,
 	MoreVertical,
@@ -10,12 +18,13 @@ import {
 	PinOff,
 	Plus,
 	Search,
+	SearchX,
 	Settings as SettingsIcon,
 	ShieldCheck,
 	Trash2,
 	X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type CSSProperties, useMemo, useState } from "react";
 import s from "./Home.module.css";
 
 const FILTERS: Array<FormatKind | "all"> = [
@@ -25,6 +34,34 @@ const FILTERS: Array<FormatKind | "all"> = [
 	"sheet",
 	"slides",
 	"text",
+];
+
+const KIND_COLOR: Record<FormatKind | "all", string> = {
+	all: "var(--accent)",
+	pdf: "var(--fmt-pdf)",
+	doc: "var(--fmt-doc)",
+	sheet: "var(--fmt-sheet)",
+	slides: "var(--fmt-slides)",
+	text: "var(--fmt-text)",
+	other: "var(--fmt-text)",
+};
+
+/** The formats listed on the empty state, each in its family colour. */
+const SUPPORTED: Array<[string, FormatKind]> = [
+	["PDF", "pdf"],
+	["DOCX", "doc"],
+	["DOC", "doc"],
+	["XLSX", "sheet"],
+	["XLS", "sheet"],
+	["CSV", "sheet"],
+	["PPTX", "slides"],
+	["PPT", "slides"],
+	["ODT", "doc"],
+	["ODS", "sheet"],
+	["ODP", "slides"],
+	["RTF", "doc"],
+	["MD", "text"],
+	["TXT", "text"],
 ];
 
 export function relativeTime(ts: number, now = Date.now()): string {
@@ -40,6 +77,13 @@ export function relativeTime(ts: number, now = Date.now()): string {
 		day: "numeric",
 		year: d.getFullYear() === today.getFullYear() ? undefined : "numeric",
 	});
+}
+
+function greeting(hour = new Date().getHours()): string {
+	if (hour < 5) return "Up late";
+	if (hour < 12) return "Good morning";
+	if (hour < 18) return "Good afternoon";
+	return "Good evening";
 }
 
 function meta(e: RecentEntry): string {
@@ -83,57 +127,75 @@ export function Home({
 	const pinned = visible.filter((e) => e.pinned);
 	const recent = visible.filter((e) => !e.pinned);
 
-	const row = (e: RecentEntry, i: number) => (
-		<div
-			key={e.id}
-			className={`${s.row} ${e.unavailable ? s.unavailable : ""}`}
-			style={{ animationDelay: `${Math.min(i, 10) * 25}ms` }}
-			data-testid="recent"
-		>
-			<button
-				type="button"
-				className={s.rowMain}
-				onClick={() => onOpenRecent(e)}
-				onContextMenu={(ev) => {
-					ev.preventDefault();
-					setMenuFor(e);
-				}}
+	const row = (e: RecentEntry, i: number) => {
+		const ratio = e.position?.kind === "scroll" ? e.position.ratio : null;
+		return (
+			<div
+				key={e.id}
+				className={`${s.row} ${e.unavailable ? s.unavailable : ""}`}
+				style={{ animationDelay: `${Math.min(i, 12) * 45}ms` }}
+				data-testid="recent"
 			>
-				<FileBadge format={e.format} />
-				<span className={s.rowText}>
-					<span className={s.name}>
-						{e.pinned && (
-							<Pin size={13} className={s.pin} aria-label="Pinned" />
-						)}
-						{e.name}
+				<button
+					type="button"
+					className={s.rowMain}
+					onClick={() => onOpenRecent(e)}
+					onContextMenu={(ev) => {
+						ev.preventDefault();
+						setMenuFor(e);
+					}}
+				>
+					<FileBadge format={e.format} size={46} />
+					<span className={s.rowText}>
+						<span className={s.name}>
+							{e.pinned && (
+								<Pin size={13} className={s.pin} aria-label="Pinned" />
+							)}
+							{e.name}
+						</span>
+						<span className={`${s.meta} ${e.unavailable ? s.warn : ""}`}>
+							{ratio !== null && ratio > 0.01 && !e.unavailable && (
+								<span
+									className={s.progress}
+									role="img"
+									aria-label={`${Math.round(ratio * 100)}% read`}
+								>
+									<i style={{ width: `${Math.max(6, ratio * 100)}%` }} />
+								</span>
+							)}
+							{e.unavailable ? "Unavailable · tap to locate" : meta(e)}
+						</span>
 					</span>
-					<span className={`${s.meta} ${e.unavailable ? s.warn : ""}`}>
-						{e.unavailable ? "Unavailable · tap to locate" : meta(e)}
-					</span>
-				</span>
-			</button>
-			<IconButton
-				label={`More actions for ${e.name}`}
-				onClick={() => setMenuFor(e)}
-			>
-				<MoreVertical size={20} />
-			</IconButton>
-		</div>
-	);
+				</button>
+				<IconButton
+					label={`More actions for ${e.name}`}
+					onClick={() => setMenuFor(e)}
+				>
+					<MoreVertical size={20} />
+				</IconButton>
+			</div>
+		);
+	};
 
 	const hasAny = entries.length > 0;
 
 	return (
 		<div className={s.page} data-testid="home">
+			<Blobs />
 			<header className={s.bar}>
 				<img
 					className={s.logo}
 					src="/assets/icon.svg"
 					alt=""
-					width={32}
-					height={32}
+					width={38}
+					height={38}
 				/>
-				<h1 className={s.brand}>Paperwren</h1>
+				<div className={s.brandCol}>
+					<span className={s.greeting}>{greeting()}</span>
+					<h1 className={s.brand}>
+						Paper<span className="grad-text">wren</span>
+					</h1>
+				</div>
 				<IconButton
 					label="Settings"
 					onClick={onSettings}
@@ -147,19 +209,31 @@ export function Home({
 				<div className={s.column}>
 					{ready && !hasAny && (
 						<div className={s.empty} data-testid="empty-state">
-							<div className={s.tiles}>
-								<FileBadge format="pdf" size={52} />
-								<FileBadge format="docx" size={52} />
-								<FileBadge format="xlsx" size={52} />
-								<FileBadge format="pptx" size={52} />
-							</div>
-							<h2 className={s.emptyTitle}>Open any document</h2>
+							<EmptyScene />
+							<h2 className={s.emptyTitle}>
+								Open <span className="grad-text">any</span> document
+							</h2>
 							<p className={s.emptyBody}>
-								PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text.
-								Files you open appear here.
+								Fast, private and offline. Everything you open shows up here.
 							</p>
+							<div className={s.formats}>
+								{SUPPORTED.map(([label, kind], i) => (
+									<span
+										key={label}
+										className={s.fmt}
+										style={
+											{
+												"--c": KIND_COLOR[kind],
+												animationDelay: `${250 + i * 35}ms`,
+											} as CSSProperties
+										}
+									>
+										{label}
+									</span>
+								))}
+							</div>
 							<p className={s.privacy}>
-								<ShieldCheck size={16} /> Offline. No accounts, no tracking.
+								<ShieldCheck size={16} /> No ads · no accounts · no tracking
 							</p>
 						</div>
 					)}
@@ -170,7 +244,7 @@ export function Home({
 								<Search size={18} />
 								<input
 									type="search"
-									placeholder="Search recent files"
+									placeholder="Search your files"
 									value={query}
 									onChange={(e) => setQuery(e.target.value)}
 									aria-label="Search recent files"
@@ -188,15 +262,22 @@ export function Home({
 								role="toolbar"
 								aria-label="Filter by type"
 							>
-								{FILTERS.filter((f) => f === "all" || counts[f]).map((f) => (
+								{FILTERS.filter((f) => f === "all" || counts[f]).map((f, i) => (
 									<button
 										type="button"
 										key={f}
 										className={s.chip}
 										aria-pressed={filter === f}
 										onClick={() => setFilter(f)}
+										style={
+											{
+												"--c": KIND_COLOR[f],
+												animationDelay: `${60 + i * 40}ms`,
+											} as CSSProperties
+										}
 										data-testid={`filter-${f}`}
 									>
+										{f !== "all" && <span className={s.dot} />}
 										{f === "all" ? "All" : KIND_LABEL[f]}
 										<span className={s.count}>{counts[f] ?? 0}</span>
 									</button>
@@ -204,22 +285,29 @@ export function Home({
 							</div>
 
 							{visible.length === 0 && (
-								<p className={s.noMatch} data-testid="no-match">
+								<div className={s.noMatch} data-testid="no-match">
+									<SearchX size={36} strokeWidth={1.5} />
 									{q
 										? `Nothing matches “${query.trim()}”.`
 										: "No files of this type yet."}
-								</p>
+								</div>
 							)}
 							{pinned.length > 0 && (
 								<>
-									<h2 className={s.section}>Pinned</h2>
+									<h2 className={s.section}>
+										Pinned <span className={s.bubble}>{pinned.length}</span>
+									</h2>
 									<div className={s.list}>{pinned.map(row)}</div>
 								</>
 							)}
 							{recent.length > 0 && (
 								<>
-									<h2 className={s.section}>Recent</h2>
-									<div className={s.list}>{recent.map(row)}</div>
+									<h2 className={s.section}>
+										Recent <span className={s.bubble}>{recent.length}</span>
+									</h2>
+									<div className={s.list}>
+										{recent.map((e, i) => row(e, i + pinned.length))}
+									</div>
 								</>
 							)}
 						</>
@@ -233,7 +321,7 @@ export function Home({
 				onClick={onOpenFile}
 				data-testid="open-file"
 			>
-				<Plus size={22} strokeWidth={2.5} />
+				<Plus size={22} strokeWidth={2.75} />
 				Open file
 			</button>
 
@@ -250,6 +338,7 @@ export function Home({
 							onClick={() => {
 								togglePin(menuFor.id);
 								setMenuFor(null);
+								toast(menuFor.pinned ? "Unpinned" : "Pinned to the top");
 							}}
 							testId="menu-pin"
 						>

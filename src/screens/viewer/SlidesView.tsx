@@ -6,7 +6,7 @@ import {
 	parsePptx,
 } from "@/lib/pptx/parse";
 import { useSettings } from "@/state/settings";
-import { Button, IconButton, Spinner, StateView } from "@/ui";
+import { Button, ErrorArt, IconButton, Spinner, StateView } from "@/ui";
 import { ChevronLeft, ChevronRight, Search, StickyNote } from "lucide-react";
 import {
 	type CSSProperties,
@@ -507,6 +507,7 @@ export default function SlidesView({
 			)}
 			{error && (
 				<StateView
+					icon={<ErrorArt />}
 					title="Can't open this presentation"
 					action={<Button onClick={onClose}>Close</Button>}
 				>

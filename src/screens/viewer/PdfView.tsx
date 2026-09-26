@@ -3,6 +3,7 @@ import { useSettings } from "@/state/settings";
 import {
 	Button,
 	Dialog,
+	ErrorArt,
 	IconButton,
 	Sheet,
 	SheetItem,
@@ -548,6 +549,7 @@ export default function PdfView({
 			)}
 			{status === "error" && (
 				<StateView
+					icon={<ErrorArt />}
 					title="Can't open this PDF"
 					action={<Button onClick={onClose}>Close</Button>}
 					testId="pdf-error"

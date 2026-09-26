@@ -8,7 +8,7 @@ import {
 import { decodeText } from "@/lib/text";
 import type { GridCell, GridSheet, ParseResult } from "@/lib/workbookModel";
 import { useSettings } from "@/state/settings";
-import { Button, IconButton, Spinner, StateView, toast } from "@/ui";
+import { Button, ErrorArt, IconButton, Spinner, StateView, toast } from "@/ui";
 import { Copy, Search } from "lucide-react";
 import {
 	useCallback,
@@ -478,6 +478,7 @@ export default function SheetView({
 			)}
 			{error && (
 				<StateView
+					icon={<ErrorArt />}
 					title="Can't show this spreadsheet"
 					action={<Button onClick={onClose}>Close</Button>}
 				>

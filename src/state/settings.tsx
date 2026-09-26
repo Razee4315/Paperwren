@@ -90,6 +90,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 			?.setAttribute("content", THEME_COLOR[theme]);
 	}, [theme]);
 
+	useEffect(() => {
+		document.documentElement.dataset.accent = settings.accent;
+	}, [settings.accent]);
+
 	const update = useCallback(
 		<K extends keyof Settings>(key: K, value: Settings[K]) => {
 			setSettings((prev) => {

@@ -186,6 +186,7 @@ export function Dialog({
 	actions,
 	onClose,
 	testId,
+	art,
 }: {
 	open: boolean;
 	title: string;
@@ -193,6 +194,8 @@ export function Dialog({
 	actions: ReactNode;
 	onClose: () => void;
 	testId?: string;
+	/** Optional illustration above the title. */
+	art?: ReactNode;
 }) {
 	const id = useId();
 	useBackClose(`dialog${id}`, open, onClose);
@@ -203,6 +206,7 @@ export function Dialog({
 			actions={actions}
 			onClose={onClose}
 			testId={testId}
+			art={art}
 		>
 			{children}
 		</DialogPanel>,
@@ -216,12 +220,14 @@ function DialogPanel({
 	actions,
 	onClose,
 	testId,
+	art,
 }: {
 	title: string;
 	children?: ReactNode;
 	actions: ReactNode;
 	onClose: () => void;
 	testId?: string;
+	art?: ReactNode;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
 	useModalFocus(ref, onClose);
@@ -241,6 +247,7 @@ function DialogPanel({
 					onClick={(e) => e.stopPropagation()}
 					data-testid={testId}
 				>
+					{art && <div className={s.dialogArt}>{art}</div>}
 					<h2 className={s.dialogTitle}>{title}</h2>
 					{children && <div className={s.dialogBody}>{children}</div>}
 					<div className={s.dialogActions}>{actions}</div>

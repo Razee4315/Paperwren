@@ -11,6 +11,16 @@
 	letter-spacing: 0.02em;
 	line-height: 1;
 }
+.badge {
+	transition: transform var(--t-med) var(--spring);
+}
+.badge::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	border: 1.5px solid color-mix(in srgb, var(--fmt) 30%, transparent);
+}
 .badge svg {
 	position: absolute;
 	top: 22%;
@@ -59,14 +69,20 @@
 	border-radius: 999px;
 	background: var(--surface);
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-	transition: transform var(--t-fast) var(--ease);
+	transition: transform var(--t-med) var(--spring);
 }
 .on {
-	background: var(--accent);
+	background: var(--grad);
 }
 .on::after {
 	transform: translateX(18px);
-	background: var(--on-accent);
+	background: #fff;
+}
+.switchRow:active .track::after {
+	width: 26px;
+}
+.switchRow:active .on::after {
+	transform: translateX(14px);
 }
 
 .spinner {

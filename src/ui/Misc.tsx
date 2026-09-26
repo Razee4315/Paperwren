@@ -1,6 +1,7 @@
 import { type FileFormat, formatLabel, kindOf } from "@/lib/formats";
 import { FileSpreadsheet, FileText, Presentation } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
+import { PageLoader } from "./Art";
 import s from "./Misc.module.css";
 
 const KIND_COLOR = {
@@ -82,8 +83,8 @@ export function Switch({
 	);
 }
 
-export function Spinner({ label = "Loading" }: { label?: string }) {
-	return <div className={s.spinner} role="status" aria-label={label} />;
+export function Spinner({ label = "Opening" }: { label?: string }) {
+	return <PageLoader label={label} />;
 }
 
 /** Centered full-area message: loading, empty, or error. */

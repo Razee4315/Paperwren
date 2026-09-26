@@ -1,5 +1,5 @@
 import type { Block, Extracted } from "@/lib/office/model";
-import { Button, IconButton, Spinner, StateView } from "@/ui";
+import { Button, ErrorArt, IconButton, Spinner, StateView } from "@/ui";
 import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import d from "./Doc.module.css";
@@ -137,6 +137,7 @@ export default function ReflowView(props: ViewerProps) {
 			)}
 			{result && !result.ok && (
 				<StateView
+					icon={<ErrorArt />}
 					title={
 						result.reason === "password"
 							? "Password protected"

@@ -1,4 +1,5 @@
 import {
+	type Accent,
 	DEFAULT_SETTINGS,
 	type PdfZoom,
 	type ResolvedTheme,
@@ -7,6 +8,7 @@ import {
 } from "./types";
 
 const THEMES: ThemeSetting[] = ["system", "light", "dark", "black"];
+export const ACCENTS: Accent[] = ["sunset", "ocean", "forest", "berry", "mono"];
 const ZOOMS: PdfZoom[] = ["page-width", "page-fit", "auto"];
 const LIMITS = [20, 50, 100, 500];
 
@@ -21,6 +23,7 @@ export function normalizeSettings(value: unknown): Settings {
 		typeof v === "boolean" ? v : fallback;
 	return {
 		theme: pick(raw.theme, THEMES, DEFAULT_SETTINGS.theme),
+		accent: pick(raw.accent, ACCENTS, DEFAULT_SETTINGS.accent),
 		pdfZoom: pick(raw.pdfZoom, ZOOMS, DEFAULT_SETTINGS.pdfZoom),
 		rememberPosition: bool(
 			raw.rememberPosition,

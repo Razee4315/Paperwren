@@ -1,4 +1,4 @@
-import { Button, IconButton, Spinner, StateView } from "@/ui";
+import { Button, ErrorArt, IconButton, Spinner, StateView } from "@/ui";
 import { Search, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import s from "./Doc.module.css";
@@ -149,6 +149,7 @@ export default function DocxView({
 			)}
 			{status === "error" && (
 				<StateView
+					icon={<ErrorArt />}
 					title="Can't open this document"
 					action={<Button onClick={onClose}>Close</Button>}
 				>

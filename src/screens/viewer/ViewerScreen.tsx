@@ -3,7 +3,7 @@ import { type OpenFailure, classifyError, failureCopy } from "@/lib/errors";
 import { type FileFormat, extensionOf, sniffFormat } from "@/lib/formats";
 import type { OpenRequest, Position } from "@/lib/types";
 import { useRecents } from "@/state/recents";
-import { Button, Dialog, Spinner, StateView } from "@/ui";
+import { Button, Dialog, ErrorArt, Spinner, StateView } from "@/ui";
 import {
 	type ComponentType,
 	Suspense,
@@ -126,6 +126,7 @@ export default function ViewerScreen({
 				title={copy.title}
 				onClose={onClose}
 				testId="open-error"
+				art={<ErrorArt />}
 				actions={
 					<>
 						{isRecent && copy.action === "locate" && (

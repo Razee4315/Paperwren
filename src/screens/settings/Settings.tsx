@@ -1,10 +1,22 @@
 import { backend, formatBytes } from "@/lib/backend";
-import type { PdfZoom, ThemeSetting } from "@/lib/types";
+import { ACCENTS } from "@/lib/settings";
+import type { Accent, PdfZoom, ThemeSetting } from "@/lib/types";
 import { useNav } from "@/state/navigation";
 import { useRecents } from "@/state/recents";
 import { useSettings } from "@/state/settings";
-import { Button, Dialog, IconButton, Switch, toast } from "@/ui";
-import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { Blobs, Button, Dialog, IconButton, Switch, toast } from "@/ui";
+import {
+	ArrowLeft,
+	BookOpen,
+	Check,
+	ChevronDown,
+	ChevronUp,
+	FolderOpen,
+	Info,
+	Palette,
+	ShieldCheck,
+} from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import s from "./Settings.module.css";
 
@@ -45,7 +57,17 @@ function Segmented<T extends string | number>({
 				className={s.segmented}
 				role="radiogroup"
 				aria-labelledby={`${testId}-label`}
+				style={
+					{
+						"--n": options.length,
+						"--i": Math.max(
+							0,
+							options.findIndex(([v]) => v === value),
+						),
+					} as CSSProperties
+				}
 			>
+				<span className={s.thumb} aria-hidden="true" />
 				{options.map(([v, text]) => (
 					<button
 						type="button"
@@ -58,6 +80,64 @@ function Segmented<T extends string | number>({
 						data-testid={`${testId}-${v}`}
 					>
 						{text}
+					</button>
+				))}
+			</div>
+		</div>
+	);
+}
+
+const ACCENT_NAMES: Record<Accent, string> = {
+	sunset: "Sunset",
+	ocean: "Ocean",
+	forest: "Forest",
+	berry: "Berry",
+	mono: "Mono",
+};
+
+function Group({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+	return (
+		<h2 className={s.group}>
+			<span className={s.groupIcon}>{icon}</span>
+			{children}
+		</h2>
+	);
+}
+
+function AccentPicker({
+	value,
+	onChange,
+}: {
+	value: Accent;
+	onChange: (a: Accent) => void;
+}) {
+	return (
+		<div className={s.field}>
+			<span className={s.label} id="accent-label">
+				Colour
+			</span>
+			<div
+				className={s.swatches}
+				role="radiogroup"
+				aria-labelledby="accent-label"
+			>
+				{ACCENTS.map((a) => (
+					<button
+						type="button"
+						key={a}
+						// biome-ignore lint/a11y/useSemanticElements: colour swatches with ARIA radio semantics
+						role="radio"
+						aria-checked={a === value}
+						aria-label={ACCENT_NAMES[a]}
+						className={s.swatch}
+						data-accent-swatch={a}
+						onClick={() => onChange(a)}
+						data-testid={`accent-${a}`}
+					>
+						<span className={s.swatchDot}>
+							{a === value && <Check size={18} strokeWidth={3} />}
+						</span>
+						<span className={s.swatchName}>{ACCENT_NAMES[a]}</span>
 					</button>
 				))}
 			</div>
@@ -93,6 +173,7 @@ export function SettingsScreen() {
 
 	return (
 		<div className={s.page} data-testid="settings">
+			<Blobs />
 			<header className={s.bar}>
 				<IconButton label="Back" onClick={back} data-testid="settings-back">
 					<ArrowLeft size={22} />
@@ -101,8 +182,12 @@ export function SettingsScreen() {
 			</header>
 			<main className={s.scroll}>
 				<div className={s.column}>
-					<h2 className={s.group}>Appearance</h2>
+					<Group icon={<Palette size={15} />}>Appearance</Group>
 					<div className={s.card}>
+						<AccentPicker
+							value={settings.accent}
+							onChange={(v) => update("accent", v)}
+						/>
 						<Segmented<ThemeSetting>
 							label="Theme"
 							value={settings.theme}
@@ -117,7 +202,7 @@ export function SettingsScreen() {
 						/>
 					</div>
 
-					<h2 className={s.group}>Reading</h2>
+					<Group icon={<BookOpen size={15} />}>Reading</Group>
 					<div className={s.card}>
 						<Segmented<PdfZoom>
 							label="PDF opens at"
@@ -145,7 +230,7 @@ export function SettingsScreen() {
 						/>
 					</div>
 
-					<h2 className={s.group}>Files</h2>
+					<Group icon={<FolderOpen size={15} />}>Files</Group>
 					<div className={s.card}>
 						<Switch
 							label="Keep a list of recent files"
@@ -208,7 +293,7 @@ export function SettingsScreen() {
 						</button>
 					</div>
 
-					<h2 className={s.group}>Privacy</h2>
+					<Group icon={<ShieldCheck size={15} />}>Privacy</Group>
 					<div className={s.card}>
 						<div className={s.prose}>
 							<p>
@@ -224,7 +309,7 @@ export function SettingsScreen() {
 						</div>
 					</div>
 
-					<h2 className={s.group}>About</h2>
+					<Group icon={<Info size={15} />}>About</Group>
 					<div className={s.card}>
 						<div className={s.action}>
 							<span className={s.actionText}>Paperwren</span>

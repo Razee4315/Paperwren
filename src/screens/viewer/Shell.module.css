@@ -5,6 +5,7 @@
 	display: flex;
 	flex-direction: column;
 	background: var(--canvas);
+	animation: pw-screen-in var(--t-slow) var(--ease-out);
 }
 .top {
 	position: relative;
@@ -43,10 +44,12 @@
 	white-space: nowrap;
 }
 .dot {
-	width: 8px;
-	height: 8px;
+	width: 10px;
+	height: 10px;
 	border-radius: 999px;
 	flex-shrink: 0;
+	box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 0%, transparent);
+	animation: pw-pop var(--t-slow) var(--spring) 120ms both;
 }
 .body {
 	position: relative;
@@ -113,16 +116,18 @@
 }
 .pill {
 	min-width: 88px;
-	height: 36px;
-	padding: 0 14px;
+	height: 38px;
+	padding: 0 16px;
 	border-radius: 999px;
-	background: var(--surface-2);
-	font-weight: 650;
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-weight: 800;
+	transition: transform var(--t-med) var(--spring);
 	font-size: 14px;
 	font-variant-numeric: tabular-nums;
 }
-.pill:hover {
-	background: var(--surface-3);
+.pill:active {
+	transform: scale(0.94);
 }
 .group {
 	display: flex;

@@ -115,3 +115,16 @@ test("legacy settings from the previous version are migrated", async ({
 	});
 	await expect(page.locator("html")).toHaveAttribute("data-theme", "black");
 });
+
+test("accent colour applies instantly and persists", async ({ page }) => {
+	await boot(page);
+	await page.getByTestId("open-settings").click();
+	await page.getByTestId("accent-ocean").click();
+	await expect(page.locator("html")).toHaveAttribute("data-accent", "ocean");
+	await expect(page.getByTestId("accent-ocean")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await page.reload();
+	await expect(page.locator("html")).toHaveAttribute("data-accent", "ocean");
+});

@@ -1,0 +1,139 @@
+/* SVG artwork. Parts animate with CSS on SVG groups, so each group
+ * transforms around its own box. */
+.art g[class],
+.art path[class] {
+	transform-box: fill-box;
+	transform-origin: center;
+}
+
+.scene {
+	width: min(300px, 82vw);
+	height: auto;
+	overflow: visible;
+}
+.card {
+	animation: pw-float 5s ease-in-out infinite;
+}
+.card:nth-of-type(2) {
+	animation-delay: -1.2s;
+	animation-duration: 5.6s;
+}
+.card:nth-of-type(3) {
+	animation-delay: -2.4s;
+	animation-duration: 4.6s;
+}
+.card:nth-of-type(4) {
+	animation-delay: -3.3s;
+	animation-duration: 6s;
+}
+.spark {
+	animation: pw-twinkle 2.8s ease-in-out infinite;
+}
+.spark:nth-of-type(2) {
+	animation-delay: -0.9s;
+}
+.spark:nth-of-type(3) {
+	animation-delay: -1.7s;
+}
+.spark:nth-of-type(4) {
+	animation-delay: -2.3s;
+}
+.trail {
+	stroke-dasharray: 4 7;
+	animation: pw-trail 1.2s linear infinite;
+}
+@keyframes pw-trail {
+	to {
+		stroke-dashoffset: -22;
+	}
+}
+
+.loader {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 14px;
+	color: var(--text-3);
+	font-size: 13px;
+	font-weight: 600;
+}
+.loader svg {
+	width: 58px;
+	height: 72px;
+	overflow: visible;
+	animation: pw-float 2.4s ease-in-out infinite;
+}
+.line {
+	stroke-dasharray: 34;
+	stroke-dashoffset: 34;
+	animation: pw-write 2.4s var(--ease) infinite;
+}
+.line:nth-of-type(2) {
+	animation-delay: 0.18s;
+}
+.line:nth-of-type(3) {
+	animation-delay: 0.36s;
+}
+.line:nth-of-type(4) {
+	animation-delay: 0.54s;
+}
+@keyframes pw-write {
+	0% {
+		stroke-dashoffset: 34;
+	}
+	45%,
+	75% {
+		stroke-dashoffset: 0;
+	}
+	100% {
+		stroke-dashoffset: -34;
+	}
+}
+
+.error {
+	width: 96px;
+	height: 104px;
+	overflow: visible;
+	animation: pw-wiggle 900ms var(--ease) 1;
+}
+
+.blobs {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	pointer-events: none;
+	z-index: 0;
+}
+.blob {
+	position: absolute;
+	border-radius: 50%;
+	filter: blur(48px);
+	opacity: var(--blob-opacity);
+	animation: pw-drift 22s ease-in-out infinite;
+}
+.blob:nth-child(1) {
+	width: 260px;
+	height: 260px;
+	top: -90px;
+	right: -70px;
+	background: var(--grad-a);
+}
+.blob:nth-child(2) {
+	width: 220px;
+	height: 220px;
+	top: 40px;
+	left: -110px;
+	background: var(--grad-c);
+	animation-delay: -7s;
+	animation-duration: 26s;
+}
+.blob:nth-child(3) {
+	width: 180px;
+	height: 180px;
+	top: 180px;
+	right: 10%;
+	background: var(--grad-b);
+	animation-delay: -13s;
+	animation-duration: 30s;
+	opacity: calc(var(--blob-opacity) * 0.6);
+}
