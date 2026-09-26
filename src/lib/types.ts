@@ -50,21 +50,13 @@ export interface RecentEntry {
 	unavailable?: boolean;
 }
 
-export type ResolvedTheme =
-	| "light"
-	| "dark"
-	| "black"
-	| "paper"
-	| "sepia"
-	| "glass"
-	| "aurora";
+/** Paper (light), Sand (sepia) and Ink (dark). */
+export type ResolvedTheme = "light" | "sepia" | "dark";
 export type ThemeSetting = "system" | ResolvedTheme;
 export type PdfZoom = "page-width" | "page-fit" | "auto";
-export type Accent = "sunset" | "ocean" | "forest" | "berry" | "mono";
 
 export interface Settings {
 	theme: ThemeSetting;
-	accent: Accent;
 	pdfZoom: PdfZoom;
 	rememberPosition: boolean;
 	darkPages: boolean;
@@ -74,7 +66,6 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
 	theme: "system",
-	accent: "sunset",
 	pdfZoom: "page-width",
 	rememberPosition: true,
 	darkPages: false,

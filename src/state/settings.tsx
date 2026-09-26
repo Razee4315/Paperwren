@@ -30,13 +30,9 @@ interface SettingsApi {
 const SettingsContext = createContext<SettingsApi | null>(null);
 
 const THEME_COLOR: Record<ResolvedTheme, string> = {
-	light: "#f6f6f4",
-	dark: "#121214",
-	black: "#000000",
-	paper: "#f2ecdf",
-	sepia: "#efe2c6",
-	glass: "#eef0fb",
-	aurora: "#0a0a18",
+	light: "#f3f1ec",
+	sepia: "#ede3d0",
+	dark: "#16181b",
 };
 
 function systemPrefersDark() {
@@ -93,10 +89,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 			.querySelector('meta[name="theme-color"]')
 			?.setAttribute("content", THEME_COLOR[theme]);
 	}, [theme]);
-
-	useEffect(() => {
-		document.documentElement.dataset.accent = settings.accent;
-	}, [settings.accent]);
 
 	const update = useCallback(
 		<K extends keyof Settings>(key: K, value: Settings[K]) => {

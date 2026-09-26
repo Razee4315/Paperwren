@@ -1,11 +1,13 @@
 /*
  * Paperwren design tokens.
  *
- * Minimal surfaces, one expressive signature: a three-stop gradient
- * (--grad) that the user picks in Settings (data-accent), plus vivid
- * format colours people already associate with each file type.
- * Themes are one attribute on <html>: data-theme = light | dark | black.
- * Components only ever read variables.
+ * Flat and calm: solid colours only (no gradients, blur or drop
+ * shadows); surfaces are separated by tone and hairlines. Three
+ * themes, each with its own signature accent, tuned for long reading:
+ *   light  "Paper"  warm off-white, pine-teal accent
+ *   sepia  "Sand"   low-blue-light parchment, terracotta accent
+ *   dark   "Ink"    soft charcoal (not pure black), mint accent
+ * Themes are one attribute: data-theme. Components only read variables.
  */
 
 :root {
@@ -16,15 +18,14 @@
 
 	--r-s: 8px;
 	--r-m: 12px;
-	--r-l: 18px;
-	--r-xl: 26px;
+	--r-l: 16px;
+	--r-xl: 22px;
 
 	--ease: cubic-bezier(0.2, 0, 0, 1);
-	--ease-out: cubic-bezier(0.05, 0.7, 0.1, 1);
-	--spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-	--t-fast: 140ms;
-	--t-med: 240ms;
-	--t-slow: 420ms;
+	--ease-out: cubic-bezier(0.2, 0, 0, 1);
+	--t-fast: 120ms;
+	--t-med: 180ms;
+	--t-slow: 240ms;
 
 	--safe-top: env(safe-area-inset-top, 0px);
 	--safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -33,302 +34,161 @@
 
 	--bar-h: 56px;
 	--content-max: 720px;
-
-	--grad: linear-gradient(
-		135deg,
-		var(--grad-a) 0%,
-		var(--grad-b) 55%,
-		var(--grad-c) 100%
-	);
 }
 
 /* ---------- Themes ----------
  * Selectors are not tied to :root so a preview element can carry its
- * own data-theme (Settings and onboarding show live mini previews).
- * --page-bg is the full background layer stack of a screen; --glass
- * is the frosted-surface filter used only by bars, sheets and dialogs. */
+ * own data-theme (Settings and the welcome show live mini previews).
+ * "Shadows" are hairline rings: depth comes from tone, not blur. */
 
 :root,
 [data-theme="light"] {
 	color-scheme: light;
-	--bg: #f7f6f3;
-	--page-bg: var(--bg);
-	--surface: #ffffff;
-	--surface-2: #f1efeb;
-	--surface-3: #e7e4de;
-	--line: #e8e5df;
-	--line-strong: #d3cfc7;
-	--glass: none;
+	--bg: #f3f1ec;
+	--surface: #fbfaf7;
+	--surface-2: #ece9e2;
+	--surface-3: #dfdbd2;
+	--line: #e2ded5;
+	--line-strong: #cbc6bb;
 
-	--text: #17161c;
-	--text-2: #55535e;
-	--text-3: #8d8a96;
+	--text: #23221f;
+	--text-2: #5b5952;
+	--text-3: #8a877f;
 
-	--danger: #d92d20;
-	--success: #079455;
-	--highlight: rgba(253, 224, 71, 0.55);
-	--highlight-active: rgba(251, 146, 60, 0.6);
+	--accent: #2b6e66;
+	--accent-hover: #225a53;
+	--accent-soft: #dcebe7;
+	--on-accent: #ffffff;
+	--brand-beak: #e07a4f;
+	--brand-eye: #23221f;
+	--brand-dark: #1f5750;
+	--brand-belly: #8fbcb3;
 
-	--fmt-pdf: #f0443a;
-	--fmt-doc: #2f6bff;
-	--fmt-sheet: #0ea561;
-	--fmt-slides: #f59109;
-	--fmt-text: #7a6ff0;
+	--danger: #c2412d;
+	--success: #2f8a5b;
+	--highlight: rgba(240, 196, 64, 0.5);
+	--highlight-active: rgba(224, 122, 79, 0.55);
 
-	--shadow-1: 0 1px 2px rgba(23, 22, 28, 0.05), 0 1px 3px rgba(23, 22, 28, 0.04);
-	--shadow-2: 0 6px 20px rgba(23, 22, 28, 0.08), 0 1px 3px
-		rgba(23, 22, 28, 0.05);
-	--shadow-3: 0 18px 50px rgba(23, 22, 28, 0.18);
-	--scrim: rgba(18, 16, 24, 0.4);
-	--canvas: #ebe9e4;
-	--blob-opacity: 0.22;
-	background: var(--page-bg);
-	color: var(--text);
-}
+	--fmt-pdf: #d2553f;
+	--fmt-doc: #3c6db4;
+	--fmt-sheet: #2f8a5b;
+	--fmt-slides: #cf8420;
+	--fmt-text: #7d65b0;
 
-[data-theme="paper"] {
-	color-scheme: light;
-	--bg: #f2ecdf;
-	--page-bg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .33 0 0 0 0 .2 0 0 0 .12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-		radial-gradient(120% 70% at 50% 0%, #f8f3e7 0%, transparent 70%), var(--bg);
-	--surface: #fbf7ee;
-	--surface-2: #efe7d6;
-	--surface-3: #e5dac4;
-	--line: #e3d8c3;
-	--line-strong: #cfc1a6;
-	--text: #2a2218;
-	--text-2: #5f5341;
-	--text-3: #938670;
-	--canvas: #e6dcc8;
-	--shadow-1: 0 1px 2px rgba(80, 60, 30, 0.08), 0 2px 6px rgba(80, 60, 30, 0.05);
-	--shadow-2: 0 8px 22px rgba(80, 60, 30, 0.12);
-	--blob-opacity: 0.1;
+	--scrim: rgba(35, 34, 31, 0.36);
+	--canvas: #e7e4dd;
 }
 
 [data-theme="sepia"] {
 	color-scheme: light;
-	--bg: #efe2c6;
-	--page-bg: var(--bg);
-	--surface: #f7ecd5;
-	--surface-2: #eadab9;
-	--surface-3: #dfcaa2;
-	--line: #e0cda8;
-	--line-strong: #cbb285;
-	--text: #3b2a17;
-	--text-2: #6b5334;
-	--text-3: #9a8260;
-	--canvas: #e3d2ae;
-	--fmt-text: #9a6b3a;
-	--blob-opacity: 0.12;
+	--bg: #ede3d0;
+	--surface: #f6eedf;
+	--surface-2: #e5d9c2;
+	--surface-3: #d9c9ad;
+	--line: #dccdb2;
+	--line-strong: #c6b396;
+
+	--text: #3a2e22;
+	--text-2: #6a5a47;
+	--text-3: #968470;
+
+	--accent: #a4502e;
+	--accent-hover: #8a4226;
+	--accent-soft: #eed8c6;
+	--on-accent: #fff8ef;
+	--brand-beak: #d98a2b;
+	--brand-eye: #3a2e22;
+	--brand-dark: #843f23;
+	--brand-belly: #dca283;
+
+	--danger: #b23b27;
+	--success: #4f7f3a;
+	--highlight: rgba(226, 170, 60, 0.45);
+	--highlight-active: rgba(196, 96, 50, 0.5);
+
+	--fmt-pdf: #bf5238;
+	--fmt-doc: #46679c;
+	--fmt-sheet: #4f7f3a;
+	--fmt-slides: #bf7a1f;
+	--fmt-text: #7f5f96;
+
+	--scrim: rgba(58, 46, 34, 0.36);
+	--canvas: #e0d3ba;
 }
 
-[data-theme="glass"] {
-	color-scheme: light;
-	--bg: #eef0fb;
-	--page-bg: radial-gradient(
-			60% 45% at 0% 0%,
-			color-mix(in srgb, var(--grad-a) 45%, transparent),
-			transparent 70%
-		),
-		radial-gradient(
-			55% 45% at 100% 20%,
-			color-mix(in srgb, var(--grad-c) 40%, transparent),
-			transparent 70%
-		),
-		radial-gradient(
-			70% 50% at 50% 100%,
-			color-mix(in srgb, var(--grad-b) 35%, transparent),
-			transparent 70%
-		), var(--bg);
-	--surface: rgba(255, 255, 255, 0.58);
-	--surface-2: rgba(255, 255, 255, 0.45);
-	--surface-3: rgba(255, 255, 255, 0.7);
-	--line: rgba(255, 255, 255, 0.75);
-	--line-strong: rgba(120, 120, 150, 0.3);
-	--glass: blur(20px) saturate(1.6);
-	--text: #16152a;
-	--text-2: #4b4a66;
-	--text-3: #7d7c96;
-	--canvas: #e6e8f5;
-	--shadow-1: 0 4px 18px rgba(60, 50, 120, 0.08);
-	--shadow-2: 0 10px 30px rgba(60, 50, 120, 0.14);
-	--blob-opacity: 0.35;
-}
-
-[data-theme="dark"],
-[data-theme="black"],
-[data-theme="aurora"] {
+[data-theme="dark"] {
 	color-scheme: dark;
-	--bg: #111015;
+	--bg: #16181b;
+	--surface: #1f2226;
+	--surface-2: #272b30;
+	--surface-3: #32373d;
+	--line: #2b2f34;
+	--line-strong: #3d4349;
+
+	--text: #e6e2da;
+	--text-2: #aaa69e;
+	--text-3: #7b7872;
+
+	--accent: #7cc2b4;
+	--accent-hover: #98d2c6;
+	--accent-soft: #1f3531;
+	--on-accent: #10201d;
+	--brand-beak: #eba27c;
+	--brand-eye: #16181b;
+	--brand-dark: #5aa596;
+	--brand-belly: #c6e6de;
+
+	--danger: #ec8a78;
+	--success: #74c095;
+	--highlight: rgba(232, 190, 80, 0.35);
+	--highlight-active: rgba(235, 162, 124, 0.5);
+
+	--fmt-pdf: #e8846f;
+	--fmt-doc: #82a6e0;
+	--fmt-sheet: #74c095;
+	--fmt-slides: #e6b25e;
+	--fmt-text: #ac99d9;
+
+	--scrim: rgba(0, 0, 0, 0.55);
+	--canvas: #111315;
+}
+
+:root,
+[data-theme] {
 	--page-bg: var(--bg);
-	--surface: #1a1920;
-	--surface-2: #23222a;
-	--surface-3: #2d2c35;
-	--line: #2a2931;
-	--line-strong: #3a3942;
-	--glass: none;
-
-	--text: #f3f2f7;
-	--text-2: #b7b5c2;
-	--text-3: #7f7d8a;
-
-	--danger: #f97066;
-	--success: #47cd89;
-	--highlight: rgba(250, 204, 21, 0.4);
-	--highlight-active: rgba(251, 146, 60, 0.6);
-
-	--fmt-pdf: #ff6b61;
-	--fmt-doc: #6b9bff;
-	--fmt-sheet: #3ccb7f;
-	--fmt-slides: #fdb022;
-	--fmt-text: #a59cff;
-
 	--shadow-1: none;
-	--shadow-2: 0 6px 20px rgba(0, 0, 0, 0.45);
-	--shadow-3: 0 18px 50px rgba(0, 0, 0, 0.65);
-	--scrim: rgba(0, 0, 0, 0.62);
-	--canvas: #0c0b10;
-	--blob-opacity: 0.16;
-	background: var(--page-bg);
+	--shadow-2: 0 0 0 1px var(--line);
+	--shadow-3: 0 0 0 1px var(--line-strong);
+	background: var(--bg);
 	color: var(--text);
 }
 
-[data-theme="black"] {
-	--bg: #000000;
-	--page-bg: var(--bg);
-	--surface: #0d0d10;
-	--surface-2: #17171b;
-	--surface-3: #222227;
-	--line: #1e1e23;
-	--canvas: #000000;
-	--blob-opacity: 0.12;
-}
+/* ---------- Textures (generated: see docs/13-redesign.md) ----------
+ * Page backgrounds only; cards and the reading canvas stay plain so
+ * text contrast never changes. Paper fibre, sand grain, ink splatter. */
 
-[data-theme="aurora"] {
-	--bg: #0a0a18;
-	--page-bg: radial-gradient(
-			60% 40% at 10% 0%,
-			color-mix(in srgb, var(--grad-a) 38%, transparent),
-			transparent 70%
-		),
-		radial-gradient(
-			50% 40% at 100% 30%,
-			color-mix(in srgb, var(--grad-c) 42%, transparent),
-			transparent 70%
-		),
-		radial-gradient(
-			70% 45% at 40% 100%,
-			color-mix(in srgb, var(--grad-b) 30%, transparent),
-			transparent 70%
-		), var(--bg);
-	--surface: rgba(255, 255, 255, 0.07);
-	--surface-2: rgba(255, 255, 255, 0.1);
-	--surface-3: rgba(255, 255, 255, 0.16);
-	--line: rgba(255, 255, 255, 0.12);
-	--line-strong: rgba(255, 255, 255, 0.2);
-	--glass: blur(22px) saturate(1.5);
-	--canvas: #0d0d1c;
-	--blob-opacity: 0.3;
+[data-theme="light"],
+:root {
+	--page-bg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E %3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.06 0.22' numOctaves='3' seed='11' stitchTiles='stitch'/%3E %3CfeColorMatrix values='0 0 0 0 0.4 0 0 0 0 0.34 0 0 0 0 0.25 0 0 0 0.34 -0.2'/%3E%3C/filter%3E %3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E %3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' seed='7' stitchTiles='stitch'/%3E %3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.3 0 0 0 0 0.22 0 0 0 0.1 -0.02'/%3E%3C/filter%3E %3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+		var(--bg);
 }
-
-/* ---------- Accent palettes (Settings > Colour) ---------- */
-
-:root,
-[data-accent="sunset"] {
-	--grad-a: #ff8a3d;
-	--grad-b: #f0447a;
-	--grad-c: #8b5cf6;
-	--accent: #e0336e;
-	--accent-hover: #c42760;
-	--accent-soft: #fde7ef;
-	--on-accent: #ffffff;
+[data-theme="sepia"] {
+	--page-bg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E %3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' seed='3' stitchTiles='stitch'/%3E %3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.33 0 0 0 0 0.2 0 0 0 3 -1.98'/%3E%3C/filter%3E %3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E %3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.3' numOctaves='2' seed='19' stitchTiles='stitch'/%3E %3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 0.97 0 0 0 0 0.9 0 0 0 3 -1.95'/%3E%3C/filter%3E %3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E %3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018 0.05' numOctaves='2' seed='5' stitchTiles='stitch'/%3E %3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.4 0 0 0 0 0.22 0 0 0 0.5 -0.2'/%3E%3C/filter%3E %3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+		var(--bg);
 }
-[data-accent="ocean"] {
-	--grad-a: #22d3ee;
-	--grad-b: #3b82f6;
-	--grad-c: #6366f1;
-	--accent: #2563eb;
-	--accent-hover: #1d4ed8;
-	--accent-soft: #e3edff;
+[data-theme="dark"] {
+	--page-bg:
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360' viewBox='0 0 360 360'%3E %3Cg fill='%231c2627'%3E%3Ccircle cx='180.0' cy='180.0' r='72.0'/%3E%3Ccircle cx='182.9' cy='213.1' r='26.6'/%3E%3Ccircle cx='197.8' cy='206.2' r='26.7'/%3E%3Ccircle cx='235.1' cy='148.8' r='34.5'/%3E%3Ccircle cx='189.1' cy='231.2' r='24.0'/%3E%3Ccircle cx='195.6' cy='209.5' r='22.6'/%3E%3Ccircle cx='238.0' cy='151.6' r='35.4'/%3E%3Ccircle cx='191.6' cy='144.7' r='24.7'/%3E%3Ccircle cx='137.8' cy='136.8' r='36.5'/%3E%3Ccircle cx='203.7' cy='157.7' r='31.1'/%3E%3Ccircle cx='156.1' cy='135.4' r='21.8'/%3E%3Ccircle cx='147.8' cy='185.4' r='38.2'/%3E%3Cpath d='M180.0 180.0 L248.3 103.1' stroke='%231c2627' stroke-width='12.1' stroke-linecap='round'/%3E%3Ccircle cx='248.3' cy='103.1' r='9.7'/%3E%3Cpath d='M180.0 180.0 L267.4 123.7' stroke='%231c2627' stroke-width='18.8' stroke-linecap='round'/%3E%3Ccircle cx='267.4' cy='123.7' r='15.0'/%3E%3Cpath d='M180.0 180.0 L238.5 97.4' stroke='%231c2627' stroke-width='13.4' stroke-linecap='round'/%3E%3Ccircle cx='238.5' cy='97.4' r='10.7'/%3E%3Cpath d='M180.0 180.0 L100.5 123.0' stroke='%231c2627' stroke-width='10.5' stroke-linecap='round'/%3E%3Ccircle cx='100.5' cy='123.0' r='8.4'/%3E%3Cpath d='M180.0 180.0 L141.2 287.5' stroke='%231c2627' stroke-width='9.1' stroke-linecap='round'/%3E%3Ccircle cx='141.2' cy='287.5' r='7.3'/%3E%3Cpath d='M180.0 180.0 L281.8 210.5' stroke='%231c2627' stroke-width='11.9' stroke-linecap='round'/%3E%3Ccircle cx='281.8' cy='210.5' r='9.5'/%3E%3Cpath d='M180.0 180.0 L82.8 158.5' stroke='%231c2627' stroke-width='12.6' stroke-linecap='round'/%3E%3Ccircle cx='82.8' cy='158.5' r='10.1'/%3E%3C/g%3E%3Cg fill='%231f2c2c'%3E%3Ccircle cx='300.7' cy='177.9' r='3.2'/%3E%3Ccircle cx='223.7' cy='322.5' r='2.6'/%3E%3Ccircle cx='83.5' cy='303.1' r='2.8'/%3E%3Ccircle cx='24.5' cy='120.1' r='1.9'/%3E%3Ccircle cx='293.7' cy='226.4' r='4.7'/%3E%3Ccircle cx='87.7' cy='98.2' r='2.9'/%3E%3Ccircle cx='240.6' cy='303.7' r='1.6'/%3E%3Ccircle cx='126.0' cy='23.0' r='5.6'/%3E%3Ccircle cx='163.9' cy='10.6' r='1.5'/%3E%3Ccircle cx='138.6' cy='345.5' r='4.8'/%3E%3Ccircle cx='37.0' cy='270.2' r='4.1'/%3E%3Ccircle cx='232.6' cy='64.4' r='2.3'/%3E%3Ccircle cx='70.3' cy='220.2' r='3.1'/%3E%3Ccircle cx='305.8' cy='149.2' r='1.5'/%3E%3Ccircle cx='294.3' cy='213.1' r='4.8'/%3E%3Ccircle cx='97.5' cy='276.3' r='1.9'/%3E%3Ccircle cx='314.6' cy='164.5' r='2.3'/%3E%3Ccircle cx='283.9' cy='220.6' r='2.2'/%3E%3Ccircle cx='127.8' cy='74.5' r='1.6'/%3E%3Ccircle cx='56.1' cy='187.3' r='5.7'/%3E%3Ccircle cx='282.3' cy='278.9' r='4.8'/%3E%3Ccircle cx='35.2' cy='272.8' r='3.5'/%3E%3C/g%3E%3C/svg%3E") right -120px top -110px / 360px 360px no-repeat,
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E %3Cg fill='%231b2427'%3E%3Ccircle cx='150.0' cy='150.0' r='60.0'/%3E%3Ccircle cx='113.6' cy='158.6' r='17.5'/%3E%3Ccircle cx='166.2' cy='132.0' r='24.1'/%3E%3Ccircle cx='171.6' cy='134.0' r='25.0'/%3E%3Ccircle cx='131.1' cy='133.0' r='21.8'/%3E%3Ccircle cx='138.4' cy='111.4' r='28.1'/%3E%3Ccircle cx='167.9' cy='177.2' r='17.0'/%3E%3Ccircle cx='92.8' cy='147.7' r='25.6'/%3E%3Ccircle cx='155.7' cy='112.6' r='28.4'/%3E%3Ccircle cx='177.7' cy='170.6' r='27.1'/%3E%3Ccircle cx='144.0' cy='111.3' r='16.6'/%3E%3Ccircle cx='146.7' cy='181.4' r='20.1'/%3E%3Cpath d='M150.0 150.0 L176.7 81.9' stroke='%231b2427' stroke-width='15.7' stroke-linecap='round'/%3E%3Ccircle cx='176.7' cy='81.9' r='12.6'/%3E%3Cpath d='M150.0 150.0 L199.4 103.3' stroke='%231b2427' stroke-width='10.8' stroke-linecap='round'/%3E%3Ccircle cx='199.4' cy='103.3' r='8.7'/%3E%3Cpath d='M150.0 150.0 L83.2 153.5' stroke='%231b2427' stroke-width='11.3' stroke-linecap='round'/%3E%3Ccircle cx='83.2' cy='153.5' r='9.0'/%3E%3Cpath d='M150.0 150.0 L208.3 111.2' stroke='%231b2427' stroke-width='12.9' stroke-linecap='round'/%3E%3Ccircle cx='208.3' cy='111.2' r='10.3'/%3E%3Cpath d='M150.0 150.0 L212.8 209.9' stroke='%231b2427' stroke-width='15.8' stroke-linecap='round'/%3E%3Ccircle cx='212.8' cy='209.9' r='12.6'/%3E%3Cpath d='M150.0 150.0 L169.3 213.4' stroke='%231b2427' stroke-width='8.0' stroke-linecap='round'/%3E%3Ccircle cx='169.3' cy='213.4' r='6.4'/%3E%3Cpath d='M150.0 150.0 L85.4 133.5' stroke='%231b2427' stroke-width='8.0' stroke-linecap='round'/%3E%3Ccircle cx='85.4' cy='133.5' r='6.4'/%3E%3C/g%3E%3Cg fill='%231e2a2b'%3E%3Ccircle cx='10.3' cy='152.9' r='2.7'/%3E%3Ccircle cx='50.1' cy='224.3' r='1.5'/%3E%3Ccircle cx='62.9' cy='102.3' r='3.4'/%3E%3Ccircle cx='239.8' cy='125.9' r='3.2'/%3E%3Ccircle cx='73.0' cy='89.2' r='2.2'/%3E%3Ccircle cx='293.8' cy='145.4' r='1.6'/%3E%3Ccircle cx='111.0' cy='14.1' r='2.1'/%3E%3Ccircle cx='79.3' cy='90.6' r='2.5'/%3E%3Ccircle cx='94.1' cy='41.7' r='4.0'/%3E%3Ccircle cx='243.0' cy='206.4' r='4.3'/%3E%3Ccircle cx='51.2' cy='92.3' r='2.6'/%3E%3Ccircle cx='270.6' cy='139.4' r='1.3'/%3E%3Ccircle cx='182.9' cy='47.4' r='2.8'/%3E%3Ccircle cx='176.0' cy='261.0' r='2.4'/%3E%3Ccircle cx='255.2' cy='215.7' r='1.6'/%3E%3Ccircle cx='169.4' cy='60.7' r='4.0'/%3E%3Ccircle cx='191.3' cy='40.7' r='3.8'/%3E%3Ccircle cx='151.4' cy='279.8' r='2.7'/%3E%3Ccircle cx='167.0' cy='291.0' r='2.6'/%3E%3Ccircle cx='54.8' cy='247.7' r='2.5'/%3E%3Ccircle cx='100.8' cy='63.8' r='4.2'/%3E%3Ccircle cx='144.8' cy='242.6' r='4.7'/%3E%3C/g%3E%3C/svg%3E") left -110px bottom 8% / 300px 300px no-repeat,
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E %3Cg fill='%231a2225'%3E%3Ccircle cx='70.0' cy='70.0' r='28.0'/%3E%3Ccircle cx='81.6' cy='89.6' r='12.3'/%3E%3Ccircle cx='55.3' cy='71.9' r='13.7'/%3E%3Ccircle cx='77.0' cy='51.5' r='11.2'/%3E%3Ccircle cx='71.0' cy='81.2' r='10.1'/%3E%3Ccircle cx='59.4' cy='63.7' r='13.7'/%3E%3Ccircle cx='71.7' cy='85.0' r='7.4'/%3E%3Ccircle cx='93.6' cy='69.6' r='14.4'/%3E%3Ccircle cx='61.2' cy='62.2' r='9.8'/%3E%3Ccircle cx='56.9' cy='70.2' r='15.0'/%3E%3Ccircle cx='60.7' cy='80.2' r='13.9'/%3E%3Ccircle cx='89.0' cy='88.9' r='10.8'/%3E%3Cpath d='M70.0 70.0 L35.4 58.3' stroke='%231a2225' stroke-width='5.5' stroke-linecap='round'/%3E%3Ccircle cx='35.4' cy='58.3' r='4.4'/%3E%3Cpath d='M70.0 70.0 L82.1 99.0' stroke='%231a2225' stroke-width='7.2' stroke-linecap='round'/%3E%3Ccircle cx='82.1' cy='99.0' r='5.8'/%3E%3Cpath d='M70.0 70.0 L74.2 113.7' stroke='%231a2225' stroke-width='4.3' stroke-linecap='round'/%3E%3Ccircle cx='74.2' cy='113.7' r='3.4'/%3E%3Cpath d='M70.0 70.0 L114.9 61.1' stroke='%231a2225' stroke-width='6.7' stroke-linecap='round'/%3E%3Ccircle cx='114.9' cy='61.1' r='5.4'/%3E%3Cpath d='M70.0 70.0 L73.3 29.6' stroke='%231a2225' stroke-width='6.6' stroke-linecap='round'/%3E%3Ccircle cx='73.3' cy='29.6' r='5.3'/%3E%3Cpath d='M70.0 70.0 L97.9 97.0' stroke='%231a2225' stroke-width='7.1' stroke-linecap='round'/%3E%3Ccircle cx='97.9' cy='97.0' r='5.7'/%3E%3Cpath d='M70.0 70.0 L84.0 114.1' stroke='%231a2225' stroke-width='7.3' stroke-linecap='round'/%3E%3Ccircle cx='84.0' cy='114.1' r='5.9'/%3E%3C/g%3E%3Cg fill='%231c2628'%3E%3Ccircle cx='26.8' cy='97.5' r='1.3'/%3E%3Ccircle cx='19.5' cy='114.1' r='1.2'/%3E%3Ccircle cx='113.7' cy='77.4' r='1.8'/%3E%3Ccircle cx='124.4' cy='67.5' r='1.4'/%3E%3Ccircle cx='12.2' cy='51.0' r='0.9'/%3E%3Ccircle cx='26.6' cy='34.6' r='1.6'/%3E%3Ccircle cx='89.5' cy='112.0' r='1.1'/%3E%3Ccircle cx='115.5' cy='47.6' r='1.6'/%3E%3Ccircle cx='54.5' cy='111.8' r='0.7'/%3E%3Ccircle cx='94.0' cy='13.3' r='1.2'/%3E%3Ccircle cx='46.0' cy='16.1' r='2.1'/%3E%3Ccircle cx='120.5' cy='56.5' r='2.2'/%3E%3Ccircle cx='125.2' cy='56.3' r='2.0'/%3E%3Ccircle cx='18.6' cy='72.9' r='1.0'/%3E%3Ccircle cx='102.8' cy='37.6' r='0.7'/%3E%3Ccircle cx='90.9' cy='12.2' r='1.4'/%3E%3Ccircle cx='92.5' cy='33.0' r='1.0'/%3E%3Ccircle cx='57.0' cy='120.9' r='0.8'/%3E%3Ccircle cx='115.8' cy='91.4' r='2.1'/%3E%3Ccircle cx='130.5' cy='63.7' r='1.4'/%3E%3Ccircle cx='69.1' cy='136.2' r='1.4'/%3E%3Ccircle cx='64.3' cy='27.7' r='0.9'/%3E%3C/g%3E%3C/svg%3E") left 58% top 46% / 140px 140px no-repeat,
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E %3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='2' stitchTiles='stitch'/%3E %3CfeColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.95 0 0 0 0 0.93 0 0 0 0.06 0'/%3E%3C/filter%3E %3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), var(
+			--bg
+		);
 }
-[data-accent="forest"] {
-	--grad-a: #a3e635;
-	--grad-b: #10b981;
-	--grad-c: #0d9488;
-	--accent: #059669;
-	--accent-hover: #047857;
-	--accent-soft: #dcf7ec;
-}
-[data-accent="berry"] {
-	--grad-a: #f472b6;
-	--grad-b: #c026d3;
-	--grad-c: #7c3aed;
-	--accent: #a21caf;
-	--accent-hover: #86198f;
-	--accent-soft: #f8e4fb;
-}
-[data-accent="mono"] {
-	--grad-a: #52525b;
-	--grad-b: #27272a;
-	--grad-c: #09090b;
-	--accent: #18181b;
-	--accent-hover: #000000;
-	--accent-soft: #ececef;
-}
-
-/* Dark themes lift the accent; theme may sit on the same element as
- * the accent (the app root) or inside it (previews). */
-[data-theme="dark"],
-[data-theme="black"],
-[data-theme="aurora"] {
-	--accent: #ff6f9c;
-	--accent-hover: #ff8fb2;
-	--accent-soft: #3a1a28;
-}
-[data-accent="ocean"][data-theme="dark"],
-[data-accent="ocean"][data-theme="black"],
-[data-accent="ocean"][data-theme="aurora"],
-[data-accent="ocean"] [data-theme="dark"],
-[data-accent="ocean"] [data-theme="black"],
-[data-accent="ocean"] [data-theme="aurora"] {
-	--accent: #60a5fa;
-	--accent-hover: #93c5fd;
-	--accent-soft: #172554;
-}
-[data-accent="forest"][data-theme="dark"],
-[data-accent="forest"][data-theme="black"],
-[data-accent="forest"][data-theme="aurora"],
-[data-accent="forest"] [data-theme="dark"],
-[data-accent="forest"] [data-theme="black"],
-[data-accent="forest"] [data-theme="aurora"] {
-	--accent: #34d399;
-	--accent-hover: #6ee7b7;
-	--accent-soft: #0b2e22;
-}
-[data-accent="berry"][data-theme="dark"],
-[data-accent="berry"][data-theme="black"],
-[data-accent="berry"][data-theme="aurora"],
-[data-accent="berry"] [data-theme="dark"],
-[data-accent="berry"] [data-theme="black"],
-[data-accent="berry"] [data-theme="aurora"] {
-	--accent: #e879f9;
-	--accent-hover: #f0abfc;
-	--accent-soft: #3b0a45;
-}
-[data-accent="mono"][data-theme="dark"],
-[data-accent="mono"][data-theme="black"],
-[data-accent="mono"][data-theme="aurora"],
-[data-accent="mono"] [data-theme="dark"],
-[data-accent="mono"] [data-theme="black"],
-[data-accent="mono"] [data-theme="aurora"] {
-	--accent: #f4f4f5;
-	--accent-hover: #ffffff;
-	--accent-soft: #27272a;
-	--grad-a: #f4f4f5;
-	--grad-b: #d4d4d8;
-	--grad-c: #a1a1aa;
-	--on-accent: #09090b;
-}
+/* ---------- /Textures ---------- */
 
 /* ---------- Base ---------- */
 
@@ -353,7 +213,6 @@ body {
 	line-height: 1.5;
 	color: var(--text);
 	background: var(--page-bg);
-	background-attachment: fixed;
 	-webkit-font-smoothing: antialiased;
 	overflow: hidden;
 	overscroll-behavior: none;
@@ -419,12 +278,9 @@ html.touch ::-webkit-scrollbar {
 	white-space: nowrap;
 }
 
-/* Gradient text for brand moments. */
-.grad-text {
-	background: var(--grad);
-	-webkit-background-clip: text;
-	background-clip: text;
-	color: transparent;
+/* The accent word in brand moments ("Paper*wren*"). */
+.brand-accent {
+	color: var(--accent);
 }
 
 /* Search highlights (CSS Custom Highlight API): no DOM mutation. */

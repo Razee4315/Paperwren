@@ -1,9 +1,8 @@
 import type { FileFormat } from "@/lib/formats";
 import { formatLabel, kindOf } from "@/lib/formats";
-import { useId } from "react";
 
 /**
- * Paperwren's file icons: a folded page in the format's colour, a
+ * Paperwren's file icons: a flat folded page in the format's colour, a
  * white glyph that says what is inside, and the extension. One
  * definition drives the app (theme-aware CSS variables) and the
  * exported asset files (scripts/export-assets.tsx passes fixed colours).
@@ -141,33 +140,24 @@ export function FileIcon({
 	color?: string;
 	title?: string;
 }) {
-	const id = `${format}${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
 	const base = color ?? KIND_VAR[kindOf(format)];
 	const label = formatLabel(format).slice(0, 4);
 	return (
 		<svg
 			width={size}
-			height={(size * 52) / 48}
-			viewBox="0 0 48 52"
+			height={(size * 50) / 48}
+			viewBox="0 0 48 50"
 			role={title ? "img" : undefined}
 			aria-hidden={title ? undefined : true}
 			aria-label={title}
 			style={{ flexShrink: 0, display: "block" }}
 		>
-			<defs>
-				<linearGradient id={`b${id}`} x1="0" y1="0" x2="0" y2="1">
-					<stop offset="0" style={{ stopColor: base }} />
-					<stop offset="1" style={{ stopColor: base, stopOpacity: 0.86 }} />
-				</linearGradient>
-			</defs>
-			{/* soft floor shadow */}
-			<ellipse cx="24" cy="49.5" rx="15" ry="2" fill={base} opacity="0.18" />
-			{/* page with the top-right corner folded */}
+			{/* flat page with the top-right corner folded */}
 			<path
-				d="M11 2 H31 L42 13 V43 A5 5 0 0 1 37 48 H11 A5 5 0 0 1 6 43 V7 A5 5 0 0 1 11 2 Z"
-				fill={`url(#b${id})`}
+				d="M11 1 H31 L42 12 V44 A5 5 0 0 1 37 49 H11 A5 5 0 0 1 6 44 V6 A5 5 0 0 1 11 1 Z"
+				fill={base}
 			/>
-			<path d="M31 2 V9 A4 4 0 0 0 35 13 H42 Z" fill="#fff" opacity="0.45" />
+			<path d="M31 1 V12 H42 Z" fill="#fff" opacity="0.4" />
 			<GlyphShape glyph={glyphFor(format)} />
 			<text
 				x="24"

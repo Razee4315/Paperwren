@@ -19,10 +19,15 @@ The bytes decide the format, not the file name: content URIs without extensions 
 
 ## Look and feel
 
-- Eight themes: Auto, Light, Dark, Black, **Paper** (fibre texture), **Sepia**, **Glass** (frosted surfaces over an accent mesh) and **Aurora** (dark glass), each with five accent palettes.
-- A four-step first-run welcome with an origami wren mascot, orbiting file icons, and a live theme picker. Files opened from other apps skip it.
-- Every animation is CSS or SVG (no animation libraries) and respects the system "reduce motion" setting.
-- SVG assets: `assets/icons/*.svg` (one per format) and `assets/brand/wren.svg` are exported from the same components the app renders: `npx vite-node scripts/export-assets.tsx`.
+- Flat and calm: solid colours, no gradients, blur or drop shadows, and only short one-shot transitions.
+- Three themes tuned for long reading, plus Auto (Paper by day, Ink at night):
+  - **Paper**: warm off-white with a faint paper-fibre texture and a pine-teal accent.
+  - **Sand**: low-blue-light parchment with a fine sand grain and a terracotta accent.
+  - **Ink**: soft charcoal (not pure black) with ink splatters in the corners and a mint accent.
+  Textures sit on page backgrounds only; cards and documents stay plain.
+- A flat wren mascot (also the app icon), a four-step welcome with a live theme picker. Files opened from other apps skip it.
+- Motion respects the system "reduce motion" setting.
+- SVG assets: `assets/icons/*.svg` (one per format), `assets/brand/wren.svg` and the app icons are exported from the same geometry the app renders: `npx vite-node scripts/export-assets.tsx`.
 
 ## Privacy
 

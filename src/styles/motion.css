@@ -1,9 +1,12 @@
 /* Shared keyframes. CSS Modules scope keyframe names per file, so
  * each module that animates @imports this file; the imported
  * keyframes are then scoped together with the rules that use them.
- * Screen-level entrances animate transform only: an opacity keyframe
- * can freeze at 0 when the Android WebView pauses animations around
- * the system file picker. */
+ *
+ * Motion is deliberately quiet: short, one-shot, no overshoot and no
+ * loops (the loading indicator is the only exception). Screen-level
+ * entrances animate transform only: an opacity keyframe can freeze at
+ * 0 when the Android WebView pauses animations around the system file
+ * picker. */
 
 @keyframes pw-fade-in {
 	from {
@@ -13,92 +16,22 @@
 @keyframes pw-rise {
 	from {
 		opacity: 0;
-		transform: translateY(10px);
+		transform: translateY(6px);
 	}
 }
 @keyframes pw-screen-in {
 	from {
-		transform: translateY(28px) scale(0.985);
+		transform: translateY(12px);
 	}
 }
 @keyframes pw-screen-side {
 	from {
-		transform: translateX(40px);
+		transform: translateX(24px);
 	}
 }
 @keyframes pw-sheet-up {
 	from {
 		transform: translateY(100%);
-	}
-}
-@keyframes pw-pop {
-	0% {
-		transform: scale(0.6);
-	}
-	60% {
-		transform: scale(1.08);
-	}
-	100% {
-		transform: scale(1);
-	}
-}
-@keyframes pw-float {
-	0%,
-	100% {
-		transform: translateY(0) rotate(var(--r, 0deg));
-	}
-	50% {
-		transform: translateY(-8px) rotate(var(--r, 0deg));
-	}
-}
-@keyframes pw-twinkle {
-	0%,
-	100% {
-		opacity: 0;
-		transform: scale(0.4) rotate(0deg);
-	}
-	50% {
-		opacity: 1;
-		transform: scale(1) rotate(45deg);
-	}
-}
-@keyframes pw-drift {
-	0%,
-	100% {
-		transform: translate(0, 0) scale(1);
-	}
-	33% {
-		transform: translate(24px, -18px) scale(1.08);
-	}
-	66% {
-		transform: translate(-18px, 14px) scale(0.95);
-	}
-}
-@keyframes pw-shimmer {
-	0%,
-	70% {
-		transform: translateX(-120%) skewX(-20deg);
-	}
-	100% {
-		transform: translateX(220%) skewX(-20deg);
-	}
-}
-@keyframes pw-wiggle {
-	0%,
-	100% {
-		transform: rotate(0);
-	}
-	20% {
-		transform: rotate(-8deg);
-	}
-	40% {
-		transform: rotate(6deg);
-	}
-	60% {
-		transform: rotate(-4deg);
-	}
-	80% {
-		transform: rotate(2deg);
 	}
 }
 @keyframes pw-spin {

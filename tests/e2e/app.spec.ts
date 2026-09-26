@@ -113,20 +113,20 @@ test("legacy settings from the previous version are migrated", async ({
 	await boot(page, {
 		settings: { "appearance.theme": "slate", "appearance.pure_black": true },
 	});
-	await expect(page.locator("html")).toHaveAttribute("data-theme", "black");
+	await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
-test("accent colour applies instantly and persists", async ({ page }) => {
+test("the Sand theme applies instantly and persists", async ({ page }) => {
 	await boot(page);
 	await page.getByTestId("open-settings").click();
-	await page.getByTestId("accent-ocean").click();
-	await expect(page.locator("html")).toHaveAttribute("data-accent", "ocean");
-	await expect(page.getByTestId("accent-ocean")).toHaveAttribute(
+	await page.getByTestId("theme-sepia").click();
+	await expect(page.locator("html")).toHaveAttribute("data-theme", "sepia");
+	await expect(page.getByTestId("theme-sepia")).toHaveAttribute(
 		"aria-checked",
 		"true",
 	);
 	await page.reload();
-	await expect(page.locator("html")).toHaveAttribute("data-accent", "ocean");
+	await expect(page.locator("html")).toHaveAttribute("data-theme", "sepia");
 });
 
 test("first run: a playful welcome that can restyle the app", async ({
@@ -136,15 +136,15 @@ test("first run: a playful welcome that can restyle the app", async ({
 	const welcome = page.getByTestId("onboarding");
 	await expect(welcome).toBeVisible();
 	for (let i = 0; i < 3; i++) await page.getByTestId("onboarding-next").click();
-	await page.getByTestId("theme-paper").click();
-	await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
+	await page.getByTestId("theme-sepia").click();
+	await expect(page.locator("html")).toHaveAttribute("data-theme", "sepia");
 	await page.getByTestId("onboarding-next").click();
 	await expect(welcome).toBeHidden({ timeout: 5000 });
 	await expect(page.getByTestId("empty-state")).toBeVisible();
 	await page.reload();
 	await expect(page.getByTestId("home")).toBeVisible();
 	await expect(page.getByTestId("onboarding")).toHaveCount(0);
-	await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
+	await expect(page.locator("html")).toHaveAttribute("data-theme", "sepia");
 });
 
 test("skip leaves the welcome immediately", async ({ page }) => {

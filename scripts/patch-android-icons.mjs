@@ -66,13 +66,15 @@ if (!existsSync(valuesDir)) {
 	);
 	process.exit(1);
 }
-// Always force the black background: a previously generated project
+// Always force the brand teal (#2B6E66, matching app-icon.svg): a previously generated project
 // carries the old ember color in values/, and a launcher tile that
 // never matches the brand reads as broken (the white tile bug).
 writeFileSync(
 	join(valuesDir, "ic_launcher_background.xml"),
-	`<resources>\n    <color name="ic_launcher_background">#000000</color>\n</resources>\n`,
+	`<resources>\n    <color name="ic_launcher_background">#2B6E66</color>\n</resources>\n`,
 );
-console.log("Wrote values/ic_launcher_background.xml (black, forced).");
+console.log(
+	"Wrote values/ic_launcher_background.xml (#2B6E66 brand teal, forced).",
+);
 
 console.log(`Launcher icons applied from ${SRC} to ${DEST}.`);
