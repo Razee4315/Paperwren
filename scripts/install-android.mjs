@@ -123,9 +123,28 @@ export function hardenManifest(original) {
 	return src;
 }
 
+/**
+ * tao before 0.37 drops the wake-up for IPC replies whenever it lands
+ * together with a lifecycle event (the Looper returns the fd event and
+ * the wake is lost). On Android that is exactly the moment the file
+ * picker closes: the reply sits unread until some later IPC call, so
+ * "Open" looks dead until the next tap. Refuse any lockfile that pulls
+ * an affected tao back in.
+ */
+function validateTao(lock) {
+	const match = lock.match(/name = "tao"\nversion = "(\d+)\.(\d+)\.(\d+)"/);
+	if (!match) fail("tao not found in src-tauri/Cargo.lock.");
+	const [major, minor] = [Number(match[1]), Number(match[2])];
+	if (major === 0 && minor < 37)
+		fail(
+			`tao ${match.slice(1).join(".")} loses Android IPC wake-ups; need >= 0.37.`,
+		);
+}
+
 const mode = process.argv[2] ?? "apply";
 const activity = readFileSync(ACTIVITY_SRC, "utf8");
 validateActivity(activity);
+validateTao(readFileSync("src-tauri/Cargo.lock", "utf8"));
 
 if (mode === "check") {
 	const sample = `<manifest>
@@ -144,7 +163,7 @@ if (mode === "check") {
 	if (!once.includes('android:launchMode="singleTask"'))
 		fail("launchMode missing.", once);
 	console.log(
-		"Android sources OK: activity validated, manifest patch idempotent.",
+		"Android sources OK: activity validated, manifest patch idempotent, tao >= 0.37.",
 	);
 	process.exit(0);
 }

@@ -81,6 +81,12 @@
 	text-align: center;
 	color: var(--text-2);
 }
+.opening {
+	position: fixed;
+	inset: 0;
+	z-index: 30;
+	background: var(--canvas);
+}
 .stateTitle {
 	font-size: 17px;
 	font-weight: 700;

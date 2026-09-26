@@ -71,6 +71,19 @@ export function Spinner({ label = "Opening" }: { label?: string }) {
 	return <PageLoader label={label} />;
 }
 
+/** The opaque full-screen "Opening…" surface. It covers Home the
+ * moment a file is chosen, before the viewer code or bytes arrive, so
+ * a tap always gets visible feedback. */
+export function OpeningView({ name }: { name?: string }) {
+	return (
+		<div className={s.opening} data-testid="opening">
+			<StateView>
+				<Spinner label={name ? `Opening ${name}` : "Opening"} />
+			</StateView>
+		</div>
+	);
+}
+
 /** Centered full-area message: loading, empty, or error. */
 export function StateView({
 	icon,

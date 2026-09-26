@@ -5,7 +5,7 @@ import { SettingsScreen } from "@/screens/settings/Settings";
 import { NavigationProvider, useNav } from "@/state/navigation";
 import { RecentsProvider, useRecents } from "@/state/recents";
 import { SettingsProvider } from "@/state/settings";
-import { Spinner, StateView, ToastHost, toast } from "@/ui";
+import { OpeningView, ToastHost, toast } from "@/ui";
 import {
 	Suspense,
 	lazy,
@@ -123,11 +123,7 @@ function Root() {
 				return (
 					<Suspense
 						key={screen.key}
-						fallback={
-							<StateView>
-								<Spinner />
-							</StateView>
-						}
+						fallback={<OpeningView name={screen.request.name} />}
 					>
 						<ViewerScreen
 							request={screen.request}
