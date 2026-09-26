@@ -1,3 +1,4 @@
+import { isDarkTheme } from "@/lib/settings";
 import type { Position } from "@/lib/types";
 import { useSettings } from "@/state/settings";
 import {
@@ -440,7 +441,7 @@ export default function PdfView({
 		if (v && n >= 1 && n <= pages) v.currentPageNumber = n;
 	};
 
-	const darkPages = settings.darkPages && theme !== "light";
+	const darkPages = settings.darkPages && isDarkTheme(theme);
 
 	const actions = (
 		<>

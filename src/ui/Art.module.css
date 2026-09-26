@@ -1,3 +1,5 @@
+@import "@/styles/motion.css";
+
 /* SVG artwork. Parts animate with CSS on SVG groups, so each group
  * transforms around its own box. */
 .art g[class],
@@ -136,4 +138,52 @@
 	animation-delay: -13s;
 	animation-duration: 30s;
 	opacity: calc(var(--blob-opacity) * 0.6);
+}
+
+/* Origami wren: facets fold in, then a happy hop loop. */
+.facet {
+	animation: pw-fold 560ms var(--spring) both;
+}
+@keyframes pw-fold {
+	from {
+		opacity: 0;
+		transform: perspective(200px) rotateY(80deg) scale(0.4);
+	}
+}
+.hop {
+	transform-box: fill-box;
+	transform-origin: 50% 100%;
+	animation: pw-hop 2.6s var(--ease) 1.2s infinite;
+}
+@keyframes pw-hop {
+	0%,
+	60%,
+	100% {
+		transform: translateY(0) scale(1, 1);
+	}
+	68% {
+		transform: translateY(0) scale(1.06, 0.92);
+	}
+	78% {
+		transform: translateY(-10px) scale(0.97, 1.04);
+	}
+	88% {
+		transform: translateY(0) scale(1.04, 0.95);
+	}
+}
+.shadow {
+	transform-box: fill-box;
+	transform-origin: center;
+	animation: pw-shadow 2.6s var(--ease) 1.2s infinite;
+}
+@keyframes pw-shadow {
+	0%,
+	60%,
+	100% {
+		transform: scaleX(1);
+	}
+	78% {
+		transform: scaleX(0.7);
+		opacity: 0.1;
+	}
 }

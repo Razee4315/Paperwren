@@ -13,7 +13,7 @@
 	position: absolute;
 	inset: 0;
 	overflow: auto;
-	background: var(--bg);
+	background: var(--page-bg);
 	overscroll-behavior: contain;
 	touch-action: pan-x pan-y;
 }

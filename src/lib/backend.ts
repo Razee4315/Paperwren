@@ -20,6 +20,8 @@ export interface ImportsStats {
 
 interface Backend {
 	pickFile(): Promise<OpenRequest | null>;
+	/** Provider display name of a content:// URI, or null. */
+	providerName(uri: string): string | null;
 	read(reopen: Reopen): Promise<ArrayBuffer>;
 	storeGet(key: string): Promise<unknown>;
 	storeSet(key: string, value: unknown): Promise<void>;
@@ -80,7 +82,17 @@ function browserPick(): Promise<File | null> {
 	});
 }
 
+function bridgeName(uri: string): string | null {
+	try {
+		const name = window.__paperwrenAndroid?.displayName(uri)?.trim();
+		return name || null;
+	} catch {
+		return null;
+	}
+}
+
 const browserBackend: Backend = {
+	providerName: bridgeName,
 	async pickFile() {
 		const file = await browserPick();
 		if (!file) return null;
@@ -158,6 +170,7 @@ function androidName(uri: string): {
 }
 
 const tauriBackend: Backend = {
+	providerName: bridgeName,
 	async pickFile() {
 		const { open } = await import("@tauri-apps/plugin-dialog");
 		const picked = await open({

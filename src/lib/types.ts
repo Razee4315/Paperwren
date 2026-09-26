@@ -43,13 +43,22 @@ export interface RecentEntry {
 	reopen: Reopen;
 	openedAt: number;
 	pinned: boolean;
+	/** False when the name is a fallback we should try to replace. */
+	nameVerified?: boolean;
 	position?: Position;
 	/** Last reopen attempt failed; Home offers to locate or remove. */
 	unavailable?: boolean;
 }
 
-export type ThemeSetting = "system" | "light" | "dark" | "black";
-export type ResolvedTheme = "light" | "dark" | "black";
+export type ResolvedTheme =
+	| "light"
+	| "dark"
+	| "black"
+	| "paper"
+	| "sepia"
+	| "glass"
+	| "aurora";
+export type ThemeSetting = "system" | ResolvedTheme;
 export type PdfZoom = "page-width" | "page-fit" | "auto";
 export type Accent = "sunset" | "ocean" | "forest" | "berry" | "mono";
 

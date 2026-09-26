@@ -66,3 +66,18 @@ describe("formatFromName / kindOf", () => {
 		expect(kindOf("md")).toBe("text");
 	});
 });
+
+import { friendlyName, isOpaqueName } from "../formats";
+
+describe("friendlyName", () => {
+	it("never shows a provider id", () => {
+		expect(isOpaqueName("1234")).toBe(true);
+		expect(isOpaqueName("msf:1234")).toBe(true);
+		expect(isOpaqueName("document%3A5521")).toBe(true);
+		expect(isOpaqueName("Tax return 2026.pdf")).toBe(false);
+		expect(friendlyName("msf:1234", "pdf")).toBe("PDF document.pdf");
+		expect(friendlyName("1234", "xlsx")).toBe("Spreadsheet.xlsx");
+		expect(friendlyName("Budget", "xlsx")).toBe("Budget.xlsx");
+		expect(friendlyName("Report.docx", "docx")).toBe("Report.docx");
+	});
+});

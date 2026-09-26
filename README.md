@@ -17,6 +17,13 @@ Paperwren is a small, fast document viewer. It opens PDF, Word, Excel, PowerPoin
 
 The bytes decide the format, not the file name: content URIs without extensions and files with the wrong extension still open in the right viewer.
 
+## Look and feel
+
+- Eight themes: Auto, Light, Dark, Black, **Paper** (fibre texture), **Sepia**, **Glass** (frosted surfaces over an accent mesh) and **Aurora** (dark glass), each with five accent palettes.
+- A four-step first-run welcome with an origami wren mascot, orbiting file icons, and a live theme picker. Files opened from other apps skip it.
+- Every animation is CSS or SVG (no animation libraries) and respects the system "reduce motion" setting.
+- SVG assets: `assets/icons/*.svg` (one per format) and `assets/brand/wren.svg` are exported from the same components the app renders: `npx vite-node scripts/export-assets.tsx`.
+
 ## Privacy
 
 - No network access and no analytics. The release APK requests zero Android permissions.

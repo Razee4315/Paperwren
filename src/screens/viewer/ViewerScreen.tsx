@@ -1,6 +1,6 @@
 import { backend } from "@/lib/backend";
 import { type OpenFailure, classifyError, failureCopy } from "@/lib/errors";
-import { type FileFormat, extensionOf, sniffFormat } from "@/lib/formats";
+import { type FileFormat, friendlyName, sniffFormat } from "@/lib/formats";
 import type { OpenRequest, Position } from "@/lib/types";
 import { useRecents } from "@/state/recents";
 import { Button, Dialog, ErrorArt, Spinner, StateView } from "@/ui";
@@ -41,10 +41,17 @@ Object.assign(VIEWERS, {
 
 /** Content URIs often carry no extension; name the file after what
  * the bytes turned out to be. Provider-verified names stay as-is. */
-function displayName(request: OpenRequest, format: FileFormat): string {
-	if (request.nameVerified || extensionOf(request.name) || format === "unknown")
-		return request.name;
-	return `${request.name}.${format}`;
+function displayName(
+	request: OpenRequest,
+	format: FileFormat,
+): { name: string; verified: boolean } {
+	if (request.nameVerified) return { name: request.name, verified: true };
+	// The provider may answer now even if it didn't at pick time.
+	if (request.reopen.kind === "uri") {
+		const asked = backend.providerName(request.reopen.uri);
+		if (asked) return { name: asked, verified: true };
+	}
+	return { name: friendlyName(request.name, format), verified: false };
 }
 
 type Loaded = { data: ArrayBuffer; format: FileFormat; name: string };
@@ -84,10 +91,11 @@ export default function ViewerScreen({
 					setFailure("unsupported");
 					return;
 				}
-				const name = displayName(request, format);
+				const { name, verified } = displayName(request, format);
 				record({
 					id: request.id,
 					name,
+					nameVerified: verified ? undefined : false,
 					format,
 					size: data.byteLength,
 					reopen: request.reopen,

@@ -1,0 +1,168 @@
+@import "@/styles/motion.css";
+
+.themes {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 10px;
+}
+.theme {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--text-3);
+	transition: transform var(--t-med) var(--spring);
+}
+.theme:active {
+	transform: scale(0.92);
+}
+.theme[aria-checked="true"] {
+	color: var(--text);
+}
+.preview {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 3 / 4;
+	border-radius: 14px;
+	overflow: hidden;
+	background: var(--page-bg);
+	box-shadow: 0 0 0 1px var(--line-strong), 0 4px 12px rgba(0, 0, 0, 0.08);
+	transition: box-shadow var(--t-med) var(--ease), transform var(--t-med)
+		var(--spring);
+}
+.theme[aria-checked="true"] .preview {
+	transform: translateY(-3px);
+	box-shadow: 0 0 0 2.5px var(--accent), 0 10px 22px
+		color-mix(in srgb, var(--grad-b) 30%, transparent);
+}
+.mock {
+	position: absolute;
+	inset: 0;
+	padding: 12% 10%;
+	display: flex;
+	flex-direction: column;
+	gap: 8%;
+}
+.mockTitle {
+	width: 55%;
+	height: 7%;
+	border-radius: 99px;
+	background: var(--text);
+	opacity: 0.85;
+}
+.mockRow {
+	display: flex;
+	align-items: center;
+	gap: 8%;
+	height: 17%;
+	padding: 0 8%;
+	border-radius: 7px;
+	background: var(--surface);
+	border: 1px solid var(--line);
+	backdrop-filter: var(--glass);
+}
+.mockRow i {
+	width: 18%;
+	aspect-ratio: 1;
+	border-radius: 3px;
+	background: var(--c);
+}
+.mockRow b {
+	flex: 1;
+	height: 22%;
+	border-radius: 99px;
+	background: var(--text-3);
+	opacity: 0.5;
+}
+.mockFab {
+	position: absolute;
+	right: 10%;
+	bottom: 8%;
+	width: 36%;
+	height: 11%;
+	border-radius: 99px;
+	background: var(--grad);
+}
+.half {
+	position: absolute;
+	inset: 0;
+	background: var(--page-bg);
+}
+.half + .half {
+	clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.check {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	z-index: 2;
+	display: flex;
+	width: 20px;
+	height: 20px;
+	align-items: center;
+	justify-content: center;
+	border-radius: 99px;
+	background: var(--grad);
+	color: #fff;
+	animation: pw-pop var(--t-slow) var(--spring);
+}
+
+.swatches {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: 6px;
+}
+.swatch {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 0;
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--text-3);
+	transition: transform var(--t-med) var(--spring);
+}
+.swatch:active {
+	transform: scale(0.9);
+}
+.dot {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	border-radius: 999px;
+	color: #fff;
+	background: var(--sw);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+	transition: transform var(--t-med) var(--spring), box-shadow var(--t-med)
+		var(--ease);
+}
+.dot svg {
+	animation: pw-pop var(--t-slow) var(--spring);
+}
+.swatch[aria-checked="true"] {
+	color: var(--text);
+}
+.swatch[aria-checked="true"] .dot {
+	transform: scale(1.08);
+	box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--text-3);
+}
+.swatch[data-sw="sunset"] {
+	--sw: linear-gradient(135deg, #ff8a3d, #f0447a 55%, #8b5cf6);
+}
+.swatch[data-sw="ocean"] {
+	--sw: linear-gradient(135deg, #22d3ee, #3b82f6 55%, #6366f1);
+}
+.swatch[data-sw="forest"] {
+	--sw: linear-gradient(135deg, #a3e635, #10b981 55%, #0d9488);
+}
+.swatch[data-sw="berry"] {
+	--sw: linear-gradient(135deg, #f472b6, #c026d3 55%, #7c3aed);
+}
+.swatch[data-sw="mono"] {
+	--sw: linear-gradient(135deg, #71717a, #27272a 55%, #09090b);
+}

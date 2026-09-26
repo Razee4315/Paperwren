@@ -20,10 +20,26 @@ async function run(theme) {
 	const page = await ctx.newPage();
 	const errors = [];
 	page.on("pageerror", (e) => errors.push(e.message));
-	await page.goto(base);
-	await page.waitForSelector("[data-testid=home]");
-	await page.waitForTimeout(900);
 	const shot = (n) => page.screenshot({ path: `${out}/${theme}-${n}.png` });
+	await page.goto(base);
+	// First run: the welcome.
+	await page.waitForSelector("[data-testid=onboarding]");
+	for (let i = 0; i < 4; i++) {
+		await page.waitForTimeout(1300);
+		await shot(`00-onboarding-${i + 1}`);
+		if (i < 3) await page.getByTestId("onboarding-next").tap();
+	}
+	await page
+		.getByTestId(theme === "dark" ? "theme-aurora" : "theme-glass")
+		.tap();
+	await page.waitForTimeout(700);
+	await shot("00-onboarding-5-picked");
+	await page.getByTestId(theme === "dark" ? "theme-dark" : "theme-light").tap();
+	await page.getByTestId("onboarding-next").tap();
+	await page.waitForTimeout(350);
+	await shot("00-onboarding-6-confetti");
+	await page.waitForSelector("[data-testid=onboarding]", { state: "detached" });
+	await page.waitForTimeout(900);
 	await shot("01-home-empty");
 	const open = async (f) => {
 		const b64 = readFileSync(`fixtures/${f}`).toString("base64");
@@ -87,6 +103,23 @@ async function run(theme) {
 	await open("not-a-document.zip").catch(() => {});
 	await page.waitForTimeout(600);
 	await shot("08-error");
+	if (theme === "light") {
+		for (const t of ["paper", "sepia", "glass", "aurora"]) {
+			await page.evaluate((t) => {
+				const s = JSON.parse(
+					localStorage.getItem("paperwren.settings_v2") || "{}",
+				);
+				localStorage.setItem(
+					"paperwren.settings_v2",
+					JSON.stringify({ ...s, theme: t }),
+				);
+			}, t);
+			await page.reload();
+			await page.waitForSelector("[data-testid=recent]");
+			await page.waitForTimeout(900);
+			await page.screenshot({ path: `${out}/theme-${t}.png` });
+		}
+	}
 	console.log(theme, "errors:", errors);
 	await ctx.close();
 }

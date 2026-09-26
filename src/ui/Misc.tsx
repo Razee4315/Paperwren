@@ -1,7 +1,7 @@
-import { type FileFormat, formatLabel, kindOf } from "@/lib/formats";
-import { FileSpreadsheet, FileText, Presentation } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { type FileFormat, kindOf } from "@/lib/formats";
+import type { ReactNode } from "react";
 import { PageLoader } from "./Art";
+import { FileIcon } from "./FileIcon";
 import s from "./Misc.module.css";
 
 const KIND_COLOR = {
@@ -17,34 +17,18 @@ export function formatColor(format: FileFormat): string {
 	return KIND_COLOR[kindOf(format)];
 }
 
-/** Format tile: tinted square, family glyph, and the extension. */
+/** A file's icon at list size, with a playful tilt on hover/press
+ * (styled by the parent). */
 export function FileBadge({
 	format,
 	size = 44,
-}: { format: FileFormat; size?: number }) {
-	const kind = kindOf(format);
-	const Glyph =
-		kind === "sheet"
-			? FileSpreadsheet
-			: kind === "slides"
-				? Presentation
-				: FileText;
-	const label = formatLabel(format).slice(0, 4);
+}: {
+	format: FileFormat;
+	size?: number;
+}) {
 	return (
-		<span
-			className={s.badge}
-			style={
-				{
-					"--fmt": KIND_COLOR[kind],
-					width: size,
-					height: size,
-					fontSize: size * 0.22,
-				} as CSSProperties
-			}
-			aria-hidden="true"
-		>
-			<Glyph size={size * 0.38} strokeWidth={2} />
-			<span className={s.badgeLabel}>{label}</span>
+		<span className={s.badge} style={{ width: size }}>
+			<FileIcon format={format} size={size} />
 		</span>
 	);
 }

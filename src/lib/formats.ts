@@ -130,6 +130,36 @@ export function formatLabel(format: FileFormat): string {
 	return format === "unknown" ? "FILE" : format.toUpperCase();
 }
 
+const FRIENDLY: Record<FormatKind, string> = {
+	pdf: "PDF document",
+	doc: "Document",
+	sheet: "Spreadsheet",
+	slides: "Presentation",
+	text: "Text file",
+	other: "File",
+};
+
+/** True for names that are really provider ids ("1234",
+ * "msf:1234", "document:5521", "image%3A88"): no letters-only word. */
+export function isOpaqueName(name: string): boolean {
+	const stem = name.replace(/\.[a-z0-9]{1,5}$/i, "");
+	if (!stem.trim()) return true;
+	return !/[a-z]{2,}/i.test(
+		stem.replace(/^(msf|document|raw|primary|image|video|audio)(%3a|:)/i, ""),
+	);
+}
+
+/**
+ * The name shown for a file whose provider did not tell us one.
+ * A real name keeps its words and gains the right extension; an
+ * opaque id becomes "PDF document.pdf" instead of "1234".
+ */
+export function friendlyName(raw: string, format: FileFormat): string {
+	const ext = format === "unknown" ? "" : `.${format}`;
+	if (isOpaqueName(raw)) return `${FRIENDLY[kindOf(format)]}${ext}`;
+	return extensionOf(raw) ? raw : `${raw}${ext}`;
+}
+
 // ---------- Sniffing ----------
 
 const latin1 = new TextDecoder("latin1");

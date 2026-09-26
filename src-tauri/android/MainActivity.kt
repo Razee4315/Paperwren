@@ -17,7 +17,9 @@ import java.io.File
 import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.util.ArrayDeque
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Paperwren's only native code. It does three small jobs and keeps
@@ -47,11 +49,24 @@ class MainActivity : TauriActivity() {
 
   private data class Delivery(val path: String, val name: String, val size: Long)
 
+  /** Our Back bridge owns system Back; Wry's default would only walk
+   * WebView history (and, registered later, would win over ours). */
+  override val handleBackNavigation: Boolean = false
+  private var bridgeInstalled = false
+
+  /** Called by Wry when the WebView exists but before the page loads.
+   * addJavascriptInterface only becomes visible to JavaScript on the
+   * NEXT page load, so installing it here (not after load) is what
+   * makes window.__paperwrenAndroid available to the app at all. */
+  override fun onWebViewCreate(webView: WebView) {
+    super.onWebViewCreate(webView)
+    addJsBridge(webView)
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     installBackBridge()
-    installJsBridge(0)
     handleIntent(intent)
   }
 
@@ -246,18 +261,16 @@ class MainActivity : TauriActivity() {
 
   // ---------- Picker bridge ----------
 
-  /** Retried because the WebView is created after onCreate returns. */
-  private fun installJsBridge(attempt: Int) {
-    val webView = findWebView()
-    if (webView == null || !isAppOrigin(webView.url)) {
-      if (attempt < 200) main.postDelayed({ installJsBridge(attempt + 1) }, 150)
-      return
-    }
+  private fun addJsBridge(webView: WebView) {
+    if (bridgeInstalled) return
+    bridgeInstalled = true
     // addJavascriptInterface is visible to every frame for the
     // WebView's lifetime, so each call re-checks the page origin.
     val bridge = object : Any() {
+      // Bridge methods run on the JavaBridge thread, and WebView
+      // methods throw off the UI thread: read the URL on main.
       private fun allowed(uri: String): Boolean =
-        isAppOrigin(webView.url) && uri.startsWith("content://")
+        uri.startsWith("content://") && isAppOrigin(currentUrl(webView))
 
       @JavascriptInterface
       fun displayName(uri: String): String =
@@ -286,6 +299,19 @@ class MainActivity : TauriActivity() {
   }
 
   // ---------- Helpers ----------
+
+  /** WebView.url from any thread (bridge calls arrive off the UI thread). */
+  private fun currentUrl(webView: WebView): String? {
+    if (Looper.myLooper() == Looper.getMainLooper()) return webView.url
+    val latch = CountDownLatch(1)
+    var url: String? = null
+    main.post {
+      url = webView.url
+      latch.countDown()
+    }
+    latch.await(500, TimeUnit.MILLISECONDS)
+    return url
+  }
 
   private fun isAppOrigin(url: String?): Boolean {
     if (url == null) return false

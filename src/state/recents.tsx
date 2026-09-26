@@ -1,4 +1,5 @@
 import { backend, managedRelPath } from "@/lib/backend";
+import { isOpaqueName } from "@/lib/formats";
 import {
 	migrateLegacyRecents,
 	normalizeRecents,
@@ -105,6 +106,37 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			alive = false;
 		};
 	}, []);
+
+	// Name healing: entries saved with a fallback name ("PDF
+	// document.pdf", or an id from an older build) ask the Android
+	// provider again, a few times while the bridge comes up.
+	const entriesNow = useRef(entries);
+	entriesNow.current = entries;
+	useEffect(() => {
+		if (!ready) return;
+		let attempt = 0;
+		let timer = 0;
+		const heal = () => {
+			const fixes: Array<[string, string]> = [];
+			for (const e of entriesNow.current) {
+				if (e.reopen.kind !== "uri") continue;
+				if (e.nameVerified !== false && !isOpaqueName(e.name)) continue;
+				const name = backend.providerName(e.reopen.uri);
+				if (name && !isOpaqueName(name)) fixes.push([e.id, name]);
+			}
+			if (fixes.length) {
+				commit((prev) =>
+					prev.map((e) => {
+						const fix = fixes.find(([id]) => id === e.id);
+						return fix ? { ...e, name: fix[1], nameVerified: undefined } : e;
+					}),
+				);
+			}
+			if (++attempt < 4) timer = window.setTimeout(heal, attempt * 1500);
+		};
+		heal();
+		return () => window.clearTimeout(timer);
+	}, [ready, commit]);
 
 	// Turning recents off clears them (and their managed copies).
 	useEffect(() => {

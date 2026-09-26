@@ -262,3 +262,105 @@ export function Blobs() {
 		</div>
 	);
 }
+
+/**
+ * The Paperwren mascot: an origami wren. Each facet folds into place
+ * in turn (`animate`), then the bird hops. Colours follow the accent.
+ */
+export function Wren({
+	size = 160,
+	animate = true,
+}: { size?: number; animate?: boolean }) {
+	const id = useId().replace(/:/g, "");
+	const facet = animate ? s.facet : undefined;
+	return (
+		<svg
+			className={`${s.art} ${animate ? s.wren : ""}`}
+			width={size}
+			height={(size * 100) / 120}
+			viewBox="0 0 120 100"
+			aria-hidden="true"
+		>
+			<defs>
+				<Grad id={`w${id}`} />
+			</defs>
+			<ellipse
+				cx="60"
+				cy="92"
+				rx="30"
+				ry="3.5"
+				fill="var(--grad-b)"
+				opacity="0.18"
+				className={animate ? s.shadow : undefined}
+			/>
+			<g className={animate ? s.hop : undefined}>
+				<path
+					className={facet}
+					style={{ animationDelay: "0ms" }}
+					d="M8 20 L40 56 L27 63 Z"
+					fill="var(--grad-c)"
+				/>
+				<path
+					className={facet}
+					style={{ animationDelay: "90ms" }}
+					d="M8 20 L27 63 L20 44 Z"
+					fill="var(--grad-c)"
+					opacity="0.7"
+				/>
+				<path
+					className={facet}
+					style={{ animationDelay: "180ms" }}
+					d="M27 63 L40 56 L86 52 L70 78 L40 77 Z"
+					fill={`url(#w${id})`}
+				/>
+				<path
+					className={facet}
+					style={{ animationDelay: "270ms" }}
+					d="M40 77 L70 78 L58 84 Z"
+					fill="var(--grad-b)"
+					opacity="0.75"
+				/>
+				<path
+					className={facet}
+					style={{ animationDelay: "360ms" }}
+					d="M80 38 L97 32 L101 50 L86 54 Z"
+					fill="var(--grad-a)"
+				/>
+				<path
+					className={facet}
+					style={{ animationDelay: "420ms" }}
+					d="M101 41 L114 45.5 L101 48 Z"
+					fill="#fbbf24"
+				/>
+				<path
+					className={facet}
+					style={{ animationDelay: "480ms" }}
+					d="M42 57 L80 38 L70 67 Z"
+					fill="#fff"
+					opacity="0.92"
+				/>
+				<path
+					className={facet}
+					style={{ animationDelay: "540ms" }}
+					d="M42 57 L70 67 L58 70 Z"
+					fill="#fff"
+					opacity="0.6"
+				/>
+				<circle
+					className={facet}
+					style={{ animationDelay: "600ms" }}
+					cx="92"
+					cy="41.5"
+					r="2.3"
+					fill="#17161c"
+				/>
+				<path
+					d="M52 78 L50 90 M62 78 L63 90"
+					stroke="var(--text-2)"
+					strokeWidth="2"
+					strokeLinecap="round"
+				/>
+			</g>
+		</svg>
+	);
+}

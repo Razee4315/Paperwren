@@ -33,6 +33,10 @@ const THEME_COLOR: Record<ResolvedTheme, string> = {
 	light: "#f6f6f4",
 	dark: "#121214",
 	black: "#000000",
+	paper: "#f2ecdf",
+	sepia: "#efe2c6",
+	glass: "#eef0fb",
+	aurora: "#0a0a18",
 };
 
 function systemPrefersDark() {

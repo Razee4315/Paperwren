@@ -128,3 +128,27 @@ test("accent colour applies instantly and persists", async ({ page }) => {
 	await page.reload();
 	await expect(page.locator("html")).toHaveAttribute("data-accent", "ocean");
 });
+
+test("first run: a playful welcome that can restyle the app", async ({
+	page,
+}) => {
+	await page.goto("/");
+	const welcome = page.getByTestId("onboarding");
+	await expect(welcome).toBeVisible();
+	for (let i = 0; i < 3; i++) await page.getByTestId("onboarding-next").click();
+	await page.getByTestId("theme-paper").click();
+	await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
+	await page.getByTestId("onboarding-next").click();
+	await expect(welcome).toBeHidden({ timeout: 5000 });
+	await expect(page.getByTestId("empty-state")).toBeVisible();
+	await page.reload();
+	await expect(page.getByTestId("home")).toBeVisible();
+	await expect(page.getByTestId("onboarding")).toHaveCount(0);
+	await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
+});
+
+test("skip leaves the welcome immediately", async ({ page }) => {
+	await page.goto("/");
+	await page.getByTestId("onboarding-skip").click();
+	await expect(page.getByTestId("onboarding")).toBeHidden({ timeout: 5000 });
+});

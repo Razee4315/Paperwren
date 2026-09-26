@@ -2,12 +2,13 @@ import { readFileSync } from "node:fs";
 import { type Page, expect } from "@playwright/test";
 
 export async function boot(page: Page, storage: Record<string, unknown> = {}) {
+	const seeded = { onboarded: true, ...storage };
 	await page.addInitScript((entries) => {
 		if (sessionStorage.getItem("booted")) return;
 		sessionStorage.setItem("booted", "1");
 		for (const [k, v] of Object.entries(entries))
 			localStorage.setItem(`paperwren.${k}`, JSON.stringify(v));
-	}, storage);
+	}, seeded);
 	await page.goto("/");
 	await expect(page.getByTestId("home")).toBeVisible();
 }

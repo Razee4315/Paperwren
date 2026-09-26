@@ -1,3 +1,5 @@
+@import "@/styles/motion.css";
+
 .scrim {
 	position: fixed;
 	inset: 0;
@@ -24,6 +26,8 @@
 	animation: pw-sheet-up var(--t-slow) var(--spring);
 	outline: none;
 	touch-action: pan-y;
+	backdrop-filter: var(--glass);
+	-webkit-backdrop-filter: var(--glass);
 }
 .handle {
 	width: 36px;
@@ -76,6 +80,8 @@
 	padding: 24px 24px 16px;
 	text-align: center;
 	animation: pw-pop var(--t-slow) var(--spring);
+	backdrop-filter: var(--glass);
+	-webkit-backdrop-filter: var(--glass);
 }
 .dialogTitle {
 	font-size: 19px;

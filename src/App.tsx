@@ -6,11 +6,22 @@ import { NavigationProvider, useNav } from "@/state/navigation";
 import { RecentsProvider, useRecents } from "@/state/recents";
 import { SettingsProvider } from "@/state/settings";
 import { Spinner, StateView, ToastHost, toast } from "@/ui";
-import { Suspense, lazy, useCallback, useEffect, useRef } from "react";
+import {
+	Suspense,
+	lazy,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 
 // The viewer engines (pdf.js, docx-preview, the grid) are the bulk of
 // the code; Home must not pay for them at cold start.
 const ViewerScreen = lazy(() => import("@/screens/viewer/ViewerScreen"));
+// Shown once; never part of a regular launch's bundle.
+const Onboarding = lazy(() => import("@/screens/onboarding/Onboarding"));
+
+const ONBOARDED_KEY = "onboarded";
 
 declare global {
 	interface Window {
@@ -23,6 +34,18 @@ function Root() {
 	const { entries, remove } = useRecents();
 	const nextKey = useRef(1);
 	const picking = useRef(false);
+	// null until storage answers; the welcome only shows on a first run.
+	const [welcome, setWelcome] = useState<boolean | null>(null);
+	useEffect(() => {
+		backend
+			.storeGet(ONBOARDED_KEY)
+			.then((v) => setWelcome((w) => (w === null ? v !== true : w)))
+			.catch(() => setWelcome(false));
+	}, []);
+	const finishWelcome = useCallback(() => {
+		setWelcome(false);
+		backend.storeSet(ONBOARDED_KEY, true).catch(() => {});
+	}, []);
 
 	const open = useCallback(
 		(request: OpenRequest) =>
@@ -57,7 +80,7 @@ function Root() {
 			open({
 				id: e.id,
 				name: e.name,
-				nameVerified: true,
+				nameVerified: e.nameVerified !== false,
 				size: e.size,
 				reopen: e.reopen,
 			}),
@@ -70,14 +93,17 @@ function Root() {
 	useEffect(() => {
 		const drain = () => {
 			const queue = window.__paperwrenFiles ?? [];
-			for (const f of queue.splice(0, queue.length)) {
+			const files = queue.splice(0, queue.length);
+			// A file shared into the app IS the onboarding: go straight to it.
+			if (files.length) finishWelcome();
+			for (const f of files) {
 				open(requestForManagedCopy(f.path, f.name, f.size));
 			}
 		};
 		drain();
 		window.addEventListener("paperwren-file", drain);
 		return () => window.removeEventListener("paperwren-file", drain);
-	}, [open]);
+	}, [open, finishWelcome]);
 
 	const entriesRef = useRef(entries);
 	entriesRef.current = entries;
@@ -118,6 +144,11 @@ function Root() {
 					</Suspense>
 				);
 			})}
+			{welcome && (
+				<Suspense fallback={null}>
+					<Onboarding onDone={finishWelcome} />
+				</Suspense>
+			)}
 			<ToastHost />
 		</>
 	);

@@ -103,6 +103,7 @@ export function normalizeRecents(value: unknown): RecentEntry[] {
 			reopen,
 			openedAt: finite(raw.openedAt),
 			pinned: raw.pinned === true,
+			nameVerified: raw.nameVerified === false ? false : undefined,
 			position: cleanPosition(raw.position),
 			unavailable: raw.unavailable === true || undefined,
 		};

@@ -1,14 +1,21 @@
 import { backend, formatBytes } from "@/lib/backend";
-import { ACCENTS } from "@/lib/settings";
-import type { Accent, PdfZoom, ThemeSetting } from "@/lib/types";
+import type { PdfZoom } from "@/lib/types";
 import { useNav } from "@/state/navigation";
 import { useRecents } from "@/state/recents";
 import { useSettings } from "@/state/settings";
-import { Blobs, Button, Dialog, IconButton, Switch, toast } from "@/ui";
+import {
+	AccentPicker,
+	Blobs,
+	Button,
+	Dialog,
+	IconButton,
+	Switch,
+	ThemePicker,
+	toast,
+} from "@/ui";
 import {
 	ArrowLeft,
 	BookOpen,
-	Check,
 	ChevronDown,
 	ChevronUp,
 	FolderOpen,
@@ -87,61 +94,12 @@ function Segmented<T extends string | number>({
 	);
 }
 
-const ACCENT_NAMES: Record<Accent, string> = {
-	sunset: "Sunset",
-	ocean: "Ocean",
-	forest: "Forest",
-	berry: "Berry",
-	mono: "Mono",
-};
-
 function Group({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 	return (
 		<h2 className={s.group}>
 			<span className={s.groupIcon}>{icon}</span>
 			{children}
 		</h2>
-	);
-}
-
-function AccentPicker({
-	value,
-	onChange,
-}: {
-	value: Accent;
-	onChange: (a: Accent) => void;
-}) {
-	return (
-		<div className={s.field}>
-			<span className={s.label} id="accent-label">
-				Colour
-			</span>
-			<div
-				className={s.swatches}
-				role="radiogroup"
-				aria-labelledby="accent-label"
-			>
-				{ACCENTS.map((a) => (
-					<button
-						type="button"
-						key={a}
-						// biome-ignore lint/a11y/useSemanticElements: colour swatches with ARIA radio semantics
-						role="radio"
-						aria-checked={a === value}
-						aria-label={ACCENT_NAMES[a]}
-						className={s.swatch}
-						data-accent-swatch={a}
-						onClick={() => onChange(a)}
-						data-testid={`accent-${a}`}
-					>
-						<span className={s.swatchDot}>
-							{a === value && <Check size={18} strokeWidth={3} />}
-						</span>
-						<span className={s.swatchName}>{ACCENT_NAMES[a]}</span>
-					</button>
-				))}
-			</div>
-		</div>
 	);
 }
 
@@ -184,22 +142,20 @@ export function SettingsScreen() {
 				<div className={s.column}>
 					<Group icon={<Palette size={15} />}>Appearance</Group>
 					<div className={s.card}>
-						<AccentPicker
-							value={settings.accent}
-							onChange={(v) => update("accent", v)}
-						/>
-						<Segmented<ThemeSetting>
-							label="Theme"
-							value={settings.theme}
-							onChange={(v) => update("theme", v)}
-							options={[
-								["system", "Auto"],
-								["light", "Light"],
-								["dark", "Dark"],
-								["black", "Black"],
-							]}
-							testId="theme"
-						/>
+						<div className={s.field}>
+							<span className={s.label}>Colour</span>
+							<AccentPicker
+								value={settings.accent}
+								onChange={(v) => update("accent", v)}
+							/>
+						</div>
+						<div className={s.field}>
+							<span className={s.label}>Theme</span>
+							<ThemePicker
+								value={settings.theme}
+								onChange={(v) => update("theme", v)}
+							/>
+						</div>
 					</div>
 
 					<Group icon={<BookOpen size={15} />}>Reading</Group>

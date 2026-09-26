@@ -7,7 +7,20 @@ import {
 	type ThemeSetting,
 } from "./types";
 
-const THEMES: ThemeSetting[] = ["system", "light", "dark", "black"];
+export const THEMES: ThemeSetting[] = [
+	"system",
+	"light",
+	"dark",
+	"black",
+	"paper",
+	"sepia",
+	"glass",
+	"aurora",
+];
+
+export function isDarkTheme(theme: ResolvedTheme): boolean {
+	return theme === "dark" || theme === "black" || theme === "aurora";
+}
 export const ACCENTS: Accent[] = ["sunset", "ocean", "forest", "berry", "mono"];
 const ZOOMS: PdfZoom[] = ["page-width", "page-fit", "auto"];
 const LIMITS = [20, 50, 100, 500];
