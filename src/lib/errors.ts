@@ -1,115 +1,97 @@
 /**
- * Typed open/read failures (audit section 15.3): every failure has a
- * name, one clear recovery path, and a mapping from whatever the
- * platform layer threw. "File not found" is never a catch-all.
+ * Typed open failures: each has a name, an honest message, and one
+ * recovery action. "File not found" is never a catch-all.
  */
 
 export type OpenFailure =
 	| "not_found"
-	| "permission_revoked"
-	| "provider_unavailable"
-	| "read_failed"
-	| "unsupported"
+	| "permission"
+	| "unreadable"
+	| "empty"
 	| "corrupt"
-	| "out_of_memory"
-	| "cancelled";
+	| "unsupported"
+	| "password";
 
-/** Map a thrown value from the read/pick layer onto the taxonomy. */
-export function classifyOpenError(err: unknown): OpenFailure {
-	if (err === null || err === undefined) return "read_failed";
-	const message =
+export class OpenError extends Error {
+	constructor(
+		readonly failure: OpenFailure,
+		detail?: string,
+	) {
+		super(detail ?? failure);
+		this.name = "OpenError";
+	}
+}
+
+/** Map whatever the platform threw onto the taxonomy. */
+export function classifyError(err: unknown): OpenFailure {
+	if (err instanceof OpenError) return err.failure;
+	const text = (
 		typeof err === "string"
 			? err
 			: err instanceof Error
-				? `${err.name}: ${err.message}`
-				: String((err as { message?: unknown })?.message ?? err);
-	const lower = message.toLowerCase();
-	if (lower.includes("cancel")) return "cancelled";
-	if (
-		lower.includes("permission denied") ||
-		lower.includes("permission_revoked") ||
-		lower.includes("eacces") ||
-		lower.includes("security exception")
-	) {
-		return "permission_revoked";
-	}
-	if (
-		lower.includes("no such file") ||
-		lower.includes("not found") ||
-		lower.includes("does not exist") ||
-		lower.includes("enoent")
-	) {
-		return lower.includes("content://") || lower.includes("provider")
-			? "provider_unavailable"
-			: "not_found";
-	}
-	if (lower.includes("content://") || lower.includes("provider"))
-		return "provider_unavailable";
-	if (lower.includes("out of memory") || lower.includes("oom"))
-		return "out_of_memory";
-	if (lower.includes("corrupt") || lower.includes("invalid")) return "corrupt";
-	return "read_failed";
+				? `${err.name} ${err.message}`
+				: String((err as { message?: unknown })?.message ?? err)
+	).toLowerCase();
+	if (/permission|securityexception|eacces|not allowed|denied/.test(text))
+		return "permission";
+	if (/no such file|not found|does not exist|enoent|filenotfound/.test(text))
+		return "not_found";
+	if (/invalidpdf|corrupt|invalid|malformed|bad zip|end of central/.test(text))
+		return "corrupt";
+	return "unreadable";
 }
 
 export interface FailureCopy {
 	title: string;
 	message: string;
-	/** Primary recovery action label, or null when the only path is
-	 * acknowledging the failure. */
-	action: "locate" | "remove" | "retry" | null;
+	/** "locate": pick the file again to repair the recent. */
+	action: "locate" | null;
 }
 
-/** One clear recovery path per failure kind. */
 export function failureCopy(failure: OpenFailure, name: string): FailureCopy {
-	const quoted = name ? `'${name}'` : "This file";
+	const file = name ? `“${name}”` : "This file";
 	switch (failure) {
 		case "not_found":
 			return {
 				title: "File not found",
-				message: `${quoted} is not where it was. It may have been moved or deleted. Choose the file again to update this recent.`,
+				message: `${file} has been moved or deleted. Choose it again to update this recent.`,
 				action: "locate",
 			};
-		case "permission_revoked":
+		case "permission":
 			return {
-				title: "Permission revoked",
-				message: `${quoted} can no longer be opened because the app's access to it was revoked. Choose the file again to grant access back.`,
+				title: "Access expired",
+				message: `Paperwren no longer has access to ${file}. Choose it again to restore access.`,
 				action: "locate",
 			};
-		case "provider_unavailable":
-			return {
-				title: "Source unavailable",
-				message: `The app that provided ${quoted} is not reachable right now. Open it from its app again, or pick the file from storage.`,
-				action: "locate",
-			};
-		case "read_failed":
+		case "unreadable":
 			return {
 				title: "Couldn't read the file",
-				message: `${quoted} could not be read. Pick it again; if it keeps failing, the file or its storage may be damaged.`,
+				message: `${file} could not be read. The app that provided it may be unavailable.`,
 				action: "locate",
 			};
-		case "unsupported":
+		case "empty":
 			return {
-				title: "Unsupported file type",
-				message:
-					"Paperwren reads PDF, Word, Excel, PowerPoint, CSV, Markdown, and text files.",
+				title: "Empty file",
+				message: `${file} contains no data.`,
 				action: null,
 			};
 		case "corrupt":
 			return {
 				title: "File is damaged",
-				message: `${quoted} seems to be damaged or incomplete. Try re-downloading or re-saving it.`,
+				message: `${file} looks damaged or incomplete. Try downloading it again.`,
 				action: null,
 			};
-		case "out_of_memory":
+		case "unsupported":
 			return {
-				title: "Not enough memory",
-				message: `${quoted} is too large for this device to open right now.`,
+				title: "Unsupported file",
+				message:
+					"Paperwren opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV, Markdown and text files.",
 				action: null,
 			};
-		case "cancelled":
+		case "password":
 			return {
-				title: "Cancelled",
-				message: "The open was cancelled.",
+				title: "Password required",
+				message: `${file} is protected.`,
 				action: null,
 			};
 	}

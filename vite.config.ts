@@ -1,8 +1,7 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readFileSync } from "node:fs";
 import react from "@vitejs/plugin-react";
-import type { UserConfig } from "vite";
 import { defineConfig } from "vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -10,49 +9,31 @@ const pkg = JSON.parse(
 	readFileSync(path.resolve(__dirname, "package.json"), "utf-8"),
 );
 
-export default defineConfig((): UserConfig => {
-	return {
-		plugins: [
-			react({
-				babel: {
-					plugins: [
-						[
-							"babel-plugin-styled-components",
-							{ displayName: true, fileName: true },
-						],
-					],
-				},
-			}),
-		],
-		define: {
-			"import.meta.env.VITE_APP_VERSION": JSON.stringify(pkg.version),
-		},
-		clearScreen: false,
-		resolve: {
-			alias: {
-				"@": path.resolve(__dirname, "./src"),
-			},
-		},
-		server: {
-			port: 1420,
-			strictPort: true,
-			host: "0.0.0.0",
-			watch: { ignored: ["**/src-tauri/**"] },
-		},
-		build: {
-			target: process.env.TAURI_PLATFORM === "windows" ? "chrome105" : "safari13",
-			minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
-			sourcemap: !!process.env.TAURI_DEBUG,
-			rollupOptions: {
-				output: {
-					// pdf.js is split so the main chunk stays light; SheetJS
-					// lives only in the parse-worker graph (an "xlsx" entry
-					// here emitted a dead 1-byte chunk).
-					manualChunks: {
-						pdfjs: ["pdfjs-dist"],
-					},
-				},
-			},
-		},
-	};
+export default defineConfig({
+	plugins: [react()],
+	define: {
+		"import.meta.env.VITE_APP_VERSION": JSON.stringify(pkg.version),
+	},
+	clearScreen: false,
+	resolve: {
+		alias: { "@": path.resolve(__dirname, "./src") },
+	},
+	css: {
+		modules: { localsConvention: "camelCaseOnly" },
+	},
+	server: {
+		port: 1420,
+		strictPort: true,
+		host: "0.0.0.0",
+		watch: { ignored: ["**/src-tauri/**"] },
+	},
+	worker: { format: "es" },
+	build: {
+		// Android System WebView and WebView2 are evergreen Chromium;
+		// pdf.js 4 needs ES2022 features anyway.
+		target: "chrome110",
+		minify: process.env.TAURI_DEBUG ? false : "esbuild",
+		sourcemap: !!process.env.TAURI_DEBUG,
+		chunkSizeWarningLimit: 1500,
+	},
 });

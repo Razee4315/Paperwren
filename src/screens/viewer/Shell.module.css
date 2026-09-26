@@ -1,0 +1,160 @@
+@import "@/styles/motion.css";
+
+.shell {
+	position: fixed;
+	inset: 0;
+	z-index: 30;
+	display: flex;
+	flex-direction: column;
+	background: var(--canvas);
+	animation: pw-screen-in var(--t-slow) var(--ease-out);
+}
+.top {
+	position: relative;
+	z-index: 5;
+	flex-shrink: 0;
+	background: var(--surface);
+	border-bottom: 1px solid var(--line);
+	padding-top: var(--safe-top);
+	transition: margin-top var(--t-med) var(--ease), opacity var(--t-med)
+		var(--ease);
+	backdrop-filter: var(--glass);
+	-webkit-backdrop-filter: var(--glass);
+}
+.row {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	height: var(--bar-h);
+	padding: 0 calc(4px + var(--safe-right)) 0 calc(4px + var(--safe-left));
+}
+.title {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 0 6px;
+	font-weight: 650;
+}
+.stem {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.ext {
+	flex-shrink: 0;
+	margin-left: -8px;
+	white-space: nowrap;
+}
+.dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 999px;
+	flex-shrink: 0;
+	box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 0%, transparent);
+	animation: pw-pop var(--t-slow) var(--spring) 120ms both;
+}
+.body {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+}
+.bottom {
+	position: relative;
+	z-index: 5;
+	flex-shrink: 0;
+	background: var(--surface);
+	border-top: 1px solid var(--line);
+	padding-bottom: var(--safe-bottom);
+	transition: margin-bottom var(--t-med) var(--ease), opacity var(--t-med)
+		var(--ease);
+	backdrop-filter: var(--glass);
+	-webkit-backdrop-filter: var(--glass);
+}
+.hiddenTop {
+	margin-top: calc(-1 * (var(--bar-h) + var(--safe-top) + 1px));
+	opacity: 0;
+	pointer-events: none;
+}
+.hiddenBottom {
+	margin-bottom: -80px;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.find {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	height: var(--bar-h);
+	padding: 0 calc(4px + var(--safe-right)) 0 calc(12px + var(--safe-left));
+	border-top: 1px solid var(--line);
+}
+.find input {
+	flex: 1;
+	min-width: 0;
+	height: 38px;
+	padding: 0 12px;
+	border-radius: var(--r-m);
+	border: 1px solid var(--line);
+	background: var(--surface-2);
+	outline: none;
+}
+.find input:focus {
+	border-color: var(--accent);
+}
+.findCount {
+	min-width: 64px;
+	text-align: center;
+	font-size: 13px;
+	color: var(--text-3);
+	font-variant-numeric: tabular-nums;
+}
+
+.pager {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	height: 52px;
+	padding: 0 calc(8px + var(--safe-right)) 0 calc(8px + var(--safe-left));
+}
+.pill {
+	min-width: 88px;
+	height: 38px;
+	padding: 0 16px;
+	border-radius: 999px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-weight: 800;
+	transition: transform var(--t-med) var(--spring);
+	font-size: 14px;
+	font-variant-numeric: tabular-nums;
+}
+.pill:active {
+	transform: scale(0.94);
+}
+.group {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+.note {
+	position: absolute;
+	left: 50%;
+	top: 12px;
+	transform: translateX(-50%);
+	z-index: 4;
+	max-width: calc(100% - 32px);
+	padding: 8px 14px;
+	border-radius: 999px;
+	background: var(--surface);
+	box-shadow: var(--shadow-2);
+	font-size: 13px;
+	color: var(--text-2);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	animation: pw-rise var(--t-med) var(--ease-out);
+}

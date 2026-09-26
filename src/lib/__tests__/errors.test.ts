@@ -1,91 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { classifyOpenError, failureCopy } from "../errors";
-import { normalizeRecents, reopenFromSource } from "../recents";
+import { OpenError, classifyError, failureCopy } from "../errors";
 
-describe("classifyOpenError", () => {
-	it("maps platform messages onto the taxonomy", () => {
-		expect(
-			classifyOpenError(new Error("path not found: /a.pdf (enoent)")),
-		).toBe("not_found");
-		expect(classifyOpenError("Permission denied: content://x")).toBe(
-			"permission_revoked",
-		);
-		expect(classifyOpenError("provider for content://x is unavailable")).toBe(
-			"provider_unavailable",
-		);
-		expect(classifyOpenError("out of memory")).toBe("out_of_memory");
-		expect(classifyOpenError("user cancelled")).toBe("cancelled");
-		expect(classifyOpenError("something odd")).toBe("read_failed");
+describe("classifyError", () => {
+	it.each([
+		["Permission Denial: reading com.android.providers", "permission"],
+		["java.lang.SecurityException: no grant", "permission"],
+		["No such file or directory (os error 2)", "not_found"],
+		["FileNotFoundException: /imports/x.pdf", "not_found"],
+		["InvalidPDFException: Invalid PDF structure", "corrupt"],
+		["something odd", "unreadable"],
+	])("%s -> %s", (message, expected) => {
+		expect(classifyError(new Error(message))).toBe(expected);
+		expect(classifyError(message)).toBe(expected);
 	});
 
-	it("gives every failure exactly one recovery path", () => {
-		for (const kind of [
-			"not_found",
-			"permission_revoked",
-			"provider_unavailable",
-			"read_failed",
-			"unsupported",
-			"corrupt",
-			"out_of_memory",
-			"cancelled",
-		] as const) {
-			const copy = failureCopy(kind, "x.pdf");
-			expect(copy.title.length).toBeGreaterThan(0);
-			expect(copy.message.length).toBeGreaterThan(0);
-		}
-		// Unavailable sources offer "choose again", not a dead end.
-		expect(failureCopy("not_found", "x.pdf").action).toBe("locate");
-		expect(failureCopy("corrupt", "x.pdf").action).toBeNull();
+	it("keeps an explicit OpenError", () => {
+		expect(classifyError(new OpenError("empty"))).toBe("empty");
+	});
+
+	it("tolerates non-errors", () => {
+		expect(classifyError(undefined)).toBe("unreadable");
+		expect(classifyError({ message: "enoent" })).toBe("not_found");
 	});
 });
 
-describe("reopenFromSource migration", () => {
-	it("derives the mechanism from the legacy source scheme", () => {
-		expect(reopenFromSource("content://provider/docs/12")).toEqual({
-			kind: "persisted-uri",
-			uri: "content://provider/docs/12",
-		});
-		expect(reopenFromSource("/home/user/report.pdf")).toEqual({
-			kind: "desktop-path",
-			path: "/home/user/report.pdf",
-		});
-		expect(
-			reopenFromSource("/data/user/0/app.paperwren.docs/files/imports/a.pdf"),
-		).toEqual({
-			kind: "managed-copy",
-			path: "/data/user/0/app.paperwren.docs/files/imports/a.pdf",
-		});
+describe("failureCopy", () => {
+	it("offers locate only where picking again can help", () => {
+		expect(failureCopy("not_found", "a.pdf").action).toBe("locate");
+		expect(failureCopy("permission", "a.pdf").action).toBe("locate");
+		expect(failureCopy("corrupt", "a.pdf").action).toBeNull();
+		expect(failureCopy("unsupported", "a.pdf").action).toBeNull();
 	});
-
-	it("normalizes legacy entries and keeps their ids stable", () => {
-		const [entry] = normalizeRecents([
-			{
-				source: "content://provider/1284",
-				name: "1284",
-				format: "pdf",
-				lastOpenedAt: 5,
-			},
-		]);
-		expect(entry.reopen).toEqual({
-			kind: "persisted-uri",
-			uri: "content://provider/1284",
-		});
-		// Same source always migrates to the same stable id.
-		const [again] = normalizeRecents([
-			{ source: "content://provider/1284", name: "x", format: "pdf" },
-		]);
-		expect(entry.id).toBe(again.id);
-	});
-
-	it("preserves unavailable flags through migration", () => {
-		const [entry] = normalizeRecents([
-			{
-				source: "/x/a.pdf",
-				name: "a.pdf",
-				format: "pdf",
-				unavailable: true,
-			},
-		]);
-		expect(entry.unavailable).toBe(true);
+	it("names the file", () => {
+		expect(failureCopy("not_found", "Report.pdf").message).toContain(
+			"Report.pdf",
+		);
 	});
 });

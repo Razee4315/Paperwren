@@ -1,0 +1,93 @@
+.list {
+	width: max-content;
+	min-width: 100%;
+	padding: 16px 12px 40px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 20px;
+}
+.frame {
+	content-visibility: auto;
+}
+.slide {
+	position: relative;
+	overflow: hidden;
+	box-shadow: var(--shadow-2);
+	border-radius: 3px;
+	font-family: Calibri, Carlito, "Segoe UI", Arial, sans-serif;
+	color: #000;
+	line-height: 1.2;
+}
+.el {
+	position: absolute;
+}
+.el svg {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+.text {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	overflow-wrap: break-word;
+}
+.text p {
+	margin: 0;
+	white-space: pre-wrap;
+}
+.bullet {
+	display: inline-block;
+	min-width: 1.1em;
+	margin-left: -1.1em;
+}
+.img {
+	width: 100%;
+	height: 100%;
+	display: block;
+	object-fit: fill;
+}
+.missing,
+.placeholder {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px dashed #b8b8b8;
+	background: rgba(0, 0, 0, 0.03);
+	color: #777;
+	font-size: 14px;
+}
+.table {
+	border-collapse: collapse;
+	table-layout: fixed;
+	width: 100%;
+	height: 100%;
+}
+.table td {
+	border: 1px solid #c8c8c8;
+	vertical-align: top;
+	position: relative;
+}
+.label {
+	align-self: flex-start;
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--text-3);
+	margin-bottom: 6px;
+}
+.notes {
+	margin-top: 8px;
+	padding: 10px 14px;
+	border-radius: var(--r-m);
+	background: var(--surface);
+	border: 1px solid var(--line);
+	font-size: 14px;
+	color: var(--text-2);
+	white-space: pre-wrap;
+}

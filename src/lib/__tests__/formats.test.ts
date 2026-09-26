@@ -1,98 +1,83 @@
-import { validateFileName, validateFileSize } from "@/state/openFlow";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { formatBytes, guessFormat, idForSource } from "../backend";
+import { formatFromName, kindOf, sniffFormat } from "../formats";
 
-describe("guessFormat", () => {
-	it("recognises the four flagship formats", () => {
-		expect(guessFormat("report.pdf")).toBe("pdf");
-		expect(guessFormat("notes.docx")).toBe("docx");
-		expect(guessFormat("budget.xlsx")).toBe("xlsx");
-		expect(guessFormat("deck.pptx")).toBe("pptx");
+const fixture = (name: string) => {
+	const b = readFileSync(`fixtures/${name}`);
+	return b.buffer.slice(
+		b.byteOffset,
+		b.byteOffset + b.byteLength,
+	) as ArrayBuffer;
+};
+
+describe("sniffFormat", () => {
+	it.each([
+		["sample.pdf", "pdf"],
+		["sample.docx", "docx"],
+		["sample.xlsx", "xlsx"],
+		["sample.pptx", "pptx"],
+		["sample.doc", "doc"],
+		["sample.xls", "xls"],
+		["sample.ppt", "ppt"],
+		["sample.odt", "odt"],
+		["sample.ods", "ods"],
+		["sample.odp", "odp"],
+		["sample.rtf", "rtf"],
+		["sample.txt", "txt"],
+		["sample.csv", "csv"],
+	])("%s is %s even without a name", (file, expected) => {
+		const hint = expected === "csv" ? file : "";
+		expect(sniffFormat(fixture(file), hint)).toBe(expected);
 	});
 
-	it("covers the adjacent spreadsheet and text types", () => {
-		expect(guessFormat("data.csv")).toBe("csv");
-		expect(guessFormat("readme.md")).toBe("txt");
-		expect(guessFormat("notes.txt")).toBe("txt");
-		expect(guessFormat("book.xlsm")).toBe("xlsx");
+	it("ignores a lying extension", () => {
+		expect(sniffFormat(fixture("sample.pdf"), "photo.docx")).toBe("pdf");
 	});
 
-	it("is case-insensitive", () => {
-		expect(guessFormat("REPORT.PDF")).toBe("pdf");
-		expect(guessFormat("CV.Pdf")).toBe("pdf");
+	it("rejects binary junk and damaged containers", () => {
+		expect(sniffFormat(new Uint8Array([0, 1, 2, 3, 250, 0]).buffer)).toBe(
+			"unknown",
+		);
+		expect(sniffFormat(fixture("archive.xyz"))).not.toBe("pdf");
 	});
 
-	it("returns unknown for anything else", () => {
-		expect(guessFormat("archive.xyz")).toBe("unknown");
-		expect(guessFormat("noext")).toBe("unknown");
-	});
-});
-
-describe("formatBytes", () => {
-	it("formats bytes, kilobytes and megabytes", () => {
-		expect(formatBytes(0)).toBe("0 B");
-		expect(formatBytes(512)).toBe("512 B");
-		expect(formatBytes(1024)).toBe("1.0 KB");
-		expect(formatBytes(1536)).toBe("1.5 KB");
-		expect(formatBytes(1024 * 1024)).toBe("1.0 MB");
-		expect(formatBytes(7.5 * 1024 * 1024)).toBe("7.5 MB");
-	});
-});
-
-describe("idForSource", () => {
-	it("is stable across calls", () => {
-		expect(idForSource("/a/b.pdf")).toBe(idForSource("/a/b.pdf"));
-	});
-	it("differs between different files", () => {
-		expect(idForSource("/a/b.pdf")).not.toBe(idForSource("/a/c.pdf"));
-	});
-});
-
-describe("validateFileName (open-flow gate)", () => {
-	it("rejects legacy Office formats with a migration hint", () => {
-		for (const [ext, newExt] of [
-			["doc", "docx"],
-			["xls", "xlsx"],
-			["ppt", "pptx"],
-		]) {
-			const err = validateFileName(`old.${ext}`);
-			expect(err?.kind).toBe("legacy");
-			if (err?.kind === "legacy") expect(err.newExt).toBe(newExt);
-		}
+	it("treats UTF-16 text as text", () => {
+		const bytes = new Uint8Array([0xff, 0xfe, 0x68, 0, 0x69, 0]);
+		expect(sniffFormat(bytes.buffer)).toBe("txt");
 	});
 
-	it("rejects unknown types as unsupported", () => {
-		expect(validateFileName("archive.xyz")?.kind).toBe("unsupported");
-	});
-
-	it("accepts everything the viewers read", () => {
-		for (const name of [
-			"a.pdf",
-			"b.docx",
-			"c.xlsx",
-			"d.pptx",
-			"e.csv",
-			"f.txt",
-			"g.md",
-		]) {
-			expect(validateFileName(name)).toBeNull();
-		}
+	it("uses the name only to refine text", () => {
+		const text = new TextEncoder().encode("# Title\n").buffer as ArrayBuffer;
+		expect(sniffFormat(text, "notes.md")).toBe("md");
+		expect(sniffFormat(text, "")).toBe("txt");
 	});
 });
 
-describe("validateFileSize (open-flow gate)", () => {
-	it("flags spreadsheets past 500 MB", () => {
-		const err = validateFileSize("huge.xlsx", 501 * 1024 * 1024);
-		expect(err?.kind).toBe("too-large");
+describe("formatFromName / kindOf", () => {
+	it("maps extensions case-insensitively", () => {
+		expect(formatFromName("Report.PDF")).toBe("pdf");
+		expect(formatFromName("a.tar.gz")).toBe("unknown");
+		expect(formatFromName("noext")).toBe("unknown");
 	});
-
-	it("flags presentations past 200 MB", () => {
-		const err = validateFileSize("huge.pptx", 201 * 1024 * 1024);
-		expect(err?.kind).toBe("too-large");
+	it("groups formats into families", () => {
+		expect(kindOf("doc")).toBe("doc");
+		expect(kindOf("ods")).toBe("sheet");
+		expect(kindOf("ppt")).toBe("slides");
+		expect(kindOf("md")).toBe("text");
 	});
+});
 
-	it("has no limit for pdf and small files pass everywhere", () => {
-		expect(validateFileSize("a.pdf", 900 * 1024 * 1024)).toBeNull();
-		expect(validateFileSize("small.xlsx", 1024)).toBeNull();
+import { friendlyName, isOpaqueName } from "../formats";
+
+describe("friendlyName", () => {
+	it("never shows a provider id", () => {
+		expect(isOpaqueName("1234")).toBe(true);
+		expect(isOpaqueName("msf:1234")).toBe(true);
+		expect(isOpaqueName("document%3A5521")).toBe(true);
+		expect(isOpaqueName("Tax return 2026.pdf")).toBe(false);
+		expect(friendlyName("msf:1234", "pdf")).toBe("PDF document.pdf");
+		expect(friendlyName("1234", "xlsx")).toBe("Spreadsheet.xlsx");
+		expect(friendlyName("Budget", "xlsx")).toBe("Budget.xlsx");
+		expect(friendlyName("Report.docx", "docx")).toBe("Report.docx");
 	});
 });

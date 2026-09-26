@@ -1,0 +1,448 @@
+/*
+ * Paperwren design tokens.
+ *
+ * Minimal surfaces, one expressive signature: a three-stop gradient
+ * (--grad) that the user picks in Settings (data-accent), plus vivid
+ * format colours people already associate with each file type.
+ * Themes are one attribute on <html>: data-theme = light | dark | black.
+ * Components only ever read variables.
+ */
+
+:root {
+	--font: "Manrope Variable", "Manrope", system-ui, -apple-system, "Segoe UI",
+		Roboto, sans-serif;
+	--mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo,
+		monospace;
+
+	--r-s: 8px;
+	--r-m: 12px;
+	--r-l: 18px;
+	--r-xl: 26px;
+
+	--ease: cubic-bezier(0.2, 0, 0, 1);
+	--ease-out: cubic-bezier(0.05, 0.7, 0.1, 1);
+	--spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+	--t-fast: 140ms;
+	--t-med: 240ms;
+	--t-slow: 420ms;
+
+	--safe-top: env(safe-area-inset-top, 0px);
+	--safe-bottom: env(safe-area-inset-bottom, 0px);
+	--safe-left: env(safe-area-inset-left, 0px);
+	--safe-right: env(safe-area-inset-right, 0px);
+
+	--bar-h: 56px;
+	--content-max: 720px;
+
+	--grad: linear-gradient(
+		135deg,
+		var(--grad-a) 0%,
+		var(--grad-b) 55%,
+		var(--grad-c) 100%
+	);
+}
+
+/* ---------- Themes ----------
+ * Selectors are not tied to :root so a preview element can carry its
+ * own data-theme (Settings and onboarding show live mini previews).
+ * --page-bg is the full background layer stack of a screen; --glass
+ * is the frosted-surface filter used only by bars, sheets and dialogs. */
+
+:root,
+[data-theme="light"] {
+	color-scheme: light;
+	--bg: #f7f6f3;
+	--page-bg: var(--bg);
+	--surface: #ffffff;
+	--surface-2: #f1efeb;
+	--surface-3: #e7e4de;
+	--line: #e8e5df;
+	--line-strong: #d3cfc7;
+	--glass: none;
+
+	--text: #17161c;
+	--text-2: #55535e;
+	--text-3: #8d8a96;
+
+	--danger: #d92d20;
+	--success: #079455;
+	--highlight: rgba(253, 224, 71, 0.55);
+	--highlight-active: rgba(251, 146, 60, 0.6);
+
+	--fmt-pdf: #f0443a;
+	--fmt-doc: #2f6bff;
+	--fmt-sheet: #0ea561;
+	--fmt-slides: #f59109;
+	--fmt-text: #7a6ff0;
+
+	--shadow-1: 0 1px 2px rgba(23, 22, 28, 0.05), 0 1px 3px rgba(23, 22, 28, 0.04);
+	--shadow-2: 0 6px 20px rgba(23, 22, 28, 0.08), 0 1px 3px
+		rgba(23, 22, 28, 0.05);
+	--shadow-3: 0 18px 50px rgba(23, 22, 28, 0.18);
+	--scrim: rgba(18, 16, 24, 0.4);
+	--canvas: #ebe9e4;
+	--blob-opacity: 0.22;
+	background: var(--page-bg);
+	color: var(--text);
+}
+
+[data-theme="paper"] {
+	color-scheme: light;
+	--bg: #f2ecdf;
+	--page-bg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .33 0 0 0 0 .2 0 0 0 .12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+		radial-gradient(120% 70% at 50% 0%, #f8f3e7 0%, transparent 70%), var(--bg);
+	--surface: #fbf7ee;
+	--surface-2: #efe7d6;
+	--surface-3: #e5dac4;
+	--line: #e3d8c3;
+	--line-strong: #cfc1a6;
+	--text: #2a2218;
+	--text-2: #5f5341;
+	--text-3: #938670;
+	--canvas: #e6dcc8;
+	--shadow-1: 0 1px 2px rgba(80, 60, 30, 0.08), 0 2px 6px rgba(80, 60, 30, 0.05);
+	--shadow-2: 0 8px 22px rgba(80, 60, 30, 0.12);
+	--blob-opacity: 0.1;
+}
+
+[data-theme="sepia"] {
+	color-scheme: light;
+	--bg: #efe2c6;
+	--page-bg: var(--bg);
+	--surface: #f7ecd5;
+	--surface-2: #eadab9;
+	--surface-3: #dfcaa2;
+	--line: #e0cda8;
+	--line-strong: #cbb285;
+	--text: #3b2a17;
+	--text-2: #6b5334;
+	--text-3: #9a8260;
+	--canvas: #e3d2ae;
+	--fmt-text: #9a6b3a;
+	--blob-opacity: 0.12;
+}
+
+[data-theme="glass"] {
+	color-scheme: light;
+	--bg: #eef0fb;
+	--page-bg: radial-gradient(
+			60% 45% at 0% 0%,
+			color-mix(in srgb, var(--grad-a) 45%, transparent),
+			transparent 70%
+		),
+		radial-gradient(
+			55% 45% at 100% 20%,
+			color-mix(in srgb, var(--grad-c) 40%, transparent),
+			transparent 70%
+		),
+		radial-gradient(
+			70% 50% at 50% 100%,
+			color-mix(in srgb, var(--grad-b) 35%, transparent),
+			transparent 70%
+		), var(--bg);
+	--surface: rgba(255, 255, 255, 0.58);
+	--surface-2: rgba(255, 255, 255, 0.45);
+	--surface-3: rgba(255, 255, 255, 0.7);
+	--line: rgba(255, 255, 255, 0.75);
+	--line-strong: rgba(120, 120, 150, 0.3);
+	--glass: blur(20px) saturate(1.6);
+	--text: #16152a;
+	--text-2: #4b4a66;
+	--text-3: #7d7c96;
+	--canvas: #e6e8f5;
+	--shadow-1: 0 4px 18px rgba(60, 50, 120, 0.08);
+	--shadow-2: 0 10px 30px rgba(60, 50, 120, 0.14);
+	--blob-opacity: 0.35;
+}
+
+[data-theme="dark"],
+[data-theme="black"],
+[data-theme="aurora"] {
+	color-scheme: dark;
+	--bg: #111015;
+	--page-bg: var(--bg);
+	--surface: #1a1920;
+	--surface-2: #23222a;
+	--surface-3: #2d2c35;
+	--line: #2a2931;
+	--line-strong: #3a3942;
+	--glass: none;
+
+	--text: #f3f2f7;
+	--text-2: #b7b5c2;
+	--text-3: #7f7d8a;
+
+	--danger: #f97066;
+	--success: #47cd89;
+	--highlight: rgba(250, 204, 21, 0.4);
+	--highlight-active: rgba(251, 146, 60, 0.6);
+
+	--fmt-pdf: #ff6b61;
+	--fmt-doc: #6b9bff;
+	--fmt-sheet: #3ccb7f;
+	--fmt-slides: #fdb022;
+	--fmt-text: #a59cff;
+
+	--shadow-1: none;
+	--shadow-2: 0 6px 20px rgba(0, 0, 0, 0.45);
+	--shadow-3: 0 18px 50px rgba(0, 0, 0, 0.65);
+	--scrim: rgba(0, 0, 0, 0.62);
+	--canvas: #0c0b10;
+	--blob-opacity: 0.16;
+	background: var(--page-bg);
+	color: var(--text);
+}
+
+[data-theme="black"] {
+	--bg: #000000;
+	--page-bg: var(--bg);
+	--surface: #0d0d10;
+	--surface-2: #17171b;
+	--surface-3: #222227;
+	--line: #1e1e23;
+	--canvas: #000000;
+	--blob-opacity: 0.12;
+}
+
+[data-theme="aurora"] {
+	--bg: #0a0a18;
+	--page-bg: radial-gradient(
+			60% 40% at 10% 0%,
+			color-mix(in srgb, var(--grad-a) 38%, transparent),
+			transparent 70%
+		),
+		radial-gradient(
+			50% 40% at 100% 30%,
+			color-mix(in srgb, var(--grad-c) 42%, transparent),
+			transparent 70%
+		),
+		radial-gradient(
+			70% 45% at 40% 100%,
+			color-mix(in srgb, var(--grad-b) 30%, transparent),
+			transparent 70%
+		), var(--bg);
+	--surface: rgba(255, 255, 255, 0.07);
+	--surface-2: rgba(255, 255, 255, 0.1);
+	--surface-3: rgba(255, 255, 255, 0.16);
+	--line: rgba(255, 255, 255, 0.12);
+	--line-strong: rgba(255, 255, 255, 0.2);
+	--glass: blur(22px) saturate(1.5);
+	--canvas: #0d0d1c;
+	--blob-opacity: 0.3;
+}
+
+/* ---------- Accent palettes (Settings > Colour) ---------- */
+
+:root,
+[data-accent="sunset"] {
+	--grad-a: #ff8a3d;
+	--grad-b: #f0447a;
+	--grad-c: #8b5cf6;
+	--accent: #e0336e;
+	--accent-hover: #c42760;
+	--accent-soft: #fde7ef;
+	--on-accent: #ffffff;
+}
+[data-accent="ocean"] {
+	--grad-a: #22d3ee;
+	--grad-b: #3b82f6;
+	--grad-c: #6366f1;
+	--accent: #2563eb;
+	--accent-hover: #1d4ed8;
+	--accent-soft: #e3edff;
+}
+[data-accent="forest"] {
+	--grad-a: #a3e635;
+	--grad-b: #10b981;
+	--grad-c: #0d9488;
+	--accent: #059669;
+	--accent-hover: #047857;
+	--accent-soft: #dcf7ec;
+}
+[data-accent="berry"] {
+	--grad-a: #f472b6;
+	--grad-b: #c026d3;
+	--grad-c: #7c3aed;
+	--accent: #a21caf;
+	--accent-hover: #86198f;
+	--accent-soft: #f8e4fb;
+}
+[data-accent="mono"] {
+	--grad-a: #52525b;
+	--grad-b: #27272a;
+	--grad-c: #09090b;
+	--accent: #18181b;
+	--accent-hover: #000000;
+	--accent-soft: #ececef;
+}
+
+/* Dark themes lift the accent; theme may sit on the same element as
+ * the accent (the app root) or inside it (previews). */
+[data-theme="dark"],
+[data-theme="black"],
+[data-theme="aurora"] {
+	--accent: #ff6f9c;
+	--accent-hover: #ff8fb2;
+	--accent-soft: #3a1a28;
+}
+[data-accent="ocean"][data-theme="dark"],
+[data-accent="ocean"][data-theme="black"],
+[data-accent="ocean"][data-theme="aurora"],
+[data-accent="ocean"] [data-theme="dark"],
+[data-accent="ocean"] [data-theme="black"],
+[data-accent="ocean"] [data-theme="aurora"] {
+	--accent: #60a5fa;
+	--accent-hover: #93c5fd;
+	--accent-soft: #172554;
+}
+[data-accent="forest"][data-theme="dark"],
+[data-accent="forest"][data-theme="black"],
+[data-accent="forest"][data-theme="aurora"],
+[data-accent="forest"] [data-theme="dark"],
+[data-accent="forest"] [data-theme="black"],
+[data-accent="forest"] [data-theme="aurora"] {
+	--accent: #34d399;
+	--accent-hover: #6ee7b7;
+	--accent-soft: #0b2e22;
+}
+[data-accent="berry"][data-theme="dark"],
+[data-accent="berry"][data-theme="black"],
+[data-accent="berry"][data-theme="aurora"],
+[data-accent="berry"] [data-theme="dark"],
+[data-accent="berry"] [data-theme="black"],
+[data-accent="berry"] [data-theme="aurora"] {
+	--accent: #e879f9;
+	--accent-hover: #f0abfc;
+	--accent-soft: #3b0a45;
+}
+[data-accent="mono"][data-theme="dark"],
+[data-accent="mono"][data-theme="black"],
+[data-accent="mono"][data-theme="aurora"],
+[data-accent="mono"] [data-theme="dark"],
+[data-accent="mono"] [data-theme="black"],
+[data-accent="mono"] [data-theme="aurora"] {
+	--accent: #f4f4f5;
+	--accent-hover: #ffffff;
+	--accent-soft: #27272a;
+	--grad-a: #f4f4f5;
+	--grad-b: #d4d4d8;
+	--grad-c: #a1a1aa;
+	--on-accent: #09090b;
+}
+
+/* ---------- Base ---------- */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+	-webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+	height: 100%;
+}
+
+body {
+	font-family: var(--font);
+	font-size: 15px;
+	line-height: 1.5;
+	color: var(--text);
+	background: var(--page-bg);
+	background-attachment: fixed;
+	-webkit-font-smoothing: antialiased;
+	overflow: hidden;
+	overscroll-behavior: none;
+	transition: background-color var(--t-med) var(--ease);
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
+	color: inherit;
+}
+
+button {
+	cursor: pointer;
+	background: none;
+	border: none;
+}
+
+/* Our own clear/close buttons replace the browser's. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+	-webkit-appearance: none;
+	appearance: none;
+	display: none;
+}
+input[type="number"]::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+::selection {
+	background: var(--accent-soft);
+}
+
+html.touch input,
+html.touch textarea {
+	font-size: 16px; /* prevents focus zoom on mobile */
+}
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--line-strong) transparent;
+}
+html.touch * {
+	scrollbar-width: none;
+}
+html.touch ::-webkit-scrollbar {
+	display: none;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+
+/* Gradient text for brand moments. */
+.grad-text {
+	background: var(--grad);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+/* Search highlights (CSS Custom Highlight API): no DOM mutation. */
+::highlight(pw-find) {
+	background-color: var(--highlight);
+	color: inherit;
+}
+::highlight(pw-find-active) {
+	background-color: var(--highlight-active);
+	color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 1ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 1ms !important;
+	}
+}

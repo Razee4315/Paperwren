@@ -1,11 +1,17 @@
 {
 	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-	"organizeImports": { "enabled": true },
+	"organizeImports": {
+		"enabled": true
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {
 			"recommended": true,
-			"suspicious": { "noExplicitAny": "error", "noImplicitAnyLet": "error" },
+			"suspicious": {
+				"noExplicitAny": "error",
+				"noImplicitAnyLet": "error",
+				"noArrayIndexKey": "off"
+			},
 			"correctness": {
 				"noUnusedVariables": "error",
 				"noUnusedImports": "error",
@@ -51,7 +57,18 @@
 			"package.json",
 			"package-lock.json",
 			"src-tauri/tauri.conf.json",
-			"src-tauri/tauri.android.conf.json"
+			"src-tauri/tauri.android.conf.json",
+			"fixtures/**",
+			"playwright-report/**",
+			"src-tauri/target/**"
 		]
+	},
+	"css": {
+		"parser": {
+			"cssModules": true
+		},
+		"formatter": {
+			"enabled": true
+		}
 	}
 }

@@ -2,93 +2,80 @@
 
 **Open anything. Instantly.**
 
-Paperwren is a feather-light document viewer for Android. It opens PDF, Word, Excel, and PowerPoint files in about a second, with no ads, no accounts, and no tracking. The app has no internet access and requests zero permissions.
+Paperwren is a small, fast document viewer. It opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV, Markdown and plain-text files. It has no ads and no accounts, never touches the network, and asks for no permissions.
 
-This repository contains the product documentation in `docs/` and the app source.
+## What it opens
 
-## What Paperwren is
-
-A viewer, and nothing else. Paperwren does one job, showing you your files, and does it with respect. The long-term goal is that you set it as the default ("Always") for your documents and every file opens straight into Paperwren.
-
-## Current status
-
-Version 0.9 (internal) is in active development.
-
-| Working now | Planned |
+| Format | How it is shown |
 |---|---|
-| PDF viewer with zoom, rotation, thumbnails, outline, position memory, text search | PowerPoint viewer, v1.2 |
-| Word (DOCX) reader with layout-faithful pages | Reading mode for Word documents |
-| Excel viewer with sheet tabs and a virtualized grid | "Open with" from every file manager, verified on device |
-| CSV and plain text viewing | In-app storage browser |
-| Recents with pinning, onboarding, light and dark themes | Search highlights, print via system service |
-| Settings, cache management, honest error dialogs | |
+| PDF | pdf.js viewer: fast virtualised pages, text selection, links, find with highlights, contents, rotate, pinch/Ctrl+wheel zoom, password-protected files |
+| Word `.docx` | The document's own page layout (docx-preview), fit to width, zoom, find |
+| Excel `.xlsx` `.xlsm` `.xlsb`, `.xls`, `.ods`, `.csv` `.tsv` | Virtualised grid with frozen headers, merged cells, sheet tabs, cell details and copy, find |
+| PowerPoint `.pptx` | Slides drawn from their own shapes, theme colours, layouts, pictures and tables, plus speaker notes |
+| Legacy `.doc` `.ppt`, OpenDocument `.odt` `.odp`, `.rtf` | Clean reading view of the text (layout and images are not shown, and the viewer says so) |
+| Markdown, text, logs, JSON, XML | Rendered Markdown (sanitised) or plain text with encoding detection |
 
-Files are opened through the in-app system picker in this build. The Android "open with" pipeline (viewing a file straight from another app) is implemented and ships in the test APK; it needs on-device verification before it is called done.
+The bytes decide the format, not the file name: content URIs without extensions and files with the wrong extension still open in the right viewer.
 
-See `docs/README.md` for the full product plan and release phases.
+## Look and feel
+
+- Eight themes: Auto, Light, Dark, Black, **Paper** (fibre texture), **Sepia**, **Glass** (frosted surfaces over an accent mesh) and **Aurora** (dark glass), each with five accent palettes.
+- A four-step first-run welcome with an origami wren mascot, orbiting file icons, and a live theme picker. Files opened from other apps skip it.
+- Every animation is CSS or SVG (no animation libraries) and respects the system "reduce motion" setting.
+- SVG assets: `assets/icons/*.svg` (one per format) and `assets/brand/wren.svg` are exported from the same components the app renders: `npx vite-node scripts/export-assets.tsx`.
 
 ## Privacy
 
-The short version, and the whole brand: zero permissions, zero accounts, zero tracking, zero network.
-
-- Paperwren never connects to the internet. There is nothing to connect with.
-- Files open on the device and stay on the device.
-- The recents list, settings, and a deletable cache live in app-private storage.
-- PDF passwords are used in memory for one session and never saved.
-
-The complete policy ships inside the app under Settings, Privacy and security.
-
-## Tech stack
-
-- Tauri 2 with a Rust core and the system WebView
-- React 18, TypeScript, styled-components, Vite
-- pdf.js (PDF), SheetJS Community Edition (spreadsheets)
-- Manrope and Fraunces fonts, Lucide icons, bundled locally
-- Design language: "Paper and Ink" (see `docs/02-design-system.md`)
+- No network access and no analytics. The release APK requests zero Android permissions.
+- Recents and settings live in app-private storage. Files shared into the app are kept as private copies (deduplicated by content hash, capped at 250 MB) so they can be reopened, and can be deleted in Settings.
+- PDF passwords are used once and never stored.
 
 ## Development
 
-Requirements: Node 18 or newer. Rust is only needed to run the desktop shell locally; all packaging builds run on GitHub Actions.
+Requirements: Node 20+. Rust is only needed for the desktop shell and `cargo test`.
 
 ```bash
 npm install
-npm run dev        # web preview at http://localhost:1420
-npm run lint       # biome
-npm run build      # tsc + vite production build
+npm run dev            # web preview at http://localhost:1420 (in-memory backend)
+npm run lint           # biome
+npm run build          # tsc + vite
+npm test               # unit tests (vitest)
+cargo test --manifest-path src-tauri/Cargo.toml
+
+# Browser tests against the production build
+npm i --no-save @playwright/test && npx playwright install chromium
+npm run build && npx playwright test
 ```
 
-In a browser, the app runs against an in-memory backend so every screen is testable without a native shell. To try a real file, open the dev server and use the "Open a file" button.
+Real Office/ODF/RTF fixtures are generated with `python3 scripts/make-office-fixtures.py` (needs python-pptx, python-docx and LibreOffice).
 
-Generate test fixtures (PDF, XLSX, CSV, TXT) for manual testing:
-
-```bash
-node scripts/make-fixtures.mjs
-```
-
-### Desktop shell (optional, requires Rust)
-
-```bash
-npm run tauri dev
-```
-
-### Builds and releases
-
-Everything is automated. A push to `main` runs CI (lint, type check, build, Rust check) and a release pipeline that bumps the patch version, builds the Windows installer and an Android APK on GitHub's runners, and publishes them as a GitHub Release. No local build step is required.
-
-The Android APK produced by CI is signed with the debug key on purpose. It is a test artifact: install it directly to try the app. A Play-ready signed build will be added before the public launch.
-
-## Repository layout
+## Architecture
 
 ```
-docs/                  product and design documentation
-src/                   React application (screens, ui kit, viewers, state)
-src-tauri/             Rust core and Tauri configuration
-assets/brand/          icon sources (SVG)
-fixtures/              test corpus starter files
-scripts/               fixture generator and Android CI patch scripts
-.github/workflows/     CI and release pipelines
+src/
+  lib/            pure logic, unit-tested
+    formats.ts    format registry + magic-byte sniffing
+    recents.ts    recents rules (dedupe, pinning, limits, migration)
+    settings.ts   settings validation + migration
+    backend.ts    the one platform boundary (Tauri or browser)
+    office/       text extraction: .doc, .ppt, ODF, RTF
+    pptx/         PowerPoint parser (theme, layout/master inheritance)
+    parseWorker.ts  SheetJS + legacy Office parsing off the main thread
+  state/          React providers: settings, recents, navigation/Back
+  ui/             small component kit (CSS Modules)
+  screens/        Home, Settings, viewer/ (one lazily loaded chunk per engine)
+src-tauri/
+  src/            Rust core: store.rs (atomic JSON store), imports.rs (managed copies), error.rs
+  android/        MainActivity.kt: Open with / Share ingestion, Back bridge, picker bridge
+scripts/          install-android.mjs (applies the activity + manifest), icon/signing helpers, fixtures
 ```
+
+See `docs/13-redesign.md` for the audit that led to this structure.
+
+## Builds and releases
+
+A push to `main` runs CI (lint, type check, unit tests, Rust tests) and the release pipeline, which bumps the patch version and publishes a Windows installer and an Android APK. The APK is signed with a debug key and is meant for testing.
 
 ## License
 
-MIT. Bundled libraries keep their own licenses, listed in the app under Settings, About, Open-source licenses.
+MIT. Bundled libraries keep their own licenses, listed in the app under Settings, About.

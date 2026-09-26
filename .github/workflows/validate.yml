@@ -36,8 +36,8 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Dry-run Android patches against the pinned template
-        run: node scripts/patch-android-openwith.mjs check
+      - name: Validate Android sources
+        run: node scripts/install-android.mjs check
 
       - name: Android icon foreground bounding-box check
         run: node scripts/check-icon-foreground.mjs
@@ -68,7 +68,7 @@ jobs:
 
       - name: Check Rust
         working-directory: src-tauri
-        run: cargo check --all-targets
+        run: cargo test --all-targets
 
   browser:
     name: Browser integration tests
@@ -171,8 +171,7 @@ jobs:
       - name: Patch generated Android project
         run: |
           node scripts/patch-android-icons.mjs
-          node scripts/patch-android-manifest.mjs
-          node scripts/patch-android-openwith.mjs
+          node scripts/install-android.mjs
 
       - name: Build debug APK (arm64)
         run: npx tauri android build --target aarch64 --debug
