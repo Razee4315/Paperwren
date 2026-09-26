@@ -3,7 +3,7 @@ import { type OpenFailure, classifyError, failureCopy } from "@/lib/errors";
 import { type FileFormat, friendlyName, sniffFormat } from "@/lib/formats";
 import type { OpenRequest, Position } from "@/lib/types";
 import { useRecents } from "@/state/recents";
-import { Button, Dialog, ErrorArt, Spinner, StateView } from "@/ui";
+import { Button, Dialog, ErrorArt, OpeningView } from "@/ui";
 import {
 	type ComponentType,
 	Suspense,
@@ -163,42 +163,12 @@ export default function ViewerScreen({
 		);
 	}
 
-	const spinner = (
-		<StateView>
-			<Spinner label={`Opening ${request.name}`} />
-		</StateView>
-	);
-	if (!loaded)
-		return (
-			<div
-				style={{
-					position: "fixed",
-					inset: 0,
-					zIndex: 30,
-					background: "var(--canvas)",
-				}}
-			>
-				{spinner}
-			</div>
-		);
+	if (!loaded) return <OpeningView name={request.name} />;
 
 	const View = VIEWERS[loaded.format];
 	if (!View) return null;
 	return (
-		<Suspense
-			fallback={
-				<div
-					style={{
-						position: "fixed",
-						inset: 0,
-						zIndex: 30,
-						background: "var(--canvas)",
-					}}
-				>
-					{spinner}
-				</div>
-			}
-		>
+		<Suspense fallback={<OpeningView name={request.name} />}>
 			<View
 				data={loaded.data}
 				name={loaded.name}
