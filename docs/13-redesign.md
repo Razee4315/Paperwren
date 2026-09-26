@@ -79,7 +79,8 @@ eight themes x five accents) was replaced with a flat system:
   loading bar is the only loop.
 - Page backgrounds carry a per-theme texture (paper fibre, sand grain,
   ink splatter) as `--page-bg`, generated as inline SVG
-  (`feTurbulence` noise, seeded splatter circles). Reading surfaces
+  by `scripts/make-textures.py` (`feTurbulence` noise, seeded paper
+  fibres, harmonic sand ripples, displaced ink splatter). Reading surfaces
   (`--canvas`, cards, the text viewer) stay plain.
 - The mascot is a flat wren defined once as path data (`WREN` in
   `src/ui/Art.tsx`); `scripts/export-assets.tsx` places the same

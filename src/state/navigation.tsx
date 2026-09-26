@@ -39,14 +39,28 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 	const stateRef = useRef(state);
 	stateRef.current = state;
 	const closers = useRef(new Map<string, () => void>());
+	// Overlays whose close handler is running. A handler may itself go
+	// Back (the viewer's error dialog closes by popping the viewer); that
+	// nested call must skip the overlay being closed, or Back would call
+	// the same handler forever and the dialog could never close.
+	const closing = useRef(new Set<string>());
 
 	const back = useCallback(() => {
 		const current = stateRef.current;
-		const top = current.overlays[current.overlays.length - 1];
+		const open = current.overlays.filter((id) => !closing.current.has(id));
+		const top = open[open.length - 1];
 		if (top) {
 			const close = closers.current.get(top);
-			if (close) close();
-			else dispatch({ type: "overlay-close", id: top });
+			if (!close) {
+				dispatch({ type: "overlay-close", id: top });
+				return true;
+			}
+			closing.current.add(top);
+			try {
+				close();
+			} finally {
+				closing.current.delete(top);
+			}
 			return true;
 		}
 		if (!canGoBack(current)) return false;
