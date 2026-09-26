@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { boot, openFixture } from "./helpers";
 
@@ -151,4 +152,80 @@ test("skip leaves the welcome immediately", async ({ page }) => {
 	await page.goto("/");
 	await page.getByTestId("onboarding-skip").click();
 	await expect(page.getByTestId("onboarding")).toBeHidden({ timeout: 5000 });
+});
+
+/** A recent whose file is gone: the not-found dialog must be able to
+ * remove it, locate it, or simply close. */
+const MISSING = {
+	recents_v2: [
+		{
+			id: "gone",
+			name: "Moved report.pdf",
+			format: "pdf",
+			size: 1234,
+			reopen: { kind: "browser", key: "no-such-file" },
+			openedAt: Date.now(),
+			pinned: false,
+		},
+	],
+};
+
+test("a missing recent can be removed from the not-found dialog", async ({
+	page,
+}) => {
+	await boot(page, MISSING);
+	await page.getByTestId("recent").first().getByRole("button").first().click();
+	const dialog = page.getByTestId("open-error");
+	await expect(dialog).toContainText("File not found");
+	await dialog.getByRole("button", { name: "Remove" }).click();
+	await expect(dialog).toBeHidden();
+	await expect(page.getByTestId("viewer")).toHaveCount(0);
+	await expect(page.getByTestId("empty-state")).toBeVisible();
+});
+
+test("the not-found dialog closes with Escape and system Back", async ({
+	page,
+}) => {
+	await boot(page, MISSING);
+	const row = page.getByTestId("recent").first().getByRole("button").first();
+	await row.click();
+	const dialog = page.getByTestId("open-error");
+	await expect(dialog).toBeVisible();
+	await page.keyboard.press("Escape");
+	await expect(dialog).toBeHidden();
+	await expect(page.getByTestId("home")).toBeVisible();
+
+	await row.click();
+	await expect(dialog).toBeVisible();
+	expect(await page.evaluate(() => window.__paperwrenHandleBack?.())).toBe(
+		true,
+	);
+	await expect(dialog).toBeHidden();
+	// The recent stays (marked unavailable) until the user removes it.
+	await expect(page.getByTestId("recent")).toHaveCount(1);
+});
+
+test("Locate file replaces a missing recent with the chosen file", async ({
+	page,
+}) => {
+	await boot(page, MISSING);
+	await page.getByTestId("recent").first().getByRole("button").first().click();
+	const dialog = page.getByTestId("open-error");
+	await expect(dialog).toBeVisible();
+	const b64 = readFileSync("fixtures/sample.pdf").toString("base64");
+	await page.evaluate((b64) => {
+		const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+		window.__paperwrenTestFile = new File([bytes], "Moved report.pdf");
+	}, b64);
+	await dialog.getByRole("button", { name: "Locate file" }).click();
+	await expect(dialog).toBeHidden();
+	await expect(page.getByTestId("viewer")).toContainText(
+		"Paperwren test page",
+		{ timeout: 20_000 },
+	);
+	await page.getByTestId("viewer-back").click();
+	await expect(page.getByTestId("recent")).toHaveCount(1);
+	await expect(page.getByTestId("recent").first()).not.toContainText(
+		"Unavailable",
+	);
 });
