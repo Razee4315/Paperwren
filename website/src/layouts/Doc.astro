@@ -1,0 +1,63 @@
+---
+import Base from "./Base.astro";
+
+interface Props {
+	title: string;
+	description: string;
+	label: string;
+	heading: string;
+	path: string;
+	updated?: string;
+}
+const { title, description, label, heading, path, updated } = Astro.props;
+---
+
+<Base title={title} description={description} crumbs={[{ name: title, path }]}>
+	<article class="doc">
+		<div class="wrap grid">
+			<header>
+				<p class="label">{label}</p>
+				<h1 class="h1" data-split set:html={heading} />
+				{updated && <p class="updated">Last updated {updated}</p>}
+			</header>
+			<div class="prose">
+				<slot />
+			</div>
+		</div>
+	</article>
+</Base>
+
+<style>
+	.doc {
+		padding: calc(68px + clamp(3rem, 7vw, 6rem)) 0 var(--section);
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+		gap: 2rem clamp(2rem, 6vw, 6rem);
+		align-items: start;
+	}
+	header {
+		position: sticky;
+		top: calc(68px + 2rem);
+	}
+	.h1 {
+		margin-top: 1.2rem;
+	}
+	.updated {
+		margin-top: 1.5rem;
+		font: 400 0.8rem/1.4 var(--mono);
+		color: var(--ink-2);
+	}
+	.prose :global(h2:first-child) {
+		margin-top: 0;
+	}
+	@media (max-width: 900px) {
+		.grid {
+			grid-template-columns: 1fr;
+		}
+		header {
+			position: static;
+		}
+	}
+</style>

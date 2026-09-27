@@ -1,0 +1,125 @@
+---
+import { CHECKED, type Competitor, paperwren } from "../data/competitors";
+import { url } from "../data/site";
+
+interface Props {
+	/** Apps to compare against, in column order. */
+	apps: Competitor[];
+	/** Link each app's header to its comparison page. */
+	linkHeaders?: boolean;
+	caption: string;
+}
+const { apps, linkHeaders = false, caption } = Astro.props;
+
+type Row = {
+	label: string;
+	us: string;
+	good: boolean;
+	them: (c: Competitor) => { text: string; bad: boolean };
+};
+
+const rows: Row[] = [
+	{
+		label: "Ads",
+		us: "None",
+		good: true,
+		them: (c) => (c.ads ? { text: "Listing says “Contains ads”", bad: true } : { text: "None listed", bad: false }),
+	},
+	{
+		label: "In-app purchases",
+		us: "None",
+		good: true,
+		them: (c) => (c.inAppPurchases ? { text: "Yes", bad: true } : { text: "None", bad: false }),
+	},
+	{
+		label: "Account",
+		us: paperwren.account,
+		good: true,
+		them: (c) => ({ text: c.account, bad: true }),
+	},
+	{
+		label: "Data shared with third parties",
+		us: "None. It cannot connect to anything",
+		good: true,
+		them: (c) => (c.shared ? { text: c.shared, bad: true } : { text: "None declared", bad: false }),
+	},
+	{
+		label: "Data collected",
+		us: "None",
+		good: true,
+		them: (c) => (c.collected ? { text: c.collected, bad: true } : { text: "None declared", bad: false }),
+	},
+	{
+		label: "Internet access",
+		us: "Never. No network permission or code",
+		good: true,
+		them: () => ({ text: "Uses the internet", bad: false }),
+	},
+	{
+		label: "Edits documents",
+		us: "No, by design. It only shows them",
+		good: false,
+		them: (c) => ({ text: typeof c.edits === "string" ? c.edits : c.edits ? "Yes" : "No", bad: false }),
+	},
+];
+---
+
+<div class="table-wrap">
+	<table class:list={["compare", apps.length > 2 && "wide"]}>
+		<caption class="sr">{caption}</caption>
+		<thead>
+			<tr>
+				<th scope="col"><span class="sr">Feature</span></th>
+				<th scope="col" class="us">Paperwren</th>
+				{
+					apps.map((c) => (
+						<th scope="col">
+							{linkHeaders ? (
+								<a class="link" href={url(`/compare/${c.slug}/`)}>
+									{c.name}
+								</a>
+							) : (
+								c.name
+							)}
+						</th>
+					))
+				}
+			</tr>
+		</thead>
+		<tbody>
+			{
+				rows.map((r) => (
+					<tr>
+						<th scope="row">{r.label}</th>
+						<td class="us">
+							<span class:list={[r.good ? "yes good" : "no"]}>{r.us}</span>
+						</td>
+						{apps.map((c) => {
+							const v = r.them(c);
+							return (
+								<td>
+									<span class:list={[v.bad ? "no bad" : ""]}>{v.text}</span>
+								</td>
+							);
+						})}
+					</tr>
+				))
+			}
+		</tbody>
+	</table>
+</div>
+<p class="source">
+	Other apps: the labels and Data safety section of each app's Google Play
+	listing, checked {CHECKED}. Developers write these themselves and update them
+	over time, so check the current listing before relying on a row.
+</p>
+
+<style>
+	.sr {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+</style>

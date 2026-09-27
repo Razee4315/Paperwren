@@ -1,0 +1,22 @@
+---
+/** Small line icons (stroke 1.6, 24 grid). Decorative. */
+interface Props {
+	name: "arrow" | "down" | "android" | "windows" | "github" | "check";
+	class?: string;
+}
+const { name, class: cls } = Astro.props;
+const paths: Record<Props["name"], string> = {
+	arrow: "M5 12h14M13 6l6 6-6 6",
+	down: "M12 4v14M6 12l6 6 6-6",
+	check: "M5 12.5l4.5 4.5L19 7.5",
+	android:
+		"M7 10h10v7a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1zM7 10a5 5 0 0 1 10 0M9 18v3M15 18v3M4.5 11v5M19.5 11v5M9 5.5 7.8 3.8M15 5.5l1.2-1.7",
+	windows: "M4 5.5 11 4.5v7H4zM13 4.2 20 3v8.5h-7zM4 12.5h7v7l-7-1zM13 12.5h7V21l-7-1z",
+	github:
+		"M9 19c-4 1.3-4-2-6-2.5M15 21v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12 12 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21",
+};
+---
+
+<svg class={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+	<path d={paths[name]}></path>
+</svg>

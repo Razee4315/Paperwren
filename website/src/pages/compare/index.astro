@@ -1,0 +1,102 @@
+---
+import CompareTable from "../../components/CompareTable.astro";
+import Icon from "../../components/Icon.astro";
+import { competitors } from "../../data/competitors";
+import { url } from "../../data/site";
+import Base from "../../layouts/Base.astro";
+---
+
+<Base
+	title="Compare document viewers"
+	description="How Paperwren compares with WPS Office, Microsoft 365, Adobe Acrobat Reader, MobiOffice and Google Drive on ads, accounts, data collection and internet access."
+	crumbs={[{ name: "Compare", path: "/compare/" }]}
+>
+	<section class="page">
+		<div class="wrap">
+			<p class="label">Compare</p>
+			<h1 class="h1" data-split>Paperwren and the <em>usual</em> apps.</h1>
+			<p class="lede">
+				Every app on this page is a capable office suite or cloud service. If you
+				only need to read a document, each one also brings something you did not
+				ask for. Pick an app for the short version.
+			</p>
+
+			<ul class="apps">
+				{
+					competitors.map((c) => (
+						<li data-reveal>
+							<a href={url(`/compare/${c.slug}/`)}>
+								<span class="name">Paperwren vs {c.name}</span>
+								<span class="what">{c.what}</span>
+								<Icon name="arrow" class="arr" />
+							</a>
+						</li>
+					))
+				}
+			</ul>
+
+			<h2 class="h2 tt">Side by side</h2>
+			<CompareTable apps={competitors} linkHeaders caption="Paperwren compared with five other document apps" />
+		</div>
+	</section>
+</Base>
+
+<style>
+	.page {
+		padding: calc(68px + clamp(3rem, 8vw, 7rem)) 0 var(--section);
+	}
+	.h1 {
+		margin: 1.2rem 0 1.6rem;
+		max-width: 14em;
+	}
+	.apps {
+		list-style: none;
+		padding: 0;
+		margin: clamp(3rem, 6vw, 5rem) 0;
+		border-top: 1px solid var(--ink);
+	}
+	.apps a {
+		position: relative;
+		display: grid;
+		grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+		gap: 0.4rem 2rem;
+		align-items: baseline;
+		padding: 1.5rem 3.5rem 1.5rem 0;
+		border-bottom: 1px solid var(--line);
+		text-decoration: none;
+	}
+	.name {
+		font-family: var(--serif);
+		font-size: var(--s-2);
+		line-height: 1.05;
+		transition:
+			color 0.4s var(--ease),
+			transform 0.6s var(--ease);
+	}
+	.what {
+		color: var(--ink-2);
+	}
+	.apps :global(.arr) {
+		position: absolute;
+		right: 0.5rem;
+		top: 50%;
+		width: 26px;
+		translate: 0 -50%;
+		transition: transform 0.6s var(--ease);
+	}
+	.apps a:hover .name {
+		color: var(--pine);
+		transform: translateX(8px);
+	}
+	.apps a:hover :global(.arr) {
+		transform: translateX(6px);
+	}
+	.tt {
+		margin-bottom: 1.5rem;
+	}
+	@media (max-width: 760px) {
+		.apps a {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

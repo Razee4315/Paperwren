@@ -1,0 +1,172 @@
+---
+import docx from "../assets/icons/docx.svg?raw";
+import pdf from "../assets/icons/pdf.svg?raw";
+import pptx from "../assets/icons/pptx.svg?raw";
+import xlsx from "../assets/icons/xlsx.svg?raw";
+import { SITE } from "../data/site";
+import Icon from "./Icon.astro";
+import Shot from "./Shot.astro";
+
+const chips = [
+	{ svg: pdf, cls: "c1", speed: "0.55" },
+	{ svg: docx, cls: "c2", speed: "0.9" },
+	{ svg: xlsx, cls: "c3", speed: "0.35" },
+	{ svg: pptx, cls: "c4", speed: "0.75" },
+];
+---
+
+<section class="hero" data-parallax-root>
+	<div class="wrap grid">
+		<div class="copy" data-hero-exit>
+			<p class="label" data-hero="kicker">Free document viewer for Android and Windows</p>
+			<h1 data-hero="title">Just open<br /> the <em>file.</em></h1>
+			<p class="lede" data-hero="copy">
+				Paperwren opens PDF, Word, Excel and PowerPoint files, and that is all
+				it asks to do. No account, no ads, no internet, no permissions.
+			</p>
+			<div class="ctas">
+				<a class="btn" data-hero="cta" href="#download">
+					<span class="roll"><span>Download free</span><span>Download free</span></span>
+					<small>{SITE.androidSize}</small>
+					<Icon name="down" />
+				</a>
+				<a class="btn ghost" data-hero="cta" href="#problem">
+					<span class="roll"><span>Why it exists</span><span>Why it exists</span></span>
+				</a>
+			</div>
+		</div>
+
+		<div class="art" aria-hidden="true">
+			<div class="back" data-hero="sheet">
+				<div data-speed="0.18">
+					<div class="phone tilt-r"><Shot name="sepia-view-pdf" alt="" eager sizes="(max-width: 760px) 46vw, 300px" /></div>
+				</div>
+			</div>
+			<div class="front" data-hero="phone">
+				<div data-speed="-0.05">
+					<div class="phone tilt-l"><Shot name="light-home" alt="" eager sizes="(max-width: 760px) 56vw, 340px" /></div>
+				</div>
+			</div>
+			{
+				chips.map((c) => (
+					<div class={`chip ${c.cls}`} data-hero="chip">
+						<div data-speed={c.speed} set:html={c.svg} />
+					</div>
+				))
+			}
+		</div>
+	</div>
+	<p class="sr-only">
+		Screenshot: the Paperwren home screen listing recent PDF, Word, Excel and
+		PowerPoint files, with a PDF open in the Sand theme behind it.
+	</p>
+</section>
+
+<style>
+	.hero {
+		min-height: 100dvh;
+		display: flex;
+		align-items: center;
+		padding: calc(68px + 3rem) 0 4rem;
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+		gap: clamp(2rem, 5vw, 5rem);
+		align-items: center;
+	}
+	h1 {
+		font-size: var(--s-hero);
+		line-height: 0.9;
+		letter-spacing: -0.035em;
+		margin: 1.4rem 0 2rem;
+	}
+	.lede {
+		max-width: 27em;
+	}
+	.ctas {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.8rem;
+		margin-top: 2.4rem;
+	}
+	.art {
+		position: relative;
+		aspect-ratio: 5 / 6;
+		width: 100%;
+		max-width: 560px;
+		justify-self: end;
+	}
+	.front,
+	.back {
+		position: absolute;
+	}
+	.front {
+		width: 58%;
+		left: 4%;
+		top: 6%;
+		z-index: 2;
+	}
+	.back {
+		width: 50%;
+		right: 0;
+		top: 0;
+		z-index: 1;
+	}
+	.tilt-l {
+		rotate: -4deg;
+	}
+	.tilt-r {
+		rotate: 6deg;
+	}
+	.chip {
+		position: absolute;
+		z-index: 3;
+		width: clamp(44px, 5vw, 70px);
+	}
+	.chip :global(svg) {
+		width: 100%;
+		height: auto;
+	}
+	.c1 {
+		left: -6%;
+		top: 20%;
+		rotate: -12deg;
+	}
+	.c2 {
+		right: 4%;
+		top: 62%;
+		rotate: 9deg;
+	}
+	.c3 {
+		left: 56%;
+		top: -4%;
+		rotate: 14deg;
+	}
+	.c4 {
+		left: 2%;
+		bottom: 2%;
+		rotate: -6deg;
+	}
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+	@media (max-width: 900px) {
+		.grid {
+			grid-template-columns: 1fr;
+		}
+		.art {
+			justify-self: center;
+			max-width: 420px;
+			margin-top: 1rem;
+		}
+		.hero {
+			min-height: auto;
+			padding-top: calc(68px + 2rem);
+		}
+	}
+</style>

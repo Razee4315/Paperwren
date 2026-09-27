@@ -1,0 +1,85 @@
+---
+import { SITE, url } from "../data/site";
+import Icon from "./Icon.astro";
+import Wren from "./Wren.astro";
+---
+
+<section class="download" id="download" aria-labelledby="download-title">
+	<div class="wrap">
+		<div class="inner">
+			<Wren size={88} class="wren" />
+			<h2 id="download-title" data-split>Get <em>Paperwren.</em></h2>
+			<p class="lede">Free on Android and Windows. Install it, open a file, done.</p>
+			<div class="ctas">
+				<a class="btn" href={SITE.releases} rel="noopener">
+					<Icon name="android" />
+					<span class="roll"><span>Android APK</span><span>Android APK</span></span>
+					<small>{SITE.androidSize}</small>
+				</a>
+				<a class="btn" href={SITE.releases} rel="noopener">
+					<Icon name="windows" />
+					<span class="roll"><span>Windows installer</span><span>Windows installer</span></span>
+					<small>{SITE.windowsSize}</small>
+				</a>
+			</div>
+			<p class="fine">
+				Both come from <a class="link" href={SITE.releases} rel="noopener">GitHub Releases</a>, built
+				automatically from <a class="link" href={SITE.repo} rel="noopener">the public source</a>.
+				Read the <a class="link" href={url("/privacy/")}>privacy policy</a>. It is short.
+			</p>
+		</div>
+	</div>
+</section>
+
+<style>
+	.download {
+		background: var(--pine);
+		color: var(--on-pine);
+		padding-block: clamp(6rem, 12vw, 11rem);
+		--wren-body: #f4efe4;
+		--wren-dark: #cfe3dd;
+		--wren-belly: #8fbcb3;
+		--wren-eye: #1f1e1b;
+	}
+	.inner {
+		display: grid;
+		justify-items: center;
+		text-align: center;
+	}
+	h2 {
+		font-size: var(--s-hero);
+		line-height: 0.9;
+		letter-spacing: -0.035em;
+		margin: 1.5rem 0 1.5rem;
+	}
+	h2 :global(em) {
+		color: #cfe3dd;
+	}
+	.lede {
+		color: #d6e6e1;
+	}
+	.ctas {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.8rem;
+		margin-top: 2.5rem;
+	}
+	.btn {
+		--bg: var(--on-pine);
+		--fg: var(--pine-ink);
+	}
+	.btn:hover {
+		--bg: var(--ink);
+		--fg: var(--paper);
+	}
+	.fine {
+		margin-top: 2rem;
+		font-size: var(--s-small);
+		color: #cfe3dd;
+		max-width: 34em;
+	}
+	.download :global(:focus-visible) {
+		outline-color: var(--on-pine);
+	}
+</style>

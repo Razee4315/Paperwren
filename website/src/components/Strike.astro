@@ -1,0 +1,178 @@
+---
+import Wren from "./Wren.astro";
+
+/** What a "free" office app tends to ask for before the file. Generic
+ * on purpose: this is the pattern, not a claim about one app. */
+const asks = [
+	"Create an account to continue",
+	"Allow access to photos, media and files",
+	"Accept personalised ads",
+	"Your ad will end in 5 seconds",
+	"Start your 7-day free trial",
+	"Sign in to sync your documents",
+	"Upgrade to Premium to remove ads",
+];
+
+// Hand-drawn strokes: each line wobbles a little differently.
+const rand = (i: number, k: number) => {
+	const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
+	return x - Math.floor(x);
+};
+const stroke = (i: number) => {
+	const y = (k: number) => (9 + (rand(i, k) - 0.5) * 7).toFixed(1);
+	return `M2 ${y(1)} C 60 ${y(2)}, 110 ${y(3)}, 170 ${y(4)} S 260 ${y(5)}, 298 ${y(6)}`;
+};
+---
+
+<section class="strike" id="problem" data-strike aria-labelledby="problem-title">
+	<div class="wrap grid">
+		<div class="head">
+			<p class="label">The problem</p>
+			<h2 class="h1" id="problem-title" data-split>
+				Someone sent you a file. Your phone sent you <em>homework.</em>
+			</h2>
+			<p class="lede">
+				Most document apps are office suites in disguise. Before they show you
+				page one, they want an account, a subscription and a look at your data.
+			</p>
+		</div>
+		<div class="stage">
+			<ol class="list" aria-label="Things other document apps ask for">
+				{
+					asks.map((a, i) => (
+						<li class="strike-item">
+							<span class="n">{String(i + 1).padStart(2, "0")}</span>
+							<span class="t">
+								{a}
+								<svg viewBox="0 0 300 18" preserveAspectRatio="none" aria-hidden="true">
+									<path d={stroke(i)} pathLength="1" />
+								</svg>
+							</span>
+						</li>
+					))
+				}
+			</ol>
+			<div class="final" data-strike-final>
+				<div data-final-part><Wren size={72} /></div>
+				<p class="line" data-final-part>Open the file.</p>
+				<p class="sub" data-final-part>
+					That is the whole of Paperwren. Tap a document, read it, close it.
+				</p>
+			</div>
+		</div>
+	</div>
+</section>
+
+<style>
+	.strike {
+		min-height: 100dvh;
+		display: flex;
+		align-items: center;
+		padding-block: calc(68px + 2rem) 3rem;
+		border-top: 1px solid var(--ink);
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: clamp(2rem, 6vw, 6rem);
+		align-items: center;
+	}
+	.head .h1 {
+		margin: 1.2rem 0 1.6rem;
+	}
+	.stage {
+		display: grid;
+		align-items: center;
+	}
+	.list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		border-top: 1px solid var(--line);
+	}
+	.strike-item {
+		position: relative;
+		display: grid;
+		grid-template-columns: 2.6rem 1fr;
+		align-items: baseline;
+		padding: 0.85rem 0;
+		border-bottom: 1px solid var(--line);
+		font-size: clamp(1.05rem, 1.7vw, 1.4rem);
+		font-weight: 500;
+	}
+	.n {
+		font: 400 var(--s-label) / 1 var(--mono);
+		color: var(--ink-3);
+	}
+	.t {
+		position: relative;
+		display: inline-block;
+		width: fit-content;
+		color: #8f887b;
+	}
+	svg {
+		position: absolute;
+		left: -6px;
+		top: 50%;
+		width: calc(100% + 12px);
+		height: 18px;
+		translate: 0 -40%;
+		overflow: visible;
+	}
+	path {
+		fill: none;
+		stroke: var(--clay);
+		stroke-width: 3;
+		stroke-linecap: round;
+		/* Dash of 1 path length, gap of 2: offset 1 hides it completely
+		 * (round caps included), offset 0 shows the whole stroke. */
+		stroke-dasharray: 1 2;
+		stroke-dashoffset: 0;
+	}
+	.final {
+		padding-top: 2.4rem;
+	}
+	.line {
+		font-family: var(--serif);
+		font-size: clamp(3.4rem, 7.5vw, 7rem);
+		line-height: 0.95;
+		letter-spacing: -0.03em;
+		margin-top: 1rem;
+	}
+	.sub {
+		color: var(--ink-2);
+		margin-top: 1rem;
+		max-width: 24em;
+	}
+
+	/* With motion: lines start unstruck and the answer waits on top of
+	 * the list. Without it, everything shows in its final state. */
+	:global(.motion) .t {
+		color: var(--ink);
+	}
+	:global(.motion) path {
+		stroke-dashoffset: 1;
+	}
+	:global(.motion) .stage > * {
+		grid-area: 1 / 1;
+	}
+	:global(.motion) .final {
+		padding-top: 0;
+	}
+	:global(.motion) [data-final-part] {
+		visibility: hidden;
+	}
+
+	@media (max-width: 900px) {
+		.grid {
+			grid-template-columns: 1fr;
+			gap: 1.8rem;
+		}
+		.head .lede {
+			display: none;
+		}
+		.strike-item {
+			padding: 0.6rem 0;
+		}
+	}
+</style>

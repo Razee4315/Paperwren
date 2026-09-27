@@ -1,0 +1,142 @@
+---
+import { FORMATS } from "../data/site";
+import Shot from "./Shot.astro";
+
+const phones = [
+	{ shot: "light-view-pdf", ext: "PDF", title: "Lecture notes", alt: "A lecture PDF open in Paperwren with a diagram and headings", speed: "0.12" },
+	{ shot: "light-view-docx", ext: "Word", title: "An invoice", alt: "A Word invoice shown in its own page layout", speed: "-0.1" },
+	{ shot: "light-view-xlsx", ext: "Excel", title: "Site inventory", alt: "An Excel inventory sheet with frozen headers and sheet tabs", speed: "0.16" },
+	{ shot: "light-view-pptx", ext: "PowerPoint", title: "A quarterly review", alt: "PowerPoint slides with a bar chart drawn from the deck's own shapes", speed: "-0.06" },
+];
+---
+
+<section class="section formats" id="formats" aria-labelledby="formats-title" data-parallax-root>
+	<div class="wrap">
+		<div class="top">
+			<p class="label">What it opens</p>
+			<h2 class="h1" id="formats-title" data-split>Everything people <em>actually</em> send you.</h2>
+			<p class="lede">
+				The four formats that fill your downloads folder, drawn the way their
+				author laid them out. Plus the odd ones: OpenDocument, RTF, CSV,
+				Markdown, logs.
+			</p>
+		</div>
+
+		<div class="phones">
+			{
+				phones.map((p) => (
+					<figure data-reveal>
+						<div data-speed={p.speed}>
+							<div class="phone">
+								<Shot name={p.shot} alt={p.alt} sizes="(max-width: 760px) 62vw, 22vw" />
+							</div>
+						</div>
+						<figcaption>
+							<span class="label">{p.ext}</span>
+							{p.title}
+						</figcaption>
+					</figure>
+				))
+			}
+		</div>
+
+		<div class="list">
+			<p class="note" data-reveal>
+				The bytes decide the format, not the file name. A file with a wrong or
+				missing extension still opens in the right viewer.
+			</p>
+			<ul>
+				{
+					FORMATS.map((f) => (
+						<li data-reveal>
+							<span class="ext">{f.ext}</span>
+							<span class="what">{f.note}</span>
+						</li>
+					))
+				}
+			</ul>
+		</div>
+	</div>
+</section>
+
+<style>
+	.top {
+		display: grid;
+		gap: 1.2rem;
+		max-width: 60rem;
+	}
+	.phones {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: clamp(1rem, 2.5vw, 2.5rem);
+		margin: clamp(3rem, 7vw, 6rem) 0;
+	}
+	figure {
+		margin: 0;
+	}
+	figure:nth-child(even) {
+		margin-top: clamp(2rem, 6vw, 6rem);
+	}
+	figcaption {
+		display: grid;
+		gap: 0.3rem;
+		margin-top: 1.1rem;
+		font-family: var(--serif);
+		font-size: 1.6rem;
+		line-height: 1.1;
+	}
+	.list {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+		gap: clamp(2rem, 5vw, 5rem);
+		border-top: 1px solid var(--ink);
+		padding-top: 2rem;
+	}
+	.note {
+		font-family: var(--serif);
+		font-size: var(--s-3);
+		line-height: 1.3;
+	}
+	ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0 2.5rem;
+	}
+	li {
+		display: grid;
+		gap: 0.15rem;
+		padding: 0.9rem 0;
+		border-bottom: 1px solid var(--line);
+	}
+	.ext {
+		font: 500 0.85rem/1.3 var(--mono);
+		letter-spacing: 0.04em;
+	}
+	.what {
+		color: var(--ink-2);
+		font-size: var(--s-small);
+	}
+	@media (max-width: 860px) {
+		.phones {
+			grid-template-columns: repeat(4, 62vw);
+			overflow-x: auto;
+			scroll-snap-type: x mandatory;
+			margin-inline: calc(-1 * var(--gutter));
+			padding-inline: var(--gutter);
+			scrollbar-width: none;
+		}
+		figure {
+			scroll-snap-align: center;
+		}
+		figure:nth-child(even) {
+			margin-top: 0;
+		}
+		.list,
+		ul {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

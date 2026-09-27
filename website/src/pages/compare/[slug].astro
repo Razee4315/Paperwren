@@ -1,0 +1,141 @@
+---
+import CompareTable from "../../components/CompareTable.astro";
+import Icon from "../../components/Icon.astro";
+import { type Competitor, competitors } from "../../data/competitors";
+import { SITE, url } from "../../data/site";
+import Base from "../../layouts/Base.astro";
+
+export function getStaticPaths() {
+	return competitors.map((c) => ({ params: { slug: c.slug }, props: { c } }));
+}
+
+const { c } = Astro.props as { c: Competitor };
+const others = competitors.filter((o) => o.slug !== c.slug);
+const title = `Paperwren vs ${c.name}`;
+const description = `Paperwren vs ${c.name}: a free document viewer with no account, no ads and no internet access, compared with ${c.name} on ads, accounts and data collection.`;
+---
+
+<Base title={title} description={description} crumbs={[{ name: "Compare", path: "/compare/" }, { name: c.name, path: `/compare/${c.slug}/` }]}>
+	<article class="page">
+		<div class="wrap">
+			<nav class="crumbs" aria-label="Breadcrumb">
+				<a class="link" href={url("/")}>Home</a>
+				<span aria-hidden="true">/</span>
+				<a class="link" href={url("/compare/")}>Compare</a>
+				<span aria-hidden="true">/</span>
+				<span aria-current="page">{c.name}</span>
+			</nav>
+			<h1 class="h1" data-split>Paperwren vs <em>{c.name}</em></h1>
+
+			<div class="intro">
+				<p class="lede">{c.intro[0]}</p>
+				<p class="lede">{c.intro[1]}</p>
+				<p class="lede us">
+					Paperwren only shows documents. No account, no ads, no network access,
+					no permissions, and a {SITE.androidSize} download.
+				</p>
+			</div>
+
+			<div data-reveal>
+				<CompareTable apps={[c]} caption={`Paperwren compared with ${c.name}`} />
+			</div>
+
+			<div class="split">
+				<section data-reveal>
+					<h2 class="h2">Pick {c.name} if</h2>
+					<p>{c.pickIt}</p>
+				</section>
+				<section data-reveal>
+					<h2 class="h2">Pick Paperwren if</h2>
+					<p>You just want to read the file you were sent, without signing in, watching ads or handing over data.</p>
+				</section>
+			</div>
+
+			<div class="cta" data-reveal>
+				<a class="btn" href={url("/#download")}>
+					<span class="roll"><span>Get Paperwren free</span><span>Get Paperwren free</span></span>
+					<Icon name="arrow" />
+				</a>
+				<a class="link" href={c.playUrl} rel="noopener nofollow">{c.name} on Google Play</a>
+			</div>
+
+			<nav class="others" aria-label="Other comparisons">
+				<p class="label">Other comparisons</p>
+				<ul>
+					{others.map((o) => (
+						<li>
+							<a class="link" href={url(`/compare/${o.slug}/`)}>vs {o.name}</a>
+						</li>
+					))}
+				</ul>
+			</nav>
+		</div>
+	</article>
+</Base>
+
+<style>
+	.page {
+		padding: calc(68px + clamp(2.5rem, 6vw, 5rem)) 0 var(--section);
+	}
+	.crumbs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+		font: 400 var(--s-label) / 1.4 var(--mono);
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--ink-2);
+	}
+	.h1 {
+		margin: 1.5rem 0 2rem;
+	}
+	.intro {
+		display: grid;
+		gap: 1rem;
+		max-width: 44rem;
+		margin-bottom: clamp(2.5rem, 5vw, 4rem);
+	}
+	.intro .us {
+		color: var(--ink);
+		border-left: 3px solid var(--pine);
+		padding-left: 1rem;
+	}
+	.split {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 2rem 4rem;
+		margin-top: clamp(3rem, 6vw, 5rem);
+	}
+	.split h2 {
+		margin-bottom: 0.8rem;
+	}
+	.split p {
+		color: var(--ink-2);
+		max-width: 30em;
+	}
+	.cta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 1.5rem 2rem;
+		margin-top: clamp(3rem, 6vw, 5rem);
+	}
+	.others {
+		margin-top: clamp(4rem, 8vw, 6rem);
+		border-top: 1px solid var(--line);
+		padding-top: 1.5rem;
+	}
+	.others ul {
+		list-style: none;
+		padding: 0;
+		margin: 1rem 0 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem 2rem;
+	}
+	@media (max-width: 760px) {
+		.split {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

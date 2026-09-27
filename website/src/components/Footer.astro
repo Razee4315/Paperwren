@@ -1,0 +1,112 @@
+---
+import { competitors } from "../data/competitors";
+import { SITE, url } from "../data/site";
+import Wren from "./Wren.astro";
+---
+
+<footer class="foot">
+	<div class="wrap">
+		<div class="cols">
+			<div class="about">
+				<Wren size={52} />
+				<p>
+					A small, calm document viewer. Free, open source, and it never
+					touches the internet.
+				</p>
+			</div>
+			<nav aria-label="Product">
+				<h2 class="label">Product</h2>
+				<a class="link" href={url("/#formats")}>Formats</a>
+				<a class="link" href={url("/#themes")}>Themes</a>
+				<a class="link" href={url("/#download")}>Download</a>
+				<a class="link" href={SITE.repo} rel="noopener">Source code</a>
+			</nav>
+			<nav aria-label="Compare">
+				<h2 class="label">Compare</h2>
+				{
+					competitors.map((c) => (
+						<a class="link" href={url(`/compare/${c.slug}/`)}>
+							vs {c.name}
+						</a>
+					))
+				}
+			</nav>
+			<nav aria-label="Trust">
+				<h2 class="label">Trust</h2>
+				<a class="link" href={url("/privacy/")}>Privacy policy</a>
+				<a class="link" href={url("/security/")}>Security</a>
+				<a class="link" href={SITE.issues} rel="noopener">Report a problem</a>
+			</nav>
+		</div>
+		<p class="mark" aria-hidden="true" data-footmark><span>Paperwren</span></p>
+		<div class="fine">
+			<span>MIT licensed · v{SITE.version}</span>
+			<span>This website sets no cookies and loads nothing from anyone else.</span>
+		</div>
+	</div>
+</footer>
+
+<style>
+	.foot {
+		background: var(--ink);
+		color: var(--paper);
+		padding-top: clamp(4rem, 8vw, 7rem);
+		overflow: hidden;
+		--wren-body: #7cc2b4;
+		--wren-dark: #5aa596;
+		--wren-belly: #c6e6de;
+		--wren-eye: #1f1e1b;
+	}
+	.cols {
+		display: grid;
+		grid-template-columns: 2fr 1fr 1.3fr 1fr;
+		gap: 2.5rem;
+	}
+	.about p {
+		margin-top: 1.2rem;
+		max-width: 22em;
+		color: #bdb5a6;
+	}
+	nav {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.55rem;
+		font-size: 0.95rem;
+	}
+	.label {
+		color: #9d968a;
+		margin: 0 0 0.6rem;
+	}
+	.mark {
+		font-family: var(--serif);
+		font-size: clamp(5rem, 21vw, 21rem);
+		line-height: 0.8;
+		letter-spacing: -0.04em;
+		margin: clamp(3rem, 8vw, 6rem) 0 0;
+		overflow: hidden;
+		padding-bottom: 0.08em;
+		color: var(--paper);
+	}
+	.mark span {
+		display: block;
+	}
+	.fine {
+		display: flex;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0.5rem 2rem;
+		border-top: 1px solid #3a3833;
+		padding: 1.2rem 0 1.6rem;
+		font: 400 0.75rem/1.5 var(--mono);
+		color: #9d968a;
+	}
+	@media (max-width: 860px) {
+		.cols {
+			grid-template-columns: 1fr 1fr;
+		}
+		.about {
+			grid-column: 1 / -1;
+		}
+	}
+</style>

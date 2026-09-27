@@ -1,0 +1,178 @@
+---
+import CompareTable from "../components/CompareTable.astro";
+import Download from "../components/Download.astro";
+import Faq from "../components/Faq.astro";
+import Formats from "../components/Formats.astro";
+import Hero from "../components/Hero.astro";
+import Icon from "../components/Icon.astro";
+import Ledger from "../components/Ledger.astro";
+import Strike from "../components/Strike.astro";
+import Themes from "../components/Themes.astro";
+import Windows from "../components/Windows.astro";
+import { competitors } from "../data/competitors";
+import { FAQ } from "../data/faq";
+import { SITE, url } from "../data/site";
+import Base from "../layouts/Base.astro";
+
+const schema = [
+	{
+		"@context": "https://schema.org",
+		"@type": "SoftwareApplication",
+		name: SITE.name,
+		description: SITE.description,
+		applicationCategory: "UtilitiesApplication",
+		operatingSystem: "Android, Windows",
+		softwareVersion: SITE.version,
+		fileSize: SITE.androidSize,
+		offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+		license: "https://opensource.org/licenses/MIT",
+		downloadUrl: SITE.releases,
+		url: new URL(import.meta.env.BASE_URL, Astro.site).href,
+	},
+	{
+		"@context": "https://schema.org",
+		"@type": "FAQPage",
+		mainEntity: FAQ.map((f) => ({
+			"@type": "Question",
+			name: f.q,
+			acceptedAnswer: { "@type": "Answer", text: f.a },
+		})),
+	},
+];
+---
+
+<Base title="Paperwren" description={SITE.description} schema={schema}>
+	<Hero />
+	<Strike />
+	<Ledger />
+	<Formats />
+	<Themes />
+	<Windows />
+
+	<section class="section" aria-labelledby="vs-title">
+		<div class="wrap">
+			<div class="vs-top">
+				<div>
+					<p class="label">Compared</p>
+					<h2 class="h1" id="vs-title" data-split>What the <em>others</em> ask for.</h2>
+				</div>
+				<p class="lede">
+					The popular document apps are good office suites. They are also built
+					around ads, accounts and cloud services. Here is what their own store
+					listings say.
+				</p>
+			</div>
+			<div data-reveal>
+				<CompareTable apps={competitors} linkHeaders caption="Paperwren compared with other Android document apps" />
+			</div>
+			<a class="more link" href={url("/compare/")}>All comparisons <Icon name="arrow" /></a>
+		</div>
+	</section>
+
+	<section class="section band trust" aria-labelledby="trust-title">
+		<div class="wrap">
+			<p class="label">Trust</p>
+			<h2 class="h1" id="trust-title" data-split>Nothing to leak, <em>by construction.</em></h2>
+			<div class="cards">
+				<a class="card" href={url("/privacy/")} data-reveal>
+					<span class="label">Privacy policy</span>
+					<span class="big">Paperwren collects nothing.</span>
+					<span class="small">What stays on your device, what never leaves it, and how to clear it. Short enough to actually read.</span>
+					<Icon name="arrow" class="arr" />
+				</a>
+				<a class="card" href={url("/security/")} data-reveal>
+					<span class="label">Security</span>
+					<span class="big">Promises you can check.</span>
+					<span class="small">Zero Android permissions, a locked-down webview, read-only file access, and public source. How it is built, point by point.</span>
+					<Icon name="arrow" class="arr" />
+				</a>
+			</div>
+		</div>
+	</section>
+
+	<Faq />
+	<Download />
+</Base>
+
+<style>
+	.vs-top {
+		display: grid;
+		grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+		gap: 1.5rem 4rem;
+		align-items: end;
+		margin-bottom: clamp(2rem, 5vw, 4rem);
+	}
+	.vs-top .h1,
+	.trust .h1 {
+		margin-top: 1.2rem;
+	}
+	.more {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 2rem;
+		font-weight: 600;
+		text-decoration: none;
+	}
+	.more :global(svg) {
+		width: 1.1em;
+		transition: transform 0.5s var(--ease);
+	}
+	.more:hover :global(svg) {
+		transform: translateX(4px);
+	}
+	.cards {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1px;
+		margin-top: clamp(2.5rem, 5vw, 4rem);
+		border-top: 1px solid var(--ink);
+	}
+	.card {
+		position: relative;
+		display: grid;
+		align-content: start;
+		gap: 1rem;
+		padding: 2.2rem 4rem 2.6rem 0;
+		text-decoration: none;
+		border-bottom: 1px solid var(--line);
+	}
+	.card + .card {
+		padding-left: 2.5rem;
+		border-left: 1px solid var(--line);
+	}
+	.big {
+		font-family: var(--serif);
+		font-size: var(--s-2);
+		line-height: 1.05;
+		letter-spacing: -0.02em;
+		transition: color 0.4s var(--ease);
+	}
+	.small {
+		color: var(--ink-2);
+		max-width: 28em;
+	}
+	.card :global(.arr) {
+		position: absolute;
+		right: 1rem;
+		top: 2.4rem;
+		width: 28px;
+		transition: transform 0.6s var(--ease);
+	}
+	.card:hover .big {
+		color: var(--pine);
+	}
+	.card:hover :global(.arr) {
+		transform: translateX(6px);
+	}
+	@media (max-width: 860px) {
+		.vs-top,
+		.cards {
+			grid-template-columns: 1fr;
+		}
+		.card + .card {
+			padding-left: 0;
+			border-left: 0;
+		}
+	}
+</style>
