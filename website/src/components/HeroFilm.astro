@@ -2,9 +2,28 @@
 import { url } from "../data/site";
 ---
 <!-- The hero's desktop window, playing the launch film. -->
-<div class="desktop-preview" data-perch data-film>
- <!-- A little twig off the window's corner, where the wren can rest. -->
- <span class="twig" aria-hidden="true" data-perch><i class="leaf"></i><i class="leaf two"></i></span>
+<div class="film-window" data-film>
+ <!-- A branch reaching out from behind the window's corner, where the wren can rest. -->
+ <span class="twig" aria-hidden="true">
+  <svg viewBox="0 0 220 72">
+   <defs>
+    <linearGradient id="bark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8d7458" /><stop offset=".55" stop-color="#6a5440" /><stop offset="1" stop-color="#4f3d2e" /></linearGradient>
+   </defs>
+   <!-- Side shoot, drawn first so the main branch covers its base. -->
+   <path class="bark" d="M52 27.2 C 44 20, 36 12, 25 6.5 C 24 6, 23.4 7.4, 24.4 8 C 34 14, 41 21, 47.5 29.5 Z" />
+   <!-- Main branch, tapering to a rounded tip. -->
+   <path class="bark" d="M220 56 C 170 45, 110 32, 30 20.5 C 14 18.2, 6 18.4, 5 21.4 C 4.4 24, 9 25.8, 20 26.6 C 90 32.5, 160 50, 220 72 Z" />
+   <path class="sheen" d="M12 20.6 C 60 24, 120 33, 190 50" />
+   <ellipse class="knot" cx="84" cy="30.4" rx="3.2" ry="1.7" transform="rotate(10 84 30.4)" />
+   <g class="leaf" transform="translate(25 7) rotate(-148)"><path d="M0 0 C 5 -6.5, 15 -6.5, 21 0 C 15 6.5, 5 6.5, 0 0 Z" /><path class="rib" d="M1.5 0 H 17" /></g>
+   <g class="leaf light" transform="translate(40 18) rotate(-70)"><path d="M0 0 C 4 -5, 12 -5, 16 0 C 12 5, 4 5, 0 0 Z" /><path class="rib" d="M1.5 0 H 13" /></g>
+   <g class="leaf dark" transform="translate(66 30) rotate(58)"><path d="M0 0 C 5 -6, 14 -6, 19 0 C 14 6, 5 6, 0 0 Z" /><path class="rib" d="M1.5 0 H 15" /></g>
+   <g class="leaf" transform="translate(7 22) rotate(168)"><path d="M0 0 C 3.4 -4.2, 10 -4.2, 13 0 C 10 4.2, 3.4 4.2, 0 0 Z" /><path class="rib" d="M1.5 0 H 10.5" /></g>
+  </svg>
+  <!-- The wren lands on the top edge of this strip of the branch. -->
+  <i class="perch" data-perch></i>
+ </span>
+ <div class="desktop-preview" data-perch>
  <div class="desktop-bar">
   <span class="window-dots" aria-hidden="true">● ● ●</span>
   <div class="controls">
@@ -31,6 +50,7 @@ import { url } from "../data/site";
   ></video>
   <span class="progress" aria-hidden="true"><i></i></span>
  </div>
+ </div>
 </div>
 <style>
  .desktop-preview { position: relative; border: 1px solid #606c5d; border-radius: 13px; background: #d9ded1; box-shadow: 0 20px 40px #35442e18; }
@@ -54,12 +74,22 @@ import { url } from "../data/site";
  [data-film-sound] .spk { fill: currentColor; }
  [data-film-sound] .on, [data-film-sound][aria-pressed="true"] .off { display: none; }
  [data-film-sound][aria-pressed="true"] .on { display: block; }
- /* A resting twig, planted in the window's top-left corner, clear of the phone. */
- .twig { position: absolute; z-index: 2; left: -40px; top: -4px; width: 128px; height: 7px; border-radius: 4px; background: linear-gradient(#8a7358, #5f4c38); rotate: 7deg; transform-origin: 90% 50%; box-shadow: 0 3px 5px #35442e30; }
- .twig::before { content: ""; position: absolute; left: 22px; top: -12px; width: 4px; height: 16px; border-radius: 3px; background: #6f5a43; rotate: -32deg; }
- .leaf { position: absolute; left: 8px; top: -13px; width: 16px; height: 9px; border-radius: 100% 0 100% 0; background: #6f8f64; rotate: 24deg; }
- .leaf.two { left: 58px; top: 5px; background: #5b7b52; rotate: -150deg; }
- @media (max-width: 900px) { .twig { left: -10px; width: 92px; } }
+ .film-window { position: relative; }
+ .desktop-preview { z-index: 1; }
+ /* A branch that reaches out from behind the window: its base is hidden under the
+    window's top-left corner (at 80,40 in the drawing). */
+ .twig { position: absolute; z-index: 0; left: -80px; top: -40px; width: 220px; height: 72px; transform-origin: 80px 40px; pointer-events: none; }
+ .twig svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 3px #35442e33); }
+ .twig .bark { fill: url(#bark); }
+ .twig .sheen { fill: none; stroke: #b39b7c; stroke-width: 1; stroke-linecap: round; opacity: .55; }
+ .twig .knot { fill: #4a392b; opacity: .6; }
+ .twig .leaf path { fill: #6f8f64; }
+ .twig .leaf.light path { fill: #87a678; }
+ .twig .leaf.dark path { fill: #577650; }
+ .twig .leaf .rib { fill: none; stroke: #e9eddc; stroke-width: .8; stroke-linecap: round; opacity: .45; }
+ .perch { position: absolute; left: 30px; top: 24px; width: 36px; height: 3px; }
+ @media (max-width: 900px) { .twig { transform: translateX(34px) scale(.85); } }
+ @media (max-width: 600px) { .twig { transform: translateX(58px) scale(.72); } }
  @media (max-width: 600px) {
   .desktop-bar { padding: 3px 8px; font-size: .48rem; gap: 4px; }
   .controls button { width: 28px; height: 28px; }
