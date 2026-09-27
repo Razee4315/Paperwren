@@ -6,6 +6,7 @@ import FlyingWren from "../components/FlyingWren.astro";
 import Formats from "../components/Formats.astro";
 import Hero from "../components/Hero.astro";
 import Icon from "../components/Icon.astro";
+import LaunchFilm from "../components/LaunchFilm.astro";
 import Themes from "../components/Themes.astro";
 import Windows from "../components/Windows.astro";
 import { competitors } from "../data/competitors";
@@ -42,6 +43,7 @@ const schema = [
 
 <Base title="Paperwren" description={SITE.description} schema={schema}>
 	<Hero />
+	<LaunchFilm />
 	<Formats />
 	<Themes />
 	<Windows />
