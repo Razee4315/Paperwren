@@ -1,119 +1,20 @@
 ---
-const rows = [
-	{ what: "Accounts", why: "There is nothing to sign up for, so there is nothing to sign in to." },
-	{ what: "Ads", why: "No banners, no videos, and no paid upgrade to make them go away." },
-	{ what: "Permissions", why: "The Android app requests none. Not storage, not even internet access." },
-	{ what: "Bytes sent", why: "No analytics, no crash uploads, no update checks. It has no way to phone home." },
-	{ what: "Price", why: "Free, MIT licensed, and the source code is public." },
+const facts = [
+ { value: "0", label: "Accounts", detail: "Open and read." },
+ { value: "0", label: "Ads", detail: "No interruptions." },
+ { value: "0", label: "Uploads", detail: "Files stay with you." },
+ { value: "0", label: "Cost", detail: "Free. Open source." },
 ];
-// Decorative starting digits for the roll down to zero.
-const starts = ["7", "3", "9", "5", "8"];
 ---
-
-<section class="section band ledger" aria-labelledby="ledger-title">
-	<div class="wrap">
-		<div class="top">
-			<p class="label">What it costs you</p>
-			<h2 class="h1" id="ledger-title" data-split>The whole bill comes to <em>zero.</em></h2>
-		</div>
-		<dl>
-			{
-				rows.map((r, i) => (
-					<div class="row" data-reveal>
-						<dt>{r.what}</dt>
-						<dd class="num">
-							<span class="odo" aria-hidden="true">
-								<span class="odo-strip" style={`--n:6`}>
-									<span>{starts[i]}</span>
-									<span>{(Number(starts[i]) + 3) % 10}</span>
-									<span>{(Number(starts[i]) + 6) % 10}</span>
-									<span>{(Number(starts[i]) + 1) % 10}</span>
-									<span>{(Number(starts[i]) + 4) % 10}</span>
-									<span>0</span>
-								</span>
-							</span>
-							<span class="sr">0</span>
-						</dd>
-						<dd class="why">{r.why}</dd>
-					</div>
-				))
-			}
-		</dl>
-	</div>
+<section class="essentials" aria-label="No accounts, ads, uploads or cost">
+ <div class="wrap"><dl>{facts.map(f => <div class="fact"><dt>{f.label}</dt><dd class="number">{f.value}<span aria-hidden="true">.</span></dd><dd class="detail">{f.detail}</dd></div>)}</dl></div>
 </section>
-
 <style>
-	.top {
-		display: grid;
-		gap: 1.2rem;
-		margin-bottom: clamp(2.5rem, 5vw, 4.5rem);
-	}
-	dl {
-		margin: 0;
-		border-top: 1px solid var(--ink);
-	}
-	.row {
-		display: grid;
-		grid-template-columns: minmax(5rem, 11rem) minmax(0, 1fr) minmax(0, 1.4fr);
-		grid-template-areas: "num what why";
-		gap: 1.5rem;
-		align-items: baseline;
-		padding: 1.4rem 0;
-		border-bottom: 1px solid var(--line);
-	}
-	dd {
-		margin: 0;
-	}
-	.num {
-		grid-area: num;
-		font-family: var(--serif);
-		font-size: clamp(4rem, 8vw, 7.5rem);
-		line-height: 1;
-		color: var(--pine);
-	}
-	.odo {
-		display: inline-block;
-		height: 1em;
-		overflow: hidden;
-		vertical-align: top;
-	}
-	.odo-strip {
-		display: flex;
-		flex-direction: column;
-	}
-	/* Final state (zero) when the motion script will not roll it. GSAP
-	 * would fold a CSS transform into its own offset, so none is set
-	 * when motion runs. */
-	:global(html:not(.motion)) .odo-strip {
-		transform: translateY(calc(-100% * (var(--n) - 1) / var(--n)));
-	}
-	.odo-strip span {
-		height: 1em;
-		line-height: 1;
-	}
-	.sr {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-	}
-	dt {
-		grid-area: what;
-		font-family: var(--serif);
-		font-size: var(--s-2);
-		line-height: 1;
-	}
-	.why {
-		grid-area: why;
-		color: var(--ink-2);
-		max-width: 30em;
-	}
-	@media (max-width: 760px) {
-		.row {
-			grid-template-columns: 4.5rem 1fr;
-			grid-template-areas: "num what" "num why";
-			gap: 0.3rem 1rem;
-		}
-	}
+ .essentials { padding-block: 48px; background: #bac3ae; }
+ dl { margin: 0; display: grid; grid-template-columns: repeat(4, 1fr); }
+ .fact { display: flex; flex-direction: column; padding: 8px 32px; border-right: 1px solid #8e9b81; }
+ .fact:first-child { padding-left: 0; } .fact:last-child { border: 0; }
+ .number { order: -1; margin: 0 0 12px; font-size: 3rem; line-height: 1.1; font-weight: 550; letter-spacing: -.06em; }
+ dd span { color: #6c815f; } dt { font-weight: 700; font-size: .95rem; } .detail { font-size: .8rem; font-weight: 400; letter-spacing: 0; line-height: 1.6; color: #45503e; margin: 4px 0 0; }
+ @media(max-width: 600px) { dl { grid-template-columns: 1fr 1fr; gap: 28px 0; } .fact { display: flex; flex-direction: column; padding: 0 20px; } .fact:nth-child(odd) { padding-left: 0; } .fact:nth-child(even) { border: 0; } }
 </style>

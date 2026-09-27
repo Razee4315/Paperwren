@@ -1,28 +1,22 @@
-/*
- * Paperwren website. Direction "Reading room" (docs/14-website.md):
- * warm mid-tone paper, flat colour, hairlines. No gradients, glow,
- * blur or soft shadows.
- */
-
 :root {
-	--paper: #e7e0d2;
-	--paper-2: #dcd3c2;
-	--card: #f1ece2;
-	--ink: #1f1e1b;
-	--ink-2: #57534a;
-	--ink-3: #7d776b;
-	--line: #c6bca9;
-	--pine: #2b6e66;
-	--pine-ink: #1f5750;
+	--paper: #d8d4c9;
+	--paper-2: #c4cbbb;
+	--card: #e3dfd4;
+	--ink: #182d2a;
+	--ink-2: #48564b;
+	--ink-3: #60746d;
+	--line: #aeb5a5;
+	--pine: #246b56;
+	--pine-ink: #17533f;
 	--on-pine: #f4efe4;
 	--clay: #b0502c;
 
-	--serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+	--serif: "Manrope Variable", "Manrope", system-ui, sans-serif;
 	--sans: "Manrope Variable", "Manrope", system-ui, sans-serif;
 	--mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", monospace;
 
-	--s-hero: clamp(3.6rem, 10.5vw, 10.5rem);
-	--s-1: clamp(2.6rem, 6.2vw, 5.8rem);
+	--s-hero: clamp(3rem, 7.5vw, 6.8rem);
+	--s-1: clamp(2.1rem, 4.3vw, 4rem);
 	--s-2: clamp(1.9rem, 3.6vw, 3.2rem);
 	--s-3: clamp(1.35rem, 2vw, 1.7rem);
 	--s-body: 1.125rem;
@@ -31,11 +25,11 @@
 
 	--ease: cubic-bezier(0.16, 1, 0.3, 1);
 	--ease-exit: cubic-bezier(0.76, 0, 0.24, 1);
-	--r: 3px;
+	--r: 12px;
 
 	--max: 1360px;
 	--gutter: clamp(16px, 3.4vw, 44px);
-	--section: clamp(5.5rem, 11vw, 10.5rem);
+	--section: clamp(4.5rem, 8vw, 8rem);
 
 	color-scheme: light;
 }
@@ -75,8 +69,8 @@ h1,
 h2,
 h3 {
 	font-family: var(--serif);
-	font-weight: 400;
-	line-height: 0.98;
+	font-weight: 650;
+	line-height: 1.15;
 	letter-spacing: -0.02em;
 	margin: 0;
 	text-wrap: balance;
@@ -84,7 +78,7 @@ h3 {
 
 h1 em,
 h2 em {
-	font-style: italic;
+	font-style: normal;
 	color: var(--pine);
 }
 
@@ -148,12 +142,7 @@ a {
 	align-items: center;
 	gap: 0.6em;
 }
-.label::before {
-	content: "";
-	width: 1.6em;
-	height: 1px;
-	background: currentColor;
-}
+
 
 .lede {
 	font-size: clamp(1.15rem, 1.6vw, 1.35rem);
@@ -433,4 +422,14 @@ table.compare.wide {
 		transition-duration: 0.01ms !important;
 		animation-duration: 0.01ms !important;
 	}
+}
+
+html { scroll-padding-top: 88px; }
+.btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px #123e3020; }
+.btn .roll { height: auto; overflow: visible; }
+.btn .roll span + span { display: none; }
+.btn:hover .roll span { transform: none; }
+@media (hover: hover) {
+ .phone { transition: translate .5s var(--ease), box-shadow .5s var(--ease); }
+ .phone:hover { translate: 0 -8px; box-shadow: 0 20px 45px #182d2a20; }
 }

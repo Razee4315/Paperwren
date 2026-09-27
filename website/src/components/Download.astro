@@ -1,5 +1,5 @@
 ---
-import { SITE, url } from "../data/site";
+import { SITE } from "../data/site";
 import Icon from "./Icon.astro";
 import Wren from "./Wren.astro";
 ---
@@ -22,11 +22,7 @@ import Wren from "./Wren.astro";
 					<small>{SITE.windowsSize}</small>
 				</a>
 			</div>
-			<p class="fine">
-				Both come from <a class="link" href={SITE.releases} rel="noopener">GitHub Releases</a>, built
-				automatically from <a class="link" href={SITE.repo} rel="noopener">the public source</a>.
-				Read the <a class="link" href={url("/privacy/")}>privacy policy</a>. It is short.
-			</p>
+			<p class="fine">Download from <a class="link" href={SITE.releases} rel="noopener">GitHub Releases</a>. <a class="link" href={SITE.repo} rel="noopener">Open source</a>, always.</p>
 		</div>
 	</div>
 </section>
@@ -35,7 +31,7 @@ import Wren from "./Wren.astro";
 	.download {
 		background: var(--pine);
 		color: var(--on-pine);
-		padding-block: clamp(6rem, 12vw, 11rem);
+		padding-block: clamp(4rem, 7vw, 7rem);
 		--wren-body: #f4efe4;
 		--wren-dark: #cfe3dd;
 		--wren-belly: #8fbcb3;
@@ -47,8 +43,8 @@ import Wren from "./Wren.astro";
 		text-align: center;
 	}
 	h2 {
-		font-size: var(--s-hero);
-		line-height: 0.9;
+		font-size: var(--s-1);
+		line-height: 1.2;
 		letter-spacing: -0.035em;
 		margin: 1.5rem 0 1.5rem;
 	}

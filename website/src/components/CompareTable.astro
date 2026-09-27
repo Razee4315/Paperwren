@@ -1,5 +1,5 @@
 ---
-import { CHECKED, type Competitor, paperwren } from "../data/competitors";
+import { CHECKED, type Competitor } from "../data/competitors";
 import { url } from "../data/site";
 
 interface Props {
@@ -8,8 +8,9 @@ interface Props {
 	/** Link each app's header to its comparison page. */
 	linkHeaders?: boolean;
 	caption: string;
+	selectable?: boolean;
 }
-const { apps, linkHeaders = false, caption } = Astro.props;
+const { apps, linkHeaders = false, caption, selectable = false } = Astro.props;
 
 type Row = {
 	label: string;
@@ -23,57 +24,59 @@ const rows: Row[] = [
 		label: "Ads",
 		us: "None",
 		good: true,
-		them: (c) => (c.ads ? { text: "Listing says “Contains ads”", bad: true } : { text: "None listed", bad: false }),
+		them: (c) => (c.ads ? { text: "Listed", bad: true } : { text: "None listed", bad: false }),
 	},
 	{
-		label: "In-app purchases",
+		label: "Paid extras",
 		us: "None",
 		good: true,
 		them: (c) => (c.inAppPurchases ? { text: "Yes", bad: true } : { text: "None", bad: false }),
 	},
 	{
 		label: "Account",
-		us: paperwren.account,
+		us: "Not needed",
 		good: true,
-		them: (c) => ({ text: c.account, bad: true }),
+		them: (c) => ({ text: selectable ? (c.slug === "google-drive" ? "Required" : c.slug === "microsoft-365" ? "Microsoft account" : "For extra features") : c.account, bad: true }),
 	},
 	{
-		label: "Data shared with third parties",
-		us: "None. It cannot connect to anything",
+		label: "Data sharing",
+		us: "None",
 		good: true,
-		them: (c) => (c.shared ? { text: c.shared, bad: true } : { text: "None declared", bad: false }),
+		them: (c) => (c.shared ? { text: selectable ? "Declared" : c.shared, bad: true } : { text: "None declared", bad: false }),
 	},
 	{
 		label: "Data collected",
 		us: "None",
 		good: true,
-		them: (c) => (c.collected ? { text: c.collected, bad: true } : { text: "None declared", bad: false }),
+		them: (c) => (c.collected ? { text: selectable ? "Declared" : c.collected, bad: true } : { text: "None declared", bad: false }),
 	},
 	{
 		label: "Internet access",
-		us: "Never. No network permission or code",
+		us: "No access",
 		good: true,
-		them: () => ({ text: "Uses the internet", bad: false }),
+		them: () => ({ text: "Uses internet", bad: false }),
 	},
 	{
 		label: "Edits documents",
-		us: "No, by design. It only shows them",
+		us: "View only",
 		good: false,
-		them: (c) => ({ text: typeof c.edits === "string" ? c.edits : c.edits ? "Yes" : "No", bad: false }),
+		them: (c) => ({ text: typeof c.edits === "string" ? (selectable ? "Separate apps" : c.edits) : c.edits ? "Yes" : "No", bad: false }),
 	},
 ];
 ---
 
-<div class="table-wrap">
-	<table class:list={["compare", apps.length > 2 && "wide"]}>
+<div class:list={["comparison", selectable && "selectable"]} data-comparison>
+{selectable && <div class="compare-picker"><label>Compare Paperwren with <select aria-label="Choose an app to compare">{apps.map(c => <option value={c.slug}>{c.name}</option>)}</select></label><span>Android apps</span></div>}
+<div class="table-wrap" tabindex="0" aria-label="Document app comparison">
+	<table class:list={["compare", !selectable && apps.length > 2 && "wide"]}>
 		<caption class="sr">{caption}</caption>
 		<thead>
 			<tr>
 				<th scope="col"><span class="sr">Feature</span></th>
 				<th scope="col" class="us">Paperwren</th>
 				{
-					apps.map((c) => (
-						<th scope="col">
+					apps.map((c, i) => (
+						<th scope="col" data-app={c.slug} hidden={selectable && i !== 0}>
 							{linkHeaders ? (
 								<a class="link" href={url(`/compare/${c.slug}/`)}>
 									{c.name}
@@ -94,10 +97,10 @@ const rows: Row[] = [
 						<td class="us">
 							<span class:list={[r.good ? "yes good" : "no"]}>{r.us}</span>
 						</td>
-						{apps.map((c) => {
+						{apps.map((c, i) => {
 							const v = r.them(c);
 							return (
-								<td>
+								<td data-app={c.slug} hidden={selectable && i !== 0}>
 									<span class:list={[v.bad ? "no bad" : ""]}>{v.text}</span>
 								</td>
 							);
@@ -108,13 +111,37 @@ const rows: Row[] = [
 		</tbody>
 	</table>
 </div>
-<p class="source">
-	Other apps: the labels and Data safety section of each app's Google Play
-	listing, checked {CHECKED}. Developers write these themselves and update them
-	over time, so check the current listing before relying on a row.
-</p>
+<p class="source">Google Play disclosures · {CHECKED}. Listings may change. <a class="link" href={url('/compare/')}>Sources & full details ↗</a></p>
+</div>
+<script>
+ document.querySelectorAll<HTMLElement>('[data-comparison]').forEach(section => {
+  section.querySelector('select')?.addEventListener('change', event => {
+   const selected = (event.target as HTMLSelectElement).value;
+   section.querySelectorAll<HTMLElement>('[data-app]').forEach(cell => { cell.hidden = cell.dataset.app !== selected; });
+  });
+ });
+</script>
 
 <style>
+ .comparison { --line: #afb5a4; }
+ .compare-picker { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+ .compare-picker label { display: flex; align-items: center; gap: 14px; font-weight: 600; font-size: .9rem; }
+ select { font: 650 .9rem/1.5 var(--sans); color: var(--ink); background: #c1c8b7; border: 1px solid #81917b; border-radius: 6px; padding: 12px 34px 12px 14px; max-width: 100%; cursor: pointer; }
+ .compare-picker > span { font-size: .75rem; color: var(--ink-2); }
+ .selectable .table-wrap { border: 1px solid #a3ac98; border-radius: 12px; background: #d0d2c4; }
+ .selectable table { table-layout: fixed; font-size: .9rem; }
+ .selectable th, .selectable td { padding: 18px 24px; vertical-align: middle; }
+ .selectable th:first-child { width: 30%; background: transparent; }
+ .selectable .us { background: #b5c3a5; box-shadow: none; }
+ .selectable thead th { font: 700 .95rem/1.5 var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink); }
+ .selectable tbody th { font-weight: 500; }
+ .selectable tbody tr:last-child > * { border-bottom: 0; }
+ .selectable tbody tr:hover { background: #b9bfad50; }
+ .selectable .good::before { content: "✓"; font-weight: 700; }
+ .selectable .bad::before { display: none; }
+ .source { font-size: .75rem; }
+ @media(max-width: 600px) { .compare-picker label { align-items: flex-start; flex-direction: column; gap: 8px; width: 100%; } select { width: 100%; } .compare-picker > span { display: none; } .selectable th, .selectable td { padding: 14px 10px; font-size: .76rem; overflow-wrap: anywhere; } .selectable thead th { font-size: .8rem; } .selectable th:first-child { width: 29%; } }
+
 	.sr {
 		position: absolute;
 		width: 1px;

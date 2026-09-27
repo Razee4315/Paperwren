@@ -1,5 +1,10 @@
 ---
-import { FORMATS } from "../data/site";
+const groups = [
+ { ext: "Documents", note: "Word, PDF, OpenDocument and RTF", detail: "Read reports, letters and notes.", formats: "PDF · DOCX · DOC · ODT · RTF" },
+ { ext: "Spreadsheets", note: "Excel, OpenDocument and CSV", detail: "Browse tables and switch between sheets.", formats: "XLSX · XLS · ODS · CSV" },
+ { ext: "Presentations", note: "PowerPoint and OpenDocument", detail: "Read slide decks and speaker notes.", formats: "PPTX · PPT · ODP" },
+ { ext: "Text & code", note: "Markdown, plain text and JSON", detail: "Read notes, logs and formatted Markdown.", formats: "MD · TXT · JSON" },
+];
 import Shot from "./Shot.astro";
 
 const phones = [
@@ -10,23 +15,21 @@ const phones = [
 ];
 ---
 
-<section class="section formats" id="formats" aria-labelledby="formats-title" data-parallax-root>
+<section class="section formats" id="formats" aria-labelledby="formats-title">
 	<div class="wrap">
 		<div class="top">
 			<p class="label">What it opens</p>
-			<h2 class="h1" id="formats-title" data-split>Everything people <em>actually</em> send you.</h2>
+			<h2 class="h1" id="formats-title" data-split>One app. <em>All the usual files.</em></h2>
 			<p class="lede">
-				The four formats that fill your downloads folder, drawn the way their
-				author laid them out. Plus the odd ones: OpenDocument, RTF, CSV,
-				Markdown, logs.
+				Documents, sheets and slides, in their original layout.
 			</p>
 		</div>
 
 		<div class="phones">
 			{
 				phones.map((p) => (
-					<figure data-reveal>
-						<div data-speed={p.speed}>
+					<figure data-format-card>
+						<div>
 							<div class="phone">
 								<Shot name={p.shot} alt={p.alt} sizes="(max-width: 760px) 62vw, 22vw" />
 							</div>
@@ -42,15 +45,14 @@ const phones = [
 
 		<div class="list">
 			<p class="note" data-reveal>
-				The bytes decide the format, not the file name. A file with a wrong or
-				missing extension still opens in the right viewer.
+				More than the big four.
 			</p>
 			<ul>
 				{
-					FORMATS.map((f) => (
+					groups.map((f) => (
 						<li data-reveal>
 							<span class="ext">{f.ext}</span>
-							<span class="what">{f.note}</span>
+							<span class="what">{f.note}</span><details><summary>See formats</summary><p>{f.detail}</p><span class="extensions">{f.formats}</span></details>
 						</li>
 					))
 				}
@@ -60,6 +62,13 @@ const phones = [
 </section>
 
 <style>
+ .formats { padding-bottom: clamp(2.5rem, 4vw, 4rem); }
+ details { margin-top: 8px; font-size: .8rem; color: var(--ink-2); }
+ summary { cursor: pointer; width: fit-content; text-underline-offset: 4px; }
+ summary:hover { color: var(--pine); }
+ details p { margin: 12px 0 8px; }
+ .extensions { font: .7rem/1.6 var(--mono); }
+
 	.top {
 		display: grid;
 		gap: 1.2rem;
@@ -68,22 +77,25 @@ const phones = [
 	.phones {
 		display: grid;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
+        align-items: start;
 		gap: clamp(1rem, 2.5vw, 2.5rem);
 		margin: clamp(3rem, 7vw, 6rem) 0;
 	}
-	figure {
-		margin: 0;
-	}
-	figure:nth-child(even) {
-		margin-top: clamp(2rem, 6vw, 6rem);
-	}
+ figure { transform-origin: 50% 50%; margin: 0; padding: 0 8px 12px; background: transparent; }
+ figure .phone { max-width: 230px; margin: auto; }
+ figure .phone:hover { translate: none; box-shadow: none; }
+ figcaption { text-align: center; justify-items: center; padding-inline: 4px; }
+ li { transition: background .25s, padding .25s; border-radius: 8px; }
+ li:hover { background: #e8eee4; padding-left: 12px; }
+
+
 	figcaption {
 		display: grid;
 		gap: 0.3rem;
 		margin-top: 1.1rem;
 		font-family: var(--serif);
-		font-size: 1.6rem;
-		line-height: 1.1;
+		font-size: 1.15rem;
+		line-height: 1.4;
 	}
 	.list {
 		display: grid;
@@ -112,7 +124,7 @@ const phones = [
 		border-bottom: 1px solid var(--line);
 	}
 	.ext {
-		font: 500 0.85rem/1.3 var(--mono);
+		font: 700 1.05rem/1.4 var(--sans);
 		letter-spacing: 0.04em;
 	}
 	.what {

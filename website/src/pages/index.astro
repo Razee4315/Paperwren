@@ -5,8 +5,6 @@ import Faq from "../components/Faq.astro";
 import Formats from "../components/Formats.astro";
 import Hero from "../components/Hero.astro";
 import Icon from "../components/Icon.astro";
-import Ledger from "../components/Ledger.astro";
-import Strike from "../components/Strike.astro";
 import Themes from "../components/Themes.astro";
 import Windows from "../components/Windows.astro";
 import { competitors } from "../data/competitors";
@@ -43,8 +41,6 @@ const schema = [
 
 <Base title="Paperwren" description={SITE.description} schema={schema}>
 	<Hero />
-	<Strike />
-	<Ledger />
 	<Formats />
 	<Themes />
 	<Windows />
@@ -54,16 +50,14 @@ const schema = [
 			<div class="vs-top">
 				<div>
 					<p class="label">Compared</p>
-					<h2 class="h1" id="vs-title" data-split>What the <em>others</em> ask for.</h2>
+					<h2 class="h1" id="vs-title" data-split>A little <em>less baggage.</em></h2>
 				</div>
 				<p class="lede">
-					The popular document apps are good office suites. They are also built
-					around ads, accounts and cloud services. Here is what their own store
-					listings say.
+					Compare the essentials. Choose what fits.
 				</p>
 			</div>
 			<div data-reveal>
-				<CompareTable apps={competitors} linkHeaders caption="Paperwren compared with other Android document apps" />
+				<CompareTable apps={competitors} selectable linkHeaders caption="Paperwren compared with other Android document apps" />
 			</div>
 			<a class="more link" href={url("/compare/")}>All comparisons <Icon name="arrow" /></a>
 		</div>
@@ -72,18 +66,18 @@ const schema = [
 	<section class="section band trust" aria-labelledby="trust-title">
 		<div class="wrap">
 			<p class="label">Trust</p>
-			<h2 class="h1" id="trust-title" data-split>Nothing to leak, <em>by construction.</em></h2>
+			<h2 class="h1" id="trust-title" data-split>Your files <em>stay yours.</em></h2>
 			<div class="cards">
 				<a class="card" href={url("/privacy/")} data-reveal>
 					<span class="label">Privacy policy</span>
 					<span class="big">Paperwren collects nothing.</span>
-					<span class="small">What stays on your device, what never leaves it, and how to clear it. Short enough to actually read.</span>
+					<span class="small">No uploads. No tracking. Read our privacy policy.</span>
 					<Icon name="arrow" class="arr" />
 				</a>
 				<a class="card" href={url("/security/")} data-reveal>
 					<span class="label">Security</span>
 					<span class="big">Promises you can check.</span>
-					<span class="small">Zero Android permissions, a locked-down webview, read-only file access, and public source. How it is built, point by point.</span>
+					<span class="small">No Android permissions. Public source. See how it works.</span>
 					<Icon name="arrow" class="arr" />
 				</a>
 			</div>
@@ -124,27 +118,31 @@ const schema = [
 	.cards {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: 1px;
+		gap: 20px;
 		margin-top: clamp(2.5rem, 5vw, 4rem);
-		border-top: 1px solid var(--ink);
+		border-top: 0;
 	}
 	.card {
 		position: relative;
 		display: grid;
 		align-content: start;
 		gap: 1rem;
-		padding: 2.2rem 4rem 2.6rem 0;
+		padding: 2.2rem 4rem 2.6rem 2rem;
+        background: #bcb8ca;
+        border-radius: 20px;
+        transition: box-shadow .3s;
 		text-decoration: none;
 		border-bottom: 1px solid var(--line);
 	}
 	.card + .card {
-		padding-left: 2.5rem;
+		padding-left: 2rem;
+        background: #b9c5a9;
 		border-left: 1px solid var(--line);
 	}
 	.big {
 		font-family: var(--serif);
 		font-size: var(--s-2);
-		line-height: 1.05;
+		line-height: 1.2;
 		letter-spacing: -0.02em;
 		transition: color 0.4s var(--ease);
 	}
@@ -159,6 +157,7 @@ const schema = [
 		width: 28px;
 		transition: transform 0.6s var(--ease);
 	}
+ .card:hover { box-shadow: 0 12px 28px #182d2a15; }
 	.card:hover .big {
 		color: var(--pine);
 	}
@@ -171,7 +170,7 @@ const schema = [
 			grid-template-columns: 1fr;
 		}
 		.card + .card {
-			padding-left: 0;
+			padding-left: 2rem;
 			border-left: 0;
 		}
 	}

@@ -17,6 +17,10 @@ const paths: Record<Props["name"], string> = {
 };
 ---
 
-<svg class={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-	<path d={paths[name]}></path>
-</svg>
+{name === "windows" ? (
+ <svg class={cls} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2 2h9v9H2zM13 2h9v9h-9zM2 13h9v9H2zM13 13h9v9h-9z" /></svg>
+) : name === "android" ? (
+ <svg class={cls} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m6.5 5.2-1.7-3 .9-.5 1.8 3.1A10 10 0 0 1 12 3.7c1.6 0 3.1.4 4.5 1.1l1.8-3.1.9.5-1.7 3A9.4 9.4 0 0 1 22 13H2a9.4 9.4 0 0 1 4.5-7.8ZM2 14h20v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/><circle cx="7.5" cy="9" r="1" fill="var(--bg, var(--paper))"/><circle cx="16.5" cy="9" r="1" fill="var(--bg, var(--paper))"/></svg>
+) : (
+ <svg class={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>
+)}

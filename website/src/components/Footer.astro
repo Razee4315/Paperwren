@@ -8,10 +8,9 @@ import Wren from "./Wren.astro";
 	<div class="wrap">
 		<div class="cols">
 			<div class="about">
-				<Wren size={52} />
+				<a class="footer-brand" href={url("/")}><Wren size={36} /><strong>Paperwren</strong></a>
 				<p>
-					A small, calm document viewer. Free, open source, and it never
-					touches the internet.
+					Open your files. Keep them yours.<br />Free, offline and open source.
 				</p>
 			</div>
 			<nav aria-label="Product">
@@ -38,17 +37,17 @@ import Wren from "./Wren.astro";
 				<a class="link" href={SITE.issues} rel="noopener">Report a problem</a>
 			</nav>
 		</div>
-		<p class="mark" aria-hidden="true" data-footmark><span>Paperwren</span></p>
+		<div class="wordmark-row"><button class="perched-wren" type="button" aria-label="Make the wren hop" title="A little company for your reading"><Wren size={48} /></button><p class="mark" aria-label="Paperwren"><span aria-hidden="true" class="letters">{"Paperwren".split("").map((letter, i) => <span style={`--i:${i}`}>{letter}</span>)}</span><span class="period" aria-hidden="true">.</span></p><a class="back-top" href="#main" aria-label="Back to top">↑</a></div>
 		<div class="fine">
 			<span>MIT licensed · v{SITE.version}</span>
-			<span>This website sets no cookies and loads nothing from anyone else.</span>
+			<span>No cookies. No trackers.</span>
 		</div>
 	</div>
 </footer>
 
 <style>
 	.foot {
-		background: var(--ink);
+		background: #354437;
 		color: var(--paper);
 		padding-top: clamp(4rem, 8vw, 7rem);
 		overflow: hidden;
@@ -65,7 +64,7 @@ import Wren from "./Wren.astro";
 	.about p {
 		margin-top: 1.2rem;
 		max-width: 22em;
-		color: #bdb5a6;
+		color: #cbd0bf;
 	}
 	nav {
 		display: flex;
@@ -75,31 +74,35 @@ import Wren from "./Wren.astro";
 		font-size: 0.95rem;
 	}
 	.label {
-		color: #9d968a;
+		color: #bec7b7;
 		margin: 0 0 0.6rem;
 	}
-	.mark {
-		font-family: var(--serif);
-		font-size: clamp(5rem, 21vw, 21rem);
-		line-height: 0.8;
-		letter-spacing: -0.04em;
-		margin: clamp(3rem, 8vw, 6rem) 0 0;
-		overflow: hidden;
-		padding-bottom: 0.08em;
-		color: var(--paper);
-	}
-	.mark span {
-		display: block;
-	}
+ .footer-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 1.4rem; text-decoration: none; }
+
+ .wordmark-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 60px; padding: 28px 0 36px; border-top: 1px solid #778275; }
+ .mark { font-family: var(--sans); font-weight: 550; font-size: clamp(3.2rem, 12.5vw, 11rem); line-height: 1.12; letter-spacing: -.07em; }
+ .mark .period { color: #c9aa78; }
+ .letters > span { display: inline-block; transition: color .3s, translate .3s; }
+ .letters > span:hover { color: #b5c7a0; translate: 0 -8px; }
+ .wordmark-row.hello .letters > span { animation: letter-hop .65s var(--ease) both; animation-delay: calc(var(--i) * 40ms); }
+ .perched-wren { position: absolute; top: -43px; left: 65%; width: 48px; height: 48px; padding: 0; border: 0; background: transparent; cursor: pointer; transform-origin: 50% 90%; }
+ .perched-wren:hover { filter: brightness(1.2); }
+ @keyframes letter-hop { 45% { translate: 0 -10px; color: #b5c7a0; } }
+ @media(prefers-reduced-motion: reduce) { .letters > span:hover { translate: none; } .wordmark-row.hello .letters > span { animation: none; color: #b5c7a0; } }
+ .back-top { width: 56px; height: 56px; flex-shrink: 0; display: grid; place-items: center; border: 1px solid #98a08e; border-radius: 50%; text-decoration: none; font-size: 1.5rem; transition: background .3s, color .3s, translate .3s; }
+ .back-top:hover { background: #d8d4c9; color: #354437; translate: 0 -5px; }
+ .foot a:focus-visible { outline-color: #e1d5b9; }
+ @media(max-width: 600px) { .wordmark-row { gap: 12px; } .back-top { width: 42px; height: 42px; } }
+
 	.fine {
 		display: flex;
 		justify-content: space-between;
 		flex-wrap: wrap;
 		gap: 0.5rem 2rem;
-		border-top: 1px solid #3a3833;
+		border-top: 1px solid #71816a;
 		padding: 1.2rem 0 1.6rem;
 		font: 400 0.75rem/1.5 var(--mono);
-		color: #9d968a;
+		color: #bec7b7;
 	}
 	@media (max-width: 860px) {
 		.cols {
@@ -110,3 +113,46 @@ import Wren from "./Wren.astro";
 		}
 	}
 </style>
+
+<script>
+ const perch = document.querySelector<HTMLElement>('.wordmark-row');
+ const bird = perch?.querySelector<HTMLButtonElement>('.perched-wren');
+ if (perch && bird) {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  let flight: Animation | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let waveTimer: ReturnType<typeof setTimeout> | undefined;
+  let visible = false, busy = false, position = .65;
+  const schedule = () => {
+   clearTimeout(timer);
+   if (visible && !document.hidden && !reduced.matches) timer = setTimeout(() => hop(false), 3500 + Math.random() * 4500);
+  };
+  const hop = (interactive: boolean) => {
+   if (busy) return;
+   if (reduced.matches) { perch.classList.toggle('hello'); return; }
+   busy = true;
+   const width = Math.max(0, perch.clientWidth - 48), from = position * width;
+   const next = Math.max(.06, Math.min(.9, position + (Math.random() > .5 ? 1 : -1) * (.12 + Math.random() * .2)));
+   const to = next * width, direction = to > from ? 1 : -1;
+   position = next; bird.style.left = `${to}px`;
+   flight = bird.animate([
+    { transform: `translateX(${from-to}px) scaleY(1)` },
+    { transform: `translateX(${from-to}px) scaleY(.86)`, offset: .12 },
+    { transform: `translate(${(from-to)*.52}px,-26px) rotate(${direction*9}deg) scaleY(1.04)`, offset: .48 },
+    { transform: 'translate(0,0) scaleY(.9)', offset: .84 },
+    { transform: 'translate(0,0) scaleY(1)' },
+   ], {duration: 750 + Math.abs(to-from)*.6, easing: 'cubic-bezier(.3,.65,.4,1)'});
+   flight.onfinish = () => { busy = false; schedule(); };
+   if (interactive) {
+    clearTimeout(waveTimer); perch.classList.remove('hello'); void perch.offsetWidth; perch.classList.add('hello');
+    waveTimer = setTimeout(() => perch.classList.remove('hello'), 1100);
+   }
+  };
+  bird.addEventListener('click', () => hop(true));
+  const stop = () => { clearTimeout(timer); flight?.cancel(); busy = false; };
+  new IntersectionObserver(entries => { visible = entries[0]?.isIntersecting ?? false; if (visible) schedule(); else stop(); }).observe(perch);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else schedule(); });
+  reduced.addEventListener('change', () => { stop(); schedule(); });
+  new ResizeObserver(() => { stop(); bird.style.left = `${position * Math.max(0, perch.clientWidth - 48)}px`; schedule(); }).observe(perch);
+ }
+</script>

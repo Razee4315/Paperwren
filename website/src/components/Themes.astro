@@ -3,9 +3,9 @@ import Shot from "./Shot.astro";
 
 // Colours are the app's own tokens (src/styles/global.css).
 const themes = [
-	{ id: "light", tex: "paper", name: "Paper", line: "Warm off-white with a faint paper fibre and a pine-teal accent. For daylight." },
-	{ id: "sepia", tex: "sand", name: "Sand", line: "Low blue-light parchment with a fine sand grain and a terracotta accent. For long evenings." },
-	{ id: "dark", tex: "ink", name: "Ink", line: "Soft charcoal, never pure black, with ink splatters in the corners and a mint accent. For the dark." },
+	{ id: "light", tex: "paper", name: "Paper", line: "Soft paper. Made for daylight." },
+	{ id: "sepia", tex: "sand", name: "Sand", line: "Warm sand. For long evenings." },
+	{ id: "dark", tex: "ink", name: "Ink", line: "Soft charcoal. For late nights." },
 ];
 const screens = [
 	{ n: "home", alt: "home screen" },
@@ -19,14 +19,15 @@ const screens = [
 		<div class="top">
 			<div>
 				<p class="label">Three calm themes</p>
-				<h2 class="h1" id="themes-title" data-split>Easy on the eyes, <em>whenever</em> you read.</h2>
+				<h2 class="h1" id="themes-title" data-split>Find your <em>reading light.</em></h2>
 			</div>
 			<div class="pick">
+                <p class="try-label">Change the mood.</p>
 				<div class="buttons" role="group" aria-label="Preview a theme">
 					{
 						themes.map((t, i) => (
 							<button type="button" data-pick={t.id} data-tex-id={t.tex} aria-pressed={i === 0 ? "true" : "false"}>
-								<span class="dot" />
+								<span class="swatch" aria-hidden="true"><span class="swatch-glyph">{t.id === "light" ? "☀" : t.id === "sepia" ? "◒" : "☾"}</span><span class="swatch-lines"><i></i><i></i><i></i></span></span>
 								{t.name}
 							</button>
 						))
@@ -34,7 +35,7 @@ const screens = [
 				</div>
 				{
 					themes.map((t, i) => (
-						<p class="desc" data-desc={t.id} hidden={i !== 0}>
+						<p class="desc" aria-live="polite" data-desc={t.id} hidden={i !== 0}>
 							{t.line}
 						</p>
 					))
@@ -43,13 +44,14 @@ const screens = [
 			</div>
 		</div>
 
-		<div class="stage">
+		<div class="stage" tabindex="0" role="region" aria-label="Theme screenshots. Swipe or use arrow keys to browse.">
+            <span class="mood-orbit" aria-hidden="true"></span>
 			{
 				themes.map((t, i) => (
 					<div class="set" data-set={t.id} data-active={i === 0 ? "" : undefined}>
 						{screens.map((s, k) => (
 							<div class={`phone p${k}`}>
-								<Shot name={`${t.id}-${s.n}`} alt={`Paperwren in the ${t.name} theme: ${s.alt}`} sizes="(max-width: 760px) 40vw, 300px" />
+								<Shot name={`${t.id}-${s.n}`} alt={`Paperwren in the ${t.name} theme: ${s.alt}`} sizes="(max-width: 860px) 68vw, 300px" />
 							</div>
 						))}
 					</div>
@@ -60,9 +62,11 @@ const screens = [
 </section>
 
 <style>
+ .themes > .section { padding-block: clamp(2.8rem, 4.5vw, 4.5rem); }
+ .themes > .section { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); align-items: center; gap: clamp(2rem, 5vw, 5rem); }
 	.themes {
 		--tex-bg: var(--t-bg);
-		--t-bg: #f3f1ec;
+		--t-bg: #d7d5c9;
 		--t-text: #23221f;
 		--t-text-2: #5b5952;
 		--t-accent: #2b6e66;
@@ -75,14 +79,14 @@ const screens = [
 			color 0.7s var(--ease);
 	}
 	.themes[data-theme="sepia"] {
-		--t-bg: #ede3d0;
+		--t-bg: #d5c3a4;
 		--t-text: #3a2e22;
 		--t-text-2: #6a5a47;
 		--t-accent: #a4502e;
 		--t-line: #d3c2a5;
 	}
 	.themes[data-theme="dark"] {
-		--t-bg: #16181b;
+		--t-bg: #2b3334;
 		--t-text: #e6e2da;
 		--t-text-2: #aaa69e;
 		--t-accent: #7cc2b4;
@@ -100,64 +104,34 @@ const screens = [
 	}
 	.top {
 		display: grid;
-		grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-		gap: 2rem 4rem;
-		align-items: end;
+		grid-template-columns: 1fr;
+		gap: 1.5rem;
+		align-items: start;
 	}
 	.top .h1 {
 		margin-top: 1.2rem;
 	}
-	.buttons {
-		display: flex;
-		gap: 0.5rem;
-		flex-wrap: wrap;
-	}
-	button {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.55rem;
-		min-height: 2.9rem;
-		padding: 0 1.1rem;
-		font: 600 0.95rem/1 var(--sans);
-		color: var(--t-text);
-		background: transparent;
-		border: 1px solid var(--t-line);
-		border-radius: var(--r);
-		cursor: pointer;
-		transition:
-			border-color 0.3s var(--ease),
-			background-color 0.3s var(--ease),
-			transform 0.25s var(--ease);
-	}
-	button:hover {
-		border-color: var(--t-text);
-	}
-	button:active {
-		transform: scale(0.97);
-	}
-	button[aria-pressed="true"] {
-		border-color: var(--t-accent);
-		box-shadow: inset 0 0 0 1px var(--t-accent);
-	}
-	.dot {
-		width: 0.8rem;
-		height: 0.8rem;
-		border-radius: 50%;
-		border: 1px solid #00000033;
-	}
-	[data-pick="light"] .dot {
-		background: #2b6e66;
-	}
-	[data-pick="sepia"] .dot {
-		background: #a4502e;
-	}
-	[data-pick="dark"] .dot {
-		background: #16181b;
-		border-color: #7cc2b4;
-	}
+
+ .try-label { font-size: .8rem; color: var(--t-text-2); margin-bottom: 16px; }
+ .buttons { display: flex; gap: 16px; }
+ button { display: flex; flex-direction: column; align-items: center; gap: 12px; background: transparent; border: 0; padding: 8px; color: var(--t-text); font: 650 .85rem/1.3 var(--sans); cursor: pointer; }
+ .swatch { width: 88px; height: 112px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; background: #eeece1; color: #456a56; border: 1px solid #818c7755; border-radius: 4px 14px 14px 4px; box-shadow: -3px 3px 0 #8f988b44, 0 8px 15px #18282013; rotate: -7deg; transition: rotate .45s var(--ease), translate .45s var(--ease), box-shadow .45s; }
+ [data-pick="sepia"] .swatch { background: #cdb388; color: #7c462b; rotate: 3deg; }
+ [data-pick="dark"] .swatch { background: #354044; color: #a3c4b5; rotate: 9deg; }
+ .swatch-glyph { font-size: 2rem; line-height: 1; }
+ .swatch-lines { display: grid; gap: 5px; }
+ .swatch-lines i { height: 2px; background: currentColor; opacity: .4; }
+ .swatch-lines i:last-child { width: 65%; }
+ button:hover .swatch { translate: 0 -7px; rotate: 0deg; }
+ button[aria-pressed="true"] .swatch { rotate: 0deg; translate: 0 -8px; box-shadow: 0 0 0 3px var(--t-bg), 0 0 0 4px var(--t-accent), 0 12px 20px #18282022; }
+ button:focus-visible { outline-color: var(--t-accent); }
+ .stage { position: relative; isolation: isolate; min-width: 0; }
+ .stage:focus-visible { outline: 2px solid var(--t-accent); outline-offset: 5px; }
+ .mood-orbit { position: absolute; width: 80%; height: 75%; border-radius: 50%; border: 1px solid var(--t-accent); opacity: .15; left: 10%; top: 10%; rotate: -12deg; z-index: -1; transition: rotate 1.2s var(--ease); }
+ [data-theme="sepia"] .mood-orbit { rotate: 8deg; } [data-theme="dark"] .mood-orbit { rotate: 24deg; }
 	.desc {
 		margin-top: 1.1rem;
-		min-height: 3.2em;
+		min-height: 1.6em;
 		max-width: 30em;
 	}
 	.auto {
@@ -166,14 +140,15 @@ const screens = [
 	}
 	.stage {
 		display: grid;
-		margin-top: clamp(3rem, 6vw, 5rem);
+		margin-top: 0; padding-block: 1.5rem;
 	}
 	.set {
 		grid-area: 1 / 1;
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 300px));
+		grid-template-columns: repeat(3, minmax(0, 245px));
+        align-items: start;
 		justify-content: center;
-		gap: clamp(0.8rem, 3vw, 3rem);
+		gap: clamp(0.6rem, 1.2vw, 1.2rem);
 		opacity: 0;
 		visibility: hidden;
 		transition:
@@ -187,7 +162,7 @@ const screens = [
 	}
 	.set .phone {
 		transition: transform 0.9s var(--ease);
-		transform: translateY(24px);
+		transform: translateY(24px) scale(.96);
 	}
 	.set[data-active] .phone {
 		transform: none;
@@ -199,18 +174,27 @@ const screens = [
 		transition-delay: 0.12s;
 	}
 	.p1 {
-		margin-top: 3rem;
+		margin-top: 0;
 	}
+ .set[data-active] .p0 { transform: rotate(-5deg) translateY(22px); }
+ .set[data-active] .p2 { transform: rotate(5deg) translateY(22px); }
+ @media(max-width: 600px) { .buttons { gap: 10px; } .swatch { width: 72px; height: 94px; } .pick { margin-top: 10px; } }
+ @media(prefers-reduced-motion: reduce) { .set .phone { transition: none; } }
 	@media (max-width: 860px) {
+        .themes > .section { grid-template-columns: 1fr; gap: 1.5rem; }
+        .stage { overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; margin-inline: calc(-1 * var(--gutter)); padding: 12px var(--gutter) 20px; scrollbar-width: thin; scrollbar-color: var(--t-accent) transparent; scroll-padding-inline: var(--gutter); }
+        .mood-orbit { display: none; }
+        .set .phone, .set[data-active] .phone { transform: none; translate: none; scroll-snap-align: start; }
 		.top {
 			grid-template-columns: 1fr;
 		}
 		.set {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
-			gap: 0.6rem;
+			grid-template-columns: repeat(3, min(68vw, 280px));
+            justify-content: start;
+			gap: 1.2rem;
 		}
 		.p1 {
-			margin-top: 1.5rem;
+			margin-top: 0;
 		}
 	}
 </style>

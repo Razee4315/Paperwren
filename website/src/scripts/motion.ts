@@ -5,10 +5,9 @@
  */
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { SplitText } from "gsap/SplitText";
 import Lenis from "lenis";
 
-gsap.registerPlugin(ScrollTrigger, SplitText);
+gsap.registerPlugin(ScrollTrigger);
 ScrollTrigger.config({ ignoreMobileResize: true });
 
 const EXPO = "expo.out";
@@ -21,10 +20,10 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
 		hero();
 		headings();
 		reveals();
+		formatCards();
 		strike();
 		parallax();
 		odometers();
-		footerMark();
 		ScrollTrigger.refresh();
 	});
 }
@@ -50,40 +49,26 @@ function smoothScroll() {
 	}
 }
 
-/** Masked headline lines, then copy, then the phone and its sheets. */
+/** Unmasked headings preserve the full letter shapes at every size. */
 function hero() {
 	const title = document.querySelector<HTMLElement>("[data-hero=title]");
 	if (!title) return;
 	gsap.set("[data-hero]", { visibility: "visible" });
-	const split = SplitText.create(title, { type: "lines", mask: "lines" });
+
 	gsap
 		.timeline({ defaults: { ease: EXPO, duration: 1.2 } })
-		.from(split.lines, { yPercent: 115, stagger: 0.1, duration: 1.4 })
+		.from(title, { y: 28, opacity: 0, duration: 1 })
 		.from("[data-hero=kicker]", { y: 14, autoAlpha: 0 }, 0.1)
 		.from("[data-hero=copy]", { y: 26, autoAlpha: 0 }, 0.5)
-		.from("[data-hero=cta]", { y: 26, autoAlpha: 0, stagger: 0.08 }, 0.62)
-		.from("[data-hero=phone]", { y: 140, autoAlpha: 0, duration: 1.7 }, 0.3)
-		.from("[data-hero=sheet]", { y: 90, rotate: -10, autoAlpha: 0, duration: 1.7 }, 0.45)
-		.from("[data-hero=chip]", { scale: 0.5, autoAlpha: 0, stagger: 0.08, duration: 1.1 }, 0.8);
+		.from("[data-hero=cta]", { autoAlpha: 0, stagger: 0.08 }, 0.4);
 }
 
-/** Section headings rise line by line out of a mask. */
+/** Gentle heading reveals without clipping glyphs. */
 function headings() {
-	for (const el of $$("[data-split]")) {
-		SplitText.create(el, {
-			type: "lines",
-			mask: "lines",
-			autoSplit: true,
-			onSplit: (self) =>
-				gsap.from(self.lines, {
-					yPercent: 115,
-					duration: 1.3,
-					stagger: 0.08,
-					ease: EXPO,
-					scrollTrigger: { trigger: el, start: "top 86%", once: true },
-				}),
-		});
-	}
+ for (const el of $$("[data-split]")) {
+  gsap.from(el, { y: 24, opacity: 0, duration: .8, ease: EXPO,
+   scrollTrigger: { trigger: el, start: "top 92%", once: true } });
+ }
 }
 
 function reveals() {
@@ -107,14 +92,13 @@ function strike() {
 		scrollTrigger: {
 			trigger: section,
 			start: "top top",
-			end: () => `+=${window.innerHeight * (items.length * 0.42 + 1.2)}`,
-			pin: true,
-			scrub: 1,
+			end: "bottom center",
+			toggleActions: "play none none none",
 			invalidateOnRefresh: true,
 		},
 	});
 	for (const item of items) {
-		tl.to(item.querySelector("path"), { strokeDashoffset: 0, duration: 1, ease: "power2.inOut" }).to(
+		tl.to(item.querySelector("path"), { strokeDashoffset: 0, duration: 0.18, ease: "power2.inOut" }).to(
 			item.querySelector(".t"),
 			{ color: "#8f887b", x: 6, duration: 0.5, ease: "power1.out" },
 			"<0.45",
@@ -193,12 +177,16 @@ function odometers() {
 	}
 }
 
-function footerMark() {
-	const mark = document.querySelector("[data-footmark] span");
-	if (!mark) return;
-	gsap.from(mark, {
-		yPercent: 100,
-		ease: "none",
-		scrollTrigger: { trigger: "[data-footmark]", start: "top bottom", end: "bottom bottom", scrub: true },
-	});
+/** Start level, then fan the complete phones and captions as the row passes. */
+function formatCards() {
+ const cards = $$("[data-format-card]");
+ const mm = gsap.matchMedia();
+ mm.add("(min-width: 861px)", () => {
+  cards.forEach((card, i) => {
+   gsap.fromTo(card, { y: 0, rotation: 0, scale: 1 }, {
+    y: i % 2 ? 28 : -38, rotation: [-3, 2, -2, 3][i], scale: .96, ease: "none",
+    scrollTrigger: { trigger: ".phones", start: "top 48%", end: "bottom 25%", scrub: .8 },
+   });
+  });
+ });
 }

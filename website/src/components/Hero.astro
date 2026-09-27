@@ -1,172 +1,117 @@
 ---
-import docx from "../assets/icons/docx.svg?raw";
-import pdf from "../assets/icons/pdf.svg?raw";
-import pptx from "../assets/icons/pptx.svg?raw";
-import xlsx from "../assets/icons/xlsx.svg?raw";
-import { SITE } from "../data/site";
 import Icon from "./Icon.astro";
 import Shot from "./Shot.astro";
-
-const chips = [
-	{ svg: pdf, cls: "c1", speed: "0.55" },
-	{ svg: docx, cls: "c2", speed: "0.9" },
-	{ svg: xlsx, cls: "c3", speed: "0.35" },
-	{ svg: pptx, cls: "c4", speed: "0.75" },
+import { SITE } from "../data/site";
+import pdf from "../assets/icons/pdf.svg?raw";
+import docx from "../assets/icons/docx.svg?raw";
+import xlsx from "../assets/icons/xlsx.svg?raw";
+import md from "../assets/icons/md.svg?raw";
+import txt from "../assets/icons/txt.svg?raw";
+import pptx from "../assets/icons/pptx.svg?raw";
+const files = [
+ { id: "pdf", label: "PDF", svg: pdf },
+ { id: "docx", label: "Word", svg: docx },
+ { id: "xlsx", label: "Excel", svg: xlsx },
+ { id: "pptx", label: "PowerPoint", svg: pptx },
+ { id: "md", label: "Markdown", svg: md },
+ { id: "txt", label: "Text", svg: txt },
 ];
 ---
-
-<section class="hero" data-parallax-root>
-	<div class="wrap grid">
-		<div class="copy" data-hero-exit>
-			<p class="label" data-hero="kicker">Free document viewer for Android and Windows</p>
-			<h1 data-hero="title">Just open<br /> the <em>file.</em></h1>
-			<p class="lede" data-hero="copy">
-				Paperwren opens PDF, Word, Excel and PowerPoint files, and that is all
-				it asks to do. No account, no ads, no internet, no permissions.
-			</p>
-			<div class="ctas">
-				<a class="btn" data-hero="cta" href="#download">
-					<span class="roll"><span>Download free</span><span>Download free</span></span>
-					<small>{SITE.androidSize}</small>
-					<Icon name="down" />
-				</a>
-				<a class="btn ghost" data-hero="cta" href="#problem">
-					<span class="roll"><span>Why it exists</span><span>Why it exists</span></span>
-				</a>
-			</div>
-		</div>
-
-		<div class="art" aria-hidden="true">
-			<div class="back" data-hero="sheet">
-				<div data-speed="0.18">
-					<div class="phone tilt-r"><Shot name="sepia-view-pdf" alt="" eager sizes="(max-width: 760px) 46vw, 300px" /></div>
-				</div>
-			</div>
-			<div class="front" data-hero="phone">
-				<div data-speed="-0.05">
-					<div class="phone tilt-l"><Shot name="light-home" alt="" eager sizes="(max-width: 760px) 56vw, 340px" /></div>
-				</div>
-			</div>
-			{
-				chips.map((c) => (
-					<div class={`chip ${c.cls}`} data-hero="chip">
-						<div data-speed={c.speed} set:html={c.svg} />
-					</div>
-				))
-			}
-		</div>
-	</div>
-	<p class="sr-only">
-		Screenshot: the Paperwren home screen listing recent PDF, Word, Excel and
-		PowerPoint files, with a PDF open in the Sand theme behind it.
-	</p>
+<section class="hero" aria-labelledby="hero-title">
+ <div class="hero-sky" data-tethers>
+  <svg class="strings" aria-hidden="true">{files.map(() => <path />)}</svg>
+  <div class="hanging-files" role="group" aria-label="File previews. Drag an icon to swing it, or select to preview.">
+   {files.map((f, i) => <button class={`hanging-file file-${i}`} type="button" data-file={f.id} aria-label={i < 4 ? `Preview ${f.label}` : `Swing ${f.label} file`} aria-describedby="swing-help" aria-pressed={i === 0 ? 'true' : 'false'}>
+    <span class="file-art" aria-hidden="true" set:html={f.svg.replace(/<\?xml[^>]*>/, '')}></span>
+   </button>)}
+  </div>
+  <div class="copy wrap">
+   <p class="label" data-hero="kicker">Free. Offline. Open source.</p>
+   <h1 id="hero-title" data-hero="title">All your files.<br /><em>One quiet app.</em></h1>
+   <p class="lede" data-hero="copy">Open PDFs, documents, sheets and slides.<br />No accounts. No ads. Nothing in your way.</p>
+   <div class="ctas">
+    <a class="btn" data-hero="cta" href={SITE.releases}><Icon name="android" /> Get it for Android <Icon name="down" /></a>
+    <a class="windows-link" data-hero="cta" href={SITE.releases}><Icon name="windows" /> Also for Windows <span aria-hidden="true">↗</span></a>
+   </div>
+   <p class="swing-help" id="swing-help">Drag an icon. Pull further to let it spring back.</p>
+  </div>
+ </div>
+ <div class="product wrap">
+  <div class="device-stage">
+   <div class="desktop-preview">
+    <div class="desktop-bar"><span class="window-dots" aria-hidden="true">● ● ●</span><span>Paperwren for Windows</span><Icon name="windows" /></div>
+    <Shot name="desk-light-home" alt="Paperwren for Windows with recent documents and file filters" sizes="(max-width: 600px) 85vw, 800px" eager />
+   </div>
+   <div class="mobile-preview">
+    {files.slice(0, 4).map((f, i) => <div class="phone" data-preview={f.id} hidden={i !== 0}><Shot name={`light-view-${f.id}`} alt={`${f.label} open in Paperwren for Android`} eager={i === 0} sizes="(max-width: 600px) 145px, 230px" /></div>)}
+    <span class="mobile-label">Made for your phone.<br />At home on your PC.</span>
+   </div>
+  </div>
+  <p class="preview-status" aria-live="polite" data-preview-status>PDF on Android · Your library on Windows</p>
+ </div>
 </section>
-
 <style>
-	.hero {
-		min-height: 100dvh;
-		display: flex;
-		align-items: center;
-		padding: calc(68px + 3rem) 0 4rem;
-	}
-	.grid {
-		display: grid;
-		grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-		gap: clamp(2rem, 5vw, 5rem);
-		align-items: center;
-	}
-	h1 {
-		font-size: var(--s-hero);
-		line-height: 0.9;
-		letter-spacing: -0.035em;
-		margin: 1.4rem 0 2rem;
-	}
-	.lede {
-		max-width: 27em;
-	}
-	.ctas {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.8rem;
-		margin-top: 2.4rem;
-	}
-	.art {
-		position: relative;
-		aspect-ratio: 5 / 6;
-		width: 100%;
-		max-width: 560px;
-		justify-self: end;
-	}
-	.front,
-	.back {
-		position: absolute;
-	}
-	.front {
-		width: 58%;
-		left: 4%;
-		top: 6%;
-		z-index: 2;
-	}
-	.back {
-		width: 50%;
-		right: 0;
-		top: 0;
-		z-index: 1;
-	}
-	.tilt-l {
-		rotate: -4deg;
-	}
-	.tilt-r {
-		rotate: 6deg;
-	}
-	.chip {
-		position: absolute;
-		z-index: 3;
-		width: clamp(44px, 5vw, 70px);
-	}
-	.chip :global(svg) {
-		width: 100%;
-		height: auto;
-	}
-	.c1 {
-		left: -6%;
-		top: 20%;
-		rotate: -12deg;
-	}
-	.c2 {
-		right: 4%;
-		top: 62%;
-		rotate: 9deg;
-	}
-	.c3 {
-		left: 56%;
-		top: -4%;
-		rotate: 14deg;
-	}
-	.c4 {
-		left: 2%;
-		bottom: 2%;
-		rotate: -6deg;
-	}
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-	}
-	@media (max-width: 900px) {
-		.grid {
-			grid-template-columns: 1fr;
-		}
-		.art {
-			justify-self: center;
-			max-width: 420px;
-			margin-top: 1rem;
-		}
-		.hero {
-			min-height: auto;
-			padding-top: calc(68px + 2rem);
-		}
-	}
+ .hero { background: #c5c5b8; overflow: clip; }
+ .hero-sky { position: relative; isolation: isolate; padding: 185px 0 60px; max-width: 1600px; margin: auto; background-image: linear-gradient(#53655308 1px, transparent 1px), linear-gradient(90deg, #53655308 1px, transparent 1px); background-size: 64px 64px; }
+ .copy { text-align: center; position: relative; z-index: 2; pointer-events: none; }
+ .copy a { pointer-events: auto; }
+ .copy .label { font-size: .7rem; letter-spacing: .15em; color: #475748; }
+ h1 { font-size: clamp(3rem, 6.8vw, 6.5rem); line-height: 1.08; font-weight: 550; letter-spacing: -.065em; margin: 24px 0; padding: 0 .08em; }
+ h1 em { color: #46634c; }
+ .lede { font-size: clamp(.95rem, 1.4vw, 1.16rem); line-height: 1.7; color: #465347; margin: auto; }
+ .ctas { display: flex; align-items: center; justify-content: center; gap: 26px; margin: 30px 0 0; }
+ .btn { --bg: #294936; --fg: #f1eee4; border-radius: 8px; }
+ .windows-link { display: inline-flex; align-items: center; gap: 10px; font-size: .85rem; text-decoration: none; padding: 12px 0; border-bottom: 1px solid #87907e; }
+ .windows-link :global(svg) { width: 16px; }
+ .windows-link span { transition: translate .3s; }
+ .windows-link:hover span { translate: 3px -3px; }
+ .swing-help { margin-top: 25px; font-size: .7rem; color: #596654; }
+ .strings { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 0; }
+ .strings path { fill: none; stroke: #51674c; stroke-opacity: .45; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+ .hanging-file { position: absolute; width: 100px; height: 112px; padding: 4px; border: 0; background: transparent; cursor: grab; z-index: 3; touch-action: none; user-select: none; -webkit-user-select: none; transform-origin: 50% 5px; will-change: transform; }
+ .file-0 { left: 8%; top: 230px; } .file-1 { left: 24%; top: 90px; width: 74px; height: 84px; } .file-2 { right: 24%; top: 86px; width: 74px; height: 84px; } .file-3 { right: 8%; top: 250px; }
+ .file-4 { left: 11%; top: 440px; width: 68px; height: 78px; } .file-5 { right: 11%; top: 450px; width: 68px; height: 78px; }
+ .file-art { display: block; filter: drop-shadow(4px 10px 5px #394c3024); transition: filter .25s; }
+ .file-art :global(svg) { width: 100%; height: 100%; pointer-events: none; }
+ .hanging-file:hover .file-art, .hanging-file:focus-visible .file-art { filter: drop-shadow(5px 14px 8px #394c3040); }
+ .hanging-file:active, .hanging-file[data-dragging] { cursor: grabbing; }
+ .hanging-file:focus-visible { outline: 2px dashed #294936; outline-offset: 8px; }
+ .product { padding-bottom: 38px; }
+ .device-stage { position: relative; width: min(100%, 970px); margin: auto; padding: 28px 140px 74px 0; }
+ .desktop-preview { border: 1px solid #606c5d; border-radius: 13px; overflow: hidden; background: #d9ded1; box-shadow: 0 20px 40px #35442e18; }
+ .desktop-bar { display: flex; gap: 12px; justify-content: space-between; align-items: center; padding: 12px 16px; font-size: .65rem; color: #50604b; }
+ .desktop-bar :global(svg) { width: 13px; }
+ .window-dots { font-size: .6rem; letter-spacing: 2px; }
+ .desktop-preview :global(img) { width: 100%; }
+ .mobile-preview { position: absolute; width: 230px; right: 30px; bottom: 0; }
+ .mobile-preview .phone { box-shadow: 0 20px 30px #29352c35; border-radius: 30px; padding: 7px; background: #29352f; }
+ .mobile-preview :global(img), .mobile-preview :global(picture) { border-radius: 24px; }
+ .mobile-preview [hidden] { display: none; }
+ .mobile-label { display: block; text-align: center; font-size: .72rem; line-height: 1.6; color: #43513f; margin-top: 14px; }
+ .preview-status { font-size: .7rem; color: #56634f; text-align: center; margin-top: 28px; }
+ @media(max-width: 900px) { .file-0 { left: 4%; width: 78px; } .file-3 { right: 4%; width: 78px; } .device-stage { padding-right: 100px; } .mobile-preview { right: 4px; width: 200px; } }
+ @media(max-width: 600px) {
+  .hero-sky { padding: 240px 0 34px; background-size: 42px 42px; }
+  h1 { font-size: clamp(2.8rem, 10vw, 3.6rem); margin: 18px 0; }
+  .hanging-file { width: 62px; height: 70px; } .file-0 { left: 5%; top: 126px; width: 62px; } .file-1 { left: 29%; top: 86px; width: 53px; height: 60px; } .file-2 { right: 29%; top: 93px; width: 53px; height: 60px; } .file-3 { right: 5%; top: 136px; width: 62px; }
+  .file-4, .file-5 { display: none; }
+  .copy .label { font-size: .6rem; } .ctas { flex-direction: column; gap: 10px; margin-top: 24px; } .swing-help { margin-top: 16px; }
+  .device-stage { padding: 12px 32px 92px 0; } .mobile-preview { width: 135px; right: 0; bottom: 0; } .mobile-preview .phone { border-radius: 18px; padding: 4px; } .mobile-preview :global(img), .mobile-preview :global(picture) { border-radius: 14px; } .desktop-bar { padding: 8px; font-size: .48rem; gap: 4px; } .mobile-label { font-size: .56rem; } .preview-status { text-align: left; font-size: .6rem; max-width: 15em; margin-top: 8px; }
+ }
+ @media(prefers-reduced-motion: reduce) { .swing-help { display: none; } .hanging-file { cursor: pointer; } }
 </style>
+<script>
+ import { initTethers } from '../scripts/tethers';
+ const sky = document.querySelector<HTMLElement>('[data-tethers]');
+ if (sky) initTethers(sky);
+ const hero = document.querySelector('.hero');
+ hero?.querySelectorAll<HTMLButtonElement>('[data-file]').forEach(button => {
+  button.addEventListener('click', () => {
+   if (button.dataset.dragged === 'true' || !hero.querySelector(`[data-preview="${button.dataset.file}"]`)) return;
+   hero.querySelectorAll('[data-file]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+   hero.querySelectorAll<HTMLElement>('[data-preview]').forEach(p => { p.hidden = p.dataset.preview !== button.dataset.file; });
+   const status = hero.querySelector('[data-preview-status]');
+   if (status) status.textContent = `${button.getAttribute('aria-label')?.replace('Preview ', '')} on Android · Your library on Windows`;
+  });
+ });
+</script>
