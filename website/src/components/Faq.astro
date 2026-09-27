@@ -5,13 +5,13 @@ import { FAQ } from "../data/faq";
 <section class="section faq" id="faq" aria-labelledby="faq-title">
 	<div class="wrap grid">
 		<div>
-			<p class="label">Questions</p>
-			<h2 class="h1" id="faq-title" data-split>Fair <em>questions.</em></h2>
+			<p class="label" data-perch="text">Questions</p>
+			<h2 class="h1" id="faq-title" data-split data-perch="text">Fair <em>questions.</em></h2>
 		</div>
-		<div class="items">
+		<div class="items" data-perch>
 			{
 				FAQ.map((f) => (
-					<details data-reveal>
+					<details data-reveal data-perch="bottom">
 						<summary>
 							<span>{f.q}</span>
 							<i aria-hidden="true" />

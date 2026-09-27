@@ -18,16 +18,16 @@ const screens = [
 	<div class="wrap section">
 		<div class="top">
 			<div>
-				<p class="label">Three calm themes</p>
-				<h2 class="h1" id="themes-title" data-split>Find your <em>reading light.</em></h2>
+				<p class="label" data-perch="text">Three calm themes</p>
+				<h2 class="h1" id="themes-title" data-split data-perch="text">Find your <em>reading light.</em></h2>
 			</div>
 			<div class="pick">
-                <p class="try-label">Change the mood.</p>
+                <p class="try-label" data-perch="text">Change the mood.</p>
 				<div class="buttons" role="group" aria-label="Preview a theme">
 					{
 						themes.map((t, i) => (
 							<button type="button" data-pick={t.id} data-tex-id={t.tex} aria-pressed={i === 0 ? "true" : "false"}>
-								<span class="swatch" aria-hidden="true"><span class="swatch-glyph">{t.id === "light" ? "☀" : t.id === "sepia" ? "◒" : "☾"}</span><span class="swatch-lines"><i></i><i></i><i></i></span></span>
+								<span class="swatch" aria-hidden="true" data-perch><span class="swatch-glyph">{t.id === "light" ? "☀" : t.id === "sepia" ? "◒" : "☾"}</span><span class="swatch-lines"><i></i><i></i><i></i></span></span>
 								{t.name}
 							</button>
 						))

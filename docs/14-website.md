@@ -54,6 +54,10 @@ line as you scroll, the list falls away, and one line is left:
 7. Pinned scrubbed section: the strike-through
 8. Scroll-linked parallax: hero format sheets, format phones, Windows frame
 9. Choreographed hero load (lines, then copy, then phone, then sheets)
+10. Hanging files on strings: pendulum physics, drag and throw, drop on load
+11. The flying wren: leaves the nav logo, perches around the page and follows the scroll
+
+Items 10 and 11 are explained in [15-website-wren-and-strings.md](15-website-wren-and-strings.md).
 
 With `prefers-reduced-motion: reduce`, no JS animation runs: every
 element renders in its final state and the strike-through shows all

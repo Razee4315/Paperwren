@@ -8,21 +8,21 @@ import Wren from "./Wren.astro";
 	<div class="wrap">
 		<div class="inner">
 			<Wren size={88} class="wren" />
-			<h2 id="download-title" data-split>Get <em>Paperwren.</em></h2>
+			<h2 id="download-title" data-split data-perch="text">Get <em>Paperwren.</em></h2>
 			<p class="lede">Free on Android and Windows. Install it, open a file, done.</p>
 			<div class="ctas">
-				<a class="btn" href={SITE.releases} rel="noopener">
+				<a class="btn" href={SITE.releases} rel="noopener" data-perch>
 					<Icon name="android" />
 					<span class="roll"><span>Android APK</span><span>Android APK</span></span>
 					<small>{SITE.androidSize}</small>
 				</a>
-				<a class="btn" href={SITE.releases} rel="noopener">
+				<a class="btn" href={SITE.releases} rel="noopener" data-perch>
 					<Icon name="windows" />
 					<span class="roll"><span>Windows installer</span><span>Windows installer</span></span>
 					<small>{SITE.windowsSize}</small>
 				</a>
 			</div>
-			<p class="fine">Download from <a class="link" href={SITE.releases} rel="noopener">GitHub Releases</a>. <a class="link" href={SITE.repo} rel="noopener">Open source</a>, always.</p>
+			<p class="fine" data-perch="text">Download from <a class="link" href={SITE.releases} rel="noopener">GitHub Releases</a>. <a class="link" href={SITE.repo} rel="noopener">Open source</a>, always.</p>
 		</div>
 	</div>
 </section>

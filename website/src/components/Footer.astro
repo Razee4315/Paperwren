@@ -8,20 +8,20 @@ import Wren from "./Wren.astro";
 	<div class="wrap">
 		<div class="cols">
 			<div class="about">
-				<a class="footer-brand" href={url("/")}><Wren size={36} /><strong>Paperwren</strong></a>
+				<a class="footer-brand" href={url("/")}><Wren size={36} /><strong data-perch="text">Paperwren</strong></a>
 				<p>
 					Open your files. Keep them yours.<br />Free, offline and open source.
 				</p>
 			</div>
 			<nav aria-label="Product">
-				<h2 class="label">Product</h2>
+				<h2 class="label" data-perch="text">Product</h2>
 				<a class="link" href={url("/#formats")}>Formats</a>
 				<a class="link" href={url("/#themes")}>Themes</a>
 				<a class="link" href={url("/#download")}>Download</a>
 				<a class="link" href={SITE.repo} rel="noopener">Source code</a>
 			</nav>
 			<nav aria-label="Compare">
-				<h2 class="label">Compare</h2>
+				<h2 class="label" data-perch="text">Compare</h2>
 				{
 					competitors.map((c) => (
 						<a class="link" href={url(`/compare/${c.slug}/`)}>
@@ -31,13 +31,13 @@ import Wren from "./Wren.astro";
 				}
 			</nav>
 			<nav aria-label="Trust">
-				<h2 class="label">Trust</h2>
+				<h2 class="label" data-perch="text">Trust</h2>
 				<a class="link" href={url("/privacy/")}>Privacy policy</a>
 				<a class="link" href={url("/security/")}>Security</a>
 				<a class="link" href={SITE.issues} rel="noopener">Report a problem</a>
 			</nav>
 		</div>
-		<div class="wordmark-row"><button class="perched-wren" type="button" aria-label="Make the wren hop" title="A little company for your reading"><Wren size={48} /></button><p class="mark" aria-label="Paperwren"><span aria-hidden="true" class="letters">{"Paperwren".split("").map((letter, i) => <span style={`--i:${i}`}>{letter}</span>)}</span><span class="period" aria-hidden="true">.</span></p><a class="back-top" href="#main" aria-label="Back to top">↑</a></div>
+		<div class="wordmark-row" data-perch><p class="mark" aria-label="Paperwren" data-perch="text"><span aria-hidden="true" class="letters">{"Paperwren".split("").map((letter, i) => <span style={`--i:${i}`}>{letter}</span>)}</span><span class="period" aria-hidden="true">.</span></p><a class="back-top" data-perch href="#main" aria-label="Back to top">↑</a></div>
 		<div class="fine">
 			<span>MIT licensed · v{SITE.version}</span>
 			<span>No cookies. No trackers.</span>
@@ -84,11 +84,7 @@ import Wren from "./Wren.astro";
  .mark .period { color: #c9aa78; }
  .letters > span { display: inline-block; transition: color .3s, translate .3s; }
  .letters > span:hover { color: #b5c7a0; translate: 0 -8px; }
- .wordmark-row.hello .letters > span { animation: letter-hop .65s var(--ease) both; animation-delay: calc(var(--i) * 40ms); }
- .perched-wren { position: absolute; top: -43px; left: 65%; width: 48px; height: 48px; padding: 0; border: 0; background: transparent; cursor: pointer; transform-origin: 50% 90%; }
- .perched-wren:hover { filter: brightness(1.2); }
- @keyframes letter-hop { 45% { translate: 0 -10px; color: #b5c7a0; } }
- @media(prefers-reduced-motion: reduce) { .letters > span:hover { translate: none; } .wordmark-row.hello .letters > span { animation: none; color: #b5c7a0; } }
+ @media(prefers-reduced-motion: reduce) { .letters > span:hover { translate: none; } }
  .back-top { width: 56px; height: 56px; flex-shrink: 0; display: grid; place-items: center; border: 1px solid #98a08e; border-radius: 50%; text-decoration: none; font-size: 1.5rem; transition: background .3s, color .3s, translate .3s; }
  .back-top:hover { background: #d8d4c9; color: #354437; translate: 0 -5px; }
  .foot a:focus-visible { outline-color: #e1d5b9; }
@@ -113,46 +109,3 @@ import Wren from "./Wren.astro";
 		}
 	}
 </style>
-
-<script>
- const perch = document.querySelector<HTMLElement>('.wordmark-row');
- const bird = perch?.querySelector<HTMLButtonElement>('.perched-wren');
- if (perch && bird) {
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  let flight: Animation | undefined;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let waveTimer: ReturnType<typeof setTimeout> | undefined;
-  let visible = false, busy = false, position = .65;
-  const schedule = () => {
-   clearTimeout(timer);
-   if (visible && !document.hidden && !reduced.matches) timer = setTimeout(() => hop(false), 3500 + Math.random() * 4500);
-  };
-  const hop = (interactive: boolean) => {
-   if (busy) return;
-   if (reduced.matches) { perch.classList.toggle('hello'); return; }
-   busy = true;
-   const width = Math.max(0, perch.clientWidth - 48), from = position * width;
-   const next = Math.max(.06, Math.min(.9, position + (Math.random() > .5 ? 1 : -1) * (.12 + Math.random() * .2)));
-   const to = next * width, direction = to > from ? 1 : -1;
-   position = next; bird.style.left = `${to}px`;
-   flight = bird.animate([
-    { transform: `translateX(${from-to}px) scaleY(1)` },
-    { transform: `translateX(${from-to}px) scaleY(.86)`, offset: .12 },
-    { transform: `translate(${(from-to)*.52}px,-26px) rotate(${direction*9}deg) scaleY(1.04)`, offset: .48 },
-    { transform: 'translate(0,0) scaleY(.9)', offset: .84 },
-    { transform: 'translate(0,0) scaleY(1)' },
-   ], {duration: 750 + Math.abs(to-from)*.6, easing: 'cubic-bezier(.3,.65,.4,1)'});
-   flight.onfinish = () => { busy = false; schedule(); };
-   if (interactive) {
-    clearTimeout(waveTimer); perch.classList.remove('hello'); void perch.offsetWidth; perch.classList.add('hello');
-    waveTimer = setTimeout(() => perch.classList.remove('hello'), 1100);
-   }
-  };
-  bird.addEventListener('click', () => hop(true));
-  const stop = () => { clearTimeout(timer); flight?.cancel(); busy = false; };
-  new IntersectionObserver(entries => { visible = entries[0]?.isIntersecting ?? false; if (visible) schedule(); else stop(); }).observe(perch);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else schedule(); });
-  reduced.addEventListener('change', () => { stop(); schedule(); });
-  new ResizeObserver(() => { stop(); bird.style.left = `${position * Math.max(0, perch.clientWidth - 48)}px`; schedule(); }).observe(perch);
- }
-</script>

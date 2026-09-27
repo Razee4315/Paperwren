@@ -31,13 +31,27 @@ export function isOverstretched(x: number, y: number, length: number, threshold:
 }
 
 const ANCHOR_Y = 66;
+
+/** What the flying wren (scripts/wren.ts) needs to perch on a hanging file. */
+export type Hanger = {
+ /** False while the file is falling, held, hidden or reduced motion is on. */
+ perchable(): boolean;
+ held(): boolean;
+ /** Viewport point on the flat top edge of the page, `u` from its left end towards the string. */
+ perch(u: number): { x: number; y: number };
+ /** Current tilt in degrees. */
+ angle(): number;
+ /** Adds a push in px/s, as a landing or departing bird would. */
+ nudge(vx: number, vy: number): void;
+};
+export const hangers: Hanger[] = [];
 export function initTethers(root: HTMLElement) {
  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
  const cords = root.querySelectorAll<SVGGElement>('.strings g');
  const nodes = [...root.querySelectorAll<HTMLButtonElement>('[data-file]')].map((el, i) => ({
   el, paths: [...cords[i]!.querySelectorAll('path')], r: 0, rv: 0, th: 0, w: 0, length: 1, delay: 0, falling: false, fallV: 0,
   left: 0, top: 0, w0: 0, h: 0, x: 0, y: 0, dragVX: 0, dragVY: 0,
-  pointer: -1, lastX: 0, lastY: 0, startX: 0, startY: 0, lastTime: 0, rope: [] as { x: number; y: number; px: number; py: number }[],
+  angle: 0, pointer: -1, lastX: 0, lastY: 0, startX: 0, startY: 0, lastTime: 0, rope: [] as { x: number; y: number; px: number; py: number }[],
  }));
  let visible = false, frame = 0, previous = 0, elapsed = 0;
  let width = root.clientWidth;
@@ -67,6 +81,7 @@ export function initTethers(root: HTMLElement) {
    const angle = reduced.matches ? 0 : held
     ? -Math.atan2(n.x, n.length + n.y) * 50 + clamp(n.dragVX * .02, -12, 12)
     : -n.th * 180 / Math.PI * .85 + clamp(n.w * 4, -10, 10);
+   n.angle = angle;
    n.el.style.transform = `translate3d(${n.x}px, ${n.y}px, 0) rotate(${angle}deg)`;
    // Light comes from above, so the shadow stays put while the icon turns.
    const rad = -angle * Math.PI / 180, lift = held ? 1.6 : 1;
@@ -137,6 +152,27 @@ export function initTethers(root: HTMLElement) {
  const start = () => { if (!frame && visible && !document.hidden && !reduced.matches) { previous = 0; frame = requestAnimationFrame(tick); } };
  const stop = () => { cancelAnimationFrame(frame); frame = 0; previous = 0; };
  measure();
+ hangers.length = 0;
+ for (const n of nodes) hangers.push({
+  perchable: () => !!n.w0 && !n.falling && n.delay <= 0 && n.pointer === -1 && !reduced.matches,
+  held: () => n.pointer !== -1,
+  angle: () => n.angle,
+  perch: u => {
+   // The icon SVG (48x50 viewBox) is centred in the button's padding box; its page's
+   // flat top runs from x 11 to 31 at y 1, with the string tied at 24.
+   const box = root.getBoundingClientRect(), pad = 4;
+   const scale = Math.min((n.w0 - pad * 2) / 48, (n.h - pad * 2) / 50);
+   const lx = pad + (n.w0 - pad * 2 - 48 * scale) / 2 + (11.5 + u * 8) * scale - n.w0 / 2;
+   const ly = pad + (n.h - pad * 2 - 50 * scale) / 2 + scale - 5;
+   const rad = n.angle * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad);
+   return { x: box.left + n.left + n.w0 / 2 + n.x + lx * cos - ly * sin, y: box.top + n.top + 5 + n.y + lx * sin + ly * cos };
+  },
+  nudge: (vx, vy) => {
+   const sin = Math.sin(n.th), cos = Math.cos(n.th);
+   n.rv += vx * sin + vy * cos; n.w += (vx * cos - vy * sin) / n.r;
+   start();
+  },
+ });
  if (!reduced.matches) {
   // Icons fall in from above the page, one after another, and bounce when their cords catch.
   nodes.forEach((n, i) => { n.falling = true; n.fallV = 0; n.x = 0; n.y = -n.top - n.h - 10; n.delay = .2 + [2, 0, 3, 1, 4, 5][i]! * .11; });

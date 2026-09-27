@@ -28,24 +28,24 @@ const files = [
    </button>)}
   </div>
   <div class="copy wrap">
-   <p class="label" data-hero="kicker">Free. Offline. Open source.</p>
-   <h1 id="hero-title" data-hero="title">All your files.<br /><em>One quiet app.</em></h1>
+   <p class="label" data-hero="kicker" data-perch="text">Free. Offline. Open source.</p>
+   <h1 id="hero-title" data-hero="title" data-perch="text">All your files.<br /><em>One quiet app.</em></h1>
    <p class="lede" data-hero="copy">Open PDFs, documents, sheets and slides.<br />No accounts. No ads. Nothing in your way.</p>
    <div class="ctas">
-    <a class="btn" data-hero="cta" href={SITE.releases}><Icon name="android" /> Get it for Android <Icon name="down" /></a>
-    <a class="windows-link" data-hero="cta" href={SITE.releases}><Icon name="windows" /> Also for Windows <span aria-hidden="true">↗</span></a>
+    <a class="btn" data-hero="cta" data-perch href={SITE.releases}><Icon name="android" /> Get it for Android <Icon name="down" /></a>
+    <a class="windows-link" data-hero="cta" data-perch="bottom" href={SITE.releases}><Icon name="windows" /> Also for Windows <span aria-hidden="true">↗</span></a>
    </div>
    <p class="swing-help" id="swing-help">Drag an icon. Pull further to let it spring back.</p>
   </div>
  </div>
  <div class="product wrap">
   <div class="device-stage">
-   <div class="desktop-preview">
+   <div class="desktop-preview" data-perch>
     <div class="desktop-bar"><span class="window-dots" aria-hidden="true">● ● ●</span><span>Paperwren for Windows</span><Icon name="windows" /></div>
     <Shot name="desk-light-home" alt="Paperwren for Windows with recent documents and file filters" sizes="(max-width: 600px) 85vw, 800px" eager />
    </div>
    <div class="mobile-preview">
-    {files.slice(0, 4).map((f, i) => <div class="phone" data-preview={f.id} hidden={i !== 0}><Shot name={`light-view-${f.id}`} alt={`${f.label} open in Paperwren for Android`} eager={i === 0} sizes="(max-width: 600px) 145px, 230px" /></div>)}
+    {files.slice(0, 4).map((f, i) => <div class="phone" data-perch data-preview={f.id} hidden={i !== 0}><Shot name={`light-view-${f.id}`} alt={`${f.label} open in Paperwren for Android`} eager={i === 0} sizes="(max-width: 600px) 145px, 230px" /></div>)}
     <span class="mobile-label">Made for your phone.<br />At home on your PC.</span>
    </div>
   </div>

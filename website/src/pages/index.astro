@@ -2,6 +2,7 @@
 import CompareTable from "../components/CompareTable.astro";
 import Download from "../components/Download.astro";
 import Faq from "../components/Faq.astro";
+import FlyingWren from "../components/FlyingWren.astro";
 import Formats from "../components/Formats.astro";
 import Hero from "../components/Hero.astro";
 import Icon from "../components/Icon.astro";
@@ -49,32 +50,32 @@ const schema = [
 		<div class="wrap">
 			<div class="vs-top">
 				<div>
-					<p class="label">Compared</p>
-					<h2 class="h1" id="vs-title" data-split>A little <em>less baggage.</em></h2>
+					<p class="label" data-perch="text">Compared</p>
+					<h2 class="h1" id="vs-title" data-split data-perch="text">A little <em>less baggage.</em></h2>
 				</div>
 				<p class="lede">
 					Compare the essentials. Choose what fits.
 				</p>
 			</div>
-			<div data-reveal>
+			<div data-reveal data-perch>
 				<CompareTable apps={competitors} selectable linkHeaders caption="Paperwren compared with other Android document apps" />
 			</div>
-			<a class="more link" href={url("/compare/")}>All comparisons <Icon name="arrow" /></a>
+			<a class="more link" data-perch="text" href={url("/compare/")}>All comparisons <Icon name="arrow" /></a>
 		</div>
 	</section>
 
 	<section class="section band trust" aria-labelledby="trust-title">
 		<div class="wrap">
-			<p class="label">Trust</p>
-			<h2 class="h1" id="trust-title" data-split>Your files <em>stay yours.</em></h2>
+			<p class="label" data-perch="text">Trust</p>
+			<h2 class="h1" id="trust-title" data-split data-perch="text">Your files <em>stay yours.</em></h2>
 			<div class="cards">
-				<a class="card" href={url("/privacy/")} data-reveal>
+				<a class="card" href={url("/privacy/")} data-reveal data-perch>
 					<span class="label">Privacy policy</span>
 					<span class="big">Paperwren collects nothing.</span>
 					<span class="small">No uploads. No tracking. Read our privacy policy.</span>
 					<Icon name="arrow" class="arr" />
 				</a>
-				<a class="card" href={url("/security/")} data-reveal>
+				<a class="card" href={url("/security/")} data-reveal data-perch>
 					<span class="label">Security</span>
 					<span class="big">Promises you can check.</span>
 					<span class="small">No Android permissions. Public source. See how it works.</span>
@@ -86,6 +87,7 @@ const schema = [
 
 	<Faq />
 	<Download />
+	<FlyingWren />
 </Base>
 
 <style>

@@ -18,8 +18,8 @@ const phones = [
 <section class="section formats" id="formats" aria-labelledby="formats-title">
 	<div class="wrap">
 		<div class="top">
-			<p class="label">What it opens</p>
-			<h2 class="h1" id="formats-title" data-split>One app. <em>All the usual files.</em></h2>
+			<p class="label" data-perch="text">What it opens</p>
+			<h2 class="h1" id="formats-title" data-split data-perch="text">One app. <em>All the usual files.</em></h2>
 			<p class="lede">
 				Documents, sheets and slides, in their original layout.
 			</p>
@@ -30,7 +30,7 @@ const phones = [
 				phones.map((p) => (
 					<figure data-format-card>
 						<div>
-							<div class="phone">
+							<div class="phone" data-perch>
 								<Shot name={p.shot} alt={p.alt} sizes="(max-width: 760px) 62vw, 22vw" />
 							</div>
 						</div>
@@ -44,13 +44,13 @@ const phones = [
 		</div>
 
 		<div class="list">
-			<p class="note" data-reveal>
+			<p class="note" data-reveal data-perch="text">
 				More than the big four.
 			</p>
 			<ul>
 				{
 					groups.map((f) => (
-						<li data-reveal>
+						<li data-reveal data-perch="bottom">
 							<span class="ext">{f.ext}</span>
 							<span class="what">{f.note}</span><details><summary>See formats</summary><p>{f.detail}</p><span class="extensions">{f.formats}</span></details>
 						</li>

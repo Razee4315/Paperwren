@@ -1,0 +1,125 @@
+---
+/**
+ * The logo's wren, redrawn with wings that open and a tail and legs that
+ * move, so it can leave the nav and roam the page (scripts/wren.ts).
+ * Same geometry and colours as Wren.astro when perched.
+ */
+const wing =
+	"M44 32 C 44 20, 38.5 6.5, 22 -4 C 24 1, 22.5 4, 24.5 6.5 C 22 8.2, 22 11.2, 24.5 13 C 22 15, 22.5 18, 25 19.5 C 23 21.5, 23.5 24.5, 26.5 25.5 C 25 27.5, 26 30, 28.5 31 L 30 34 Z";
+---
+
+<div class="wren-sky" aria-hidden="true" data-wren-sky>
+	<div class="flyer" data-flyer hidden>
+		<svg viewBox="0 0 64 64" width="34" height="34" overflow="visible">
+			<g data-part="far"><path d={wing} class="far" /></g>
+			<g data-part="tail"><path d="M27 27.5 L12.6 9.6 Q10.8 7.4 8.6 8.8 L6.6 10.4 Q4.6 12 6 14.2 L19.5 33.5 Z" class="dark" /></g>
+			<g data-part="legs"><path d="M29 53 L27.5 59 M35 53 L36 59" class="legs" /></g>
+			<path d="M50.5 19 C48 12.5 39 11 35 17 C32.5 21 29 24.5 24 26.5 C15.5 30 13 38 15.5 44.5 C18.5 51.5 25.5 55 33 54.5 C44 54 51.5 45.5 51.5 34 C51.5 29.5 52.5 26 53.5 24 Z" class="body" />
+			<path d="M52.6 25 C51.6 28 51.5 31 51.5 34 C51.5 45.5 44 53.5 33 54.5 C39.5 50.5 43.5 44.5 44.8 37.5 C46 31.5 48.5 27 52.6 25 Z" class="belly" />
+			<g data-part="fold"><path d="M45 34 C41 27.5 29 27 21 33.5 L14.5 38 C23 45.5 38 45.5 45 34 Z" class="dark" /></g>
+			<g data-part="near" style="display: none">
+				<path d={wing} class="dark" />
+				<path d="M43.5 32.5 C 43 25, 40 17.5, 34 11 C 31.5 17.5, 30.5 25, 31.5 33.5 Z" class="coverts" />
+			</g>
+			<path d="M51.4 19 Q56 20.2 59.5 22.6 Q55.5 23.6 52.4 24.4 Z" class="beak" />
+			<g data-part="eye"><circle cx="45" cy="19.5" r="2.1" class="eye" /></g>
+		</svg>
+	</div>
+</div>
+
+<style>
+	.wren-sky {
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 100%;
+		height: 0;
+		overflow: clip;
+		pointer-events: none;
+		z-index: 60;
+	}
+	.flyer {
+		--body: #2b6e66;
+		--dark: #1f5750;
+		--far: #174841;
+		--belly: #8fbcb3;
+		--beak: #e07a4f;
+		--eye: #23221f;
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 34px;
+		height: 34px;
+		will-change: transform;
+	}
+	.flyer[hidden] {
+		display: none;
+	}
+	/* The same light plumage the Download and footer wrens wear on dark ground. */
+	.flyer[data-zone="pine"] {
+		--body: #f4efe4;
+		--dark: #cfe3dd;
+		--far: #a9c9c0;
+		--belly: #8fbcb3;
+		--eye: #1f1e1b;
+	}
+	.flyer[data-zone="foot"] {
+		--body: #7cc2b4;
+		--dark: #5aa596;
+		--far: #488a7d;
+		--belly: #c6e6de;
+		--eye: #1f1e1b;
+	}
+	svg {
+		display: block;
+		overflow: visible;
+		transform-origin: 50% 88%;
+	}
+	path,
+	circle {
+		transition: fill 0.5s, stroke 0.5s;
+	}
+	.body {
+		fill: var(--body);
+	}
+	.dark {
+		fill: var(--dark);
+	}
+	.far {
+		fill: var(--far);
+	}
+	.coverts {
+		fill: var(--body);
+		opacity: 0.55;
+	}
+	.belly {
+		fill: var(--belly);
+	}
+	.beak {
+		fill: var(--beak);
+	}
+	.eye {
+		fill: var(--eye);
+	}
+	.legs {
+		fill: none;
+		stroke: var(--dark);
+		stroke-width: 2.2;
+		stroke-linecap: round;
+	}
+	.wren-sky :global(.note) {
+		position: absolute;
+		left: 0;
+		top: 0;
+		font: 600 13px/1 var(--sans);
+		color: var(--pine);
+		opacity: 0;
+		will-change: transform, opacity;
+	}
+</style>
+
+<script>
+	import { initWren } from "../scripts/wren";
+	const sky = document.querySelector<HTMLElement>("[data-wren-sky]");
+	if (sky) initWren(sky);
+</script>
