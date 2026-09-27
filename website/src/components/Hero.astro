@@ -1,5 +1,6 @@
 ---
 import Icon from "./Icon.astro";
+import HeroFilm from "./HeroFilm.astro";
 import Shot from "./Shot.astro";
 import { SITE } from "../data/site";
 import pdf from "../assets/icons/pdf.svg?raw";
@@ -40,10 +41,7 @@ const files = [
  </div>
  <div class="product wrap">
   <div class="device-stage">
-   <div class="desktop-preview" data-perch>
-    <div class="desktop-bar"><span class="window-dots" aria-hidden="true">● ● ●</span><span>Paperwren for Windows</span><Icon name="windows" /></div>
-    <Shot name="desk-light-home" alt="Paperwren for Windows with recent documents and file filters" sizes="(max-width: 600px) 85vw, 800px" eager />
-   </div>
+   <HeroFilm />
    <div class="mobile-preview">
     {files.slice(0, 4).map((f, i) => <div class="phone" data-perch data-preview={f.id} hidden={i !== 0}><Shot name={`light-view-${f.id}`} alt={`${f.label} open in Paperwren for Android`} eager={i === 0} sizes="(max-width: 600px) 145px, 230px" /></div>)}
     <span class="mobile-label">Made for your phone.<br />At home on your PC.</span>
@@ -91,19 +89,14 @@ const files = [
  .hanging-file:active, .hanging-file[data-dragging] { cursor: grabbing; z-index: 4; }
  .hanging-file:focus { outline: none; }
  .product { padding-bottom: 38px; }
- .device-stage { position: relative; width: min(100%, 970px); margin: auto; padding: 28px 140px 74px 0; }
- .desktop-preview { border: 1px solid #606c5d; border-radius: 13px; overflow: hidden; background: #d9ded1; box-shadow: 0 20px 40px #35442e18; }
- .desktop-bar { display: flex; gap: 12px; justify-content: space-between; align-items: center; padding: 12px 16px; font-size: .65rem; color: #50604b; }
- .desktop-bar :global(svg) { width: 13px; }
- .window-dots { font-size: .6rem; letter-spacing: 2px; }
- .desktop-preview :global(img) { width: 100%; }
- .mobile-preview { position: absolute; width: 230px; right: 30px; bottom: 0; }
+ .device-stage { position: relative; width: min(100%, 970px); margin: auto; padding: 28px 175px 74px 0; }
+ .mobile-preview { position: absolute; width: 230px; right: 0; bottom: 0; }
  .mobile-preview .phone { box-shadow: 0 20px 30px #29352c35; border-radius: 30px; padding: 7px; background: #29352f; }
  .mobile-preview :global(img), .mobile-preview :global(picture) { border-radius: 24px; }
  .mobile-preview [hidden] { display: none; }
  .mobile-label { display: block; text-align: center; font-size: .72rem; line-height: 1.6; color: #43513f; margin-top: 14px; }
  .preview-status { font-size: .7rem; color: #56634f; text-align: center; margin-top: 28px; }
- @media(max-width: 900px) { .file-0 { left: 11%; width: 78px; } .file-3 { right: 11%; width: 78px; } .file-4 { left: 3%; } .file-5 { right: 3%; } .file-1 { left: 21%; top: 120px; } .file-2 { right: 21%; top: 135px; } .device-stage { padding-right: 100px; } .mobile-preview { right: 4px; width: 200px; } }
+ @media(max-width: 900px) { .file-0 { left: 11%; width: 78px; } .file-3 { right: 11%; width: 78px; } .file-4 { left: 3%; } .file-5 { right: 3%; } .file-1 { left: 21%; top: 120px; } .file-2 { right: 21%; top: 135px; } .device-stage { padding-right: 135px; } .mobile-preview { right: 0; width: 190px; } }
  @media(max-width: 600px) {
   .hero-sky { padding: 300px 0 34px; background-size: 42px 42px; }
   h1 { font-size: clamp(2.8rem, 10vw, 3.6rem); margin: 18px 0; }
@@ -111,7 +104,7 @@ const files = [
   .file-4, .file-5 { display: none; }
   .hanging-file .tie { top: 4.35px; width: 13px; height: 19.5px; }
   .copy .label { font-size: .6rem; } .ctas { flex-direction: column; gap: 10px; margin-top: 24px; } .swing-help { margin-top: 16px; }
-  .device-stage { padding: 12px 32px 92px 0; } .mobile-preview { width: 135px; right: 0; bottom: 0; } .mobile-preview .phone { border-radius: 18px; padding: 4px; } .mobile-preview :global(img), .mobile-preview :global(picture) { border-radius: 14px; } .desktop-bar { padding: 8px; font-size: .48rem; gap: 4px; } .mobile-label { font-size: .56rem; } .preview-status { text-align: left; font-size: .6rem; max-width: 15em; margin-top: 8px; }
+  .device-stage { padding: 12px 0 0; } .mobile-preview { position: relative; width: 150px; margin: 22px auto 0; } .mobile-preview .phone { border-radius: 18px; padding: 4px; } .mobile-preview :global(img), .mobile-preview :global(picture) { border-radius: 14px; } .mobile-label { font-size: .56rem; } .preview-status { font-size: .6rem; margin-top: 10px; }
  }
  @media(prefers-reduced-motion: reduce) { .swing-help { display: none; } .hanging-file { cursor: pointer; } }
 </style>

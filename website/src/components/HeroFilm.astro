@@ -1,0 +1,101 @@
+---
+import { url } from "../data/site";
+---
+<!-- The hero's desktop window, playing the launch film. -->
+<div class="desktop-preview" data-perch data-film>
+ <!-- A little twig off the window's corner, where the wren can rest. -->
+ <span class="twig" aria-hidden="true" data-perch><i class="leaf"></i><i class="leaf two"></i></span>
+ <div class="desktop-bar">
+  <span class="window-dots" aria-hidden="true">● ● ●</span>
+  <div class="controls">
+   <button type="button" data-film-play aria-label="Pause film" aria-pressed="false">
+    <svg class="pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="3.6" height="14" rx="1.2" /><rect x="13.9" y="5" width="3.6" height="14" rx="1.2" /></svg>
+    <svg class="play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.6v12.8a1 1 0 0 0 1.5.9l10-6.4a1 1 0 0 0 0-1.8l-10-6.4A1 1 0 0 0 8 5.6z" /></svg>
+   </button>
+   <button type="button" data-film-sound aria-label="Unmute film" aria-pressed="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path class="spk" d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" /><path class="off" d="m16 9.5 5 5m0-5-5 5" /><path class="on" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></svg>
+   </button>
+  </div>
+  <span class="title">Paperwren for Windows</span>
+ </div>
+ <div class="screen">
+  <video
+   src={url("/film/paperwren.mp4")}
+   poster={url("/film/paperwren-poster.jpg")}
+   muted
+   loop
+   playsinline
+   preload="auto"
+   disablepictureinpicture
+   aria-label="Paperwren launch film: opening PDFs, documents, sheets and slides on Android and Windows"
+  ></video>
+  <span class="progress" aria-hidden="true"><i></i></span>
+ </div>
+</div>
+<style>
+ .desktop-preview { position: relative; border: 1px solid #606c5d; border-radius: 13px; background: #d9ded1; box-shadow: 0 20px 40px #35442e18; }
+ .desktop-bar { position: relative; display: flex; gap: 10px; align-items: center; padding: 6px 16px; font-size: .65rem; color: #50604b; border-radius: 13px 13px 0 0; }
+ .title { position: absolute; left: 50%; translate: -50% 0; pointer-events: none; white-space: nowrap; }
+ .window-dots { font-size: .6rem; letter-spacing: 2px; }
+ .screen { position: relative; overflow: hidden; border-radius: 0 0 12px 12px; background: #e6e0cf; aspect-ratio: 1216 / 656; }
+ video { display: block; width: 100%; height: 100%; object-fit: cover; }
+ video::-webkit-media-controls { display: none !important; }
+ .progress { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #50604b1a; pointer-events: none; }
+ .progress i { display: block; height: 100%; width: 100%; background: #46634c; transform-origin: 0 50%; transform: scaleX(var(--p, 0)); }
+ .controls { display: flex; gap: 2px; }
+ .controls button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: #3f4f3c; cursor: pointer; transition: background .25s, color .25s; }
+ .controls button:hover { background: #c3cbb8; color: #294936; }
+ .controls button:focus-visible { outline: 2px solid #294936; outline-offset: 1px; }
+ .controls svg { width: 16px; height: 16px; }
+ .play, .pause { fill: currentColor; }
+ [data-film-play] .play, [data-film-play][aria-pressed="true"] .pause { display: none; }
+ [data-film-play][aria-pressed="true"] .play { display: block; }
+ [data-film-sound] svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+ [data-film-sound] .spk { fill: currentColor; }
+ [data-film-sound] .on, [data-film-sound][aria-pressed="true"] .off { display: none; }
+ [data-film-sound][aria-pressed="true"] .on { display: block; }
+ /* A resting twig, planted in the window's top-left corner, clear of the phone. */
+ .twig { position: absolute; z-index: 2; left: -40px; top: -4px; width: 128px; height: 7px; border-radius: 4px; background: linear-gradient(#8a7358, #5f4c38); rotate: 7deg; transform-origin: 90% 50%; box-shadow: 0 3px 5px #35442e30; }
+ .twig::before { content: ""; position: absolute; left: 22px; top: -12px; width: 4px; height: 16px; border-radius: 3px; background: #6f5a43; rotate: -32deg; }
+ .leaf { position: absolute; left: 8px; top: -13px; width: 16px; height: 9px; border-radius: 100% 0 100% 0; background: #6f8f64; rotate: 24deg; }
+ .leaf.two { left: 58px; top: 5px; background: #5b7b52; rotate: -150deg; }
+ @media (max-width: 600px) {
+  .desktop-bar { padding: 3px 8px; font-size: .48rem; gap: 4px; }
+  .controls button { width: 28px; height: 28px; }
+  .controls svg { width: 14px; height: 14px; }
+  .twig { left: -10px; width: 92px; }
+ }
+</style>
+<script>
+ const frame = document.querySelector<HTMLElement>("[data-film]");
+ const video = frame?.querySelector("video");
+ const play = frame?.querySelector<HTMLButtonElement>("[data-film-play]");
+ const sound = frame?.querySelector<HTMLButtonElement>("[data-film-sound]");
+ if (frame && video && play && sound) {
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // A reader's pause sticks; otherwise the film plays whenever it is in view.
+  let held = still, inView = false;
+  const sync = () => {
+   const paused = video.paused;
+   play.setAttribute("aria-pressed", String(paused));
+   play.setAttribute("aria-label", paused ? "Play film" : "Pause film");
+   sound.setAttribute("aria-pressed", String(!video.muted));
+   sound.setAttribute("aria-label", video.muted ? "Unmute film" : "Mute film");
+  };
+  const update = () => {
+   if (inView && !held && !document.hidden) video.play().catch(() => { video.muted = true; video.play().catch(sync); });
+   else video.pause();
+  };
+  new IntersectionObserver(([e]) => { inView = !!e && e.intersectionRatio >= .4; update(); }, { threshold: [0, .4] }).observe(frame);
+  document.addEventListener("visibilitychange", update);
+  play.addEventListener("click", () => { held = !video.paused; if (held) video.pause(); else { inView = true; update(); } });
+  sound.addEventListener("click", () => { video.muted = !video.muted; if (!video.muted && video.paused) { held = false; update(); } sync(); });
+  for (const type of ["play", "pause", "volumechange"]) video.addEventListener(type, sync);
+  // No fullscreen or context menu: the film is part of the page.
+  video.addEventListener("dblclick", e => e.preventDefault());
+  video.addEventListener("contextmenu", e => e.preventDefault());
+  const bar = frame.querySelector<HTMLElement>(".progress");
+  video.addEventListener("timeupdate", () => { if (video.duration) bar?.style.setProperty("--p", String(video.currentTime / video.duration)); });
+  sync();
+ }
+</script>
