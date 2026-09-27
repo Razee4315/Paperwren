@@ -39,8 +39,10 @@ declare global {
 		__paperwrenAndroid?: {
 			displayName(uri: string): string;
 			contentSize(uri: string): number;
-			persist(uri: string): boolean;
+			importPicked(uri: string, token: string): boolean;
 		};
+		/** MainActivity's answer to importPicked. */
+		__paperwrenImported?: (token: string, copy: ManagedCopy | null) => void;
 		/** Test hook: the next pick returns this file. */
 		__paperwrenTestFile?: File;
 	}
@@ -169,6 +171,56 @@ function androidName(uri: string): {
 	return { name: segment || "Document", verified: false, size: 0 };
 }
 
+interface ManagedCopy {
+	path: string;
+	name: string;
+	size: number;
+}
+
+const importWaiters = new Map<string, (copy: ManagedCopy | null) => void>();
+let importToken = 0;
+
+/** A copy of large or cloud files can legitimately take a while; past
+ * this the pick still opens, just without surviving a restart. */
+const IMPORT_TIMEOUT_MS = 120_000;
+
+/** Ask MainActivity to copy a picked content:// file into managed
+ * storage. The dialog plugin picks with ACTION_GET_CONTENT, whose
+ * grant ends with the process, so the bare URI of a recent is dead
+ * after the app is closed ("Access expired"). Null when the copy is
+ * not possible; the caller then falls back to the URI. */
+function importPicked(uri: string): Promise<ManagedCopy | null> {
+	const bridge = window.__paperwrenAndroid;
+	if (!bridge?.importPicked) return Promise.resolve(null);
+	window.__paperwrenImported ??= (token, copy) => {
+		const done = importWaiters.get(token);
+		importWaiters.delete(token);
+		done?.(copy && typeof copy.path === "string" ? copy : null);
+	};
+	const token = `pick-${++importToken}`;
+	return new Promise((resolve) => {
+		const timer = window.setTimeout(() => {
+			importWaiters.delete(token);
+			resolve(null);
+		}, IMPORT_TIMEOUT_MS);
+		importWaiters.set(token, (copy) => {
+			window.clearTimeout(timer);
+			resolve(copy);
+		});
+		let started = false;
+		try {
+			started = bridge.importPicked(uri, token);
+		} catch {
+			// Bridge unavailable: fall through.
+		}
+		if (!started) {
+			window.clearTimeout(timer);
+			importWaiters.delete(token);
+			resolve(null);
+		}
+	});
+}
+
 const tauriBackend: Backend = {
 	providerName: bridgeName,
 	async pickFile() {
@@ -180,10 +232,12 @@ const tauriBackend: Backend = {
 		});
 		if (!picked || typeof picked !== "string") return null;
 		if (picked.startsWith("content://")) {
-			try {
-				window.__paperwrenAndroid?.persist(picked);
-			} catch {
-				// Not every provider grants persistable access.
+			const copy = await importPicked(picked);
+			if (copy) {
+				return request(copy.name, true, copy.size, {
+					kind: "managed",
+					path: copy.path,
+				});
 			}
 			const { name, verified, size } = androidName(picked);
 			return request(name, verified, size, { kind: "uri", uri: picked });

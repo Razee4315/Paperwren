@@ -17,7 +17,7 @@ this document and the code are authoritative.
 | The 250 MB / 30-day cache cap in the architecture doc was never implemented | Unbounded storage growth | `imports_prune` removes orphans and evicts the oldest copies over the cap; affected recents are marked unavailable |
 | Store keys were silently sanitised (`a.b` and `ab` shared a file) | Silent key collisions | Keys are validated and rejected |
 | Stringly-typed errors, one flat `lib.rs`, blocking I/O on the async runtime | Hard to test and branch on | `error.rs` (typed `{kind, message}`), `store.rs`, `imports.rs`, `spawn_blocking`, 9 unit tests |
-| Picked content URIs used temporary grants | Recents failed after a restart | The picker bridge takes a persistable grant when the provider allows it |
+| Picked content URIs used temporary grants | Recents failed after a restart | Picked files are copied into managed storage (a GET_CONTENT grant can't be made persistable) |
 
 ### Frontend
 

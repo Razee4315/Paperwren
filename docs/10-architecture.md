@@ -78,7 +78,7 @@ Design decisions:
 
 ## 4. In-app open (SAF)
 
-FAB → system document picker (`OpenDocument`, multiple mime filter). The returned URI is persisted as a **persistable permission** so recents can re-open the same file later without re-picking. Revoked access → E-06 flow (doc 09).
+FAB → system document picker. The Tauri dialog plugin uses `ACTION_GET_CONTENT`, whose read grant ends with the process and can never be made persistable, so `MainActivity.importPicked` copies the picked file into `imports/<hash>/<name>` (the same store as "Open with") and the recent reopens that copy. If the copy fails the URI is used for the current session only. A missing copy → E-06 flow (doc 09).
 
 ## 5. Data & storage map
 

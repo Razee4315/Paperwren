@@ -229,8 +229,8 @@ export function SettingsScreen() {
 								Delete stored copies
 								<span className={s.hint}>
 									{stored
-										? `${formatBytes(stored.bytes)} in ${stored.files} ${stored.files === 1 ? "file" : "files"} opened from other apps`
-										: "Copies of files opened from other apps"}
+										? `${formatBytes(stored.bytes)} in ${stored.files} ${stored.files === 1 ? "file" : "files"} you opened`
+										: "Copies of files you opened"}
 								</span>
 							</span>
 						</button>
@@ -245,9 +245,8 @@ export function SettingsScreen() {
 							</p>
 							<p>
 								Files are read on this device. The recent list, your settings
-								and copies of files shared into the app live in private app
-								storage and can be deleted above. PDF passwords are used once
-								and never saved.
+								and copies of files you open live in private app storage and can
+								be deleted above. PDF passwords are used once and never saved.
 							</p>
 						</div>
 					</div>
@@ -300,9 +299,9 @@ export function SettingsScreen() {
 					</>
 				}
 			>
-				Files opened from other apps are kept as private copies so they can be
-				reopened. Deleting them frees space; those recents will ask you to
-				locate the file again.
+				Files you open are kept as private copies so they can be reopened after
+				the app is closed. Deleting them frees space; those recents will ask you
+				to locate the file again.
 			</Dialog>
 		</div>
 	);
