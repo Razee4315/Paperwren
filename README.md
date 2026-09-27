@@ -4,6 +4,8 @@
 
 Paperwren is a small, fast document viewer. It opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV, Markdown and plain-text files. It has no ads and no accounts, never touches the network, and asks for no permissions.
 
+![PDF, Word, Excel and PowerPoint files open in Paperwren](docs/screenshots/viewers.png)
+
 ## What it opens
 
 | Format | How it is shown |
@@ -25,6 +27,8 @@ The bytes decide the format, not the file name: content URIs without extensions 
   - **Sand**: low-blue-light parchment with a fine sand grain and a terracotta accent.
   - **Ink**: soft charcoal (not pure black) with ink splatters in the corners and a mint accent.
   Textures sit on page backgrounds only; cards and documents stay plain.
+
+  ![The home screen in the Paper, Sand and Ink themes](docs/screenshots/themes.png)
 - A flat wren mascot (also the app icon), a four-step welcome with a live theme picker. Files opened from other apps skip it.
 - Motion respects the system "reduce motion" setting.
 - SVG assets: `assets/icons/*.svg` (one per format), `assets/brand/wren.svg` and the app icons are exported from the same geometry the app renders: `npx vite-node scripts/export-assets.tsx`.
@@ -32,8 +36,27 @@ The bytes decide the format, not the file name: content URIs without extensions 
 ## Privacy
 
 - No network access and no analytics. The release APK requests zero Android permissions.
-- Recents and settings live in app-private storage. Files shared into the app are kept as private copies (deduplicated by content hash, capped at 250 MB) so they can be reopened, and can be deleted in Settings.
+- Recents and settings live in app-private storage. On Android, files opened from the picker or shared into the app are kept as private copies (deduplicated by content hash, capped at 250 MB) so recents still reopen after the app is closed; they can be deleted in Settings.
 - PDF passwords are used once and never stored.
+
+## Windows
+
+The same app ships as a small Windows installer.
+
+![Paperwren on Windows](docs/screenshots/windows.jpg)
+
+## Website
+
+The marketing site (home, comparisons, privacy policy, security) lives in
+`website/`, built with Astro. See `docs/14-website.md` for the design
+direction and where the comparison data comes from.
+
+```bash
+cd website
+npm install
+npm run dev            # http://localhost:4321/Paperwren/
+npm run build          # astro check + static build into website/dist
+```
 
 ## Development
 

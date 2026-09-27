@@ -1,0 +1,105 @@
+---
+import { SITE } from "../data/site";
+import Doc from "../layouts/Doc.astro";
+
+const points = [
+	{
+		h: "No permissions, enforced at build time",
+		p: "The Android build script removes every permission the app template adds, including internet access, and fails the build if one is left. The app's system info page shows none.",
+	},
+	{
+		h: "No way to reach the network",
+		p: "Besides having no internet permission, the app's content security policy only allows connections to itself. There is no analytics, ads, crash or update SDK among its dependencies: just document engines (pdf.js, docx-preview, SheetJS) and small helpers.",
+	},
+	{
+		h: "Read-only file access",
+		p: "The app can read documents but has no permission to write, delete or run anything. On Android, reading is limited to files you picked or shared and the app's own private copies.",
+	},
+	{
+		h: "Documents are treated as untrusted",
+		p: "Markdown is sanitised with DOMPurify before display. Scripts can only come from the app itself, and plugins and form submissions are blocked outright. Spreadsheets and older Office formats are parsed off the main thread.",
+	},
+	{
+		h: "Private copies stay private",
+		p: "Files are copied into storage only Paperwren can read, named by a hash of their content, and every path is validated so nothing is read or written outside that folder.",
+	},
+	{
+		h: "Nothing rides along in backups",
+		p: "Android cloud backup is disabled. PDF passwords live in memory only and are never stored.",
+	},
+];
+---
+
+<Doc
+	title="Security"
+	description="How Paperwren is built so its privacy promises hold: zero Android permissions, no network access, read-only file access, sanitised documents and public source code."
+	label="Security"
+	heading="Promises you can <em>check.</em>"
+	path="/security/"
+>
+	<p class="lead">
+		A privacy policy is only words. These are the parts of Paperwren's design
+		that make the words true, and all of them are in the <a class="link" href={SITE.repo} rel="noopener">public source code</a>.
+	</p>
+
+	<ol class="points">
+		{
+			points.map((x, i) => (
+				<li data-reveal>
+					<span class="n">{String(i + 1).padStart(2, "0")}</span>
+					<div>
+						<h2>{x.h}</h2>
+						<p>{x.p}</p>
+					</div>
+				</li>
+			))
+		}
+	</ol>
+
+	<h2>How builds are made</h2>
+	<p>
+		Releases are built by GitHub Actions from the public repository after lint,
+		type checks, unit tests and Rust tests pass. Download them only from <a class="link" href={SITE.releases} rel="noopener">GitHub Releases</a>.
+		While the app is in testing, Android builds are signed with a test key.
+	</p>
+
+	<h2>Report a vulnerability</h2>
+	<p>
+		Please report security issues privately through a <a class="link" href={SITE.security} rel="noopener">GitHub security advisory</a> rather
+		than a public issue.
+	</p>
+</Doc>
+
+<style>
+	.lead {
+		font-family: var(--serif);
+		font-size: var(--s-3);
+		line-height: 1.35;
+	}
+	.points {
+		list-style: none;
+		padding: 0;
+		margin: 2.5rem 0 1rem;
+		border-top: 1px solid var(--ink);
+	}
+	.points li {
+		display: grid;
+		grid-template-columns: 3rem 1fr;
+		padding: 1.6rem 0;
+		border-bottom: 1px solid var(--line);
+		margin: 0;
+	}
+	.n {
+		font: 400 var(--s-label) / 2.4 var(--mono);
+		color: var(--pine);
+	}
+	.points h2 {
+		font-size: var(--s-3);
+		margin: 0 0 0.5rem;
+		line-height: 1.15;
+	}
+	.points p {
+		color: var(--ink-2);
+		margin: 0;
+	}
+</style>

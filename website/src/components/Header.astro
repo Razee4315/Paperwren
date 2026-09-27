@@ -1,0 +1,195 @@
+---
+import { SITE, url } from "../data/site";
+import Wren from "./Wren.astro";
+
+const path = Astro.url.pathname.replace(import.meta.env.BASE_URL.replace(/\/$/, ""), "");
+const links = [
+	{ href: "/compare/", label: "Compare" },
+	{ href: "/security/", label: "Security" },
+	{ href: "/privacy/", label: "Privacy" },
+];
+---
+
+<header class="nav" data-nav>
+	<div class="wrap row">
+		<a class="brand" href={url("/")} aria-label="Paperwren home">
+			<Wren size={34} />
+			<span>Paperwren</span>
+		</a>
+		<nav aria-label="Main">
+			<ul>
+				{
+					links.map((l) => (
+						<li>
+							<a
+								class="link"
+								href={url(l.href)}
+								aria-current={path.startsWith(l.href) ? "page" : undefined}
+							>
+								{l.label}
+							</a>
+						</li>
+					))
+				}
+			</ul>
+		</nav>
+		<a class="get" href={url("/#download")}>Download</a>
+		<details class="menu">
+			<summary aria-label="Menu"><span></span><span></span></summary>
+			<div class="sheet">
+				<a href={url("/")}>Home</a>
+				{links.map((l) => <a href={url(l.href)}>{l.label}</a>)}
+				<a href={url("/#download")}>Download</a>
+				<a href={SITE.repo} rel="noopener">Source code</a>
+			</div>
+		</details>
+	</div>
+</header>
+
+<style>
+	.nav {
+		position: fixed;
+		inset: 0 0 auto;
+		z-index: 50;
+		transition:
+			transform 0.6s var(--ease),
+			background-color 0.4s var(--ease),
+			border-color 0.4s var(--ease);
+		border-bottom: 1px solid transparent;
+	}
+	.nav.scrolled {
+		background: var(--paper);
+		border-color: var(--line);
+	}
+	.nav.hidden {
+		transform: translateY(-100%);
+	}
+	.row {
+		display: flex;
+		align-items: center;
+		gap: 2rem;
+		height: 68px;
+	}
+	.brand {
+		display: flex;
+		align-items: center;
+		gap: 0.55rem;
+		text-decoration: none;
+		font-family: var(--serif);
+		font-size: 1.6rem;
+		letter-spacing: -0.01em;
+		margin-right: auto;
+	}
+	.brand svg {
+		transition: transform 0.6s var(--ease);
+	}
+	.brand:hover svg {
+		transform: rotate(-8deg) translateY(-2px);
+	}
+	ul {
+		display: flex;
+		gap: 2rem;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		font-size: 0.95rem;
+		font-weight: 500;
+	}
+	ul a {
+		background-size: 0 1px;
+		background-position: 100% 100%;
+	}
+	ul a:hover,
+	ul a[aria-current="page"] {
+		background-size: 100% 1px;
+		background-position: 0 100%;
+	}
+	.get {
+		font-weight: 600;
+		font-size: 0.95rem;
+		text-decoration: none;
+		background: var(--ink);
+		color: var(--paper);
+		padding: 0.6rem 1rem;
+		border-radius: var(--r);
+		transition:
+			background-color 0.3s var(--ease),
+			transform 0.25s var(--ease);
+	}
+	.get:hover {
+		background: var(--pine);
+	}
+	.get:active {
+		transform: scale(0.98);
+	}
+	.menu {
+		display: none;
+	}
+	@media (max-width: 760px) {
+		nav {
+			display: none;
+		}
+		.row {
+			gap: 0.75rem;
+		}
+		.menu {
+			display: block;
+		}
+		summary {
+			list-style: none;
+			width: 44px;
+			height: 44px;
+			display: grid;
+			place-content: center;
+			gap: 6px;
+			cursor: pointer;
+		}
+		summary::-webkit-details-marker {
+			display: none;
+		}
+		summary span {
+			width: 22px;
+			height: 1.5px;
+			background: var(--ink);
+			transition: transform 0.4s var(--ease);
+		}
+		.menu[open] summary span:first-child {
+			transform: translateY(3.75px) rotate(45deg);
+		}
+		.menu[open] summary span:last-child {
+			transform: translateY(-3.75px) rotate(-45deg);
+		}
+		.sheet {
+			position: fixed;
+			inset: 68px 0 auto;
+			background: var(--paper);
+			border-bottom: 1px solid var(--ink);
+			padding: 1rem var(--gutter) 2rem;
+			display: grid;
+		}
+		.sheet a {
+			font-family: var(--serif);
+			font-size: 2.2rem;
+			text-decoration: none;
+			padding: 0.35rem 0;
+			border-bottom: 1px solid var(--line);
+		}
+	}
+</style>
+
+<script>
+	// Solid bar once the page has scrolled; hide on the way down,
+	// show on the way up.
+	const nav = document.querySelector<HTMLElement>("[data-nav]");
+	let last = window.scrollY;
+	const onScroll = () => {
+		if (!nav) return;
+		const y = window.scrollY;
+		nav.classList.toggle("scrolled", y > 24);
+		const menuOpen = nav.querySelector("details[open]");
+		nav.classList.toggle("hidden", !menuOpen && y > 400 && y > last);
+		last = y;
+	};
+	window.addEventListener("scroll", onScroll, { passive: true });
+	onScroll();
+</script>

@@ -1,0 +1,95 @@
+---
+import "@fontsource/instrument-serif/400.css";
+import "@fontsource/instrument-serif/400-italic.css";
+import "@fontsource-variable/manrope";
+import "@fontsource/jetbrains-mono/400.css";
+import "lenis/dist/lenis.css";
+import "../styles/textures.css";
+import "../styles/global.css";
+import Footer from "../components/Footer.astro";
+import Header from "../components/Header.astro";
+import { SITE } from "../data/site";
+
+interface Crumb {
+	name: string;
+	path: string;
+}
+interface Props {
+	title: string;
+	description: string;
+	/** Breadcrumb trail after Home, for BreadcrumbList JSON-LD. */
+	crumbs?: Crumb[];
+	/** Extra JSON-LD objects. */
+	schema?: object[];
+}
+
+const { title, description, crumbs = [], schema = [] } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const home = new URL(import.meta.env.BASE_URL, Astro.site);
+const og = new URL(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/og.png`, Astro.site);
+const fullTitle = title === SITE.name ? `${SITE.name}: ${SITE.tagline}` : `${title} · ${SITE.name}`;
+
+const ld: object[] = [...schema];
+if (crumbs.length) {
+	ld.push({
+		"@context": "https://schema.org",
+		"@type": "BreadcrumbList",
+		itemListElement: [{ name: "Home", path: "/" }, ...crumbs].map((c, i) => ({
+			"@type": "ListItem",
+			position: i + 1,
+			name: c.name,
+			item: new URL(`${import.meta.env.BASE_URL.replace(/\/$/, "")}${c.path}`, Astro.site).href,
+		})),
+	});
+}
+---
+
+<!doctype html>
+<html lang="en" data-tex="paper">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{fullTitle}</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={canonical.href} />
+		<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/favicon.svg`} />
+		<link rel="sitemap" href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/sitemap-index.xml`} />
+		<meta name="theme-color" content="#e7e0d2" />
+		<meta name="color-scheme" content="light" />
+
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content={SITE.name} />
+		<meta property="og:title" content={fullTitle} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonical.href} />
+		<meta property="og:image" content={og.href} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="Paperwren: a calm document viewer with no accounts, ads or network access." />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={fullTitle} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={og.href} />
+		<link rel="home" href={home.href} />
+
+		{ld.map((o) => <script type="application/ld+json" set:html={JSON.stringify(o)} />)}
+
+		<script is:inline>
+			// Hide animated elements before first paint only when motion
+			// will actually run; otherwise the page renders final state.
+			if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
+				document.documentElement.classList.add("motion");
+		</script>
+	</head>
+	<body>
+		<a class="skip" href="#main">Skip to content</a>
+		<Header />
+		<main id="main">
+			<slot />
+		</main>
+		<Footer />
+		<script>
+			import "../scripts/motion";
+		</script>
+	</body>
+</html>

@@ -1,0 +1,51 @@
+---
+import { SITE } from "../data/site";
+import Shot from "./Shot.astro";
+---
+
+<section class="section band win" aria-labelledby="win-title">
+	<div class="wrap">
+		<div class="top">
+			<p class="label">Also on your PC</p>
+			<h2 class="h1" id="win-title" data-split>The same calm, on <em>Windows.</em></h2>
+			<p class="lede">
+				A {SITE.windowsSize} installer with the same viewers, themes and
+				recents, in a window that stays out of the way.
+			</p>
+		</div>
+		<div class="window" data-scale>
+			<div class="bar"><i></i><i></i><i></i><span>Paperwren</span></div>
+			<Shot
+				name="desk-light-home"
+				alt="Paperwren on Windows showing recent files with filters for PDF, documents, sheets and slides"
+				sizes="(max-width: 1360px) 92vw, 1280px"
+			/>
+		</div>
+	</div>
+</section>
+
+<style>
+	.top {
+		display: grid;
+		grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+		gap: 1.2rem 4rem;
+		align-items: end;
+		margin-bottom: clamp(2.5rem, 5vw, 4.5rem);
+	}
+	.top .label {
+		grid-column: 1 / -1;
+	}
+	.window {
+		transform-origin: 50% 100%;
+	}
+	.window :global(img) {
+		width: 100%;
+		height: auto;
+		display: block;
+	}
+	@media (max-width: 860px) {
+		.top {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

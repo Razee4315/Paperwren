@@ -1,0 +1,35 @@
+---
+import Icon from "../components/Icon.astro";
+import Wren from "../components/Wren.astro";
+import { url } from "../data/site";
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Page not found" description="This page does not exist.">
+	<section class="nf">
+		<div class="wrap">
+			<Wren size={96} />
+			<h1 class="h1">This page flew <em>off.</em></h1>
+			<p class="lede">It might have moved, or it never existed.</p>
+			<a class="btn" href={url("/")}>
+				<span class="roll"><span>Back to the start</span><span>Back to the start</span></span>
+				<Icon name="arrow" />
+			</a>
+		</div>
+	</section>
+</Base>
+
+<style>
+	.nf {
+		min-height: 90dvh;
+		display: flex;
+		align-items: center;
+		padding-top: 68px;
+	}
+	.h1 {
+		margin: 1.5rem 0 1rem;
+	}
+	.btn {
+		margin-top: 2rem;
+	}
+</style>

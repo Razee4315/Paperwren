@@ -1,0 +1,30 @@
+---
+import { Picture } from "astro:assets";
+import { shot } from "../data/shots";
+
+interface Props {
+	name: string;
+	alt: string;
+	/** CSS width the image renders at, for srcset selection. */
+	sizes?: string;
+	eager?: boolean;
+	class?: string;
+}
+const { name, alt, sizes = "(max-width: 760px) 70vw, 340px", eager = false, class: cls } = Astro.props;
+const src = shot(name);
+const desk = src.width > 1200;
+---
+
+<Picture
+	src={src}
+	alt={alt}
+	formats={["avif", "webp"]}
+	fallbackFormat="jpg"
+	quality={82}
+	widths={desk ? [800, 1280, 1920] : [360, 540, 780]}
+	sizes={sizes}
+	loading={eager ? "eager" : "lazy"}
+	fetchpriority={eager ? "high" : undefined}
+	decoding="async"
+	class={cls}
+/>

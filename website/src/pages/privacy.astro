@@ -1,0 +1,98 @@
+---
+import { SITE } from "../data/site";
+import Doc from "../layouts/Doc.astro";
+---
+
+<Doc
+	title="Privacy policy"
+	description="Paperwren's privacy policy. The app collects nothing, has no analytics or ads, and never connects to the internet. Here is what stays on your device and how to clear it."
+	label="Privacy policy"
+	heading="Paperwren collects <em>nothing.</em>"
+	path="/privacy/"
+	updated="27 September 2026"
+>
+	<p class="lead">
+		Paperwren is a document viewer. This policy is short because Paperwren
+		collects almost nothing, and what it keeps never leaves your device.
+	</p>
+
+	<h2>What Paperwren collects</h2>
+	<p>
+		Nothing. Paperwren does not collect, transmit, sell or share any personal
+		data. It has no analytics, no advertising, no trackers and no crash
+		reporting, and it does not connect to the internet.
+	</p>
+
+	<h2>What stays on your device</h2>
+	<h3>Recent files</h3>
+	<p>
+		The names and locations of documents you open, their size and where you
+		stopped reading, so the app can list them and resume. You can turn this
+		off, limit it, or clear it in Settings.
+	</p>
+	<h3>Private copies of files</h3>
+	<p>
+		On Android, when you open a file from the picker or from another app,
+		Paperwren keeps a private copy that only it can read, so the file still
+		opens from your recents after you close the app. Each file is stored once,
+		copies are capped at 250 MB in total (oldest removed first), and you can
+		delete them all in Settings.
+	</p>
+	<h3>Your settings</h3>
+	<p>Choices like your theme and how PDFs open.</p>
+	<h3>PDF passwords</h3>
+	<p>
+		Used in memory to open that file, then forgotten. They are never written
+		anywhere.
+	</p>
+
+	<h2>Permissions</h2>
+	<p>
+		The Android app requests no permissions at all, including internet access.
+		It only sees the files you open with it or share to it. Android's cloud
+		backup is turned off for Paperwren, so its data does not travel with your
+		backups either.
+	</p>
+
+	<h2>Files you open</h2>
+	<p>
+		Documents are read and displayed on your device only. Paperwren never
+		uploads them, because it never talks to any server.
+	</p>
+
+	<h2>Deleting your data</h2>
+	<p>
+		Clear recents and private copies in Settings, or uninstall the app, which
+		removes everything it stored. There is no account, so there is nothing to
+		delete anywhere else.
+	</p>
+
+	<h2>Children</h2>
+	<p>Paperwren collects no data from anyone, including children.</p>
+
+	<h2>This website</h2>
+	<p>
+		This site sets no cookies, runs no analytics and serves its own fonts and
+		scripts. Your browser talks only to the host serving these pages, which may
+		keep standard server logs.
+	</p>
+
+	<h2>Changes</h2>
+	<p>
+		If a future version ever changes any of this, this page will be updated and
+		the app will tell you before the change takes effect.
+	</p>
+
+	<h2>Contact</h2>
+	<p>
+		Questions go to the project's <a class="link" href={SITE.issues} rel="noopener">issue tracker</a>.
+	</p>
+</Doc>
+
+<style>
+	.lead {
+		font-family: var(--serif);
+		font-size: var(--s-3);
+		line-height: 1.35;
+	}
+</style>
