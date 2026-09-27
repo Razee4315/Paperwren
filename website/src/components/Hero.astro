@@ -19,10 +19,12 @@ const files = [
 ---
 <section class="hero" aria-labelledby="hero-title">
  <div class="hero-sky" data-tethers>
-  <svg class="strings" aria-hidden="true">{files.map(() => <path />)}</svg>
+  <svg class="strings" aria-hidden="true">{files.map(() => <g><path class="cord" /></g>)}</svg>
   <div class="hanging-files" role="group" aria-label="File previews. Drag an icon to swing it, or select to preview.">
    {files.map((f, i) => <button class={`hanging-file file-${i}`} type="button" data-file={f.id} aria-label={i < 4 ? `Preview ${f.label}` : `Swing ${f.label} file`} aria-describedby="swing-help" aria-pressed={i === 0 ? 'true' : 'false'}>
+    <svg class="tie back" viewBox="0 0 20 30" aria-hidden="true"><path d="M10 1 C 13.6 4.5, 13.4 11.5, 11 17.5" /></svg>
     <span class="file-art" aria-hidden="true" set:html={f.svg.replace(/<\?xml[^>]*>/, '')}></span>
+    <svg class="tie" viewBox="0 0 20 30" aria-hidden="true"><circle class="eyelet" cx="10" cy="18" r="4.2" /><circle class="hole" cx="10" cy="18" r="2.3" /><path d="M10 1 C 7 6.5, 7.3 13.5, 9.6 18" /><circle class="knot" cx="10" cy="1" r="1.5" /></svg>
    </button>)}
   </div>
   <div class="copy wrap">
@@ -67,15 +69,27 @@ const files = [
  .windows-link:hover span { translate: 3px -3px; }
  .swing-help { margin-top: 25px; font-size: .7rem; color: #596654; }
  .strings { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 0; }
- .strings path { fill: none; stroke: #51674c; stroke-opacity: .45; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+ .strings path { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+ .strings .cord { stroke: #6f6453; stroke-opacity: .75; stroke-width: 1.1; }
  .hanging-file { position: absolute; width: 100px; height: 112px; padding: 4px; border: 0; background: transparent; cursor: grab; z-index: 3; touch-action: none; user-select: none; -webkit-user-select: none; transform-origin: 50% 5px; will-change: transform; }
- .file-0 { left: 8%; top: 230px; } .file-1 { left: 24%; top: 90px; width: 74px; height: 84px; } .file-2 { right: 24%; top: 86px; width: 74px; height: 84px; } .file-3 { right: 8%; top: 250px; }
- .file-4 { left: 11%; top: 440px; width: 68px; height: 78px; } .file-5 { right: 11%; top: 450px; width: 68px; height: 78px; }
- .file-art { display: block; filter: drop-shadow(4px 10px 5px #394c3024); transition: filter .25s; }
+ /* Staggered columns and heights, so every cord drops clear of its neighbours. */
+ .file-4 { left: 4%; top: 480px; width: 68px; height: 78px; } .file-0 { left: 13%; top: 300px; } .file-1 { left: 24%; top: 170px; width: 74px; height: 84px; }
+ .file-2 { right: 24%; top: 195px; width: 74px; height: 84px; } .file-3 { right: 13%; top: 330px; } .file-5 { right: 4%; top: 505px; width: 68px; height: 78px; }
+ .file-art { --blur: 5px; --shade: #394c3026; position: relative; z-index: 1; display: block; filter: drop-shadow(calc(var(--sx, 4) * 1px) calc(var(--sy, 11) * 1px) var(--blur) var(--shade)); }
  .file-art :global(svg) { width: 100%; height: 100%; pointer-events: none; }
- .hanging-file:hover .file-art, .hanging-file:focus-visible .file-art { filter: drop-shadow(5px 14px 8px #394c3040); }
- .hanging-file:active, .hanging-file[data-dragging] { cursor: grabbing; }
- .hanging-file:focus-visible { outline: 2px dashed #294936; outline-offset: 8px; }
+ .hanging-file:focus-visible .file-art, .hanging-file[data-dragging] .file-art { --blur: 8px; --shade: #394c3040; }
+ /* The cord loops through a punched, metal-rimmed hole and is knotted above the file. */
+ .tie { position: absolute; left: 50%; top: 4px; width: 20px; height: 30px; translate: -50% 0; overflow: visible; pointer-events: none; }
+ .file-1 .tie, .file-2 .tie, .file-4 .tie, .file-5 .tie { top: 4.2px; width: 16px; height: 24px; }
+ .tie .eyelet { fill: #d8d3c6; stroke: #8e897c; stroke-width: .6; }
+ .tie .hole { fill: #b7b8ab; stroke: #6d6a61; stroke-width: .5; }
+ .tie path { fill: none; stroke: #6f6453; stroke-opacity: .9; stroke-width: 1.1; stroke-linecap: round; }
+ .tie .knot { fill: #6f6453; }
+ /* The back strand passes behind the page: only the part above its top edge shows. */
+ .tie { z-index: 2; } .tie.back { z-index: 0; }
+ .tie.back path { stroke: #5e5445; }
+ .hanging-file:active, .hanging-file[data-dragging] { cursor: grabbing; z-index: 4; }
+ .hanging-file:focus { outline: none; }
  .product { padding-bottom: 38px; }
  .device-stage { position: relative; width: min(100%, 970px); margin: auto; padding: 28px 140px 74px 0; }
  .desktop-preview { border: 1px solid #606c5d; border-radius: 13px; overflow: hidden; background: #d9ded1; box-shadow: 0 20px 40px #35442e18; }
@@ -89,12 +103,13 @@ const files = [
  .mobile-preview [hidden] { display: none; }
  .mobile-label { display: block; text-align: center; font-size: .72rem; line-height: 1.6; color: #43513f; margin-top: 14px; }
  .preview-status { font-size: .7rem; color: #56634f; text-align: center; margin-top: 28px; }
- @media(max-width: 900px) { .file-0 { left: 4%; width: 78px; } .file-3 { right: 4%; width: 78px; } .device-stage { padding-right: 100px; } .mobile-preview { right: 4px; width: 200px; } }
+ @media(max-width: 900px) { .file-0 { left: 11%; width: 78px; } .file-3 { right: 11%; width: 78px; } .file-4 { left: 3%; } .file-5 { right: 3%; } .file-1 { left: 21%; top: 120px; } .file-2 { right: 21%; top: 135px; } .device-stage { padding-right: 100px; } .mobile-preview { right: 4px; width: 200px; } }
  @media(max-width: 600px) {
-  .hero-sky { padding: 240px 0 34px; background-size: 42px 42px; }
+  .hero-sky { padding: 300px 0 34px; background-size: 42px 42px; }
   h1 { font-size: clamp(2.8rem, 10vw, 3.6rem); margin: 18px 0; }
-  .hanging-file { width: 62px; height: 70px; } .file-0 { left: 5%; top: 126px; width: 62px; } .file-1 { left: 29%; top: 86px; width: 53px; height: 60px; } .file-2 { right: 29%; top: 93px; width: 53px; height: 60px; } .file-3 { right: 5%; top: 136px; width: 62px; }
+  .hanging-file { width: 62px; height: 70px; } .file-0 { left: 5%; top: 175px; width: 62px; } .file-1 { left: 29%; top: 115px; width: 53px; height: 60px; } .file-2 { right: 29%; top: 135px; width: 53px; height: 60px; } .file-3 { right: 5%; top: 195px; width: 62px; }
   .file-4, .file-5 { display: none; }
+  .hanging-file .tie { top: 4.35px; width: 13px; height: 19.5px; }
   .copy .label { font-size: .6rem; } .ctas { flex-direction: column; gap: 10px; margin-top: 24px; } .swing-help { margin-top: 16px; }
   .device-stage { padding: 12px 32px 92px 0; } .mobile-preview { width: 135px; right: 0; bottom: 0; } .mobile-preview .phone { border-radius: 18px; padding: 4px; } .mobile-preview :global(img), .mobile-preview :global(picture) { border-radius: 14px; } .desktop-bar { padding: 8px; font-size: .48rem; gap: 4px; } .mobile-label { font-size: .56rem; } .preview-status { text-align: left; font-size: .6rem; max-width: 15em; margin-top: 8px; }
  }
