@@ -33,8 +33,8 @@ import java.util.concurrent.TimeUnit
  * 2. System Back: ask the web layer first; finish only when it did
  *    not consume the press.
  * 3. A tiny JS bridge for the in-app picker: the provider's real
- *    display name and size, and a best-effort persistable grant so
- *    recents can reopen after a restart.
+ *    display name and size, and a copy of the picked file into the
+ *    same imports store so recents can reopen after a restart.
  *
  * This file is copied verbatim over the generated activity by
  * scripts/install-android.mjs. Keep it self-contained.
@@ -104,36 +104,43 @@ class MainActivity : TauriActivity() {
 
   private fun ingest(uri: Uri, mime: String?) {
     try {
-      val displayName = withExtension(queryDisplayName(uri), mime)
-      val imports = File(filesDir, "imports").apply { mkdirs() }
-      val tmp = File.createTempFile(".incoming.", ".tmp", imports)
-      val digest = MessageDigest.getInstance("SHA-256")
-      try {
-        val input = contentResolver.openInputStream(uri) ?: throw IllegalStateException("no stream")
-        DigestInputStream(input, digest).use { stream ->
-          tmp.outputStream().use { out -> stream.copyTo(out, 64 * 1024) }
-        }
-        if (tmp.length() == 0L) throw IllegalStateException("empty file")
-        val hash = digest.digest().joinToString("") { "%02x".format(it) }.take(16)
-        val folder = File(imports, hash).apply { mkdirs() }
-        val target = File(folder, safeFileName(displayName))
-        if (target.exists() && target.length() == tmp.length()) {
-          target.setLastModified(System.currentTimeMillis())
-        } else if (!tmp.renameTo(target)) {
-          throw IllegalStateException("rename failed")
-        }
-        val delivery = Delivery(target.absolutePath, displayName, target.length())
-        main.post {
-          pending.addLast(delivery)
-          deliverNext(0)
-        }
-      } finally {
-        tmp.delete()
+      val delivery = copyIn(uri, mime)
+      main.post {
+        pending.addLast(delivery)
+        deliverNext(0)
       }
     } catch (e: Exception) {
       main.post {
         Toast.makeText(this, "Paperwren couldn't open that file.", Toast.LENGTH_LONG).show()
       }
+    }
+  }
+
+  /** Copy a content:// stream into imports/<hash>/<name>. Runs on the
+   * ingest executor only. Throws when the stream can't be read. */
+  private fun copyIn(uri: Uri, mime: String?): Delivery {
+    val type = mime ?: try { contentResolver.getType(uri) } catch (e: Exception) { null }
+    val displayName = withExtension(queryDisplayName(uri), type)
+    val imports = File(filesDir, "imports").apply { mkdirs() }
+    val tmp = File.createTempFile(".incoming.", ".tmp", imports)
+    val digest = MessageDigest.getInstance("SHA-256")
+    try {
+      val input = contentResolver.openInputStream(uri) ?: throw IllegalStateException("no stream")
+      DigestInputStream(input, digest).use { stream ->
+        tmp.outputStream().use { out -> stream.copyTo(out, 64 * 1024) }
+      }
+      if (tmp.length() == 0L) throw IllegalStateException("empty file")
+      val hash = digest.digest().joinToString("") { "%02x".format(it) }.take(16)
+      val folder = File(imports, hash).apply { mkdirs() }
+      val target = File(folder, safeFileName(displayName))
+      if (target.exists() && target.length() == tmp.length()) {
+        target.setLastModified(System.currentTimeMillis())
+      } else if (!tmp.renameTo(target)) {
+        throw IllegalStateException("rename failed")
+      }
+      return Delivery(target.absolutePath, displayName, target.length())
+    } finally {
+      tmp.delete()
     }
   }
 
@@ -280,15 +287,34 @@ class MainActivity : TauriActivity() {
       fun contentSize(uri: String): Long =
         if (!allowed(uri)) 0L else try { querySize(Uri.parse(uri)) } catch (e: Exception) { 0L }
 
-      /** Keep read access across restarts when the provider allows it. */
+      /** Copy a picked file into managed storage so its recent still
+       * opens after a restart. The dialog plugin picks with
+       * ACTION_GET_CONTENT, whose read grant dies with the process and
+       * can never be made persistable; a private copy is the only thing
+       * that survives. Answers later through window.__paperwrenImported
+       * (token, {path,name,size} | null); returns false when it could
+       * not even start. */
       @JavascriptInterface
-      fun persist(uri: String): Boolean {
+      fun importPicked(uri: String, token: String): Boolean {
         if (!allowed(uri)) return false
+        val parsed = Uri.parse(uri)
         return try {
-          contentResolver.takePersistableUriPermission(
-            Uri.parse(uri),
-            Intent.FLAG_GRANT_READ_URI_PERMISSION
-          )
+          ingestExecutor.execute {
+            val result = try {
+              val d = copyIn(parsed, null)
+              JSONObject().put("path", d.path).put("name", d.name).put("size", d.size).toString()
+            } catch (e: Exception) {
+              "null"
+            }
+            main.post {
+              if (!isAppOrigin(webView.url)) return@post
+              webView.evaluateJavascript(
+                "window.__paperwrenImported && window.__paperwrenImported(" +
+                  JSONObject.quote(token) + "," + result + ")",
+                null
+              )
+            }
+          }
           true
         } catch (e: Exception) {
           false
