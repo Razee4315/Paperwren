@@ -1,40 +1,33 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRope, stepRope, isOverstretched } from '../src/scripts/tethers.ts';
+import { stepSpring, isOverstretched } from '../src/scripts/tethers.ts';
 
-test('released rope keeps its anchor and settles after a deep diagonal pull', () => {
- const rope = createRope(300, 0, 230);
- for (let i = 0; i < 30; i++) stepRope(rope, 230, { x: 450, y: 330 });
- for (let i = 0; i < 1200; i++) {
-  stepRope(rope, 230);
-  assert.ok(rope.every(p => Object.values(p).every(Number.isFinite)));
-  assert.deepEqual(rope[0], { x: 300, y: 0, px: 300, py: 0 });
-  const tip = rope.at(-1)!;
-  assert.ok(Math.hypot(tip.x - tip.px, tip.y - tip.py) <= 4.000001);
+test('a fast release returns to rest without runaway velocity', () => {
+ const s = { x: 100, y: 120, vx: 400, vy: 400 };
+ for (let i = 0; i < 600; i++) {
+  stepSpring(s, 1 / 60);
+  assert.ok(Object.values(s).every(Number.isFinite));
+  assert.ok(Math.abs(s.x) < 200 && Math.abs(s.y) < 220);
  }
- const tip = rope.at(-1)!;
- assert.ok(Math.abs(tip.x - 300) < 1);
- assert.ok(Math.abs(tip.y - 230) < 5);
+ assert.ok(Math.hypot(s.x, s.y, s.vx, s.vy) < .01);
+});
+test('drop motion stays consistent across frame rates', () => {
+ const states = [30, 60, 120].map(fps => {
+  const s = { x: 0, y: -360, vx: 0, vy: 0 };
+  for (let i = 0; i < fps; i++) stepSpring(s, 1 / fps);
+  return s;
+ });
+ for (const s of states) assert.ok(Math.abs(s.y - states[0]!.y) < .1);
+});
+test('a long suspended frame is capped instead of exploding', () => {
+ const s = { x: 80, y: -300, vx: 200, vy: 400 };
+ stepSpring(s, 30);
+ assert.ok(Object.values(s).every(Number.isFinite));
+ assert.ok(Math.abs(s.x) < 150 && Math.abs(s.y) < 350);
 });
 
-test('a sideways release swings around its anchor instead of following a separate spring', () => {
- const rope = createRope(300, 0, 230);
- for (let i = 0; i < 30; i++) stepRope(rope, 230, { x: 440, y: 150 });
- let crossed = false;
- for (let i = 0; i < 600; i++) { stepRope(rope, 230); if (rope.at(-1)!.x < 299) crossed = true; }
- assert.ok(crossed);
-});
-
-test('a held endpoint follows the pointer while the cord bends', () => {
- const rope = createRope(300, 0, 230);
- for (let i = 0; i < 30; i++) stepRope(rope, 230, { x: 400, y: 150 });
- assert.equal(rope.at(-1)!.x, 400);
- assert.equal(rope.at(-1)!.y, 150);
- assert.ok(rope.slice(1, -1).some(p => p.x > 300));
-});
-
-test('over-pull threshold works in any direction', () => {
- assert.equal(isOverstretched(0, 101, 160, 100), true);
- assert.equal(isOverstretched(210, 0, 160, 100), true);
- assert.equal(isOverstretched(20, 20, 160, 100), false);
+test('over-pull releases in every direction beyond the rope length', () => {
+ assert.equal(isOverstretched(0, 96, 160, 95), true);
+ assert.equal(isOverstretched(210, 0, 160, 95), true);
+ assert.equal(isOverstretched(20, 20, 160, 95), false);
 });
