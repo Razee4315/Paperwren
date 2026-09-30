@@ -106,8 +106,9 @@ Feature graphic: fanned-stack mark on ember-50 field, tagline in Fraunces.
 
 ## 7. Release engineering runbook
 
-1. **Versioning:** semver. Store versionCode = monotonic build number (CI-injected).
-2. **Signing:** one upload keystore, backed up in 2 places + Play App Signing enrolled. Losing it is unrecoverable — treat the key like the product.
+1. **Versioning:** semver, starting at 1.0.0 for the Play launch. The Release workflow bumps the patch on every push to `main`; Tauri derives versionCode as `major*1000000 + minor*1000 + patch`, so it only ever rises (keep patch < 1000).
+2. **Signing:** one upload keystore (PKCS#12, alias `upload`), backed up in 2 places + Play App Signing enrolled. CI reads it from the `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` secrets; without them artifacts are debug-signed and named `-testkey`. A lost upload key means an upload-key reset request to Google, so treat it like the product.
+   **Build:** the Release workflow builds a signed AAB (arm64-v8a, armeabi-v7a, x86_64) plus a universal APK with NDK r28, then `scripts/verify-android-release.mjs` fails the run unless every ABI is present, 64-bit libraries are 16 KB page aligned, targetSdk ≥ 36 and the manifest requests no permissions. The AAB is in the run's `Paperwren-android` artifact; setting `PLAY_SERVICE_ACCOUNT_JSON` also uploads it to the internal track as a draft.
 3. **Tracks:** `main` → CI build → **internal** (instant) → **closed** (2 weeks soak, corpus QA) → **production staged 20% → 50% → 100%**, halting on crash-rate regression.
 4. **Changelog template:** what's new in user words, ≤ 500 chars, no jargon.
 5. **Rollback:** halt staged rollout + previous AAB promoted; hotfix branch off the release tag.
@@ -115,7 +116,7 @@ Feature graphic: fanned-stack mark on ember-50 field, tagline in Fraunces.
 
 ## 8. Support & feedback
 
-- Support = one email address (mailto from About) — human replies, no ticket maze.
+- Support = one email address, saqlainrazee@gmail.com (Settings → About → Contact copies it; also on the website and privacy policy) — human replies, no ticket maze.
 - Review playbook: thank positives warmly but briefly; for bug reports reply with "what file type + what device" and set expectations; **never** argue with a complaint about ads (we have none) or ask anyone to change a rating.
 - Feature requests land in a public roadmap note (keep honest: v2 editing = "exploring", not "coming soon").
 

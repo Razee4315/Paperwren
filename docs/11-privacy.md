@@ -80,7 +80,7 @@ Paperwren is a document viewer. This policy is short because Paperwren collects 
 
 **Changes:** if a future version ever changes any of the above, this policy will be updated and the app will tell you before the change takes effect.
 
-**Contact:** [support email]
+**Contact:** saqlainrazee@gmail.com
 
 ---
 

@@ -9,7 +9,7 @@ import Doc from "../layouts/Doc.astro";
 	label="Privacy policy"
 	heading="Paperwren collects <em>nothing.</em>"
 	path="/privacy/"
-	updated="27 September 2026"
+	updated="30 September 2026"
 >
 	<p class="lead">
 		Paperwren is a document viewer. This policy is short because Paperwren
@@ -85,7 +85,9 @@ import Doc from "../layouts/Doc.astro";
 
 	<h2>Contact</h2>
 	<p>
-		Questions go to the project's <a class="link" href={SITE.issues} rel="noopener">issue tracker</a>.
+		Questions about this policy or the app: email
+		<a class="link" href={`mailto:${SITE.email}`}>{SITE.email}</a>, or open an
+		issue on the project's <a class="link" href={SITE.issues} rel="noopener">issue tracker</a>.
 	</p>
 </Doc>
 

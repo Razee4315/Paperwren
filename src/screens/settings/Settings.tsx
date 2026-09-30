@@ -9,6 +9,7 @@ import {
 	BookOpen,
 	ChevronDown,
 	ChevronUp,
+	Copy,
 	FolderOpen,
 	Info,
 	Palette,
@@ -19,6 +20,7 @@ import { useEffect, useState } from "react";
 import s from "./Settings.module.css";
 
 const VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
+const CONTACT = "saqlainrazee@gmail.com";
 
 const LICENSES: Array<[string, string]> = [
 	["pdf.js", "Apache-2.0"],
@@ -257,6 +259,22 @@ export function SettingsScreen() {
 							<span className={s.actionText}>Paperwren</span>
 							<span className={s.version}>v{VERSION}</span>
 						</div>
+						<button
+							type="button"
+							className={s.action}
+							onClick={() =>
+								navigator.clipboard
+									?.writeText(CONTACT)
+									.then(() => toast("Email address copied"))
+									.catch(() => toast(CONTACT))
+							}
+						>
+							<span className={s.actionText}>
+								Contact
+								<span className={s.hint}>{CONTACT}</span>
+							</span>
+							<Copy size={18} aria-label="Copy email address" />
+						</button>
 						<button
 							type="button"
 							className={s.action}

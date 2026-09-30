@@ -129,10 +129,19 @@ jobs:
           prerelease: false
 
   android:
-    name: Android APK (arm64)
+    name: Android (Play AAB + APK)
     needs: [check-and-bump, desktop]
     if: needs.check-and-bump.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    env:
+      # Play upload key (see docs/12 section 7). Without these secrets the
+      # build falls back to the debug key and every artifact is named
+      # "testkey": fine for sideloading, rejected by Play.
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -142,7 +151,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -164,14 +173,19 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # NDK r28+ links 16 KB page aligned by default, which Play requires
+      # for 64-bit native code. Pinned so a runner image change cannot
+      # silently fall back to an older NDK.
       - name: Android SDK and NDK environment
+        env:
+          NDK_VERSION: 28.2.13676358
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
-          NDK_DIR=$(ls -d "$ANDROID_HOME"/ndk/*/ 2>/dev/null | sort -V | tail -1 || true)
-          if [ -z "$NDK_DIR" ]; then
-            echo "No preinstalled NDK found" >&2
-            exit 1
+          NDK_DIR="$ANDROID_HOME/ndk/$NDK_VERSION"
+          if [ ! -d "$NDK_DIR" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" > /dev/null
           fi
+          echo "Using NDK $NDK_DIR"
           echo "NDK_HOME=$NDK_DIR" >> "$GITHUB_ENV"
           echo "GRADLE_OPTS=-Dorg.gradle.daemon=false" >> "$GITHUB_ENV"
 
@@ -204,33 +218,75 @@ jobs:
           node scripts/patch-android-icons.mjs
           node scripts/install-android.mjs
 
-      - name: Build release APK (arm64)
-        run: npm run tauri -- android build --target aarch64
-
-      - name: Collect APK
+      - name: Install upload key
+        id: signing
         run: |
           set -eo pipefail
-          APK_DIR="src-tauri/gen/android/app/build/outputs/apk"
-          APK=$(find "$APK_DIR" -name "app-universal-release.apk" | head -1 || true)
-          if [ -z "$APK" ]; then
-            echo "No release APK found under $APK_DIR"
-            find src-tauri/gen/android/app/build/outputs -type f || true
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret: signing with the debug key (not uploadable to Play)."
+            echo "suffix=-testkey" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          KS="$RUNNER_TEMP/upload-keystore.p12"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KS"
+          {
+            echo "storeFile=$KS"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "keyPassword=${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}"
+          } > src-tauri/gen/android/keystore.properties
+          echo "suffix=" >> "$GITHUB_OUTPUT"
+
+      - name: Build release AAB and APK (arm64, armv7, x86_64)
+        run: npx tauri android build --aab --apk --target aarch64 --target armv7 --target x86_64
+
+      - name: Collect bundles
+        id: collect
+        run: |
+          set -eo pipefail
+          OUT="src-tauri/gen/android/app/build/outputs"
+          AAB=$(find "$OUT/bundle" -name "*release*.aab" | head -1 || true)
+          APK=$(find "$OUT/apk" -name "app-universal-release.apk" | head -1 || true)
+          if [ -z "$AAB" ] || [ -z "$APK" ]; then
+            echo "Missing release outputs under $OUT"
+            find "$OUT" -type f || true
             exit 1
           fi
           VERSION="${{ needs.check-and-bump.outputs.version }}"
-          cp "$APK" "Paperwren-v$VERSION-android-arm64-testkey.apk"
-          ls -la "Paperwren-v$VERSION-android-arm64-testkey.apk"
+          SUFFIX="${{ steps.signing.outputs.suffix }}"
+          mkdir -p artifacts
+          cp "$AAB" "artifacts/Paperwren-v$VERSION-play$SUFFIX.aab"
+          cp "$APK" "artifacts/Paperwren-v$VERSION-android$SUFFIX.apk"
+          echo "aab=artifacts/Paperwren-v$VERSION-play$SUFFIX.aab" >> "$GITHUB_OUTPUT"
+          ls -la artifacts
 
-      - name: Upload APK as workflow artifact
+      - name: Verify release bundle (Play requirements)
+        run: node scripts/verify-android-release.mjs "${{ steps.collect.outputs.aab }}" artifacts/Paperwren-v*-android*.apk
+
+      - name: Upload bundles as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Paperwren-android-apk
-          path: Paperwren-v*-android-arm64-testkey.apk
+          name: Paperwren-android
+          path: artifacts/
           if-no-files-found: error
 
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.check-and-bump.outputs.version }}
-          files: Paperwren-v*-android-arm64-testkey.apk
+          files: artifacts/Paperwren-v*-android*.apk
           fail_on_unmatched_files: true
+
+      # Optional: push the AAB to Play's internal track as a draft. Needs a
+      # service account with release access in Play Console, stored as the
+      # PLAY_SERVICE_ACCOUNT_JSON secret. The very first bundle must be
+      # uploaded by hand in Play Console before the API accepts uploads.
+      - name: Upload AAB to Play (internal track, draft)
+        if: env.PLAY_SERVICE_ACCOUNT_JSON != '' && steps.signing.outputs.suffix == ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: app.paperwren.docs
+          releaseFiles: ${{ steps.collect.outputs.aab }}
+          track: internal
+          status: draft

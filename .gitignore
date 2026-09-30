@@ -15,3 +15,8 @@ public/fixtures/
 fixtures/large.xlsx
 public/fixtures/large.xlsx
 playwright-report/
+launch-film/out/
+
+# Play Store graphics (kept local, not in git)
+store/
+scripts/make-store-graphics.mjs

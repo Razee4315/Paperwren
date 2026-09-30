@@ -6,6 +6,7 @@ export const SITE = {
 	repo: "https://github.com/Razee4315/Paperwren",
 	releases: "https://github.com/Razee4315/Paperwren/releases/latest",
 	issues: "https://github.com/Razee4315/Paperwren/issues",
+	email: "saqlainrazee@gmail.com",
 	security: "https://github.com/Razee4315/Paperwren/security/advisories/new",
 	/** From the v0.10.3 release assets. */
 	androidSize: "7.3 MB",
