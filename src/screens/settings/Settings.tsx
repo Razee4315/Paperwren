@@ -250,6 +250,7 @@ export function SettingsScreen() {
 								and copies of files you open live in private app storage and can
 								be deleted above. PDF passwords are used once and never saved.
 							</p>
+							<p>Full privacy policy: razee4315.github.io/Paperwren/privacy</p>
 						</div>
 					</div>
 
