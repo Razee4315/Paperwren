@@ -1,49 +1,26 @@
 import {
 	FOLDER_LIMITS,
+	type FileRef,
 	type Folder,
 	type FolderFile,
 	backend,
 	formatBytes,
 } from "@/lib/backend";
-import {
-	type FormatKind,
-	formatFromName,
-	kindLabel,
-	kindOf,
-} from "@/lib/formats";
+import { formatFromName, kindOf } from "@/lib/formats";
 import { isolate, locale, t } from "@/lib/i18n";
 import type { OpenRequest } from "@/lib/types";
-import { Button, FileBadge, IconButton, Spinner } from "@/ui";
-import { FolderX, RefreshCw, Search, SearchX, X } from "lucide-react";
-import {
-	type CSSProperties,
-	useCallback,
-	useEffect,
-	useMemo,
-	useState,
-} from "react";
+import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
+import { Button, FileBadge, IconButton, Sheet, SheetItem, Spinner } from "@/ui";
+import { FolderX, Info, MoreVertical, RefreshCw, SearchX } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import s from "./Home.module.css";
-
-const FILTERS: Array<FormatKind | "all"> = [
-	"all",
-	"pdf",
-	"doc",
-	"sheet",
-	"slides",
-	"text",
-	"image",
-];
-
-const KIND_COLOR: Record<FormatKind | "all", string> = {
-	all: "var(--accent)",
-	pdf: "var(--fmt-pdf)",
-	doc: "var(--fmt-doc)",
-	sheet: "var(--fmt-sheet)",
-	slides: "var(--fmt-slides)",
-	text: "var(--fmt-text)",
-	image: "var(--fmt-image)",
-	other: "var(--fmt-text)",
-};
+import {
+	type KindFilter,
+	SearchField,
+	TypeChips,
+	countKinds,
+	filterInForce,
+} from "./ListTools";
 
 function dated(ms: number): string {
 	if (!ms) return "";
@@ -54,6 +31,16 @@ function dated(ms: number): string {
 		year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
 	});
 }
+
+const refOf = (f: FolderFile): FileRef => ({
+	name: f.name,
+	format: formatFromName(f.name),
+	reopen: f.request.reopen,
+});
+
+/** Rows drawn at a time: a folder can hold two thousand documents, and
+ * a phone should not lay out all of them to show the first screen. */
+const PAGE = 200;
 
 type Listing =
 	| { state: "loading" }
@@ -73,7 +60,10 @@ export function FolderList({
 }) {
 	const [listing, setListing] = useState<Listing>({ state: "loading" });
 	const [query, setQuery] = useState("");
-	const [filter, setFilter] = useState<FormatKind | "all">("all");
+	const [filter, setFilter] = useState<KindFilter>("all");
+	const [shownRows, setShownRows] = useState(PAGE);
+	const [menuFor, setMenuFor] = useState<FolderFile | null>(null);
+	const [detailsFor, setDetailsFor] = useState<FolderFile | null>(null);
 
 	const load = useCallback(() => {
 		let alive = true;
@@ -95,14 +85,10 @@ export function FolderList({
 	useEffect(() => load(), [load]);
 
 	const files = listing.state === "ready" ? listing.files : [];
-	const counts = useMemo(() => {
-		const c: Record<string, number> = { all: files.length };
-		for (const f of files) {
-			const kind = kindOf(formatFromName(f.name));
-			c[kind] = (c[kind] ?? 0) + 1;
-		}
-		return c;
-	}, [files]);
+	const counts = useMemo(
+		() => countKinds(files.map((f) => kindOf(formatFromName(f.name)))),
+		[files],
+	);
 
 	if (listing.state === "loading")
 		return (
@@ -129,53 +115,25 @@ export function FolderList({
 			</div>
 		);
 
+	const shown = filterInForce(filter, counts);
 	const q = query.trim().toLowerCase();
 	const visible = files.filter(
 		(f) =>
-			(filter === "all" || kindOf(formatFromName(f.name)) === filter) &&
+			(shown === "all" || kindOf(formatFromName(f.name)) === shown) &&
 			(!q || f.name.toLowerCase().includes(q)),
 	);
 
 	return (
 		<>
-			<label className={s.search}>
-				<Search size={18} />
-				<input
-					type="search"
-					placeholder={t("Search {name}", { name: folder.name })}
-					value={query}
-					onChange={(e) => setQuery(e.target.value)}
-					aria-label={t("Search {name}", { name: folder.name })}
-					data-testid="folder-search"
-				/>
-				{query && (
-					<IconButton label={t("Clear search")} onClick={() => setQuery("")}>
-						<X size={18} />
-					</IconButton>
-				)}
-			</label>
-
+			<SearchField
+				value={query}
+				onChange={setQuery}
+				placeholder={t("Search {name}", { name: folder.name })}
+				label={t("Search {name}", { name: folder.name })}
+				testId="folder-search"
+			/>
 			{files.length > 0 && (
-				<div
-					className={s.chips}
-					role="toolbar"
-					aria-label={t("Filter by type")}
-				>
-					{FILTERS.filter((f) => f === "all" || counts[f]).map((f) => (
-						<button
-							type="button"
-							key={f}
-							className={s.chip}
-							aria-pressed={filter === f}
-							onClick={() => setFilter(f)}
-							style={{ "--c": KIND_COLOR[f] } as CSSProperties}
-						>
-							{f !== "all" && <span className={s.dot} />}
-							{f === "all" ? t("All") : kindLabel(f)}
-							<span className={s.count}>{counts[f] ?? 0}</span>
-						</button>
-					))}
-				</div>
+				<TypeChips counts={counts} value={shown} onChange={setFilter} />
 			)}
 
 			<h2 className={s.section}>
@@ -198,14 +156,14 @@ export function FolderList({
 				<div className={s.noMatch} data-testid="folder-empty">
 					<SearchX size={36} strokeWidth={1.5} />
 					{files.length === 0
-						? t(t("No documents in this folder."))
+						? t("No documents in this folder.")
 						: q
 							? t("Nothing matches “{query}”.", { query: query.trim() })
-							: t(t("No files of this type here."))}
+							: t("No files of this type here.")}
 				</div>
 			) : (
 				<div className={s.list}>
-					{visible.map((f) => (
+					{visible.slice(0, shownRows).map((f) => (
 						<div key={f.request.id} className={s.row} data-testid="folder-file">
 							<button
 								type="button"
@@ -227,8 +185,28 @@ export function FolderList({
 									</span>
 								</span>
 							</button>
+							<IconButton
+								label={t("More actions for {name}", { name: f.name })}
+								onClick={() => setMenuFor(f)}
+								data-testid="folder-file-more"
+							>
+								<MoreVertical size={20} />
+							</IconButton>
 						</div>
 					))}
+				</div>
+			)}
+			{visible.length > shownRows && (
+				<div className={s.placeActions}>
+					<Button
+						variant="secondary"
+						onClick={() => setShownRows((n) => n + PAGE)}
+						data-testid="folder-more"
+					>
+						{t("Show {n} more", {
+							n: Math.min(PAGE, visible.length - shownRows),
+						})}
+					</Button>
 				</div>
 			)}
 			{files.length >= FOLDER_LIMITS.files && (
@@ -237,6 +215,40 @@ export function FolderList({
 						n: FOLDER_LIMITS.files.toLocaleString(),
 					})}
 				</p>
+			)}
+
+			<Sheet
+				open={menuFor !== null}
+				title={menuFor?.name ?? ""}
+				onClose={() => setMenuFor(null)}
+				testId="folder-file-menu"
+			>
+				{menuFor && (
+					<>
+						<HandOffItems
+							file={refOf(menuFor)}
+							onDone={() => setMenuFor(null)}
+							testPrefix="folder"
+						/>
+						<SheetItem
+							icon={<Info size={20} />}
+							onClick={() => {
+								setDetailsFor(menuFor);
+								setMenuFor(null);
+							}}
+							testId="folder-details"
+						>
+							{t("Details")}
+						</SheetItem>
+					</>
+				)}
+			</Sheet>
+			{detailsFor && (
+				<FileDetails
+					file={refOf(detailsFor)}
+					size={detailsFor.size}
+					onClose={() => setDetailsFor(null)}
+				/>
 			)}
 		</>
 	);

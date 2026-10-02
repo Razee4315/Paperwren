@@ -358,6 +358,24 @@ def make_locked_pdf(path):
     page.save()
 
 
+def make_cjk_pdf(path):
+    """A Chinese page whose font is named, not embedded: the reader must
+    bring its own character maps to make sense of the text."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+    from reportlab.pdfgen import canvas
+
+    pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+    page = canvas.Canvas(path, pagesize=A4, invariant=1)
+    page.setFont("STSong-Light", 28)
+    page.drawString(72, 740, "季度报告")
+    page.setFont("STSong-Light", 16)
+    page.drawString(72, 700, "打开任何文档")
+    page.showPage()
+    page.save()
+
+
 FIXTURES = os.path.join(os.path.dirname(__file__), "..", "fixtures")
 PASSWORD = "wren"
 
@@ -449,10 +467,11 @@ if __name__ == "__main__":
     make_grid_xlsx(os.path.join(OUT, "grid.xlsx"))
     make_effects_pptx(os.path.join(OUT, "effects.pptx"))
     make_locked_pdf(os.path.join(OUT, "locked.pdf"))
+    make_cjk_pdf(os.path.join(OUT, "cjk.pdf"))
     make_picture(os.path.join(FIXTURES, "sample.png"))
     make_locked_agile(os.path.join(OUT, "locked-agile.xlsx"))
     make_locked_standard(os.path.join(OUT, "locked-standard.docx"))
     print(
         "wrote styled.xlsx, charts.pptx, rtl.pptx, grid.xlsx, effects.pptx, "
-        "locked.pdf, locked-agile.xlsx, locked-standard.docx"
+        "locked.pdf, cjk.pdf, locked-agile.xlsx, locked-standard.docx"
     )

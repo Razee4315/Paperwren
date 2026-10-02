@@ -10,6 +10,7 @@
 	padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 	user-select: none;
 	touch-action: pan-y;
+	outline: none;
 }
 
 .top {

@@ -5,8 +5,8 @@ import {
 	isLargeFile,
 	kindOf,
 	largeFileLimit,
-	sniffFormat,
 } from "../formats";
+import { sniffFormat } from "../sniff";
 
 const fixture = (name: string) => {
 	const b = readFileSync(`fixtures/${name}`);
@@ -89,7 +89,7 @@ describe("friendlyName", () => {
 });
 
 import { strToU8, zipSync } from "fflate";
-import { ooxmlFamily } from "../formats";
+import { ooxmlFamily } from "../sniff";
 
 describe("Office packages with embedded parts", () => {
 	const OOXML = "application/vnd.openxmlformats-officedocument";

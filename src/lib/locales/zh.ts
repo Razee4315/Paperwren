@@ -109,7 +109,6 @@ export const zh: Table = {
 	"The file itself is not deleted": "文件本身不会被删除",
 	"Removed from recents": "已从最近中移除",
 	"Remove from recents": "从最近中移除",
-	"Last opened": "上次打开",
 	"Looking through {name}": "正在查看 {name}",
 	"Paperwren can't reach “{name}” any more. It may have been moved, or access to it was withdrawn.":
 		"Paperwren 已无法访问“{name}”。它可能已被移动，或访问权限已被撤销。",
@@ -125,14 +124,10 @@ export const zh: Table = {
 	"No accounts": "无需账号",
 	"No ads": "无广告",
 	"Meet Paperwren": "认识 Paperwren",
-	"The small, quiet way to open every document on your phone.":
-		"在手机上打开每一份文档的小巧、安静的方式。",
 	"Opens everything": "什么都能打开",
 	"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text. Even old .doc and .ppt files.":
 		"PDF、Word、Excel、PowerPoint、OpenDocument、RTF、CSV 和文本。连旧的 .doc 和 .ppt 文件也可以。",
 	"Private by design": "天生私密",
-	"No internet, no accounts, no ads. Your files never leave your phone.":
-		"不联网、无账号、无广告。你的文件永远不会离开手机。",
 	"Pick a look": "选择外观",
 	"Paper, Sand or Ink, all easy on the eyes. Change it any time in Settings.":
 		"纸、沙或墨，都很护眼。可随时在设置中更改。",
@@ -141,12 +136,9 @@ export const zh: Table = {
 	"Start reading": "开始阅读",
 	Appearance: "外观",
 	Theme: "主题",
-	"Each theme has its own calm colour. Auto follows your phone: Paper by day, Ink at night.":
-		"每个主题都有自己柔和的颜色。“自动”跟随手机：白天用纸，夜晚用墨。",
 	Language: "语言",
 	"The language of Paperwren's own buttons and messages. Your documents are shown as they are.":
 		"Paperwren 自身按钮和消息的语言。你的文档按原样显示。",
-	"Same as the phone": "跟随手机",
 	Auto: "自动",
 	Paper: "纸",
 	Sand: "沙",
@@ -181,7 +173,6 @@ export const zh: Table = {
 		"Paperwren 从不连接互联网。它没有广告、账号和分析统计，也不请求任何权限。",
 	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
 		"文件在此设备上读取。最近列表、你的设置以及你打开的文件的副本保存在应用的私有存储中，可在上方删除。密码只使用一次，绝不保存。",
-	"Full privacy policy: {url}": "完整隐私政策：{url}",
 	About: "关于",
 	"Email address copied": "已复制邮箱地址",
 	Contact: "联系",
@@ -250,8 +241,6 @@ export const zh: Table = {
 	"Show the rest ({n}k more characters)": "显示其余部分（还有 {n} 千个字符）",
 	"{name} (first {shown} of {total} rows)":
 		"{name}（共 {total} 行，显示前 {shown} 行）",
-	"This sheet is too large to show ({detail}).":
-		"此工作表太大，无法显示（{detail}）。",
 	"The file is damaged or isn't a valid spreadsheet.":
 		"文件已损坏或不是有效的电子表格。",
 	"This workbook has no sheets.": "此工作簿没有工作表。",
@@ -295,4 +284,32 @@ export const zh: Table = {
 	"Drop to open": "松开以打开",
 	"PDF, Word, Excel, PowerPoint and text files":
 		"PDF、Word、Excel、PowerPoint 和文本文件",
+	"Open a document": "打开文档",
+	"Choose a folder to browse": "选择要浏览的文件夹",
+	"The small, quiet way to open every document on your device.":
+		"在设备上打开每一份文档的小巧、安静的方式。",
+	"No internet, no accounts, no ads. Your files never leave your device.":
+		"不联网、无账号、无广告。你的文件永远不会离开设备。",
+	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
+		"每个主题都有自己柔和的颜色。“自动”跟随设备：白天用纸，夜晚用墨。",
+	"Same as the device": "跟随设备",
+	"Paperwren keeps up to {n} folders. Remove one to add another.":
+		"Paperwren 最多保留 {n} 个文件夹。请先移除一个再添加。",
+	"Only the first {n} rows are shown.": "仅显示前 {n} 行。",
+	"Only the first {n} columns are shown.": "仅显示前 {n} 列。",
+	"Link in this document": "此文档中的链接",
+	"Paperwren doesn't open web pages. Copy the address to open it in your browser.":
+		"Paperwren 不会打开网页。请复制地址，在浏览器中打开。",
+	"Copy link": "复制链接",
+	"Link copied": "已复制链接",
+	"Privacy policy": "隐私政策",
+	"Show password": "显示密码",
+	"Hide password": "隐藏密码",
+	"Go to cell": "转到单元格",
+	"Cell, for example B12": "单元格，例如 B12",
+	"No cell {cell} on this sheet": "此工作表中没有单元格 {cell}",
+	Sort: "排序",
+	"Sort by": "排序方式",
+	"Last opened": "上次打开",
+	"Show {n} more": "再显示 {n} 个",
 };

@@ -109,7 +109,6 @@ export const ar: Table = {
 	"The file itself is not deleted": "الملف نفسه لا يُحذف",
 	"Removed from recents": "أُزيل من الأخيرة",
 	"Remove from recents": "إزالة من الأخيرة",
-	"Last opened": "آخر فتح",
 	"Looking through {name}": "جارٍ البحث في {name}",
 	"Paperwren can't reach “{name}” any more. It may have been moved, or access to it was withdrawn.":
 		"لم يعد Paperwren قادرًا على الوصول إلى “{name}”. ربما نُقل أو سُحب إذن الوصول إليه.",
@@ -125,14 +124,10 @@ export const ar: Table = {
 	"No accounts": "بلا حسابات",
 	"No ads": "بلا إعلانات",
 	"Meet Paperwren": "تعرّف على Paperwren",
-	"The small, quiet way to open every document on your phone.":
-		"الطريقة الصغيرة الهادئة لفتح كل مستند على هاتفك.",
 	"Opens everything": "يفتح كل شيء",
 	"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text. Even old .doc and .ppt files.":
 		"PDF و Word و Excel و PowerPoint و OpenDocument و RTF و CSV والنصوص. حتى ملفات .doc و .ppt القديمة.",
 	"Private by design": "خاص بطبيعته",
-	"No internet, no accounts, no ads. Your files never leave your phone.":
-		"لا إنترنت ولا حسابات ولا إعلانات. ملفاتك لا تغادر هاتفك أبدًا.",
 	"Pick a look": "اختر مظهرًا",
 	"Paper, Sand or Ink, all easy on the eyes. Change it any time in Settings.":
 		"ورق أو رمل أو حبر، وكلها مريحة للعين. غيّره متى شئت من الإعدادات.",
@@ -141,12 +136,9 @@ export const ar: Table = {
 	"Start reading": "ابدأ القراءة",
 	Appearance: "المظهر",
 	Theme: "السمة",
-	"Each theme has its own calm colour. Auto follows your phone: Paper by day, Ink at night.":
-		"لكل سمة لونها الهادئ. «تلقائي» يتبع هاتفك: ورق نهارًا وحبر ليلًا.",
 	Language: "اللغة",
 	"The language of Paperwren's own buttons and messages. Your documents are shown as they are.":
 		"لغة أزرار Paperwren ورسائله. مستنداتك تُعرض كما هي.",
-	"Same as the phone": "مثل الهاتف",
 	Auto: "تلقائي",
 	Paper: "ورق",
 	Sand: "رمل",
@@ -188,7 +180,6 @@ export const ar: Table = {
 		"لا يتصل Paperwren بالإنترنت أبدًا. لا إعلانات فيه ولا حسابات ولا تحليلات، ولا يطلب أي أذونات.",
 	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
 		"تُقرأ الملفات على هذا الجهاز. قائمة الأخيرة وإعداداتك ونسخ الملفات التي تفتحها تبقى في تخزين التطبيق الخاص ويمكن حذفها من الأعلى. كلمات المرور تُستخدم مرة واحدة ولا تُحفظ أبدًا.",
-	"Full privacy policy: {url}": "سياسة الخصوصية الكاملة: {url}",
 	About: "حول",
 	"Email address copied": "نُسخ عنوان البريد الإلكتروني",
 	Contact: "تواصل",
@@ -266,8 +257,6 @@ export const ar: Table = {
 	"Show the rest ({n}k more characters)": "عرض الباقي ({n} ألف حرف إضافي)",
 	"{name} (first {shown} of {total} rows)":
 		"{name} (أول {shown} من {total} صف)",
-	"This sheet is too large to show ({detail}).":
-		"هذه الورقة أكبر من أن تُعرض ({detail}).",
 	"The file is damaged or isn't a valid spreadsheet.":
 		"الملف تالف أو ليس جدول بيانات صالحًا.",
 	"This workbook has no sheets.": "هذا المصنف لا يحتوي على أوراق.",
@@ -312,4 +301,32 @@ export const ar: Table = {
 	"Drop to open": "أفلت للفتح",
 	"PDF, Word, Excel, PowerPoint and text files":
 		"ملفات PDF و Word و Excel و PowerPoint والنصوص",
+	"Open a document": "فتح مستند",
+	"Choose a folder to browse": "اختر مجلدًا لتصفحه",
+	"The small, quiet way to open every document on your device.":
+		"الطريقة الصغيرة الهادئة لفتح كل مستند على جهازك.",
+	"No internet, no accounts, no ads. Your files never leave your device.":
+		"لا إنترنت ولا حسابات ولا إعلانات. ملفاتك لا تغادر جهازك أبدًا.",
+	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
+		"لكل سمة لونها الهادئ. «تلقائي» يتبع جهازك: ورق نهارًا وحبر ليلًا.",
+	"Same as the device": "مثل الجهاز",
+	"Paperwren keeps up to {n} folders. Remove one to add another.":
+		"يحتفظ Paperwren بما يصل إلى {n} مجلدًا. أزل واحدًا لإضافة آخر.",
+	"Only the first {n} rows are shown.": "تُعرض أول {n} صف فقط.",
+	"Only the first {n} columns are shown.": "تُعرض أول {n} عمود فقط.",
+	"Link in this document": "رابط في هذا المستند",
+	"Paperwren doesn't open web pages. Copy the address to open it in your browser.":
+		"Paperwren لا يفتح صفحات الويب. انسخ العنوان لفتحه في متصفحك.",
+	"Copy link": "نسخ الرابط",
+	"Link copied": "نُسخ الرابط",
+	"Privacy policy": "سياسة الخصوصية",
+	"Show password": "إظهار كلمة المرور",
+	"Hide password": "إخفاء كلمة المرور",
+	"Go to cell": "الانتقال إلى خلية",
+	"Cell, for example B12": "خلية، مثل B12",
+	"No cell {cell} on this sheet": "لا توجد خلية {cell} في هذه الورقة",
+	Sort: "فرز",
+	"Sort by": "فرز حسب",
+	"Last opened": "آخر فتح",
+	"Show {n} more": "عرض {n} أخرى",
 };

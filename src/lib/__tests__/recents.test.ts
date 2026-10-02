@@ -113,6 +113,9 @@ describe("cleanPosition", () => {
 			ratio: 1,
 			zoom: undefined,
 		});
+		expect(
+			cleanPosition({ kind: "sheet", sheet: 1, top: 40, left: 8, zoom: 1.5 }),
+		).toEqual({ kind: "sheet", sheet: 1, top: 40, left: 8, zoom: 1.5 });
 		expect(cleanPosition({ kind: "pdf" })).toBeUndefined();
 		expect(cleanPosition({ kind: "nope" })).toBeUndefined();
 	});

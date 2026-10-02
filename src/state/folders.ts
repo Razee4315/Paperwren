@@ -2,7 +2,8 @@ import { type Folder, backend } from "@/lib/backend";
 import { useCallback, useEffect, useState } from "react";
 
 const KEY = "folders_v1";
-const MAX_FOLDERS = 12;
+/** How many folders Home keeps. */
+export const MAX_FOLDERS = 12;
 
 /** Only well-formed folders survive a round trip through storage. */
 export function normalizeFolders(stored: unknown): Folder[] {
@@ -55,7 +56,12 @@ export function useFolders() {
 		if (!picked) return null;
 		const known = folders.find((f) => f.id === picked.id);
 		if (known) return known;
-		save([...folders, picked].slice(-MAX_FOLDERS));
+		// Home refuses to add past the limit; should one slip through, the
+		// oldest goes and the access held for it is given back.
+		const next = [...folders, picked];
+		for (const dropped of next.slice(0, -MAX_FOLDERS))
+			backend.forgetFolder(dropped);
+		save(next.slice(-MAX_FOLDERS));
 		return picked;
 	}, [folders, save]);
 

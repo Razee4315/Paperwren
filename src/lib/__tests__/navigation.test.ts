@@ -50,12 +50,4 @@ describe("navReducer", () => {
 		s = navReducer(s, { type: "overlay-close", id: "sheet" });
 		expect(canGoBack(s)).toBe(false);
 	});
-
-	it("home resets everything", () => {
-		const s = navReducer(
-			{ screens: [{ kind: "home" }, { kind: "settings" }], overlays: ["x"] },
-			{ type: "home" },
-		);
-		expect(s).toEqual(initialNav);
-	});
 });

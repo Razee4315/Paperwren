@@ -1,6 +1,14 @@
 import type { Position } from "@/lib/types";
 import { useSettings } from "@/state/settings";
-import { type RefObject, useEffect, useMemo, useRef } from "react";
+import {
+	type RefObject,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { flushSync } from "react-dom";
 
 export interface ZoomOptions {
 	/** The scrolling viewport. */
@@ -358,6 +366,22 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 		}),
 		[],
 	);
+}
+
+/**
+ * A viewer's zoom level as React state, starting from the one saved
+ * with the reading position. `commit` applies a zoom at once: `useZoom`
+ * measures the page straight after calling it.
+ */
+export function useZoomLevel(
+	position?: Position,
+): [zoom: number, commit: (zoom: number) => void] {
+	const [zoom, setZoom] = useState(1);
+	useEffect(() => {
+		if (position?.kind === "scroll" && position.zoom) setZoom(position.zoom);
+	}, [position]);
+	const commit = useCallback((z: number) => flushSync(() => setZoom(z)), []);
+	return [zoom, commit];
 }
 
 /**

@@ -121,7 +121,7 @@
 .place:hover {
 	background: var(--surface-2);
 }
-.place[aria-selected="true"] {
+.place[aria-pressed="true"] {
 	background: var(--accent-soft);
 	color: var(--accent);
 }

@@ -223,6 +223,11 @@ test("a locked PDF asks for its password until it is right", async ({
 	const field = page.getByTestId("pdf-password");
 	await expect(field).toBeVisible({ timeout: 20_000 });
 	await expect(page.getByText("Enter the password for")).toBeVisible();
+	// The field has the keyboard, and what is typed can be shown.
+	await expect(field).toBeFocused();
+	await expect(field).toHaveAttribute("type", "password");
+	await page.getByTestId("pdf-password-show").click();
+	await expect(field).toHaveAttribute("type", "text");
 	await field.fill("sparrow");
 	await page.getByTestId("pdf-unlock").click();
 	await expect(page.getByText("That password didn't work")).toBeVisible();
@@ -390,4 +395,46 @@ test("the screen is kept on only while a document is open, and only if asked", a
 		"aria-checked",
 		"true",
 	);
+});
+
+test("a link in a document is never followed; its address can be copied", async ({
+	page,
+}) => {
+	await boot(page);
+	await page.evaluate(() => {
+		window.__paperwrenTestFile = new File(
+			[
+				"# Notes\n\nSee [the site](https://example.com/page) and [a file](other.md).",
+			],
+			"notes.md",
+		);
+	});
+	await page.getByTestId("open-file").click();
+	const viewer = page.getByTestId("viewer");
+	await expect(viewer).toContainText("See the site");
+
+	// A relative link leads nowhere, and goes nowhere.
+	await viewer.getByRole("link", { name: "a file" }).click();
+	await expect(page.getByTestId("link-guard")).toHaveCount(0);
+
+	await viewer.getByRole("link", { name: "the site" }).click();
+	await expect(page.getByTestId("link-address")).toHaveText(
+		"https://example.com/page",
+	);
+	expect(new URL(page.url()).pathname).toBe("/");
+	await page.keyboard.press("Escape");
+	await expect(page.getByTestId("link-guard")).toHaveCount(0);
+	await expect(viewer).toBeVisible();
+});
+
+test("a Chinese PDF that names its font instead of carrying it is readable", async ({
+	page,
+}) => {
+	await boot(page);
+	await openFixture(page, "viewer-regressions/cjk.pdf");
+	// The text is only there to select and find if the reader can map
+	// the file's character codes, which takes pdf.js's own tables.
+	await expect(page.locator(".textLayer").first()).toContainText("季度报告", {
+		timeout: 20_000,
+	});
 });

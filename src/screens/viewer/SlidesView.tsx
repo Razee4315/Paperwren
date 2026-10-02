@@ -21,21 +21,19 @@ import {
 } from "lucide-react";
 import {
 	type CSSProperties,
-	useCallback,
 	useEffect,
 	useId,
 	useLayoutEffect,
 	useRef,
 	useState,
 } from "react";
-import { flushSync } from "react-dom";
 import "@/styles/office-fonts.css";
 import d from "./Doc.module.css";
 import { Present } from "./Present";
 import { FindBar, Shell, ZoomControl, shellStyles } from "./Shell";
 import { SlideChart } from "./SlideChart";
 import s from "./Slides.module.css";
-import { useZoom } from "./hooks";
+import { useZoom, useZoomLevel } from "./hooks";
 import { runWorker } from "./runWorker";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
@@ -499,7 +497,9 @@ export default function SlidesView({
 	const [error, setError] = useState<"corrupt" | "password" | null>(null);
 	const [textOnly, setTextOnly] = useState(false);
 	const [fit, setFit] = useState(1);
-	const [zoom, setZoom] = useState(1);
+	// The slides have their real size only once the width was measured.
+	const [measured, setMeasured] = useState(false);
+	const [zoom, commit] = useZoomLevel();
 	const [current, setCurrent] = useState(0);
 	const [notes, setNotes] = useState(false);
 	const [chromeHidden, setChromeHidden] = useState(false);
@@ -534,20 +534,21 @@ export default function SlidesView({
 		const el = scroller.current;
 		if (!el || !deck) return;
 		// The 12px side padding sits inside the zoomed box and scales too.
-		const measure = () =>
+		const measure = () => {
 			setFit(
 				Math.min(
 					2,
 					Math.floor((el.clientWidth / (deck.width + 24)) * 1e3) / 1e3,
 				),
 			);
+			setMeasured(true);
+		};
 		measure();
 		const ro = new ResizeObserver(measure);
 		ro.observe(el);
 		return () => ro.disconnect();
 	}, [deck]);
 
-	const commit = useCallback((z: number) => flushSync(() => setZoom(z)), []);
 	const { zoomBy, zoomTo } = useZoom({
 		scroller,
 		content: list,
@@ -571,7 +572,7 @@ export default function SlidesView({
 	// Restore the saved slide once the deck is laid out.
 	const restored = useRef(false);
 	useLayoutEffect(() => {
-		if (!deck || restored.current || fit === 1) return;
+		if (!deck || restored.current || !measured) return;
 		restored.current = true;
 		if (
 			settings.rememberPosition &&
@@ -602,6 +603,7 @@ export default function SlidesView({
 		if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2)
 			idx = frames.length - 1;
 		if (idx !== current) setCurrent(idx);
+		if (!settings.rememberPosition) return;
 		window.clearTimeout(saveTimer.current);
 		saveTimer.current = window.setTimeout(
 			() => onPosition({ kind: "slides", slide: idx }),
@@ -655,9 +657,7 @@ export default function SlidesView({
 				<>
 					{hasNotes && (
 						<IconButton
-							label={
-								notes ? t(t("Hide speaker notes")) : t(t("Show speaker notes"))
-							}
+							label={notes ? t("Hide speaker notes") : t("Show speaker notes")}
 							active={notes}
 							onClick={() => setNotes((n) => !n)}
 						>
@@ -718,7 +718,7 @@ export default function SlidesView({
 						<ZoomControl
 							label={
 								Math.abs(zoom - 1) < 0.005
-									? t(t("Fit width"))
+									? t("Fit width")
 									: `${Math.round(zoom * 100)}%`
 							}
 							onOut={() => zoomBy(1 / 1.25)}
@@ -802,18 +802,16 @@ export default function SlidesView({
 					icon={<ErrorArt />}
 					title={
 						error === "password"
-							? t(t("Password protected"))
-							: t(t("Can't open this presentation"))
+							? t("Password protected")
+							: t("Can't open this presentation")
 					}
 					action={<Button onClick={onClose}>{t("Close")}</Button>}
 				>
 					{error === "password"
 						? t(
-								t(
-									"This presentation is locked with a password and can't be opened.",
-								),
+								"This presentation is locked with a password and can't be opened.",
 							)
-						: t(t("The file is damaged or isn't a valid presentation."))}
+						: t("The file is damaged or isn't a valid presentation.")}
 				</StateView>
 			)}
 		</Shell>

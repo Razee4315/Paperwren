@@ -226,3 +226,19 @@ test("long text runs over empty cells, across the freeze line too", async ({
 	const b = await cell(page, 64, 1).boundingBox();
 	expect((a?.x ?? 0) + (a?.width ?? 0)).toBe(b?.x);
 });
+
+test("go to a cell by its address", async ({ page }) => {
+	await openGrid(page);
+	const goTo = async (address: string) => {
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("sheet-go-to").click();
+		// The field has the keyboard at once.
+		await expect(page.getByTestId("sheet-go-to-input")).toBeFocused();
+		await page.keyboard.type(address);
+		await page.keyboard.press("Enter");
+	};
+	await goTo("d4");
+	await expect(page.getByTestId("cell-detail")).toContainText("D4");
+	await goTo("nowhere");
+	await expect(page.getByText("No cell nowhere on this sheet")).toBeVisible();
+});

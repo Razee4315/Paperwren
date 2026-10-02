@@ -24,6 +24,20 @@ import s from "./Settings.module.css";
 
 const VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
 const CONTACT = "saqlainrazee@gmail.com";
+const PRIVACY_POLICY = "razee4315.github.io/Paperwren/privacy";
+
+/** Put a value on the clipboard and say so; where there is no
+ * clipboard, show the value itself so it can still be read off. */
+function copy(value: string, done: string) {
+	if (!navigator.clipboard) {
+		toast(value);
+		return;
+	}
+	navigator.clipboard
+		.writeText(value)
+		.then(() => toast(done))
+		.catch(() => toast(value));
+}
 
 const LICENSES: Array<[string, string]> = [
 	["pdf.js", "Apache-2.0"],
@@ -35,6 +49,16 @@ const LICENSES: Array<[string, string]> = [
 	["React", "MIT"],
 	["Lucide icons", "ISC"],
 	["Manrope", "SIL OFL 1.1"],
+	// The stand-ins for the fonts Office documents name (office-fonts.css).
+	["Carlito", "SIL OFL 1.1"],
+	["Caladea", "SIL OFL 1.1"],
+	["Arimo", "SIL OFL 1.1"],
+	["Tinos", "SIL OFL 1.1"],
+	["Cousine", "SIL OFL 1.1"],
+	// What pdf.js draws with when a PDF names a font it does not carry.
+	["Liberation Sans", "SIL OFL 1.1"],
+	["PDFium base-14 fonts (Foxit)", "BSD-3-Clause"],
+	["Adobe CMap resources", "BSD-3-Clause"],
 	["Tauri", "MIT / Apache-2.0"],
 ];
 
@@ -145,7 +169,7 @@ export function SettingsScreen() {
 							<span className={s.label}>{t("Theme")}</span>
 							<span className={s.fieldHint}>
 								{t(
-									"Each theme has its own calm colour. Auto follows your phone: Paper by day, Ink at night.",
+									"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.",
 								)}
 							</span>
 							<ThemePicker
@@ -172,7 +196,7 @@ export function SettingsScreen() {
 								aria-labelledby="language-label"
 							>
 								{(
-									[["system", t("Same as the phone")], ...LANGUAGES] as Array<
+									[["system", t("Same as the device")], ...LANGUAGES] as Array<
 										[LanguageSetting, string]
 									>
 								).map(([value, name]) => (
@@ -204,9 +228,9 @@ export function SettingsScreen() {
 							value={settings.pdfZoom}
 							onChange={(v) => update("pdfZoom", v)}
 							options={[
-								["page-width", t(t("Fit width"))],
-								["page-fit", t(t("Whole page"))],
-								["auto", t(t("Automatic"))],
+								["page-width", t("Fit width")],
+								["page-fit", t("Whole page")],
+								["auto", t("Automatic")],
 							]}
 							testId="pdf-zoom"
 						/>
@@ -239,8 +263,20 @@ export function SettingsScreen() {
 							hint={t("Stored only on this device")}
 							checked={settings.keepRecents}
 							onChange={(v) => {
-								update("keepRecents", v);
-								if (!v) toast(t("Recents cleared and turned off"));
+								if (v) {
+									update("keepRecents", true);
+									return;
+								}
+								// One tap must not cost the whole list: it can be undone.
+								const previous = clear();
+								update("keepRecents", false);
+								toast(t("Recents cleared and turned off"), {
+									label: t("Undo"),
+									run: () => {
+										update("keepRecents", true);
+										restore(previous);
+									},
+								});
 							}}
 							testId="keep-recents"
 						/>
@@ -265,7 +301,7 @@ export function SettingsScreen() {
 							onClick={() => {
 								const previous = clear();
 								toast(t("Recents cleared"), {
-									label: t(t("Undo")),
+									label: t("Undo"),
 									run: () => restore(previous),
 								});
 							}}
@@ -296,7 +332,7 @@ export function SettingsScreen() {
 												"{size} in {n} files you opened",
 												{ size: formatBytes(stored.bytes) },
 											)
-										: t(t("Copies of files you opened"))}
+										: t("Copies of files you opened")}
 								</span>
 							</span>
 						</button>
@@ -315,12 +351,24 @@ export function SettingsScreen() {
 									"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.",
 								)}
 							</p>
-							<p>
-								{t("Full privacy policy: {url}", {
-									url: "razee4315.github.io/Paperwren/privacy",
-								})}
-							</p>
 						</div>
+						{/* The app opens no web pages: the address is there to copy. */}
+						<button
+							type="button"
+							className={s.action}
+							onClick={() =>
+								copy(`https://${PRIVACY_POLICY}`, t("Link copied"))
+							}
+							data-testid="privacy-policy"
+						>
+							<span className={s.actionText}>
+								{t("Privacy policy")}
+								<span className={s.hint} dir="ltr">
+									{PRIVACY_POLICY}
+								</span>
+							</span>
+							<Copy size={18} aria-label={t("Copy link")} />
+						</button>
 					</div>
 
 					<Group icon={<Info size={15} />}>{t("About")}</Group>
@@ -332,12 +380,7 @@ export function SettingsScreen() {
 						<button
 							type="button"
 							className={s.action}
-							onClick={() =>
-								navigator.clipboard
-									?.writeText(CONTACT)
-									.then(() => toast(t("Email address copied")))
-									.catch(() => toast(CONTACT))
-							}
+							onClick={() => copy(CONTACT, t("Email address copied"))}
 						>
 							<span className={s.actionText}>
 								{t("Contact")}
@@ -374,6 +417,7 @@ export function SettingsScreen() {
 
 			<Dialog
 				open={confirmCopies}
+				alert
 				title={t("Delete stored copies?")}
 				onClose={() => setConfirmCopies(false)}
 				actions={

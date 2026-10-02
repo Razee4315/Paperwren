@@ -1,4 +1,4 @@
-import { readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
@@ -26,8 +26,43 @@ const dropFixtures = (): Plugin => ({
 	},
 });
 
+/**
+ * pdf.js reads two sets of files while it draws: character maps (for
+ * CJK text whose font is named but not embedded) and the standard
+ * fonts (for files that rely on the base 14). The app is offline, so
+ * they ship with it, under /pdfjs, and are served from the package in
+ * development.
+ */
+const PDF_ASSETS = ["cmaps", "standard_fonts"];
+const pdfAssets = (): Plugin => {
+	const source = (dir: string) =>
+		path.resolve(__dirname, "node_modules/pdfjs-dist", dir);
+	return {
+		name: "paperwren-pdf-assets",
+		configureServer(server) {
+			server.middlewares.use("/pdfjs", (req, res, next) => {
+				const [, dir, file] = (req.url ?? "").split("?")[0].split("/");
+				const wanted =
+					PDF_ASSETS.includes(dir) && file && !file.includes("..")
+						? path.join(source(dir), decodeURIComponent(file))
+						: "";
+				if (!wanted || !existsSync(wanted)) return next();
+				res.setHeader("Content-Type", "application/octet-stream");
+				res.end(readFileSync(wanted));
+			});
+		},
+		closeBundle() {
+			if (!existsSync(path.resolve(__dirname, "dist"))) return;
+			for (const dir of PDF_ASSETS)
+				cpSync(source(dir), path.resolve(__dirname, "dist/pdfjs", dir), {
+					recursive: true,
+				});
+		},
+	};
+};
+
 export default defineConfig({
-	plugins: [react(), dropFixtures()],
+	plugins: [react(), dropFixtures(), pdfAssets()],
 	define: {
 		"import.meta.env.VITE_APP_VERSION": JSON.stringify(pkg.version),
 	},

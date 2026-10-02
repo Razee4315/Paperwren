@@ -27,7 +27,6 @@ interface NavApi {
 	state: NavState;
 	push: (screen: Screen) => void;
 	back: () => boolean;
-	home: () => void;
 	/** Register an open overlay; its `close` runs when Back targets it. */
 	registerOverlay: (id: string, close: () => void) => () => void;
 }
@@ -81,7 +80,6 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 		(screen: Screen) => dispatch({ type: "push", screen }),
 		[],
 	);
-	const home = useCallback(() => dispatch({ type: "home" }), []);
 
 	useEffect(() => {
 		window.__paperwrenHandleBack = back;
@@ -116,8 +114,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 	}, [back]);
 
 	const api = useMemo(
-		() => ({ state, push, back, home, registerOverlay }),
-		[state, push, back, home, registerOverlay],
+		() => ({ state, push, back, registerOverlay }),
+		[state, push, back, registerOverlay],
 	);
 	return <NavContext.Provider value={api}>{children}</NavContext.Provider>;
 }

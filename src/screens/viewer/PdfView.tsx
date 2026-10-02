@@ -68,6 +68,11 @@ interface Outline {
 	items: Outline[];
 }
 
+/** Where pdf.js finds its character maps and standard fonts: beside
+ * the app (see vite.config.ts), never on the network. */
+const pdfAsset = (dir: string) =>
+	new URL(`pdfjs/${dir}/`, document.baseURI).toString();
+
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 8;
 
@@ -136,6 +141,9 @@ export default function PdfView({
 				task = pdfjs.getDocument({
 					data: new Uint8Array(data),
 					isEvalSupported: false,
+					cMapUrl: pdfAsset("cmaps"),
+					cMapPacked: true,
+					standardFontDataUrl: pdfAsset("standard_fonts"),
 				});
 				task.onPassword = (
 					update: (password: string) => void,
@@ -225,9 +233,9 @@ export default function PdfView({
 				(e: { scale: number; presetValue?: string }) =>
 					setScaleLabel(
 						e.presetValue === "page-width"
-							? t(t("Fit width"))
+							? t("Fit width")
 							: e.presetValue === "page-fit"
-								? t(t("Whole page"))
+								? t("Whole page")
 								: `${Math.round(e.scale * 100)}%`,
 					),
 			);
@@ -394,7 +402,7 @@ export default function PdfView({
 					close();
 				}}
 			>
-				{t(t("Fit width"))}
+				{t("Fit width")}
 			</SheetItem>
 			<SheetItem
 				icon={<Maximize size={20} />}
@@ -403,7 +411,7 @@ export default function PdfView({
 					close();
 				}}
 			>
-				{t(t("Whole page"))}
+				{t("Whole page")}
 			</SheetItem>
 			<SheetItem
 				icon={<RotateCw size={20} />}
@@ -429,9 +437,7 @@ export default function PdfView({
 				icon={<ListTree size={20} />}
 				disabled={!outline?.length}
 				hint={
-					outline && !outline.length
-						? t(t("This PDF has no outline"))
-						: undefined
+					outline && !outline.length ? t("This PDF has no outline") : undefined
 				}
 				onClick={() => {
 					close();
@@ -500,7 +506,7 @@ export default function PdfView({
 			<div className={shellStyles.pager}>
 				<PageJump page={page} pages={pages} onGo={goTo} testId="pdf" />
 				<ZoomControl
-					label={scaleLabel || t(t("Fit width"))}
+					label={scaleLabel || t("Fit width")}
 					onOut={() => zoomBy(1 / 1.25)}
 					onIn={() => zoomBy(1.25)}
 					onReset={() =>

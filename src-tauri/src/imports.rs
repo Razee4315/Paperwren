@@ -22,6 +22,11 @@ use crate::error::{AppError, AppResult, ErrorKind};
 /// leftovers from a killed ingest and are swept by `prune`.
 const STALE_TEMP: Duration = Duration::from_secs(24 * 60 * 60);
 
+/// A copy this new may be a file that is being opened right now: the
+/// Android layer copies it in before the web layer has recorded it, so
+/// it is in no recents list yet. `prune` leaves it for a later run.
+const FRESH_COPY: Duration = Duration::from_secs(10 * 60);
+
 #[derive(Debug, Default, Serialize, PartialEq, Eq)]
 pub struct Stats {
     pub bytes: u64,
@@ -159,8 +164,9 @@ pub fn remove(root: &Path, rels: &[String]) -> u64 {
     removed
 }
 
-/// Housekeeping: drop stale temp files and unreferenced copies, then
-/// evict the oldest referenced copies until the total fits `max_bytes`.
+/// Housekeeping: drop stale temp files and unreferenced copies (but
+/// not ones copied in moments ago), then evict the oldest referenced
+/// copies until the total fits `max_bytes`.
 pub fn prune(root: &Path, keep: &[String], max_bytes: u64, now: SystemTime) -> PruneReport {
     let keep: HashSet<&str> = keep.iter().map(String::as_str).collect();
     let mut report = PruneReport::default();
@@ -175,7 +181,11 @@ pub fn prune(root: &Path, keep: &[String], max_bytes: u64, now: SystemTime) -> P
         }
         if keep.contains(entry.rel.as_str()) {
             live.push(entry);
-        } else if remove_entry(root, &entry.path) {
+            continue;
+        }
+        // A clock that went backwards reads as age zero: kept.
+        let age = now.duration_since(entry.modified).unwrap_or_default();
+        if age >= FRESH_COPY && remove_entry(root, &entry.path) {
             report.orphans_removed += 1;
         }
     }
@@ -268,16 +278,31 @@ mod tests {
         std::thread::sleep(Duration::from_millis(20));
         put(&root, "h2/new.pdf", 100);
         put(&root, "orphan.pdf", 50);
+        // An hour on: the orphan is no longer a copy that just arrived.
         let report = prune(
             &root,
             &["h1/old.pdf".into(), "h2/new.pdf".into()],
             150,
-            SystemTime::now(),
+            SystemTime::now() + Duration::from_secs(60 * 60),
         );
         assert_eq!(report.orphans_removed, 1);
         assert_eq!(report.evicted, vec!["h1/old.pdf".to_string()]);
         assert_eq!(report.bytes_after, 100);
         assert!(root.join("h2/new.pdf").exists());
+    }
+
+    #[test]
+    fn prune_leaves_a_copy_that_just_arrived() {
+        let root = scratch("fresh");
+        put(&root, "h1/opening-now.pdf", 10);
+        let report = prune(&root, &[], u64::MAX, SystemTime::now());
+        assert_eq!(report.orphans_removed, 0);
+        assert!(root.join("h1/opening-now.pdf").exists());
+        // Once it is old enough and still unreferenced, it goes.
+        let later = SystemTime::now() + FRESH_COPY + Duration::from_secs(1);
+        let report = prune(&root, &[], u64::MAX, later);
+        assert_eq!(report.orphans_removed, 1);
+        assert!(!root.join("h1/opening-now.pdf").exists());
     }
 
     #[test]

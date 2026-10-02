@@ -112,7 +112,6 @@ export const fr: Table = {
 	"The file itself is not deleted": "Le fichier lui-même n'est pas supprimé",
 	"Removed from recents": "Retiré des récents",
 	"Remove from recents": "Retirer des récents",
-	"Last opened": "Dernière ouverture",
 	"Looking through {name}": "Exploration de {name}",
 	"Paperwren can't reach “{name}” any more. It may have been moved, or access to it was withdrawn.":
 		"Paperwren ne peut plus accéder à “{name}”. Il a peut-être été déplacé, ou l'accès a été retiré.",
@@ -128,14 +127,10 @@ export const fr: Table = {
 	"No accounts": "Sans compte",
 	"No ads": "Sans publicité",
 	"Meet Paperwren": "Voici Paperwren",
-	"The small, quiet way to open every document on your phone.":
-		"La façon simple et discrète d'ouvrir tous les documents sur votre téléphone.",
 	"Opens everything": "Ouvre tout",
 	"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text. Even old .doc and .ppt files.":
 		"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV et texte. Même les anciens fichiers .doc et .ppt.",
 	"Private by design": "Privé par nature",
-	"No internet, no accounts, no ads. Your files never leave your phone.":
-		"Pas d'internet, pas de compte, pas de publicité. Vos fichiers ne quittent jamais votre téléphone.",
 	"Pick a look": "Choisissez un style",
 	"Paper, Sand or Ink, all easy on the eyes. Change it any time in Settings.":
 		"Papier, Sable ou Encre, tous doux pour les yeux. Changez-le à tout moment dans les Réglages.",
@@ -144,12 +139,9 @@ export const fr: Table = {
 	"Start reading": "Commencer à lire",
 	Appearance: "Apparence",
 	Theme: "Thème",
-	"Each theme has its own calm colour. Auto follows your phone: Paper by day, Ink at night.":
-		"Chaque thème a sa propre couleur apaisante. Auto suit votre téléphone : Papier le jour, Encre la nuit.",
 	Language: "Langue",
 	"The language of Paperwren's own buttons and messages. Your documents are shown as they are.":
 		"La langue des boutons et messages de Paperwren. Vos documents sont affichés tels quels.",
-	"Same as the phone": "Comme le téléphone",
 	Auto: "Auto",
 	Paper: "Papier",
 	Sand: "Sable",
@@ -188,7 +180,6 @@ export const fr: Table = {
 		"Paperwren ne se connecte jamais à internet. Il n'a ni publicité, ni compte, ni statistiques, et ne demande aucune autorisation.",
 	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
 		"Les fichiers sont lus sur cet appareil. La liste des récents, vos réglages et les copies des fichiers ouverts restent dans le stockage privé de l'application et peuvent être supprimés ci-dessus. Les mots de passe sont utilisés une seule fois et jamais enregistrés.",
-	"Full privacy policy: {url}": "Politique de confidentialité complète : {url}",
 	About: "À propos",
 	"Email address copied": "Adresse e-mail copiée",
 	Contact: "Contact",
@@ -270,8 +261,6 @@ export const fr: Table = {
 		"Afficher la suite ({n} k caractères de plus)",
 	"{name} (first {shown} of {total} rows)":
 		"{name} ({shown} premières lignes sur {total})",
-	"This sheet is too large to show ({detail}).":
-		"Cette feuille est trop grande pour être affichée ({detail}).",
 	"The file is damaged or isn't a valid spreadsheet.":
 		"Le fichier est endommagé ou n'est pas un classeur valide.",
 	"This workbook has no sheets.": "Ce classeur ne contient aucune feuille.",
@@ -317,4 +306,34 @@ export const fr: Table = {
 	"Drop to open": "Déposez pour ouvrir",
 	"PDF, Word, Excel, PowerPoint and text files":
 		"Fichiers PDF, Word, Excel, PowerPoint et texte",
+	"Open a document": "Ouvrir un document",
+	"Choose a folder to browse": "Choisissez un dossier à parcourir",
+	"The small, quiet way to open every document on your device.":
+		"La façon simple et discrète d'ouvrir tous les documents sur votre appareil.",
+	"No internet, no accounts, no ads. Your files never leave your device.":
+		"Pas d'internet, pas de compte, pas de publicité. Vos fichiers ne quittent jamais votre appareil.",
+	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
+		"Chaque thème a sa propre couleur apaisante. Auto suit votre appareil : Papier le jour, Encre la nuit.",
+	"Same as the device": "Comme l'appareil",
+	"Paperwren keeps up to {n} folders. Remove one to add another.":
+		"Paperwren garde jusqu'à {n} dossiers. Retirez-en un pour en ajouter un autre.",
+	"Only the first {n} rows are shown.":
+		"Seules les {n} premières lignes sont affichées.",
+	"Only the first {n} columns are shown.":
+		"Seules les {n} premières colonnes sont affichées.",
+	"Link in this document": "Lien dans ce document",
+	"Paperwren doesn't open web pages. Copy the address to open it in your browser.":
+		"Paperwren n'ouvre pas de pages web. Copiez l'adresse pour l'ouvrir dans votre navigateur.",
+	"Copy link": "Copier le lien",
+	"Link copied": "Lien copié",
+	"Privacy policy": "Politique de confidentialité",
+	"Show password": "Afficher le mot de passe",
+	"Hide password": "Masquer le mot de passe",
+	"Go to cell": "Aller à la cellule",
+	"Cell, for example B12": "Cellule, par exemple B12",
+	"No cell {cell} on this sheet": "Pas de cellule {cell} dans cette feuille",
+	Sort: "Trier",
+	"Sort by": "Trier par",
+	"Last opened": "Dernière ouverture",
+	"Show {n} more": "Afficher {n} de plus",
 };

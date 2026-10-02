@@ -174,9 +174,6 @@
 	font-size: 13px;
 	color: var(--text-3);
 }
-.danger {
-	color: var(--danger);
-}
 .prose {
 	padding: 14px 16px;
 	color: var(--text-2);

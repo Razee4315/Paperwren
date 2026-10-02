@@ -25,6 +25,9 @@ export function idForReopen(reopen: Reopen): string {
 const finite = (v: unknown, fallback = 0) =>
 	typeof v === "number" && Number.isFinite(v) ? v : fallback;
 
+const cleanZoom = (v: unknown) =>
+	typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined;
+
 function cleanReopen(value: unknown): Reopen | null {
 	if (!value || typeof value !== "object") return null;
 	const r = value as Record<string, unknown>;
@@ -57,7 +60,7 @@ export function cleanPosition(value: unknown): Position | undefined {
 			return {
 				kind: "scroll",
 				ratio: Math.min(1, Math.max(0, finite(p.ratio))),
-				zoom: typeof p.zoom === "number" && p.zoom > 0 ? p.zoom : undefined,
+				zoom: cleanZoom(p.zoom),
 			};
 		case "sheet":
 			return {
@@ -65,6 +68,9 @@ export function cleanPosition(value: unknown): Position | undefined {
 				sheet: Math.max(0, Math.floor(finite(p.sheet))),
 				top: Math.max(0, finite(p.top)),
 				left: Math.max(0, finite(p.left)),
+				// The offsets are in zoomed pixels: without the zoom they
+				// point somewhere else.
+				zoom: cleanZoom(p.zoom),
 			};
 		case "slides":
 			return {

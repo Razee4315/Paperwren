@@ -1,9 +1,9 @@
 import { type FileRef, backend, formatBytes } from "@/lib/backend";
-import { type FormatKind, kindLabel, kindOf } from "@/lib/formats";
-import { isolate, locale, t } from "@/lib/i18n";
+import { type FormatKind, kindOf } from "@/lib/formats";
+import { isolate, locale, msg, t } from "@/lib/i18n";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
-import { FileDetails } from "@/screens/viewer/FileMenu";
-import { useFolders } from "@/state/folders";
+import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
+import { MAX_FOLDERS, useFolders } from "@/state/folders";
 import { useRecents } from "@/state/recents";
 import {
 	EmptyScene,
@@ -12,51 +12,34 @@ import {
 	Sheet,
 	SheetItem,
 	Wren,
+	kindColor,
 	toast,
 } from "@/ui";
 import {
-	AppWindow,
-	Download,
+	ArrowUpDown,
+	Check,
 	Folder as FolderIcon,
-	FolderOpen,
 	FolderPlus,
 	Info,
 	MoreVertical,
 	Pin,
 	PinOff,
 	Plus,
-	Search,
 	SearchX,
 	Settings as SettingsIcon,
-	Share2,
 	ShieldCheck,
 	Trash2,
-	X,
 } from "lucide-react";
 import { type CSSProperties, useMemo, useState } from "react";
 import { FolderList } from "./FolderList";
 import s from "./Home.module.css";
-
-const FILTERS: Array<FormatKind | "all"> = [
-	"all",
-	"pdf",
-	"doc",
-	"sheet",
-	"slides",
-	"text",
-	"image",
-];
-
-const KIND_COLOR: Record<FormatKind | "all", string> = {
-	all: "var(--accent)",
-	pdf: "var(--fmt-pdf)",
-	doc: "var(--fmt-doc)",
-	sheet: "var(--fmt-sheet)",
-	slides: "var(--fmt-slides)",
-	text: "var(--fmt-text)",
-	image: "var(--fmt-image)",
-	other: "var(--fmt-text)",
-};
+import {
+	type KindFilter,
+	SearchField,
+	TypeChips,
+	countKinds,
+	filterInForce,
+} from "./ListTools";
 
 /** The formats listed on the empty state, each in its family colour. */
 const SUPPORTED: Array<[string, FormatKind]> = [
@@ -78,6 +61,14 @@ const SUPPORTED: Array<[string, FormatKind]> = [
 	["PNG", "image"],
 ];
 
+/** How the recents are ordered (pinned files always come first). */
+const SORTS = [
+	["opened", msg("Last opened")],
+	["name", msg("Name")],
+	["size", msg("Size")],
+] as const;
+type Sort = (typeof SORTS)[number][0];
+
 export function relativeTime(ts: number, now = Date.now()): string {
 	if (!ts) return "";
 	const d = new Date(ts);
@@ -88,7 +79,7 @@ export function relativeTime(ts: number, now = Date.now()): string {
 			minute: "2-digit",
 		});
 	const yesterday = new Date(now - 86_400_000);
-	if (d.toDateString() === yesterday.toDateString()) return t(t("Yesterday"));
+	if (d.toDateString() === yesterday.toDateString()) return t("Yesterday");
 	return d.toLocaleDateString(locale(), {
 		month: "short",
 		day: "numeric",
@@ -97,10 +88,10 @@ export function relativeTime(ts: number, now = Date.now()): string {
 }
 
 function greeting(hour = new Date().getHours()): string {
-	if (hour < 5) return t(t("Up late"));
-	if (hour < 12) return t(t("Good morning"));
-	if (hour < 18) return t(t("Good afternoon"));
-	return t(t("Good evening"));
+	if (hour < 5) return t("Up late");
+	if (hour < 12) return t("Good morning");
+	if (hour < 18) return t("Good afternoon");
+	return t("Good evening");
 }
 
 function meta(e: RecentEntry): string {
@@ -126,9 +117,11 @@ export function Home({
 	onOpenRequest: (request: OpenRequest) => void;
 	onSettings: () => void;
 }) {
-	const { entries, ready, togglePin, remove } = useRecents();
+	const { entries, ready, togglePin, remove, restore } = useRecents();
 	const [query, setQuery] = useState("");
-	const [filter, setFilter] = useState<FormatKind | "all">("all");
+	const [filter, setFilter] = useState<KindFilter>("all");
+	const [sort, setSort] = useState<Sort>("opened");
+	const [sortOpen, setSortOpen] = useState(false);
 	const [menuFor, setMenuFor] = useState<RecentEntry | null>(null);
 	const [detailsFor, setDetailsFor] = useState<RecentEntry | null>(null);
 	// Where the list looks: recents, or one of the folders the user chose.
@@ -137,6 +130,14 @@ export function Home({
 	const activeFolder = folders.find((f) => f.id === place) ?? null;
 	const canBrowse = backend.canBrowseFolders();
 	const browse = () => {
+		if (folders.length >= MAX_FOLDERS) {
+			toast(
+				t("Paperwren keeps up to {n} folders. Remove one to add another.", {
+					n: MAX_FOLDERS,
+				}),
+			);
+			return;
+		}
 		addFolder()
 			.then((folder) => folder && setPlace(folder.id))
 			.catch(() => toast(t("Couldn't open the folder picker")));
@@ -146,28 +147,46 @@ export function Home({
 		format: e.format,
 		reopen: e.reopen,
 	});
-	const can =
-		menuFor && !menuFor.unavailable ? backend.abilities(refOf(menuFor)) : null;
-	const handOff = (action: Promise<void>, failure: string) => {
-		setMenuFor(null);
-		action.catch(() => toast(failure));
-	};
 
-	const counts = useMemo(() => {
-		const c: Record<string, number> = { all: entries.length };
-		for (const e of entries)
-			c[kindOf(e.format)] = (c[kindOf(e.format)] ?? 0) + 1;
-		return c;
-	}, [entries]);
+	const counts = useMemo(
+		() => countKinds(entries.map((e) => kindOf(e.format))),
+		[entries],
+	);
 
+	const shown = filterInForce(filter, counts);
 	const q = query.trim().toLowerCase();
 	const visible = entries.filter(
 		(e) =>
-			(filter === "all" || kindOf(e.format) === filter) &&
+			(shown === "all" || kindOf(e.format) === shown) &&
 			(!q || e.name.toLowerCase().includes(q)),
 	);
-	const pinned = visible.filter((e) => e.pinned);
-	const recent = visible.filter((e) => !e.pinned);
+	// The list arrives newest first; the other orders are made here.
+	const ordered =
+		sort === "opened"
+			? visible
+			: [...visible].sort(
+					sort === "name"
+						? (a, b) =>
+								a.name.localeCompare(b.name, locale(), {
+									numeric: true,
+									sensitivity: "base",
+								})
+						: (a, b) => b.size - a.size,
+				);
+	const pinned = ordered.filter((e) => e.pinned);
+	const recent = ordered.filter((e) => !e.pinned);
+	const sortButton = (
+		<span className={s.sectionActions}>
+			<IconButton
+				label={t("Sort")}
+				active={sort !== "opened"}
+				onClick={() => setSortOpen(true)}
+				data-testid="sort"
+			>
+				<ArrowUpDown size={18} />
+			</IconButton>
+		</span>
+	);
 
 	const row = (e: RecentEntry) => {
 		const ratio = e.position?.kind === "scroll" ? e.position.ratio : null;
@@ -204,7 +223,7 @@ export function Home({
 									<i style={{ width: `${Math.max(6, ratio * 100)}%` }} />
 								</span>
 							)}
-							{e.unavailable ? t(t("Unavailable · tap to locate")) : meta(e)}
+							{e.unavailable ? t("Unavailable · tap to locate") : meta(e)}
 						</span>
 					</span>
 				</button>
@@ -246,14 +265,13 @@ export function Home({
 					{canBrowse && (hasAny || folders.length > 0) && (
 						<div
 							className={s.places}
-							role="tablist"
+							role="toolbar"
 							aria-label={t("Where to look")}
 						>
 							<button
 								type="button"
-								role="tab"
 								className={s.place}
-								aria-selected={!activeFolder}
+								aria-pressed={!activeFolder}
 								onClick={() => setPlace(null)}
 								data-testid="place-recent"
 							>
@@ -262,10 +280,9 @@ export function Home({
 							{folders.map((f) => (
 								<button
 									type="button"
-									role="tab"
 									key={f.id}
 									className={s.place}
-									aria-selected={activeFolder?.id === f.id}
+									aria-pressed={activeFolder?.id === f.id}
 									onClick={() => setPlace(f.id)}
 									data-testid="place-folder"
 								>
@@ -316,7 +333,7 @@ export function Home({
 									<span
 										key={label}
 										className={s.fmt}
-										style={{ "--c": KIND_COLOR[kind] } as CSSProperties}
+										style={{ "--c": kindColor(kind) } as CSSProperties}
 									>
 										{label}
 									</span>
@@ -342,54 +359,21 @@ export function Home({
 
 					{!activeFolder && hasAny && (
 						<>
-							<label className={s.search}>
-								<Search size={18} />
-								<input
-									type="search"
-									placeholder={t("Search your files")}
-									value={query}
-									onChange={(e) => setQuery(e.target.value)}
-									aria-label={t("Search recent files")}
-									data-testid="search-input"
-								/>
-								{query && (
-									<IconButton
-										label={t("Clear search")}
-										onClick={() => setQuery("")}
-									>
-										<X size={18} />
-									</IconButton>
-								)}
-							</label>
-
-							<div
-								className={s.chips}
-								role="toolbar"
-								aria-label={t("Filter by type")}
-							>
-								{FILTERS.filter((f) => f === "all" || counts[f]).map((f) => (
-									<button
-										type="button"
-										key={f}
-										className={s.chip}
-										aria-pressed={filter === f}
-										onClick={() => setFilter(f)}
-										style={{ "--c": KIND_COLOR[f] } as CSSProperties}
-										data-testid={`filter-${f}`}
-									>
-										{f !== "all" && <span className={s.dot} />}
-										{f === "all" ? t("All") : kindLabel(f)}
-										<span className={s.count}>{counts[f] ?? 0}</span>
-									</button>
-								))}
-							</div>
+							<SearchField
+								value={query}
+								onChange={setQuery}
+								placeholder={t("Search your files")}
+								label={t("Search recent files")}
+								testId="search-input"
+							/>
+							<TypeChips counts={counts} value={shown} onChange={setFilter} />
 
 							{visible.length === 0 && (
 								<div className={s.noMatch} data-testid="no-match">
 									<SearchX size={36} strokeWidth={1.5} />
 									{q
 										? t("Nothing matches “{query}”.", { query: query.trim() })
-										: t(t("No files of this type yet."))}
+										: t("No files of this type yet.")}
 								</div>
 							)}
 							{pinned.length > 0 && (
@@ -397,6 +381,7 @@ export function Home({
 									<h2 className={s.section}>
 										{t("Pinned")}{" "}
 										<span className={s.bubble}>{pinned.length}</span>
+										{sortButton}
 									</h2>
 									<div className={s.list}>{pinned.map(row)}</div>
 								</>
@@ -406,6 +391,7 @@ export function Home({
 									<h2 className={s.section}>
 										{t("Recent")}{" "}
 										<span className={s.bubble}>{recent.length}</span>
+										{pinned.length === 0 && sortButton}
 									</h2>
 									<div className={s.list}>{recent.map(row)}</div>
 								</>
@@ -426,6 +412,31 @@ export function Home({
 			</button>
 
 			<Sheet
+				open={sortOpen}
+				title={t("Sort by")}
+				onClose={() => setSortOpen(false)}
+				testId="sort-menu"
+			>
+				{SORTS.map(([value, label]) => (
+					<SheetItem
+						key={value}
+						icon={
+							<Check
+								size={20}
+								style={{ visibility: sort === value ? "visible" : "hidden" }}
+							/>
+						}
+						onClick={() => {
+							setSort(value);
+							setSortOpen(false);
+						}}
+						testId={`sort-${value}`}
+					>
+						{t(label)}
+					</SheetItem>
+				))}
+			</Sheet>
+			<Sheet
 				open={menuFor !== null}
 				title={menuFor?.name ?? ""}
 				onClose={() => setMenuFor(null)}
@@ -438,59 +449,18 @@ export function Home({
 							onClick={() => {
 								togglePin(menuFor.id);
 								setMenuFor(null);
-								toast(
-									menuFor.pinned ? t(t("Unpinned")) : t(t("Pinned to the top")),
-								);
+								toast(menuFor.pinned ? t("Unpinned") : t("Pinned to the top"));
 							}}
 							testId="menu-pin"
 						>
-							{menuFor.pinned ? t(t("Unpin")) : t(t("Pin to top"))}
+							{menuFor.pinned ? t("Unpin") : t("Pin to top")}
 						</SheetItem>
-						{can?.share && (
-							<SheetItem
-								icon={
-									can.shareIsDownload ? (
-										<Download size={20} />
-									) : (
-										<Share2 size={20} />
-									)
-								}
-								onClick={() =>
-									handOff(
-										backend.share(refOf(menuFor)),
-										t(t("Couldn't share this file")),
-									)
-								}
-								testId="menu-share"
-							>
-								{can.shareIsDownload ? t(t("Save a copy")) : t(t("Share"))}
-							</SheetItem>
-						)}
-						{can?.openWith && (
-							<SheetItem
-								icon={<AppWindow size={20} />}
-								onClick={() =>
-									handOff(
-										backend.openWith(refOf(menuFor)),
-										t(t("No other app can open this file")),
-									)
-								}
-							>
-								{t("Open in another app")}
-							</SheetItem>
-						)}
-						{can?.reveal && (
-							<SheetItem
-								icon={<FolderOpen size={20} />}
-								onClick={() =>
-									handOff(
-										backend.reveal(refOf(menuFor)),
-										t(t("Couldn't show the folder")),
-									)
-								}
-							>
-								{t("Show in folder")}
-							</SheetItem>
+						{!menuFor.unavailable && (
+							<HandOffItems
+								file={refOf(menuFor)}
+								onDone={() => setMenuFor(null)}
+								testPrefix="menu"
+							/>
 						)}
 						<SheetItem
 							icon={<Info size={20} />}
@@ -508,9 +478,12 @@ export function Home({
 							danger
 							hint={t("The file itself is not deleted")}
 							onClick={() => {
-								remove(menuFor.id);
+								const previous = remove(menuFor.id);
 								setMenuFor(null);
-								toast(t("Removed from recents"));
+								toast(t("Removed from recents"), {
+									label: t("Undo"),
+									run: () => restore(previous),
+								});
 							}}
 							testId="menu-remove"
 						>
@@ -525,7 +498,7 @@ export function Home({
 					size={detailsFor.size}
 					extra={[
 						[
-							t(t("Last opened")),
+							t("Last opened"),
 							new Date(detailsFor.openedAt).toLocaleString(locale(), {
 								dateStyle: "medium",
 								timeStyle: "short",

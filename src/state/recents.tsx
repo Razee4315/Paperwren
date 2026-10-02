@@ -27,11 +27,17 @@ interface RecentsApi {
 	setPosition: (id: string, position: Position) => void;
 	togglePin: (id: string) => void;
 	markUnavailable: (id: string) => void;
-	remove: (id: string) => void;
+	/** Removes one entry and returns the list as it was, for Undo. */
+	remove: (id: string) => RecentEntry[];
 	/** Clears the list and returns it for Undo. */
 	clear: () => RecentEntry[];
+	/** Puts back whatever of `entries` is no longer in the list. */
 	restore: (entries: RecentEntry[]) => void;
 }
+
+/** How long a removed entry's managed copy outlives it, so the
+ * snackbar's Undo can bring back an entry that still opens. */
+const UNDO_MS = 6000;
 
 const RecentsContext = createContext<RecentsApi | null>(null);
 
@@ -64,26 +70,42 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 	const keepRef = useRef(settings.keepRecents);
 	keepRef.current = settings.keepRecents;
 
+	// The list as of the last change, readable at once: two changes in
+	// one tick must each see the other.
+	const current = useRef(entries);
+	const apply = useCallback((next: RecentEntry[]) => {
+		current.current = next;
+		setEntries(next);
+	}, []);
+
 	/** Every mutation goes through here: state, persistence, and
-	 * deletion of managed copies nothing references any more. */
-	const commit = useCallback((fn: (prev: RecentEntry[]) => RecentEntry[]) => {
-		setEntries((prev) => {
+	 * deletion of managed copies nothing references any more. An
+	 * `undoable` change keeps those copies for a moment, so Undo restores
+	 * entries that still open. Returns the list as it was. */
+	const commit = useCallback(
+		(fn: (prev: RecentEntry[]) => RecentEntry[], undoable = false) => {
+			const prev = current.current;
 			const next = fn(prev);
-			if (next !== prev) {
-				backend.storeSet(STORAGE_KEYS.recents, next).catch(() => {});
-				const kept = new Set(managedPaths(next));
+			if (next === prev) return prev;
+			apply(next);
+			backend.storeSet(STORAGE_KEYS.recents, next).catch(() => {});
+			const release = () => {
+				const kept = new Set(managedPaths(current.current));
 				const dropped = managedPaths(prev).filter((p) => !kept.has(p));
 				if (dropped.length) backend.importsRemove(dropped).catch(() => {});
-			}
-			return next;
-		});
-	}, []);
+			};
+			if (undoable) window.setTimeout(release, UNDO_MS);
+			else release();
+			return prev;
+		},
+		[apply],
+	);
 
 	useEffect(() => {
 		let alive = true;
 		load().then(async (list) => {
 			if (!alive) return;
-			setEntries(list);
+			apply(list);
 			setReady(true);
 			// Housekeeping: orphaned copies go, and the size cap evicts the
 			// oldest referenced ones, which then show as unavailable.
@@ -92,8 +114,8 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 				.catch(() => []);
 			if (alive && evicted.length) {
 				const gone = new Set(evicted);
-				setEntries((prev) =>
-					prev.map((e) =>
+				apply(
+					current.current.map((e) =>
 						e.reopen.kind === "managed" &&
 						gone.has(managedRelPath(e.reopen.path) ?? "")
 							? { ...e, unavailable: true }
@@ -105,20 +127,18 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		return () => {
 			alive = false;
 		};
-	}, []);
+	}, [apply]);
 
 	// Name healing: entries saved with a fallback name ("PDF
 	// document.pdf", or an id from an older build) ask the Android
 	// provider again, a few times while the bridge comes up.
-	const entriesNow = useRef(entries);
-	entriesNow.current = entries;
 	useEffect(() => {
 		if (!ready) return;
 		let attempt = 0;
 		let timer = 0;
 		const heal = () => {
 			const fixes: Array<[string, string]> = [];
-			for (const e of entriesNow.current) {
+			for (const e of current.current) {
 				if (e.reopen.kind !== "uri") continue;
 				if (e.nameVerified !== false && !isOpaqueName(e.name)) continue;
 				const name = backend.providerName(e.reopen.uri);
@@ -138,10 +158,11 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		return () => window.clearTimeout(timer);
 	}, [ready, commit]);
 
-	// Turning recents off clears them (and their managed copies).
+	// Turning recents off clears them (and, once the chance to undo has
+	// passed, their managed copies).
 	useEffect(() => {
 		if (settingsReady && ready && !settings.keepRecents)
-			commit((prev) => (prev.length ? [] : prev));
+			commit((prev) => (prev.length ? [] : prev), true);
 	}, [settingsReady, ready, settings.keepRecents, commit]);
 
 	const record = useCallback<RecentsApi["record"]>(
@@ -170,7 +191,7 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 
 	const togglePin = useCallback<RecentsApi["togglePin"]>(
 		(id) =>
-			commit((prev) =>
+			void commit((prev) =>
 				updateEntry(prev, id, {
 					pinned: !prev.find((e) => e.id === id)?.pinned,
 				}),
@@ -178,29 +199,33 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		[commit],
 	);
 	const markUnavailable = useCallback<RecentsApi["markUnavailable"]>(
-		(id) => commit((prev) => updateEntry(prev, id, { unavailable: true })),
+		(id) => void commit((prev) => updateEntry(prev, id, { unavailable: true })),
 		[commit],
 	);
 	const remove = useCallback<RecentsApi["remove"]>(
-		(id) => commit((prev) => prev.filter((e) => e.id !== id)),
+		(id) =>
+			commit(
+				(prev) =>
+					prev.some((e) => e.id === id)
+						? prev.filter((e) => e.id !== id)
+						: prev,
+				true,
+			),
 		[commit],
 	);
-
-	const entriesRef = useRef(entries);
-	entriesRef.current = entries;
-	// Clearing keeps managed copies until the Undo window has passed:
-	// the snackbar's Undo must be able to restore working entries.
-	const clear = useCallback(() => {
-		const previous = entriesRef.current;
-		setEntries([]);
-		backend.storeSet(STORAGE_KEYS.recents, []).catch(() => {});
-		return previous;
-	}, []);
-	const restore = useCallback<RecentsApi["restore"]>((list) => {
-		const sorted = sortRecents(list);
-		setEntries(sorted);
-		backend.storeSet(STORAGE_KEYS.recents, sorted).catch(() => {});
-	}, []);
+	const clear = useCallback(
+		() => commit((prev) => (prev.length ? [] : prev), true),
+		[commit],
+	);
+	const restore = useCallback<RecentsApi["restore"]>(
+		(list) => {
+			commit((prev) => {
+				const missing = list.filter((e) => !prev.some((p) => p.id === e.id));
+				return missing.length ? sortRecents([...prev, ...missing]) : prev;
+			});
+		},
+		[commit],
+	);
 
 	const api = useMemo(
 		() => ({

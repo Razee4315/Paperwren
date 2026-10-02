@@ -109,7 +109,6 @@ export const hi: Table = {
 	"The file itself is not deleted": "फ़ाइल खुद नहीं हटती",
 	"Removed from recents": "हाल की सूची से हटाया गया",
 	"Remove from recents": "हाल की सूची से हटाएँ",
-	"Last opened": "पिछली बार खोली गई",
 	"Looking through {name}": "{name} में देखा जा रहा है",
 	"Paperwren can't reach “{name}” any more. It may have been moved, or access to it was withdrawn.":
 		"Paperwren अब “{name}” तक नहीं पहुँच पा रहा। हो सकता है इसे कहीं और ले जाया गया हो या इसकी पहुँच वापस ले ली गई हो।",
@@ -125,14 +124,10 @@ export const hi: Table = {
 	"No accounts": "कोई खाता नहीं",
 	"No ads": "कोई विज्ञापन नहीं",
 	"Meet Paperwren": "Paperwren से मिलिए",
-	"The small, quiet way to open every document on your phone.":
-		"अपने फ़ोन पर हर दस्तावेज़ खोलने का छोटा और शांत तरीका।",
 	"Opens everything": "सब कुछ खोलता है",
 	"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text. Even old .doc and .ppt files.":
 		"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV और टेक्स्ट। पुरानी .doc और .ppt फ़ाइलें भी।",
 	"Private by design": "शुरू से ही निजी",
-	"No internet, no accounts, no ads. Your files never leave your phone.":
-		"न इंटरनेट, न खाता, न विज्ञापन। आपकी फ़ाइलें कभी आपके फ़ोन से बाहर नहीं जातीं।",
 	"Pick a look": "अपना रूप चुनें",
 	"Paper, Sand or Ink, all easy on the eyes. Change it any time in Settings.":
 		"काग़ज़, रेत या स्याही, सभी आँखों के लिए आरामदेह। सेटिंग में कभी भी बदलें।",
@@ -141,12 +136,9 @@ export const hi: Table = {
 	"Start reading": "पढ़ना शुरू करें",
 	Appearance: "रूप-रंग",
 	Theme: "थीम",
-	"Each theme has its own calm colour. Auto follows your phone: Paper by day, Ink at night.":
-		"हर थीम का अपना शांत रंग है। स्वचालित आपके फ़ोन के अनुसार चलता है: दिन में काग़ज़, रात में स्याही।",
 	Language: "भाषा",
 	"The language of Paperwren's own buttons and messages. Your documents are shown as they are.":
 		"Paperwren के अपने बटनों और संदेशों की भाषा। आपके दस्तावेज़ जैसे हैं वैसे ही दिखाए जाते हैं।",
-	"Same as the phone": "फ़ोन के अनुसार",
 	Auto: "स्वचालित",
 	Paper: "काग़ज़",
 	Sand: "रेत",
@@ -184,7 +176,6 @@ export const hi: Table = {
 		"Paperwren कभी इंटरनेट से नहीं जुड़ता। इसमें न विज्ञापन हैं, न खाते, न एनालिटिक्स, और यह कोई अनुमति नहीं माँगता।",
 	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
 		"फ़ाइलें इसी डिवाइस पर पढ़ी जाती हैं। हाल की सूची, आपकी सेटिंग और खोली गई फ़ाइलों की प्रतियाँ ऐप के निजी स्टोरेज में रहती हैं और ऊपर से हटाई जा सकती हैं। पासवर्ड एक बार इस्तेमाल होते हैं और कभी सहेजे नहीं जाते।",
-	"Full privacy policy: {url}": "पूरी गोपनीयता नीति: {url}",
 	About: "परिचय",
 	"Email address copied": "ईमेल पता कॉपी हो गया",
 	Contact: "संपर्क",
@@ -260,8 +251,6 @@ export const hi: Table = {
 	"Show the rest ({n}k more characters)": "बाकी दिखाएँ ({n} हज़ार और अक्षर)",
 	"{name} (first {shown} of {total} rows)":
 		"{name} ({total} में से पहली {shown} पंक्तियाँ)",
-	"This sheet is too large to show ({detail}).":
-		"यह शीट दिखाने के लिए बहुत बड़ी है ({detail})।",
 	"The file is damaged or isn't a valid spreadsheet.":
 		"फ़ाइल खराब है या सही स्प्रेडशीट नहीं है।",
 	"This workbook has no sheets.": "इस वर्कबुक में कोई शीट नहीं है।",
@@ -306,4 +295,32 @@ export const hi: Table = {
 	"Drop to open": "खोलने के लिए छोड़ें",
 	"PDF, Word, Excel, PowerPoint and text files":
 		"PDF, Word, Excel, PowerPoint और टेक्स्ट फ़ाइलें",
+	"Open a document": "दस्तावेज़ खोलें",
+	"Choose a folder to browse": "देखने के लिए फ़ोल्डर चुनें",
+	"The small, quiet way to open every document on your device.":
+		"अपने डिवाइस पर हर दस्तावेज़ खोलने का छोटा और शांत तरीका।",
+	"No internet, no accounts, no ads. Your files never leave your device.":
+		"न इंटरनेट, न खाता, न विज्ञापन। आपकी फ़ाइलें कभी आपके डिवाइस से बाहर नहीं जातीं।",
+	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
+		"हर थीम का अपना शांत रंग है। स्वचालित आपके डिवाइस के अनुसार चलता है: दिन में काग़ज़, रात में स्याही।",
+	"Same as the device": "डिवाइस के अनुसार",
+	"Paperwren keeps up to {n} folders. Remove one to add another.":
+		"Paperwren अधिकतम {n} फ़ोल्डर रखता है। नया जोड़ने के लिए एक हटाएँ।",
+	"Only the first {n} rows are shown.": "केवल पहली {n} पंक्तियाँ दिखाई जा रही हैं।",
+	"Only the first {n} columns are shown.": "केवल पहले {n} कॉलम दिखाए जा रहे हैं।",
+	"Link in this document": "इस दस्तावेज़ में लिंक",
+	"Paperwren doesn't open web pages. Copy the address to open it in your browser.":
+		"Paperwren वेब पेज नहीं खोलता। पता कॉपी करके अपने ब्राउज़र में खोलें।",
+	"Copy link": "लिंक कॉपी करें",
+	"Link copied": "लिंक कॉपी हो गया",
+	"Privacy policy": "गोपनीयता नीति",
+	"Show password": "पासवर्ड दिखाएँ",
+	"Hide password": "पासवर्ड छिपाएँ",
+	"Go to cell": "सेल पर जाएँ",
+	"Cell, for example B12": "सेल, जैसे B12",
+	"No cell {cell} on this sheet": "इस शीट में सेल {cell} नहीं है",
+	Sort: "क्रम बदलें",
+	"Sort by": "इसके अनुसार क्रम",
+	"Last opened": "पिछली बार खोली गई",
+	"Show {n} more": "{n} और दिखाएँ",
 };

@@ -76,9 +76,10 @@ export interface GridSheet {
 	/** True when merge suppression was partially skipped because a
 	 * merge exceeded the expansion budget (values are kept). */
 	mergeLimitHit?: boolean;
-	/** Precise disclosure when the supported boundary truncated
-	 * content (audit XLS-04 item 7), e.g. wide/tall sheets. */
-	limitNote?: string;
+	/** What a supported boundary cut off (audit XLS-04 item 7): how many
+	 * columns and rows are shown of a sheet that has more. The viewer
+	 * says so in the reader's language. */
+	limit?: { columns?: number; rows?: number };
 	/** Rows and columns the file freezes at the top / left, counted in
 	 * VISIBLE rows and columns. */
 	freeze?: { rows: number; cols: number };
@@ -114,7 +115,7 @@ export type ParseResult =
 			/** Theme accents, for charts on sheets. */
 			accents?: string[];
 	  }
-	| { ok: false; reason: "corrupt" | "too-large"; detail?: string };
+	| { ok: false; reason: "corrupt"; detail?: string };
 
 /** Disclosed supported limits (audit XLS-04 item 7: a tested,
  * precisely-identified boundary rather than a silent truncation). */
@@ -310,19 +311,16 @@ export function parseWorkbook(
 			widths.push(normalizeWidth(raw));
 		}
 
-		const rows = Math.max(1, rowOrigins.length);
+		let rows = Math.max(1, rowOrigins.length);
 		const cols = Math.max(1, colOrigins.length);
 		const rowPrefix: number[] = [0];
 		for (let r = 0; r < rows; r++) {
 			rowPrefix.push(rowPrefix[r] + (rowHeights[r] ?? DEFAULT_ROW_HEIGHT));
 		}
 
-		const limitNote =
-			range.e.c + 1 > MAX_COLS
-				? `Showing the first ${MAX_COLS} columns; the sheet extends to column ${XLSX.utils.encode_col(range.e.c)}.`
-				: range.e.r + 1 > MAX_ROWS
-					? `Showing the first ${MAX_ROWS.toLocaleString("en-US")} rows.`
-					: undefined;
+		const limit: NonNullable<GridSheet["limit"]> = {};
+		if (range.e.c + 1 > MAX_COLS) limit.columns = MAX_COLS;
+		if (range.e.r + 1 > MAX_ROWS) limit.rows = MAX_ROWS;
 
 		// Merge ranges: validate, clip to the supported bounds, remap
 		// to visible coordinates, and bound the covered-cell
@@ -390,7 +388,9 @@ export function parseWorkbook(
 			expanded += area;
 		}
 
-		const cells: Array<[number, number, GridCell]> = [];
+		let cells: Array<[number, number, GridCell]> = [];
+		// The first visible row that did not fit the cell budget, if any.
+		let cut: number | undefined;
 		const sheetStyles = authored?.sheets.get(sheetName);
 		for (const key of Object.keys(ws)) {
 			if (key.startsWith("!")) continue;
@@ -404,11 +404,8 @@ export function parseWorkbook(
 			if (!cell) continue;
 			const { value, noCachedResult } = cellValue(cell);
 			if (cells.length >= MAX_POPULATED_CELLS) {
-				return {
-					ok: false,
-					reason: "too-large",
-					detail: `more than ${MAX_POPULATED_CELLS} populated cells`,
-				};
+				cut = vr;
+				break;
 			}
 			cells.push([
 				vr,
@@ -421,9 +418,26 @@ export function parseWorkbook(
 				},
 			]);
 		}
+		// More cells than a phone can hold: the sheet ends, whole rows
+		// only, where the budget ran out (files store their cells row by
+		// row), and the viewer says how many rows it shows.
+		if (cut !== undefined && cut > 0) {
+			const end = cut;
+			cells = cells.filter(([r]) => r < end);
+			rows = end;
+			rowOrigins.length = end;
+			rowHeights.length = end;
+			rowPrefix.length = end + 1;
+			for (let i = mergeRanges.length - 1; i >= 0; i--) {
+				if (mergeRanges[i].r0 >= end) mergeRanges.splice(i, 1);
+				else if (mergeRanges[i].r1 >= end) mergeRanges[i].r1 = end - 1;
+			}
+			limit.rows = end;
+		}
+
 		// Filled cells without a value still paint (header bands,
 		// colour-coded blocks). Never at the cost of the cell budget.
-		if (sheetStyles && styles) {
+		if (sheetStyles && styles && cut === undefined) {
 			for (const [key, index] of sheetStyles) {
 				if (cells.length >= MAX_POPULATED_CELLS) break;
 				if (!styles[index]?.fill || ws[key]) continue;
@@ -533,7 +547,7 @@ export function parseWorkbook(
 			rowOrigins,
 			colOrigins,
 			mergeLimitHit,
-			limitNote,
+			limit: limit.columns || limit.rows ? limit : undefined,
 			hiddenSheet: hidden || undefined,
 			freeze:
 				freeze && (freeze.rows > 0 || freeze.cols > 0) ? freeze : undefined,

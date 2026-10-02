@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	type Sheet,
 	key,
+	parseCellAddress,
 	rangeLabel,
 	rangeOf,
 	rangeStats,
@@ -120,5 +121,18 @@ describe("chart ranges read from the sheet", () => {
 	it("answers null for other sheets and non-range formulas", () => {
 		expect(rangeValues([sheet], "Other!A1:A3")).toBeNull();
 		expect(rangeValues([sheet], "SUM(A1:A3)")).toBeNull();
+	});
+});
+
+describe("parseCellAddress", () => {
+	it("reads a cell as a person types it", () => {
+		expect(parseCellAddress("A1")).toEqual({ row: 0, col: 0 });
+		expect(parseCellAddress(" b12 ")).toEqual({ row: 11, col: 1 });
+		expect(parseCellAddress("$AA$100")).toEqual({ row: 99, col: 26 });
+	});
+
+	it("refuses what is not a cell", () => {
+		for (const text of ["", "12", "B", "B0", "B2:C3", "Sheet1!A1", "ABCD1"])
+			expect(parseCellAddress(text)).toBeNull();
 	});
 });

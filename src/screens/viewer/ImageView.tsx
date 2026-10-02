@@ -1,17 +1,10 @@
-import { sniffImageType } from "@/lib/formats";
 import { t } from "@/lib/i18n";
+import { sniffImageType } from "@/lib/sniff";
 import { Button, ErrorArt, StateView } from "@/ui";
-import {
-	useCallback,
-	useEffect,
-	useLayoutEffect,
-	useRef,
-	useState,
-} from "react";
-import { flushSync } from "react-dom";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import s from "./Image.module.css";
 import { Shell, ZoomControl, shellStyles } from "./Shell";
-import { useZoom } from "./hooks";
+import { useZoom, useZoomLevel } from "./hooks";
 import type { ViewerProps } from "./types";
 
 /** Pictures (PNG, JPEG, GIF, WebP, BMP): a scanned page or a photo of
@@ -30,7 +23,7 @@ export default function ImageView({
 	const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 	const [failed, setFailed] = useState(false);
 	const [fit, setFit] = useState(1);
-	const [zoom, setZoom] = useState(1);
+	const [zoom, commit] = useZoomLevel();
 	const [chromeHidden, setChromeHidden] = useState(false);
 
 	// Made and revoked by the same effect, so a re-run never leaves the
@@ -43,7 +36,7 @@ export default function ImageView({
 		return () => URL.revokeObjectURL(made);
 	}, [data]);
 
-	// t(t("Fit")) shows the whole picture, never enlarged past its own pixels.
+	// t("Fit") shows the whole picture, never enlarged past its own pixels.
 	useLayoutEffect(() => {
 		const el = scroller.current;
 		if (!el || !size) return;
@@ -61,7 +54,6 @@ export default function ImageView({
 		return () => ro.disconnect();
 	}, [size]);
 
-	const commit = useCallback((z: number) => flushSync(() => setZoom(z)), []);
 	const { zoomBy, zoomTo } = useZoom({
 		scroller,
 		content: frame,
@@ -106,7 +98,7 @@ export default function ImageView({
 						<ZoomControl
 							label={
 								Math.abs(zoom - 1) < 0.005
-									? t(t("Fit"))
+									? t("Fit")
 									: `${Math.round(scale * 100)}%`
 							}
 							onOut={() => zoomBy(1 / 1.25)}

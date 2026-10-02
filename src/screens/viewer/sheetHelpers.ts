@@ -183,6 +183,17 @@ function colIndex(letters: string): number {
 	return n - 1;
 }
 
+/** "B12" (or "$b$12") as zero-based file coordinates, or null. */
+export function parseCellAddress(
+	text: string,
+): { row: number; col: number } | null {
+	const m = /^([A-Za-z]{1,3})([0-9]{1,7})$/.exec(
+		text.trim().split("$").join(""),
+	);
+	if (!m || Number(m[2]) < 1) return null;
+	return { row: Number(m[2]) - 1, col: colIndex(m[1]) };
+}
+
 /**
  * The values of a range formula such as 'Sales'!$B$2:$B$9, read from
  * the workbook's own cells: for charts whose writer stored no cached

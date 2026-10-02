@@ -38,11 +38,11 @@ function whereabouts(file: FileRef): string {
 		case "path":
 			return file.reopen.path;
 		case "managed":
-			return t(t("A private copy kept by Paperwren"));
+			return t("A private copy kept by Paperwren");
 		case "uri":
-			return t(t("Provided by another app"));
+			return t("Provided by another app");
 		default:
-			return t(t("This browser"));
+			return t("This browser");
 	}
 }
 
@@ -59,13 +59,13 @@ export function FileDetails({
 	onClose: () => void;
 }) {
 	const rows: Array<[string, string]> = [
-		[t(t("Name")), file.name],
+		[t("Name"), file.name],
 		[
-			t(t("Type")),
+			t("Type"),
 			`${formatLabel(file.format)} · ${kindLabel(kindOf(file.format))}`,
 		],
-		[t(t("Size")), size > 0 ? formatBytes(size) : t(t("Unknown"))],
-		[t(t("Location")), whereabouts(file)],
+		[t("Size"), size > 0 ? formatBytes(size) : t("Unknown")],
+		[t("Location"), whereabouts(file)],
 		...(extra ?? []),
 	];
 	return (
@@ -85,6 +85,67 @@ export function FileDetails({
 				))}
 			</dl>
 		</Dialog>
+	);
+}
+
+/**
+ * Share, open in another app, show in folder: the ways a file leaves
+ * the app, as menu items. Those the platform cannot do for this file
+ * are left out rather than shown disabled.
+ */
+export function HandOffItems({
+	file,
+	onDone,
+	testPrefix,
+}: {
+	file: FileRef;
+	/** Runs as soon as one is chosen (close the menu). */
+	onDone: () => void;
+	testPrefix: string;
+}) {
+	const can = backend.abilities(file);
+	const run = (action: Promise<void>, failure: string) => {
+		onDone();
+		action.catch(() => toast(failure));
+	};
+	return (
+		<>
+			{can.share && (
+				<SheetItem
+					icon={
+						can.shareIsDownload ? <Download size={20} /> : <Share2 size={20} />
+					}
+					onClick={() =>
+						run(backend.share(file), t("Couldn't share this file"))
+					}
+					testId={`${testPrefix}-share`}
+				>
+					{can.shareIsDownload ? t("Save a copy") : t("Share")}
+				</SheetItem>
+			)}
+			{can.openWith && (
+				<SheetItem
+					icon={<AppWindow size={20} />}
+					onClick={() =>
+						run(backend.openWith(file), t("No other app can open this file"))
+					}
+					testId={`${testPrefix}-open-with`}
+				>
+					{t("Open in another app")}
+				</SheetItem>
+			)}
+			{can.reveal && (
+				<SheetItem
+					icon={<FolderOpen size={20} />}
+					onClick={() =>
+						run(backend.reveal(file), t("Couldn't show the folder"))
+					}
+					testId={`${testPrefix}-reveal`}
+				>
+					{t("Show in folder")}
+				</SheetItem>
+			)}
+		</>
 	);
 }
 
@@ -120,8 +181,10 @@ export function FileMenu({
 	// Ctrl/Cmd+P prints the document, not the app's chrome.
 	const printRef = useRef(print);
 	printRef.current = print;
+	const printable = !!context && !!onPrint;
 	useEffect(() => {
-		if (!active) return;
+		// With nothing to print the shortcut is left alone.
+		if (!active || !printable) return;
 		const onKey = (e: KeyboardEvent) => {
 			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
 				e.preventDefault();
@@ -130,15 +193,10 @@ export function FileMenu({
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [active]);
+	}, [active, printable]);
 
 	if (!context) return null;
 	const { file, size } = context;
-	const can = backend.abilities(file);
-	const run = (action: Promise<void>, failure: string) => {
-		setOpen(false);
-		action.catch(() => toast(failure));
-	};
 
 	return (
 		<>
@@ -151,48 +209,7 @@ export function FileMenu({
 			</IconButton>
 			<Sheet open={open} title={file.name} onClose={close} testId="file-menu">
 				{extra?.(close)}
-				{can.share && (
-					<SheetItem
-						icon={
-							can.shareIsDownload ? (
-								<Download size={20} />
-							) : (
-								<Share2 size={20} />
-							)
-						}
-						onClick={() =>
-							run(backend.share(file), t(t("Couldn't share this file")))
-						}
-						testId="file-share"
-					>
-						{can.shareIsDownload ? t(t("Save a copy")) : t(t("Share"))}
-					</SheetItem>
-				)}
-				{can.openWith && (
-					<SheetItem
-						icon={<AppWindow size={20} />}
-						onClick={() =>
-							run(
-								backend.openWith(file),
-								t(t("No other app can open this file")),
-							)
-						}
-						testId="file-open-with"
-					>
-						{t("Open in another app")}
-					</SheetItem>
-				)}
-				{can.reveal && (
-					<SheetItem
-						icon={<FolderOpen size={20} />}
-						onClick={() =>
-							run(backend.reveal(file), t(t("Couldn't show the folder")))
-						}
-						testId="file-reveal"
-					>
-						{t("Show in folder")}
-					</SheetItem>
-				)}
+				<HandOffItems file={file} onDone={close} testPrefix="file" />
 				{onPrint && (
 					<SheetItem
 						icon={<Printer size={20} />}

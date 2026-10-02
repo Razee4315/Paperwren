@@ -8,7 +8,9 @@ export {
 	StateView,
 	Switch,
 	formatColor,
+	kindColor,
 } from "./Misc";
 export { EmptyScene, ErrorArt, PageLoader, Wren } from "./Art";
 export { FileIcon } from "./FileIcon";
+export { LinkGuard } from "./LinkGuard";
 export { ThemePicker } from "./Pickers";

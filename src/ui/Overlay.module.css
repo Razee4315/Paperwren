@@ -89,6 +89,19 @@
 	color: var(--text-2);
 	margin-bottom: 20px;
 }
+/* A value the dialog is about (an address): selectable, wraps anywhere. */
+.dialogNote {
+	display: block;
+	margin-top: 12px;
+	padding: 10px 12px;
+	border-radius: var(--r-m);
+	background: var(--surface-2);
+	color: var(--text);
+	font-size: 13px;
+	text-align: start;
+	overflow-wrap: anywhere;
+	user-select: text;
+}
 .dialogArt {
 	display: flex;
 	justify-content: center;
@@ -142,7 +155,9 @@
 	position: fixed;
 	left: 16px;
 	right: 16px;
-	bottom: calc(20px + var(--safe-bottom));
+	/* Above Home's "Open file" button and a viewer's bottom bar: a
+	 * message must never sit on the next thing to tap. */
+	bottom: calc(88px + var(--safe-bottom));
 	z-index: 120;
 	margin: 0 auto;
 	max-width: 480px;
