@@ -600,9 +600,19 @@ function nativeTarget(file: FileRef): string {
 	return reopen.path;
 }
 
-function requestForPath(path: string): OpenRequest {
+/** A desktop file as an open request. Its size is asked for so a very
+ * large file can be warned about before it is read; a refused stat
+ * leaves it unknown. */
+async function requestForPath(path: string): Promise<OpenRequest> {
 	const name = path.split(/[\\/]/).pop() || path;
-	return request(name, true, 0, { kind: "path", path });
+	let size = 0;
+	try {
+		const { stat } = await import("@tauri-apps/plugin-fs");
+		size = (await stat(path)).size;
+	} catch {
+		// Unknown size: the read reports the real length.
+	}
+	return request(name, true, size, { kind: "path", path });
 }
 
 const tauriBackend: Backend = {
@@ -640,7 +650,7 @@ const tauriBackend: Backend = {
 					else if (payload.type === "leave") hover(false);
 					else if (payload.type === "drop") {
 						hover(false);
-						drop(payload.paths.map(requestForPath));
+						Promise.all(payload.paths.map(requestForPath)).then(drop);
 					}
 				}),
 			)
@@ -721,7 +731,8 @@ const tauriBackend: Backend = {
 		// Android delivers files through intents (see index.html).
 		if (window.__paperwrenAndroid) return [];
 		try {
-			return (await invoke<string[]>("launch_files")).map(requestForPath);
+			const paths = await invoke<string[]>("launch_files");
+			return await Promise.all(paths.map(requestForPath));
 		} catch {
 			return [];
 		}
