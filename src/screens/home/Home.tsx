@@ -2,7 +2,7 @@ import { type FileRef, backend, formatBytes } from "@/lib/backend";
 import { type FormatKind, kindLabel, kindOf } from "@/lib/formats";
 import { isolate, locale, t } from "@/lib/i18n";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
-import { FileDetails } from "@/screens/viewer/FileMenu";
+import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
 import { MAX_FOLDERS, useFolders } from "@/state/folders";
 import { useRecents } from "@/state/recents";
 import {
@@ -15,10 +15,7 @@ import {
 	toast,
 } from "@/ui";
 import {
-	AppWindow,
-	Download,
 	Folder as FolderIcon,
-	FolderOpen,
 	FolderPlus,
 	Info,
 	MoreVertical,
@@ -28,7 +25,6 @@ import {
 	Search,
 	SearchX,
 	Settings as SettingsIcon,
-	Share2,
 	ShieldCheck,
 	Trash2,
 	X,
@@ -154,12 +150,6 @@ export function Home({
 		format: e.format,
 		reopen: e.reopen,
 	});
-	const can =
-		menuFor && !menuFor.unavailable ? backend.abilities(refOf(menuFor)) : null;
-	const handOff = (action: Promise<void>, failure: string) => {
-		setMenuFor(null);
-		action.catch(() => toast(failure));
-	};
 
 	const counts = useMemo(() => {
 		const c: Record<string, number> = { all: entries.length };
@@ -454,51 +444,12 @@ export function Home({
 						>
 							{menuFor.pinned ? t(t("Unpin")) : t(t("Pin to top"))}
 						</SheetItem>
-						{can?.share && (
-							<SheetItem
-								icon={
-									can.shareIsDownload ? (
-										<Download size={20} />
-									) : (
-										<Share2 size={20} />
-									)
-								}
-								onClick={() =>
-									handOff(
-										backend.share(refOf(menuFor)),
-										t(t("Couldn't share this file")),
-									)
-								}
-								testId="menu-share"
-							>
-								{can.shareIsDownload ? t(t("Save a copy")) : t(t("Share"))}
-							</SheetItem>
-						)}
-						{can?.openWith && (
-							<SheetItem
-								icon={<AppWindow size={20} />}
-								onClick={() =>
-									handOff(
-										backend.openWith(refOf(menuFor)),
-										t(t("No other app can open this file")),
-									)
-								}
-							>
-								{t("Open in another app")}
-							</SheetItem>
-						)}
-						{can?.reveal && (
-							<SheetItem
-								icon={<FolderOpen size={20} />}
-								onClick={() =>
-									handOff(
-										backend.reveal(refOf(menuFor)),
-										t(t("Couldn't show the folder")),
-									)
-								}
-							>
-								{t("Show in folder")}
-							</SheetItem>
+						{!menuFor.unavailable && (
+							<HandOffItems
+								file={refOf(menuFor)}
+								onDone={() => setMenuFor(null)}
+								testPrefix="menu"
+							/>
 						)}
 						<SheetItem
 							icon={<Info size={20} />}

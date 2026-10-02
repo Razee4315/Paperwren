@@ -89,6 +89,67 @@ export function FileDetails({
 }
 
 /**
+ * Share, open in another app, show in folder: the ways a file leaves
+ * the app, as menu items. Those the platform cannot do for this file
+ * are left out rather than shown disabled.
+ */
+export function HandOffItems({
+	file,
+	onDone,
+	testPrefix,
+}: {
+	file: FileRef;
+	/** Runs as soon as one is chosen (close the menu). */
+	onDone: () => void;
+	testPrefix: string;
+}) {
+	const can = backend.abilities(file);
+	const run = (action: Promise<void>, failure: string) => {
+		onDone();
+		action.catch(() => toast(failure));
+	};
+	return (
+		<>
+			{can.share && (
+				<SheetItem
+					icon={
+						can.shareIsDownload ? <Download size={20} /> : <Share2 size={20} />
+					}
+					onClick={() =>
+						run(backend.share(file), t("Couldn't share this file"))
+					}
+					testId={`${testPrefix}-share`}
+				>
+					{can.shareIsDownload ? t("Save a copy") : t("Share")}
+				</SheetItem>
+			)}
+			{can.openWith && (
+				<SheetItem
+					icon={<AppWindow size={20} />}
+					onClick={() =>
+						run(backend.openWith(file), t("No other app can open this file"))
+					}
+					testId={`${testPrefix}-open-with`}
+				>
+					{t("Open in another app")}
+				</SheetItem>
+			)}
+			{can.reveal && (
+				<SheetItem
+					icon={<FolderOpen size={20} />}
+					onClick={() =>
+						run(backend.reveal(file), t("Couldn't show the folder"))
+					}
+					testId={`${testPrefix}-reveal`}
+				>
+					{t("Show in folder")}
+				</SheetItem>
+			)}
+		</>
+	);
+}
+
+/**
  * The "more" menu every viewer shares: the viewer's own items, then
  * share, open elsewhere, print and details. Items the platform cannot
  * do are left out rather than shown disabled.
@@ -136,11 +197,6 @@ export function FileMenu({
 
 	if (!context) return null;
 	const { file, size } = context;
-	const can = backend.abilities(file);
-	const run = (action: Promise<void>, failure: string) => {
-		setOpen(false);
-		action.catch(() => toast(failure));
-	};
 
 	return (
 		<>
@@ -153,48 +209,7 @@ export function FileMenu({
 			</IconButton>
 			<Sheet open={open} title={file.name} onClose={close} testId="file-menu">
 				{extra?.(close)}
-				{can.share && (
-					<SheetItem
-						icon={
-							can.shareIsDownload ? (
-								<Download size={20} />
-							) : (
-								<Share2 size={20} />
-							)
-						}
-						onClick={() =>
-							run(backend.share(file), t(t("Couldn't share this file")))
-						}
-						testId="file-share"
-					>
-						{can.shareIsDownload ? t(t("Save a copy")) : t(t("Share"))}
-					</SheetItem>
-				)}
-				{can.openWith && (
-					<SheetItem
-						icon={<AppWindow size={20} />}
-						onClick={() =>
-							run(
-								backend.openWith(file),
-								t(t("No other app can open this file")),
-							)
-						}
-						testId="file-open-with"
-					>
-						{t("Open in another app")}
-					</SheetItem>
-				)}
-				{can.reveal && (
-					<SheetItem
-						icon={<FolderOpen size={20} />}
-						onClick={() =>
-							run(backend.reveal(file), t(t("Couldn't show the folder")))
-						}
-						testId="file-reveal"
-					>
-						{t("Show in folder")}
-					</SheetItem>
-				)}
+				<HandOffItems file={file} onDone={close} testPrefix="file" />
 				{onPrint && (
 					<SheetItem
 						icon={<Printer size={20} />}
