@@ -254,8 +254,6 @@ export const ur: Table = {
 	"Show the rest ({n}k more characters)": "باقی دکھائیں (مزید {n} ہزار حروف)",
 	"{name} (first {shown} of {total} rows)":
 		"{name} ({total} میں سے پہلی {shown} قطاریں)",
-	"This sheet is too large to show ({detail}).":
-		"یہ شیٹ دکھانے کے لیے بہت بڑی ہے ({detail})۔",
 	"The file is damaged or isn't a valid spreadsheet.":
 		"فائل خراب ہے یا درست اسپریڈشیٹ نہیں۔",
 	"This workbook has no sheets.": "اس ورک بک میں کوئی شیٹ نہیں۔",
@@ -311,4 +309,8 @@ export const ur: Table = {
 	"Same as the device": "ڈیوائس کے مطابق",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren زیادہ سے زیادہ {n} فولڈر رکھتا ہے۔ نیا شامل کرنے کے لیے ایک ہٹائیں۔",
+	"Only the first {n} rows are shown.":
+		"صرف پہلی {n} قطاریں دکھائی جا رہی ہیں۔",
+	"Only the first {n} columns are shown.":
+		"صرف پہلے {n} کالم دکھائے جا رہے ہیں۔",
 };

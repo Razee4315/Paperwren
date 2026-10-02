@@ -263,8 +263,6 @@ export const fr: Table = {
 		"Afficher la suite ({n} k caractères de plus)",
 	"{name} (first {shown} of {total} rows)":
 		"{name} ({shown} premières lignes sur {total})",
-	"This sheet is too large to show ({detail}).":
-		"Cette feuille est trop grande pour être affichée ({detail}).",
 	"The file is damaged or isn't a valid spreadsheet.":
 		"Le fichier est endommagé ou n'est pas un classeur valide.",
 	"This workbook has no sheets.": "Ce classeur ne contient aucune feuille.",
@@ -321,4 +319,8 @@ export const fr: Table = {
 	"Same as the device": "Comme l'appareil",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren garde jusqu'à {n} dossiers. Retirez-en un pour en ajouter un autre.",
+	"Only the first {n} rows are shown.":
+		"Seules les {n} premières lignes sont affichées.",
+	"Only the first {n} columns are shown.":
+		"Seules les {n} premières colonnes sont affichées.",
 };

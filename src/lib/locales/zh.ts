@@ -243,8 +243,6 @@ export const zh: Table = {
 	"Show the rest ({n}k more characters)": "显示其余部分（还有 {n} 千个字符）",
 	"{name} (first {shown} of {total} rows)":
 		"{name}（共 {total} 行，显示前 {shown} 行）",
-	"This sheet is too large to show ({detail}).":
-		"此工作表太大，无法显示（{detail}）。",
 	"The file is damaged or isn't a valid spreadsheet.":
 		"文件已损坏或不是有效的电子表格。",
 	"This workbook has no sheets.": "此工作簿没有工作表。",
@@ -299,4 +297,6 @@ export const zh: Table = {
 	"Same as the device": "跟随设备",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren 最多保留 {n} 个文件夹。请先移除一个再添加。",
+	"Only the first {n} rows are shown.": "仅显示前 {n} 行。",
+	"Only the first {n} columns are shown.": "仅显示前 {n} 列。",
 };

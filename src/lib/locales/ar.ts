@@ -259,8 +259,6 @@ export const ar: Table = {
 	"Show the rest ({n}k more characters)": "عرض الباقي ({n} ألف حرف إضافي)",
 	"{name} (first {shown} of {total} rows)":
 		"{name} (أول {shown} من {total} صف)",
-	"This sheet is too large to show ({detail}).":
-		"هذه الورقة أكبر من أن تُعرض ({detail}).",
 	"The file is damaged or isn't a valid spreadsheet.":
 		"الملف تالف أو ليس جدول بيانات صالحًا.",
 	"This workbook has no sheets.": "هذا المصنف لا يحتوي على أوراق.",
@@ -316,4 +314,6 @@ export const ar: Table = {
 	"Same as the device": "مثل الجهاز",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"يحتفظ Paperwren بما يصل إلى {n} مجلدًا. أزل واحدًا لإضافة آخر.",
+	"Only the first {n} rows are shown.": "تُعرض أول {n} صف فقط.",
+	"Only the first {n} columns are shown.": "تُعرض أول {n} عمود فقط.",
 };

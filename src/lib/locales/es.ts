@@ -261,8 +261,6 @@ export const es: Table = {
 		"Mostrar el resto ({n} mil caracteres más)",
 	"{name} (first {shown} of {total} rows)":
 		"{name} (primeras {shown} de {total} filas)",
-	"This sheet is too large to show ({detail}).":
-		"Esta hoja es demasiado grande para mostrarla ({detail}).",
 	"The file is damaged or isn't a valid spreadsheet.":
 		"El archivo está dañado o no es una hoja de cálculo válida.",
 	"This workbook has no sheets.": "Este libro no tiene hojas.",
@@ -318,4 +316,8 @@ export const es: Table = {
 	"Same as the device": "Igual que el dispositivo",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren guarda hasta {n} carpetas. Quita una para añadir otra.",
+	"Only the first {n} rows are shown.":
+		"Solo se muestran las primeras {n} filas.",
+	"Only the first {n} columns are shown.":
+		"Solo se muestran las primeras {n} columnas.",
 };

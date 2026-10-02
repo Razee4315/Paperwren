@@ -200,6 +200,14 @@
 	width: 100%;
 	height: 100%;
 }
+/* Said plainly when a sheet has more rows or columns than are shown. */
+.limit {
+	padding: 6px calc(12px + var(--safe-right)) 6px calc(12px + var(--safe-left));
+	border-bottom: 1px solid var(--line);
+	background: var(--surface-2);
+	font-size: 13px;
+	color: var(--text-2);
+}
 .detail {
 	display: flex;
 	align-items: center;

@@ -104,14 +104,21 @@ describe("parseWorkbook (worker model, audit XLS-05)", () => {
 		expect(result.sheets[0].cells).toHaveLength(2);
 	});
 
-	it("reports a terminal too-large state beyond the cell budget", () => {
+	it("shows whole rows up to the cell budget, and says how many", () => {
 		const rows: number[][] = Array.from({ length: 900 }, () =>
 			Array.from({ length: 500 }, (_, c) => c),
 		);
-		const result = parseAoa(rows);
-		expect(result.ok).toBe(false);
-		if (result.ok) return;
-		expect(result.reason).toBe("too-large");
+		const result = parseAoa(rows, {
+			merges: [{ s: { r: 790, c: 0 }, e: { r: 850, c: 1 } }],
+		});
+		if (!result.ok) throw new Error("parse failed");
+		const [sheet] = result.sheets;
+		// 400,000 cells at 500 a row: 800 whole rows.
+		expect(sheet.rows).toBe(800);
+		expect(sheet.limit).toEqual({ rows: 800 });
+		expect(sheet.rowPrefix).toHaveLength(801);
+		expect(sheet.cells.every(([r]) => r < 800)).toBe(true);
+		expect(sheet.merges).toEqual([{ r0: 790, c0: 0, r1: 799, c1: 1 }]);
 	});
 });
 
@@ -202,7 +209,7 @@ describe("workbook meaning (audit XLS-04)", () => {
 		XLSX.utils.book_append_sheet(wb, ws, "L");
 		const result = parseWorkbookDirect(wb);
 		if (!result.ok) throw new Error("parse failed");
-		expect(result.sheets[0].limitNote).toContain("500");
+		expect(result.sheets[0].limit).toEqual({ columns: 500 });
 	});
 });
 

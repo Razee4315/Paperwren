@@ -253,8 +253,6 @@ export const hi: Table = {
 	"Show the rest ({n}k more characters)": "बाकी दिखाएँ ({n} हज़ार और अक्षर)",
 	"{name} (first {shown} of {total} rows)":
 		"{name} ({total} में से पहली {shown} पंक्तियाँ)",
-	"This sheet is too large to show ({detail}).":
-		"यह शीट दिखाने के लिए बहुत बड़ी है ({detail})।",
 	"The file is damaged or isn't a valid spreadsheet.":
 		"फ़ाइल खराब है या सही स्प्रेडशीट नहीं है।",
 	"This workbook has no sheets.": "इस वर्कबुक में कोई शीट नहीं है।",
@@ -310,4 +308,6 @@ export const hi: Table = {
 	"Same as the device": "डिवाइस के अनुसार",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren अधिकतम {n} फ़ोल्डर रखता है। नया जोड़ने के लिए एक हटाएँ।",
+	"Only the first {n} rows are shown.": "केवल पहली {n} पंक्तियाँ दिखाई जा रही हैं।",
+	"Only the first {n} columns are shown.": "केवल पहले {n} कॉलम दिखाए जा रहे हैं।",
 };

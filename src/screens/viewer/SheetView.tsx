@@ -124,13 +124,7 @@ export default function SheetView({
 		runWorker<ParseResult>({ type: "workbook", buffer: input }, abort.signal)
 			.then((result) => {
 				if (!result.ok) {
-					setError(
-						result.reason === "too-large"
-							? t("This sheet is too large to show ({detail}).", {
-									detail: result.detail ?? "",
-								})
-							: t("The file is damaged or isn't a valid spreadsheet."),
-					);
+					setError(t("The file is damaged or isn't a valid spreadsheet."));
 					return;
 				}
 				const list = result.sheets.map((sh) => ({
@@ -773,8 +767,27 @@ export default function SheetView({
 			: undefined;
 	const stats = sheet && range && !single ? rangeStats(sheet, range) : null;
 
+	// What the sheet has more of than is shown, said where it is seen.
+	const limited = [
+		sheet?.limit?.rows !== undefined &&
+			t("Only the first {n} rows are shown.", {
+				n: sheet.limit.rows.toLocaleString(),
+			}),
+		sheet?.limit?.columns !== undefined &&
+			t("Only the first {n} columns are shown.", {
+				n: sheet.limit.columns.toLocaleString(),
+			}),
+	]
+		.filter(Boolean)
+		.join(" ");
+
 	const bottom = sheets ? (
 		<>
+			{limited && (
+				<p className={s.limit} data-testid="sheet-limit">
+					{limited}
+				</p>
+			)}
 			{range && sheet && (
 				<div className={s.detail} data-testid="cell-detail">
 					<span className={s.addr}>{rangeLabel(sheet, range)}</span>
@@ -1029,9 +1042,6 @@ export default function SheetView({
 				>
 					{error}
 				</StateView>
-			)}
-			{sheet?.limitNote && (
-				<div className="visually-hidden">{sheet.limitNote}</div>
 			)}
 		</Shell>
 	);
