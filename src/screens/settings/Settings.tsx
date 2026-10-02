@@ -41,6 +41,10 @@ const LICENSES: Array<[string, string]> = [
 	["Arimo", "SIL OFL 1.1"],
 	["Tinos", "SIL OFL 1.1"],
 	["Cousine", "SIL OFL 1.1"],
+	// What pdf.js draws with when a PDF names a font it does not carry.
+	["Liberation Sans", "SIL OFL 1.1"],
+	["PDFium base-14 fonts (Foxit)", "BSD-3-Clause"],
+	["Adobe CMap resources", "BSD-3-Clause"],
 	["Tauri", "MIT / Apache-2.0"],
 ];
 
