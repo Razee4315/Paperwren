@@ -325,4 +325,6 @@ export const es: Table = {
 	"Copy link": "Copiar enlace",
 	"Link copied": "Enlace copiado",
 	"Privacy policy": "Política de privacidad",
+	"Show password": "Mostrar contraseña",
+	"Hide password": "Ocultar contraseña",
 };

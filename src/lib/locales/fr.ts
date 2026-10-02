@@ -328,4 +328,6 @@ export const fr: Table = {
 	"Copy link": "Copier le lien",
 	"Link copied": "Lien copié",
 	"Privacy policy": "Politique de confidentialité",
+	"Show password": "Afficher le mot de passe",
+	"Hide password": "Masquer le mot de passe",
 };

@@ -321,4 +321,6 @@ export const ar: Table = {
 	"Copy link": "نسخ الرابط",
 	"Link copied": "نُسخ الرابط",
 	"Privacy policy": "سياسة الخصوصية",
+	"Show password": "إظهار كلمة المرور",
+	"Hide password": "إخفاء كلمة المرور",
 };

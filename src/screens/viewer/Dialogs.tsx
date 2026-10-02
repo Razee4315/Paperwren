@@ -1,5 +1,6 @@
 import { t } from "@/lib/i18n";
-import { Button, Dialog } from "@/ui";
+import { Button, Dialog, IconButton } from "@/ui";
+import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import s from "./Shell.module.css";
 
@@ -94,6 +95,8 @@ export function PasswordDialog({
 	testId: string;
 }) {
 	const [password, setPassword] = useState("");
+	// A long password typed blind on a phone is easy to get wrong.
+	const [shown, setShown] = useState(false);
 	return (
 		<Dialog
 			open={open}
@@ -125,15 +128,27 @@ export function PasswordDialog({
 						? t("That password didn't work. Try again.")
 						: t("Enter the password for “{name}”.", { name })}
 				</p>
-				<input
-					className={s.input}
-					type="password"
-					autoComplete="off"
-					value={password}
-					onChange={(e) => setPassword(e.target.value)}
-					aria-label={t("Password")}
-					data-testid={`${testId}-password`}
-				/>
+				<div className={s.passwordField}>
+					<input
+						className={s.input}
+						type={shown ? "text" : "password"}
+						autoComplete="off"
+						autoCapitalize="off"
+						spellCheck={false}
+						value={password}
+						onChange={(e) => setPassword(e.target.value)}
+						aria-label={t("Password")}
+						data-testid={`${testId}-password`}
+					/>
+					<IconButton
+						label={shown ? t("Hide password") : t("Show password")}
+						aria-pressed={shown}
+						onClick={() => setShown((v) => !v)}
+						data-testid={`${testId}-password-show`}
+					>
+						{shown ? <EyeOff size={20} /> : <Eye size={20} />}
+					</IconButton>
+				</div>
 			</form>
 		</Dialog>
 	);

@@ -194,6 +194,19 @@
 .passwordHint {
 	margin-bottom: 12px;
 }
+/* The field with its show/hide button at the end of it. */
+.passwordField {
+	position: relative;
+}
+.passwordField .input {
+	padding-inline-end: 48px;
+}
+.passwordField button {
+	position: absolute;
+	inset-block: 1px;
+	inset-inline-end: 1px;
+	height: auto;
+}
 .count {
 	min-width: 64px;
 	padding: 0 4px;

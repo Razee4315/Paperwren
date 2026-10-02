@@ -318,4 +318,6 @@ export const ur: Table = {
 	"Copy link": "لنک کاپی کریں",
 	"Link copied": "لنک کاپی ہو گیا",
 	"Privacy policy": "رازداری پالیسی",
+	"Show password": "پاس ورڈ دکھائیں",
+	"Hide password": "پاس ورڈ چھپائیں",
 };

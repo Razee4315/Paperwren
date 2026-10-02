@@ -300,4 +300,6 @@ ROWS = [
     ("Copy link", "لنک کاپی کریں", "نسخ الرابط", "复制链接", "लिंक कॉपी करें", "Copiar enlace", "Copier le lien"),
     ("Link copied", "لنک کاپی ہو گیا", "نُسخ الرابط", "已复制链接", "लिंक कॉपी हो गया", "Enlace copiado", "Lien copié"),
     ("Privacy policy", "رازداری پالیسی", "سياسة الخصوصية", "隐私政策", "गोपनीयता नीति", "Política de privacidad", "Politique de confidentialité"),
+    ("Show password", "پاس ورڈ دکھائیں", "إظهار كلمة المرور", "显示密码", "पासवर्ड दिखाएँ", "Mostrar contraseña", "Afficher le mot de passe"),
+    ("Hide password", "پاس ورڈ چھپائیں", "إخفاء كلمة المرور", "隐藏密码", "पासवर्ड छिपाएँ", "Ocultar contraseña", "Masquer le mot de passe"),
 ]

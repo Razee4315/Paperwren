@@ -304,4 +304,6 @@ export const zh: Table = {
 	"Copy link": "复制链接",
 	"Link copied": "已复制链接",
 	"Privacy policy": "隐私政策",
+	"Show password": "显示密码",
+	"Hide password": "隐藏密码",
 };

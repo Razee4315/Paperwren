@@ -315,4 +315,6 @@ export const hi: Table = {
 	"Copy link": "लिंक कॉपी करें",
 	"Link copied": "लिंक कॉपी हो गया",
 	"Privacy policy": "गोपनीयता नीति",
+	"Show password": "पासवर्ड दिखाएँ",
+	"Hide password": "पासवर्ड छिपाएँ",
 };
