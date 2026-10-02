@@ -129,10 +129,12 @@ export function FolderList({
 			</div>
 		);
 
+	// A type with no files left (after looking again) has no chip: show all.
+	const shown = filter !== "all" && !counts[filter] ? "all" : filter;
 	const q = query.trim().toLowerCase();
 	const visible = files.filter(
 		(f) =>
-			(filter === "all" || kindOf(formatFromName(f.name)) === filter) &&
+			(shown === "all" || kindOf(formatFromName(f.name)) === shown) &&
 			(!q || f.name.toLowerCase().includes(q)),
 	);
 
@@ -166,7 +168,7 @@ export function FolderList({
 							type="button"
 							key={f}
 							className={s.chip}
-							aria-pressed={filter === f}
+							aria-pressed={shown === f}
 							onClick={() => setFilter(f)}
 							style={{ "--c": KIND_COLOR[f] } as CSSProperties}
 						>

@@ -160,10 +160,12 @@ export function Home({
 		return c;
 	}, [entries]);
 
+	// A type whose last file was removed has no chip any more: show all.
+	const shown = filter !== "all" && !counts[filter] ? "all" : filter;
 	const q = query.trim().toLowerCase();
 	const visible = entries.filter(
 		(e) =>
-			(filter === "all" || kindOf(e.format) === filter) &&
+			(shown === "all" || kindOf(e.format) === shown) &&
 			(!q || e.name.toLowerCase().includes(q)),
 	);
 	const pinned = visible.filter((e) => e.pinned);
@@ -372,7 +374,7 @@ export function Home({
 										type="button"
 										key={f}
 										className={s.chip}
-										aria-pressed={filter === f}
+										aria-pressed={shown === f}
 										onClick={() => setFilter(f)}
 										style={{ "--c": KIND_COLOR[f] } as CSSProperties}
 										data-testid={`filter-${f}`}
