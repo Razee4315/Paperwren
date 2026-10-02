@@ -1,5 +1,5 @@
 import type { FileFormat } from "@/lib/formats";
-import { msg, t } from "@/lib/i18n";
+import { isRtl, msg, t } from "@/lib/i18n";
 import { useBackClose } from "@/state/navigation";
 import { useSettings } from "@/state/settings";
 import { FileIcon, ThemePicker, Wren } from "@/ui";
@@ -121,20 +121,32 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 
 	useBackClose("onboarding-step", step > 0, () => go(step - 1));
 
+	// "Forward" is towards the end of the line: left in Arabic and Urdu.
+	const forward = isRtl() ? -1 : 1;
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
-			if (e.key === "ArrowRight") go(step + 1);
-			if (e.key === "ArrowLeft") go(step - 1);
+			if (e.key === "ArrowRight") go(step + forward);
+			if (e.key === "ArrowLeft") go(step - forward);
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [go, step]);
+	}, [go, step, forward]);
+
+	// The welcome covers the app: the keyboard starts inside it.
+	const root = useRef<HTMLDivElement>(null);
+	useEffect(() => root.current?.focus({ preventScroll: true }), []);
 
 	const { Scene } = STEPS[step];
 
 	return (
 		<div
+			ref={root}
+			tabIndex={-1}
 			className={s.root}
+			// biome-ignore lint/a11y/useSemanticElements: a full-screen surface, not a native dialog
+			role="dialog"
+			aria-modal="true"
+			aria-label={t("Meet Paperwren")}
 			data-testid="onboarding"
 			onPointerDown={(e) => {
 				drag.current = { x: e.clientX, y: e.clientY };
@@ -145,7 +157,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 				if (!start) return;
 				const dx = e.clientX - start.x;
 				if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(e.clientY - start.y))
-					go(step + (dx < 0 ? 1 : -1));
+					go(step + (dx < 0 ? forward : -forward));
 			}}
 		>
 			<div className={s.top}>
