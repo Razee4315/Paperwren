@@ -125,14 +125,10 @@ export const ar: Table = {
 	"No accounts": "بلا حسابات",
 	"No ads": "بلا إعلانات",
 	"Meet Paperwren": "تعرّف على Paperwren",
-	"The small, quiet way to open every document on your phone.":
-		"الطريقة الصغيرة الهادئة لفتح كل مستند على هاتفك.",
 	"Opens everything": "يفتح كل شيء",
 	"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text. Even old .doc and .ppt files.":
 		"PDF و Word و Excel و PowerPoint و OpenDocument و RTF و CSV والنصوص. حتى ملفات .doc و .ppt القديمة.",
 	"Private by design": "خاص بطبيعته",
-	"No internet, no accounts, no ads. Your files never leave your phone.":
-		"لا إنترنت ولا حسابات ولا إعلانات. ملفاتك لا تغادر هاتفك أبدًا.",
 	"Pick a look": "اختر مظهرًا",
 	"Paper, Sand or Ink, all easy on the eyes. Change it any time in Settings.":
 		"ورق أو رمل أو حبر، وكلها مريحة للعين. غيّره متى شئت من الإعدادات.",
@@ -141,12 +137,9 @@ export const ar: Table = {
 	"Start reading": "ابدأ القراءة",
 	Appearance: "المظهر",
 	Theme: "السمة",
-	"Each theme has its own calm colour. Auto follows your phone: Paper by day, Ink at night.":
-		"لكل سمة لونها الهادئ. «تلقائي» يتبع هاتفك: ورق نهارًا وحبر ليلًا.",
 	Language: "اللغة",
 	"The language of Paperwren's own buttons and messages. Your documents are shown as they are.":
 		"لغة أزرار Paperwren ورسائله. مستنداتك تُعرض كما هي.",
-	"Same as the phone": "مثل الهاتف",
 	Auto: "تلقائي",
 	Paper: "ورق",
 	Sand: "رمل",
@@ -314,4 +307,11 @@ export const ar: Table = {
 		"ملفات PDF و Word و Excel و PowerPoint والنصوص",
 	"Open a document": "فتح مستند",
 	"Choose a folder to browse": "اختر مجلدًا لتصفحه",
+	"The small, quiet way to open every document on your device.":
+		"الطريقة الصغيرة الهادئة لفتح كل مستند على جهازك.",
+	"No internet, no accounts, no ads. Your files never leave your device.":
+		"لا إنترنت ولا حسابات ولا إعلانات. ملفاتك لا تغادر جهازك أبدًا.",
+	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
+		"لكل سمة لونها الهادئ. «تلقائي» يتبع جهازك: ورق نهارًا وحبر ليلًا.",
+	"Same as the device": "مثل الجهاز",
 };

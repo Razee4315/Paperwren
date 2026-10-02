@@ -76,7 +76,7 @@ function CustomizeScene() {
 const STEPS = [
 	{
 		title: msg("Meet Paperwren"),
-		body: msg("The small, quiet way to open every document on your phone."),
+		body: msg("The small, quiet way to open every document on your device."),
 		Scene: HelloScene,
 	},
 	{
@@ -89,7 +89,7 @@ const STEPS = [
 	{
 		title: msg("Private by design"),
 		body: msg(
-			"No internet, no accounts, no ads. Your files never leave your phone.",
+			"No internet, no accounts, no ads. Your files never leave your device.",
 		),
 		Scene: PrivacyScene,
 	},

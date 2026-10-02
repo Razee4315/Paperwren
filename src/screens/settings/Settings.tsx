@@ -151,7 +151,7 @@ export function SettingsScreen() {
 							<span className={s.label}>{t("Theme")}</span>
 							<span className={s.fieldHint}>
 								{t(
-									"Each theme has its own calm colour. Auto follows your phone: Paper by day, Ink at night.",
+									"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.",
 								)}
 							</span>
 							<ThemePicker
@@ -178,7 +178,7 @@ export function SettingsScreen() {
 								aria-labelledby="language-label"
 							>
 								{(
-									[["system", t("Same as the phone")], ...LANGUAGES] as Array<
+									[["system", t("Same as the device")], ...LANGUAGES] as Array<
 										[LanguageSetting, string]
 									>
 								).map(([value, name]) => (

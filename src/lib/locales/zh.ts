@@ -125,14 +125,10 @@ export const zh: Table = {
 	"No accounts": "无需账号",
 	"No ads": "无广告",
 	"Meet Paperwren": "认识 Paperwren",
-	"The small, quiet way to open every document on your phone.":
-		"在手机上打开每一份文档的小巧、安静的方式。",
 	"Opens everything": "什么都能打开",
 	"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text. Even old .doc and .ppt files.":
 		"PDF、Word、Excel、PowerPoint、OpenDocument、RTF、CSV 和文本。连旧的 .doc 和 .ppt 文件也可以。",
 	"Private by design": "天生私密",
-	"No internet, no accounts, no ads. Your files never leave your phone.":
-		"不联网、无账号、无广告。你的文件永远不会离开手机。",
 	"Pick a look": "选择外观",
 	"Paper, Sand or Ink, all easy on the eyes. Change it any time in Settings.":
 		"纸、沙或墨，都很护眼。可随时在设置中更改。",
@@ -141,12 +137,9 @@ export const zh: Table = {
 	"Start reading": "开始阅读",
 	Appearance: "外观",
 	Theme: "主题",
-	"Each theme has its own calm colour. Auto follows your phone: Paper by day, Ink at night.":
-		"每个主题都有自己柔和的颜色。“自动”跟随手机：白天用纸，夜晚用墨。",
 	Language: "语言",
 	"The language of Paperwren's own buttons and messages. Your documents are shown as they are.":
 		"Paperwren 自身按钮和消息的语言。你的文档按原样显示。",
-	"Same as the phone": "跟随手机",
 	Auto: "自动",
 	Paper: "纸",
 	Sand: "沙",
@@ -297,4 +290,11 @@ export const zh: Table = {
 		"PDF、Word、Excel、PowerPoint 和文本文件",
 	"Open a document": "打开文档",
 	"Choose a folder to browse": "选择要浏览的文件夹",
+	"The small, quiet way to open every document on your device.":
+		"在设备上打开每一份文档的小巧、安静的方式。",
+	"No internet, no accounts, no ads. Your files never leave your device.":
+		"不联网、无账号、无广告。你的文件永远不会离开设备。",
+	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
+		"每个主题都有自己柔和的颜色。“自动”跟随设备：白天用纸，夜晚用墨。",
+	"Same as the device": "跟随设备",
 };

@@ -128,14 +128,10 @@ export const fr: Table = {
 	"No accounts": "Sans compte",
 	"No ads": "Sans publicité",
 	"Meet Paperwren": "Voici Paperwren",
-	"The small, quiet way to open every document on your phone.":
-		"La façon simple et discrète d'ouvrir tous les documents sur votre téléphone.",
 	"Opens everything": "Ouvre tout",
 	"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text. Even old .doc and .ppt files.":
 		"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV et texte. Même les anciens fichiers .doc et .ppt.",
 	"Private by design": "Privé par nature",
-	"No internet, no accounts, no ads. Your files never leave your phone.":
-		"Pas d'internet, pas de compte, pas de publicité. Vos fichiers ne quittent jamais votre téléphone.",
 	"Pick a look": "Choisissez un style",
 	"Paper, Sand or Ink, all easy on the eyes. Change it any time in Settings.":
 		"Papier, Sable ou Encre, tous doux pour les yeux. Changez-le à tout moment dans les Réglages.",
@@ -144,12 +140,9 @@ export const fr: Table = {
 	"Start reading": "Commencer à lire",
 	Appearance: "Apparence",
 	Theme: "Thème",
-	"Each theme has its own calm colour. Auto follows your phone: Paper by day, Ink at night.":
-		"Chaque thème a sa propre couleur apaisante. Auto suit votre téléphone : Papier le jour, Encre la nuit.",
 	Language: "Langue",
 	"The language of Paperwren's own buttons and messages. Your documents are shown as they are.":
 		"La langue des boutons et messages de Paperwren. Vos documents sont affichés tels quels.",
-	"Same as the phone": "Comme le téléphone",
 	Auto: "Auto",
 	Paper: "Papier",
 	Sand: "Sable",
@@ -319,4 +312,11 @@ export const fr: Table = {
 		"Fichiers PDF, Word, Excel, PowerPoint et texte",
 	"Open a document": "Ouvrir un document",
 	"Choose a folder to browse": "Choisissez un dossier à parcourir",
+	"The small, quiet way to open every document on your device.":
+		"La façon simple et discrète d'ouvrir tous les documents sur votre appareil.",
+	"No internet, no accounts, no ads. Your files never leave your device.":
+		"Pas d'internet, pas de compte, pas de publicité. Vos fichiers ne quittent jamais votre appareil.",
+	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
+		"Chaque thème a sa propre couleur apaisante. Auto suit votre appareil : Papier le jour, Encre la nuit.",
+	"Same as the device": "Comme l'appareil",
 };

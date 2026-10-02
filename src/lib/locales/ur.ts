@@ -125,14 +125,10 @@ export const ur: Table = {
 	"No accounts": "کوئی اکاؤنٹ نہیں",
 	"No ads": "کوئی اشتہار نہیں",
 	"Meet Paperwren": "Paperwren سے ملیے",
-	"The small, quiet way to open every document on your phone.":
-		"اپنے فون پر ہر دستاویز کھولنے کا چھوٹا اور پرسکون طریقہ۔",
 	"Opens everything": "سب کچھ کھولتا ہے",
 	"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text. Even old .doc and .ppt files.":
 		"PDF، Word، Excel، PowerPoint، OpenDocument، RTF، CSV اور متن۔ پرانی .doc اور .ppt فائلیں بھی۔",
 	"Private by design": "بنیاد ہی سے نجی",
-	"No internet, no accounts, no ads. Your files never leave your phone.":
-		"نہ انٹرنیٹ، نہ اکاؤنٹ، نہ اشتہار۔ آپ کی فائلیں کبھی آپ کے فون سے باہر نہیں جاتیں۔",
 	"Pick a look": "اپنا انداز چنیں",
 	"Paper, Sand or Ink, all easy on the eyes. Change it any time in Settings.":
 		"کاغذ، ریت یا سیاہی، سب آنکھوں کے لیے آرام دہ۔ ترتیبات میں کبھی بھی بدلیں۔",
@@ -141,12 +137,9 @@ export const ur: Table = {
 	"Start reading": "پڑھنا شروع کریں",
 	Appearance: "ظاہری شکل",
 	Theme: "تھیم",
-	"Each theme has its own calm colour. Auto follows your phone: Paper by day, Ink at night.":
-		"ہر تھیم کا اپنا پرسکون رنگ ہے۔ خودکار آپ کے فون کے مطابق چلتا ہے: دن میں کاغذ، رات میں سیاہی۔",
 	Language: "زبان",
 	"The language of Paperwren's own buttons and messages. Your documents are shown as they are.":
 		"Paperwren کے اپنے بٹنوں اور پیغامات کی زبان۔ آپ کی دستاویزات جوں کی توں دکھائی جاتی ہیں۔",
-	"Same as the phone": "فون کے مطابق",
 	Auto: "خودکار",
 	Paper: "کاغذ",
 	Sand: "ریت",
@@ -309,4 +302,11 @@ export const ur: Table = {
 		"PDF، Word، Excel، PowerPoint اور متنی فائلیں",
 	"Open a document": "دستاویز کھولیں",
 	"Choose a folder to browse": "دیکھنے کے لیے فولڈر منتخب کریں",
+	"The small, quiet way to open every document on your device.":
+		"اپنے ڈیوائس پر ہر دستاویز کھولنے کا چھوٹا اور پرسکون طریقہ۔",
+	"No internet, no accounts, no ads. Your files never leave your device.":
+		"نہ انٹرنیٹ، نہ اکاؤنٹ، نہ اشتہار۔ آپ کی فائلیں کبھی آپ کے ڈیوائس سے باہر نہیں جاتیں۔",
+	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
+		"ہر تھیم کا اپنا پرسکون رنگ ہے۔ خودکار آپ کے ڈیوائس کے مطابق چلتا ہے: دن میں کاغذ، رات میں سیاہی۔",
+	"Same as the device": "ڈیوائس کے مطابق",
 };
