@@ -1,5 +1,6 @@
 import {
 	FOLDER_LIMITS,
+	type FileRef,
 	type Folder,
 	type FolderFile,
 	backend,
@@ -13,8 +14,17 @@ import {
 } from "@/lib/formats";
 import { isolate, locale, t } from "@/lib/i18n";
 import type { OpenRequest } from "@/lib/types";
-import { Button, FileBadge, IconButton, Spinner } from "@/ui";
-import { FolderX, RefreshCw, Search, SearchX, X } from "lucide-react";
+import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
+import { Button, FileBadge, IconButton, Sheet, SheetItem, Spinner } from "@/ui";
+import {
+	FolderX,
+	Info,
+	MoreVertical,
+	RefreshCw,
+	Search,
+	SearchX,
+	X,
+} from "lucide-react";
 import {
 	type CSSProperties,
 	useCallback,
@@ -55,6 +65,12 @@ function dated(ms: number): string {
 	});
 }
 
+const refOf = (f: FolderFile): FileRef => ({
+	name: f.name,
+	format: formatFromName(f.name),
+	reopen: f.request.reopen,
+});
+
 type Listing =
 	| { state: "loading" }
 	| { state: "failed" }
@@ -74,6 +90,8 @@ export function FolderList({
 	const [listing, setListing] = useState<Listing>({ state: "loading" });
 	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState<FormatKind | "all">("all");
+	const [menuFor, setMenuFor] = useState<FolderFile | null>(null);
+	const [detailsFor, setDetailsFor] = useState<FolderFile | null>(null);
 
 	const load = useCallback(() => {
 		let alive = true;
@@ -229,6 +247,13 @@ export function FolderList({
 									</span>
 								</span>
 							</button>
+							<IconButton
+								label={t("More actions for {name}", { name: f.name })}
+								onClick={() => setMenuFor(f)}
+								data-testid="folder-file-more"
+							>
+								<MoreVertical size={20} />
+							</IconButton>
 						</div>
 					))}
 				</div>
@@ -239,6 +264,40 @@ export function FolderList({
 						n: FOLDER_LIMITS.files.toLocaleString(),
 					})}
 				</p>
+			)}
+
+			<Sheet
+				open={menuFor !== null}
+				title={menuFor?.name ?? ""}
+				onClose={() => setMenuFor(null)}
+				testId="folder-file-menu"
+			>
+				{menuFor && (
+					<>
+						<HandOffItems
+							file={refOf(menuFor)}
+							onDone={() => setMenuFor(null)}
+							testPrefix="folder"
+						/>
+						<SheetItem
+							icon={<Info size={20} />}
+							onClick={() => {
+								setDetailsFor(menuFor);
+								setMenuFor(null);
+							}}
+							testId="folder-details"
+						>
+							{t("Details")}
+						</SheetItem>
+					</>
+				)}
+			</Sheet>
+			{detailsFor && (
+				<FileDetails
+					file={refOf(detailsFor)}
+					size={detailsFor.size}
+					onClose={() => setDetailsFor(null)}
+				/>
 			)}
 		</>
 	);
