@@ -2,20 +2,13 @@ import { t } from "@/lib/i18n";
 import { fitted } from "@/lib/print";
 import { Button, ErrorArt, IconButton, Spinner, StateView } from "@/ui";
 import { Search } from "lucide-react";
-import {
-	useCallback,
-	useEffect,
-	useLayoutEffect,
-	useRef,
-	useState,
-} from "react";
-import { flushSync } from "react-dom";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "@/styles/office-fonts.css";
 import { PageJump } from "./Dialogs";
 import s from "./Doc.module.css";
 import { Scrubber } from "./Scrubber";
 import { FindBar, Shell, ZoomControl, shellStyles } from "./Shell";
-import { useScrollMemory, useZoom } from "./hooks";
+import { useScrollMemory, useZoom, useZoomLevel } from "./hooks";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
 
@@ -41,7 +34,7 @@ export default function DocxView({
 	const [status, setStatus] = useState<"loading" | "ready" | "error">(
 		"loading",
 	);
-	const [zoom, setZoom] = useState(1);
+	const [zoom, commit] = useZoomLevel(position);
 	const [fit, setFit] = useState(1);
 	const [pageCount, setPageCount] = useState(0);
 	const [page, setPage] = useState(1);
@@ -106,12 +99,7 @@ export default function DocxView({
 		return () => ro.disconnect();
 	}, [status]);
 
-	useEffect(() => {
-		if (position?.kind === "scroll" && position.zoom) setZoom(position.zoom);
-	}, [position]);
-
 	const scale = fit * zoom;
-	const commit = useCallback((z: number) => flushSync(() => setZoom(z)), []);
 	const { zoomBy, zoomTo } = useZoom({
 		scroller,
 		content: pages,

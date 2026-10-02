@@ -5,11 +5,10 @@ import { Button, IconButton } from "@/ui";
 import DOMPurify from "dompurify";
 import { Search } from "lucide-react";
 import { marked } from "marked";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { useMemo, useRef, useState } from "react";
 import { FindBar, Shell, ZoomControl, shellStyles } from "./Shell";
 import s from "./Text.module.css";
-import { useScrollMemory, useZoom } from "./hooks";
+import { useScrollMemory, useZoom, useZoomLevel } from "./hooks";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
 
@@ -32,7 +31,7 @@ export default function TextView({
 	const [chromeHidden, setChromeHidden] = useState(false);
 	const text = useMemo(() => decodeText(data), [data]);
 	const [all, setAll] = useState(text.length <= CHUNK);
-	const [zoom, setZoom] = useState(1);
+	const [zoom, commit] = useZoomLevel(position);
 	const find = useDomFind(content, scroller);
 	// Find looks through what is on the page: put all of it there first.
 	const startFind = () => {
@@ -49,10 +48,6 @@ export default function TextView({
 		});
 	}, [format, text]);
 
-	useEffect(() => {
-		if (position?.kind === "scroll" && position.zoom) setZoom(position.zoom);
-	}, [position]);
-	const commit = useCallback((z: number) => flushSync(() => setZoom(z)), []);
 	const { zoomBy, zoomTo } = useZoom({
 		scroller,
 		content,

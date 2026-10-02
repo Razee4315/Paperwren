@@ -21,21 +21,19 @@ import {
 } from "lucide-react";
 import {
 	type CSSProperties,
-	useCallback,
 	useEffect,
 	useId,
 	useLayoutEffect,
 	useRef,
 	useState,
 } from "react";
-import { flushSync } from "react-dom";
 import "@/styles/office-fonts.css";
 import d from "./Doc.module.css";
 import { Present } from "./Present";
 import { FindBar, Shell, ZoomControl, shellStyles } from "./Shell";
 import { SlideChart } from "./SlideChart";
 import s from "./Slides.module.css";
-import { useZoom } from "./hooks";
+import { useZoom, useZoomLevel } from "./hooks";
 import { runWorker } from "./runWorker";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
@@ -501,7 +499,7 @@ export default function SlidesView({
 	const [fit, setFit] = useState(1);
 	// The slides have their real size only once the width was measured.
 	const [measured, setMeasured] = useState(false);
-	const [zoom, setZoom] = useState(1);
+	const [zoom, commit] = useZoomLevel();
 	const [current, setCurrent] = useState(0);
 	const [notes, setNotes] = useState(false);
 	const [chromeHidden, setChromeHidden] = useState(false);
@@ -551,7 +549,6 @@ export default function SlidesView({
 		return () => ro.disconnect();
 	}, [deck]);
 
-	const commit = useCallback((z: number) => flushSync(() => setZoom(z)), []);
 	const { zoomBy, zoomTo } = useZoom({
 		scroller,
 		content: list,

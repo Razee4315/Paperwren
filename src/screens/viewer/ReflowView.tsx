@@ -4,13 +4,12 @@ import type { DocResult } from "@/lib/parseWorker";
 import { sheet } from "@/lib/print";
 import { Button, ErrorArt, IconButton, Spinner, StateView } from "@/ui";
 import { Search } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { useEffect, useRef, useState } from "react";
 import "@/styles/office-fonts.css";
 import d from "./Doc.module.css";
 import { RichDocument } from "./RichDocument";
 import { FindBar, Shell, ZoomControl, shellStyles } from "./Shell";
-import { useScrollMemory, useZoom } from "./hooks";
+import { useScrollMemory, useZoom, useZoomLevel } from "./hooks";
 import { runWorker } from "./runWorker";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
@@ -65,7 +64,7 @@ export default function ReflowView(props: ViewerProps) {
 	const pages = useRef<HTMLDivElement>(null);
 	const content = useRef<HTMLDivElement>(null);
 	const [result, setResult] = useState<Result | null>(null);
-	const [zoom, setZoom] = useState(1);
+	const [zoom, commit] = useZoomLevel(position);
 	const [chromeHidden, setChromeHidden] = useState(false);
 	const find = useDomFind(content, scroller);
 
@@ -83,10 +82,6 @@ export default function ReflowView(props: ViewerProps) {
 	}, [props.data]);
 
 	const doc = result?.ok ? result.doc : null;
-	useEffect(() => {
-		if (position?.kind === "scroll" && position.zoom) setZoom(position.zoom);
-	}, [position]);
-	const commit = useCallback((z: number) => flushSync(() => setZoom(z)), []);
 	const { zoomBy, zoomTo } = useZoom({
 		scroller,
 		content: pages,
