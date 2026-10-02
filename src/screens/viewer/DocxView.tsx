@@ -12,6 +12,10 @@ import { useScrollMemory, useZoom, useZoomLevel } from "./hooks";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
 
+/** A page is never opened larger than this: on a wide window it sits
+ * at a comfortable reading size instead of being stretched to fill it
+ * (the same ceiling a PDF opens at). */
+const MAX_FIT = 1.25;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 5;
 
@@ -88,7 +92,7 @@ export default function DocxView({
 			if (widest > 0)
 				setFit(
 					Math.min(
-						1.5,
+						MAX_FIT,
 						Math.floor((el.clientWidth / (widest + 24)) * 1e3) / 1e3,
 					),
 				);
