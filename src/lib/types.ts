@@ -72,7 +72,9 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
 	theme: "system",
 	language: "system",
-	pdfZoom: "page-width",
+	// Fit width, but never past 125%: a phone gets the full width, a
+	// wide window a readable page instead of a quarter of one.
+	pdfZoom: "auto",
 	rememberPosition: true,
 	darkPages: false,
 	keepAwake: false,

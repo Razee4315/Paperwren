@@ -118,6 +118,7 @@ export default function PdfView({
 	const rememberRef = useRef(settings.rememberPosition);
 	rememberRef.current = settings.rememberPosition;
 	const defaultZoom = useRef(settings.pdfZoom);
+	const fitWidthRef = useRef<() => number>(() => 1);
 
 	// --- open the document ---
 	// pdf.js takes the bytes over: they move to its worker rather than
@@ -200,7 +201,9 @@ export default function PdfView({
 				eventBus,
 				linkService,
 				findController,
-				removePageBorders: false,
+				// Pages run edge to edge: fit width means the width of the
+				// screen, with nothing spent on side margins.
+				removePageBorders: true,
 				maxCanvasPixels: 2 ** 24,
 			});
 			linkService.setViewer(v);
@@ -232,7 +235,10 @@ export default function PdfView({
 				"scalechanging",
 				(e: { scale: number; presetValue?: string }) =>
 					setScaleLabel(
-						e.presetValue === "page-width"
+						e.presetValue === "page-width" ||
+							// "Automatic" is fit width until that passes 125%.
+							(e.presetValue === "auto" &&
+								Math.abs(e.scale - fitWidthRef.current()) < 0.01)
 							? t("Fit width")
 							: e.presetValue === "page-fit"
 								? t("Whole page")
@@ -325,8 +331,9 @@ export default function PdfView({
 			| { width: number; scale: number }
 			| undefined;
 		if (!v || !box || !view?.width) return 1;
-		return ((box.clientWidth - 40) / view.width) * view.scale;
+		return (box.clientWidth / view.width) * view.scale;
 	};
+	fitWidthRef.current = fitWidthScale;
 	const { zoomBy, zoomTo } = useZoom({
 		scroller: container,
 		content: viewerEl,
