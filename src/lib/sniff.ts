@@ -42,12 +42,18 @@ function startsWith(bytes: Uint8Array, magic: number[]): boolean {
 const OLE_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 
 /** Contains the UTF-16LE encoding of `name` (OLE directory entries
- * store stream names that way). */
+ * store stream names that way). The engine's own search jumps to each
+ * candidate first byte, which is several times faster than stepping
+ * through a large file one byte at a time on the main thread. */
 function hasUtf16(bytes: Uint8Array, name: string): boolean {
 	const first = name.charCodeAt(0);
 	const limit = bytes.length - name.length * 2;
-	for (let i = 0; i <= limit; i++) {
-		if (bytes[i] !== first || bytes[i + 1] !== 0) continue;
+	for (
+		let i = bytes.indexOf(first);
+		i !== -1 && i <= limit;
+		i = bytes.indexOf(first, i + 1)
+	) {
+		if (bytes[i + 1] !== 0) continue;
 		let match = true;
 		for (let j = 1; j < name.length; j++) {
 			if (
