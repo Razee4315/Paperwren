@@ -309,4 +309,6 @@ export const ur: Table = {
 	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
 		"ہر تھیم کا اپنا پرسکون رنگ ہے۔ خودکار آپ کے ڈیوائس کے مطابق چلتا ہے: دن میں کاغذ، رات میں سیاہی۔",
 	"Same as the device": "ڈیوائس کے مطابق",
+	"Paperwren keeps up to {n} folders. Remove one to add another.":
+		"Paperwren زیادہ سے زیادہ {n} فولڈر رکھتا ہے۔ نیا شامل کرنے کے لیے ایک ہٹائیں۔",
 };

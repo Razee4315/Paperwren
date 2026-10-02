@@ -308,4 +308,6 @@ export const hi: Table = {
 	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
 		"हर थीम का अपना शांत रंग है। स्वचालित आपके डिवाइस के अनुसार चलता है: दिन में काग़ज़, रात में स्याही।",
 	"Same as the device": "डिवाइस के अनुसार",
+	"Paperwren keeps up to {n} folders. Remove one to add another.":
+		"Paperwren अधिकतम {n} फ़ोल्डर रखता है। नया जोड़ने के लिए एक हटाएँ।",
 };

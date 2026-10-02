@@ -314,4 +314,6 @@ export const ar: Table = {
 	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
 		"لكل سمة لونها الهادئ. «تلقائي» يتبع جهازك: ورق نهارًا وحبر ليلًا.",
 	"Same as the device": "مثل الجهاز",
+	"Paperwren keeps up to {n} folders. Remove one to add another.":
+		"يحتفظ Paperwren بما يصل إلى {n} مجلدًا. أزل واحدًا لإضافة آخر.",
 };

@@ -297,4 +297,6 @@ export const zh: Table = {
 	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
 		"每个主题都有自己柔和的颜色。“自动”跟随设备：白天用纸，夜晚用墨。",
 	"Same as the device": "跟随设备",
+	"Paperwren keeps up to {n} folders. Remove one to add another.":
+		"Paperwren 最多保留 {n} 个文件夹。请先移除一个再添加。",
 };

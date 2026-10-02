@@ -3,7 +3,7 @@ import { type FormatKind, kindLabel, kindOf } from "@/lib/formats";
 import { isolate, locale, t } from "@/lib/i18n";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { FileDetails } from "@/screens/viewer/FileMenu";
-import { useFolders } from "@/state/folders";
+import { MAX_FOLDERS, useFolders } from "@/state/folders";
 import { useRecents } from "@/state/recents";
 import {
 	EmptyScene,
@@ -137,6 +137,14 @@ export function Home({
 	const activeFolder = folders.find((f) => f.id === place) ?? null;
 	const canBrowse = backend.canBrowseFolders();
 	const browse = () => {
+		if (folders.length >= MAX_FOLDERS) {
+			toast(
+				t("Paperwren keeps up to {n} folders. Remove one to add another.", {
+					n: MAX_FOLDERS,
+				}),
+			);
+			return;
+		}
 		addFolder()
 			.then((folder) => folder && setPlace(folder.id))
 			.catch(() => toast(t("Couldn't open the folder picker")));

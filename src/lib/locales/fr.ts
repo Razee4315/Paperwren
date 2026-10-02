@@ -319,4 +319,6 @@ export const fr: Table = {
 	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
 		"Chaque thème a sa propre couleur apaisante. Auto suit votre appareil : Papier le jour, Encre la nuit.",
 	"Same as the device": "Comme l'appareil",
+	"Paperwren keeps up to {n} folders. Remove one to add another.":
+		"Paperwren garde jusqu'à {n} dossiers. Retirez-en un pour en ajouter un autre.",
 };
