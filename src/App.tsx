@@ -1,4 +1,5 @@
 import { backend, requestForManagedCopy } from "@/lib/backend";
+import { isTauri, isTouch } from "@/lib/env";
 import { language, subscribe, t } from "@/lib/i18n";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { Home } from "@/screens/home/Home";
@@ -143,6 +144,56 @@ function Root() {
 
 	const entriesRef = useRef(entries);
 	entriesRef.current = entries;
+
+	// The keyboard, as a desktop reader has it: Ctrl+O opens a file,
+	// Ctrl+W closes what is open, Ctrl+F on Home goes to its search. In
+	// the app's own window the webview's reload and find-in-page keys
+	// would act on the app instead of the document, so they are not let
+	// through (a viewer's own Ctrl+F still opens its find bar).
+	const deep = state.screens.length > 1;
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
+			const key = e.key.toLowerCase();
+			if (mod && !e.shiftKey && key === "o") {
+				e.preventDefault();
+				pick();
+			} else if (mod && !e.shiftKey && key === "w" && deep) {
+				e.preventDefault();
+				back();
+			} else if (mod && key === "f") {
+				if (isTauri) e.preventDefault();
+				if (!deep) {
+					e.preventDefault();
+					document
+						.querySelector<HTMLInputElement>('[data-testid="home"] input')
+						?.focus();
+				}
+			} else if (
+				isTauri &&
+				(e.key === "F5" ||
+					e.key === "F3" ||
+					e.key === "F7" ||
+					(mod && (key === "r" || key === "g")))
+			) {
+				e.preventDefault();
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [pick, back, deep]);
+
+	// A desktop app has no "Reload" or "Back" menu on a right-click. The
+	// menu stays where it is useful: on selected text and in fields.
+	useEffect(() => {
+		if (!isTauri || isTouch) return;
+		const onMenu = (e: MouseEvent) => {
+			const field = (e.target as Element | null)?.closest?.("input, textarea");
+			if (!field && !window.getSelection()?.toString()) e.preventDefault();
+		};
+		window.addEventListener("contextmenu", onMenu);
+		return () => window.removeEventListener("contextmenu", onMenu);
+	}, []);
 
 	return (
 		<>
