@@ -109,7 +109,6 @@ export const zh: Table = {
 	"The file itself is not deleted": "文件本身不会被删除",
 	"Removed from recents": "已从最近中移除",
 	"Remove from recents": "从最近中移除",
-	"Last opened": "上次打开",
 	"Looking through {name}": "正在查看 {name}",
 	"Paperwren can't reach “{name}” any more. It may have been moved, or access to it was withdrawn.":
 		"Paperwren 已无法访问“{name}”。它可能已被移动，或访问权限已被撤销。",
@@ -309,4 +308,7 @@ export const zh: Table = {
 	"Go to cell": "转到单元格",
 	"Cell, for example B12": "单元格，例如 B12",
 	"No cell {cell} on this sheet": "此工作表中没有单元格 {cell}",
+	Sort: "排序",
+	"Sort by": "排序方式",
+	"Last opened": "上次打开",
 };

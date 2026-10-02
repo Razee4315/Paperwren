@@ -1,6 +1,6 @@
 import { type FileRef, backend, formatBytes } from "@/lib/backend";
 import { type FormatKind, kindLabel, kindOf } from "@/lib/formats";
-import { isolate, locale, t } from "@/lib/i18n";
+import { isolate, locale, msg, t } from "@/lib/i18n";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
 import { MAX_FOLDERS, useFolders } from "@/state/folders";
@@ -15,6 +15,8 @@ import {
 	toast,
 } from "@/ui";
 import {
+	ArrowUpDown,
+	Check,
 	Folder as FolderIcon,
 	FolderPlus,
 	Info,
@@ -74,6 +76,14 @@ const SUPPORTED: Array<[string, FormatKind]> = [
 	["PNG", "image"],
 ];
 
+/** How the recents are ordered (pinned files always come first). */
+const SORTS = [
+	["opened", msg("Last opened")],
+	["name", msg("Name")],
+	["size", msg("Size")],
+] as const;
+type Sort = (typeof SORTS)[number][0];
+
 export function relativeTime(ts: number, now = Date.now()): string {
 	if (!ts) return "";
 	const d = new Date(ts);
@@ -125,6 +135,8 @@ export function Home({
 	const { entries, ready, togglePin, remove, restore } = useRecents();
 	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState<FormatKind | "all">("all");
+	const [sort, setSort] = useState<Sort>("opened");
+	const [sortOpen, setSortOpen] = useState(false);
 	const [menuFor, setMenuFor] = useState<RecentEntry | null>(null);
 	const [detailsFor, setDetailsFor] = useState<RecentEntry | null>(null);
 	// Where the list looks: recents, or one of the folders the user chose.
@@ -166,8 +178,33 @@ export function Home({
 			(shown === "all" || kindOf(e.format) === shown) &&
 			(!q || e.name.toLowerCase().includes(q)),
 	);
-	const pinned = visible.filter((e) => e.pinned);
-	const recent = visible.filter((e) => !e.pinned);
+	// The list arrives newest first; the other orders are made here.
+	const ordered =
+		sort === "opened"
+			? visible
+			: [...visible].sort(
+					sort === "name"
+						? (a, b) =>
+								a.name.localeCompare(b.name, locale(), {
+									numeric: true,
+									sensitivity: "base",
+								})
+						: (a, b) => b.size - a.size,
+				);
+	const pinned = ordered.filter((e) => e.pinned);
+	const recent = ordered.filter((e) => !e.pinned);
+	const sortButton = (
+		<span className={s.sectionActions}>
+			<IconButton
+				label={t("Sort")}
+				active={sort !== "opened"}
+				onClick={() => setSortOpen(true)}
+				data-testid="sort"
+			>
+				<ArrowUpDown size={18} />
+			</IconButton>
+		</span>
+	);
 
 	const row = (e: RecentEntry) => {
 		const ratio = e.position?.kind === "scroll" ? e.position.ratio : null;
@@ -395,6 +432,7 @@ export function Home({
 									<h2 className={s.section}>
 										{t("Pinned")}{" "}
 										<span className={s.bubble}>{pinned.length}</span>
+										{sortButton}
 									</h2>
 									<div className={s.list}>{pinned.map(row)}</div>
 								</>
@@ -404,6 +442,7 @@ export function Home({
 									<h2 className={s.section}>
 										{t("Recent")}{" "}
 										<span className={s.bubble}>{recent.length}</span>
+										{pinned.length === 0 && sortButton}
 									</h2>
 									<div className={s.list}>{recent.map(row)}</div>
 								</>
@@ -423,6 +462,31 @@ export function Home({
 				{t("Open file")}
 			</button>
 
+			<Sheet
+				open={sortOpen}
+				title={t("Sort by")}
+				onClose={() => setSortOpen(false)}
+				testId="sort-menu"
+			>
+				{SORTS.map(([value, label]) => (
+					<SheetItem
+						key={value}
+						icon={
+							<Check
+								size={20}
+								style={{ visibility: sort === value ? "visible" : "hidden" }}
+							/>
+						}
+						onClick={() => {
+							setSort(value);
+							setSortOpen(false);
+						}}
+						testId={`sort-${value}`}
+					>
+						{t(label)}
+					</SheetItem>
+				))}
+			</Sheet>
 			<Sheet
 				open={menuFor !== null}
 				title={menuFor?.name ?? ""}

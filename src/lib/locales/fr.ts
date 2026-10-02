@@ -112,7 +112,6 @@ export const fr: Table = {
 	"The file itself is not deleted": "Le fichier lui-même n'est pas supprimé",
 	"Removed from recents": "Retiré des récents",
 	"Remove from recents": "Retirer des récents",
-	"Last opened": "Dernière ouverture",
 	"Looking through {name}": "Exploration de {name}",
 	"Paperwren can't reach “{name}” any more. It may have been moved, or access to it was withdrawn.":
 		"Paperwren ne peut plus accéder à “{name}”. Il a peut-être été déplacé, ou l'accès a été retiré.",
@@ -333,4 +332,7 @@ export const fr: Table = {
 	"Go to cell": "Aller à la cellule",
 	"Cell, for example B12": "Cellule, par exemple B12",
 	"No cell {cell} on this sheet": "Pas de cellule {cell} dans cette feuille",
+	Sort: "Trier",
+	"Sort by": "Trier par",
+	"Last opened": "Dernière ouverture",
 };

@@ -109,7 +109,6 @@ export const hi: Table = {
 	"The file itself is not deleted": "फ़ाइल खुद नहीं हटती",
 	"Removed from recents": "हाल की सूची से हटाया गया",
 	"Remove from recents": "हाल की सूची से हटाएँ",
-	"Last opened": "पिछली बार खोली गई",
 	"Looking through {name}": "{name} में देखा जा रहा है",
 	"Paperwren can't reach “{name}” any more. It may have been moved, or access to it was withdrawn.":
 		"Paperwren अब “{name}” तक नहीं पहुँच पा रहा। हो सकता है इसे कहीं और ले जाया गया हो या इसकी पहुँच वापस ले ली गई हो।",
@@ -320,4 +319,7 @@ export const hi: Table = {
 	"Go to cell": "सेल पर जाएँ",
 	"Cell, for example B12": "सेल, जैसे B12",
 	"No cell {cell} on this sheet": "इस शीट में सेल {cell} नहीं है",
+	Sort: "क्रम बदलें",
+	"Sort by": "इसके अनुसार क्रम",
+	"Last opened": "पिछली बार खोली गई",
 };

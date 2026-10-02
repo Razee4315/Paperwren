@@ -109,7 +109,6 @@ ROWS = [
     ("The file itself is not deleted", "اصل فائل حذف نہیں ہوتی", "الملف نفسه لا يُحذف", "文件本身不会被删除", "फ़ाइल खुद नहीं हटती", "El archivo en sí no se elimina", "Le fichier lui-même n'est pas supprimé"),
     ("Removed from recents", "حالیہ فہرست سے ہٹا دیا گیا", "أُزيل من الأخيرة", "已从最近中移除", "हाल की सूची से हटाया गया", "Quitado de recientes", "Retiré des récents"),
     ("Remove from recents", "حالیہ فہرست سے ہٹائیں", "إزالة من الأخيرة", "从最近中移除", "हाल की सूची से हटाएँ", "Quitar de recientes", "Retirer des récents"),
-    ("Last opened", "آخری بار کھولی گئی", "آخر فتح", "上次打开", "पिछली बार खोली गई", "Última apertura", "Dernière ouverture"),
     # ---- folders ----
     ("Looking through {name}", "{name} میں دیکھا جا رہا ہے", "جارٍ البحث في {name}", "正在查看 {name}", "{name} में देखा जा रहा है", "Revisando {name}", "Exploration de {name}"),
     ("Paperwren can't reach “{name}” any more. It may have been moved, or access to it was withdrawn.", "Paperwren اب “{name}” تک نہیں پہنچ سکتا۔ شاید اسے منتقل کر دیا گیا ہے یا اس تک رسائی واپس لے لی گئی ہے۔", "لم يعد Paperwren قادرًا على الوصول إلى “{name}”. ربما نُقل أو سُحب إذن الوصول إليه.", "Paperwren 已无法访问“{name}”。它可能已被移动，或访问权限已被撤销。", "Paperwren अब “{name}” तक नहीं पहुँच पा रहा। हो सकता है इसे कहीं और ले जाया गया हो या इसकी पहुँच वापस ले ली गई हो।", "Paperwren ya no puede acceder a “{name}”. Puede que se haya movido o que se haya retirado el acceso.", "Paperwren ne peut plus accéder à “{name}”. Il a peut-être été déplacé, ou l'accès a été retiré."),
@@ -305,4 +304,7 @@ ROWS = [
     ("Go to cell", "خانے پر جائیں", "الانتقال إلى خلية", "转到单元格", "सेल पर जाएँ", "Ir a la celda", "Aller à la cellule"),
     ("Cell, for example B12", "خانہ، مثلاً B12", "خلية، مثل B12", "单元格，例如 B12", "सेल, जैसे B12", "Celda, por ejemplo B12", "Cellule, par exemple B12"),
     ("No cell {cell} on this sheet", "اس شیٹ میں خانہ {cell} نہیں ہے", "لا توجد خلية {cell} في هذه الورقة", "此工作表中没有单元格 {cell}", "इस शीट में सेल {cell} नहीं है", "No hay celda {cell} en esta hoja", "Pas de cellule {cell} dans cette feuille"),
+    ("Sort", "ترتیب دیں", "فرز", "排序", "क्रम बदलें", "Ordenar", "Trier"),
+    ("Sort by", "ترتیب بلحاظ", "فرز حسب", "排序方式", "इसके अनुसार क्रम", "Ordenar por", "Trier par"),
+    ("Last opened", "آخری بار کھولی گئی", "آخر فتح", "上次打开", "पिछली बार खोली गई", "Última apertura", "Dernière ouverture"),
 ]

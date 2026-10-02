@@ -109,7 +109,6 @@ export const ar: Table = {
 	"The file itself is not deleted": "الملف نفسه لا يُحذف",
 	"Removed from recents": "أُزيل من الأخيرة",
 	"Remove from recents": "إزالة من الأخيرة",
-	"Last opened": "آخر فتح",
 	"Looking through {name}": "جارٍ البحث في {name}",
 	"Paperwren can't reach “{name}” any more. It may have been moved, or access to it was withdrawn.":
 		"لم يعد Paperwren قادرًا على الوصول إلى “{name}”. ربما نُقل أو سُحب إذن الوصول إليه.",
@@ -326,4 +325,7 @@ export const ar: Table = {
 	"Go to cell": "الانتقال إلى خلية",
 	"Cell, for example B12": "خلية، مثل B12",
 	"No cell {cell} on this sheet": "لا توجد خلية {cell} في هذه الورقة",
+	Sort: "فرز",
+	"Sort by": "فرز حسب",
+	"Last opened": "آخر فتح",
 };

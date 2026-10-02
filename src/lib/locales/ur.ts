@@ -109,7 +109,6 @@ export const ur: Table = {
 	"The file itself is not deleted": "اصل فائل حذف نہیں ہوتی",
 	"Removed from recents": "حالیہ فہرست سے ہٹا دیا گیا",
 	"Remove from recents": "حالیہ فہرست سے ہٹائیں",
-	"Last opened": "آخری بار کھولی گئی",
 	"Looking through {name}": "{name} میں دیکھا جا رہا ہے",
 	"Paperwren can't reach “{name}” any more. It may have been moved, or access to it was withdrawn.":
 		"Paperwren اب “{name}” تک نہیں پہنچ سکتا۔ شاید اسے منتقل کر دیا گیا ہے یا اس تک رسائی واپس لے لی گئی ہے۔",
@@ -323,4 +322,7 @@ export const ur: Table = {
 	"Go to cell": "خانے پر جائیں",
 	"Cell, for example B12": "خانہ، مثلاً B12",
 	"No cell {cell} on this sheet": "اس شیٹ میں خانہ {cell} نہیں ہے",
+	Sort: "ترتیب دیں",
+	"Sort by": "ترتیب بلحاظ",
+	"Last opened": "آخری بار کھولی گئی",
 };
