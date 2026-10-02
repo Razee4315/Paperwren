@@ -223,6 +223,11 @@ test("a locked PDF asks for its password until it is right", async ({
 	const field = page.getByTestId("pdf-password");
 	await expect(field).toBeVisible({ timeout: 20_000 });
 	await expect(page.getByText("Enter the password for")).toBeVisible();
+	// The field has the keyboard, and what is typed can be shown.
+	await expect(field).toBeFocused();
+	await expect(field).toHaveAttribute("type", "password");
+	await page.getByTestId("pdf-password-show").click();
+	await expect(field).toHaveAttribute("type", "text");
 	await field.fill("sparrow");
 	await page.getByTestId("pdf-unlock").click();
 	await expect(page.getByText("That password didn't work")).toBeVisible();

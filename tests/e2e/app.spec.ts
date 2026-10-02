@@ -229,3 +229,26 @@ test("Locate file replaces a missing recent with the chosen file", async ({
 		"Unavailable",
 	);
 });
+
+test("recents sort by name, and a removal can be undone", async ({ page }) => {
+	await boot(page);
+	for (const f of ["sample.pdf", "sample.csv"]) {
+		await openFixture(page, f);
+		await expect(page.getByTestId("viewer")).toBeVisible({ timeout: 20_000 });
+		await page.getByTestId("viewer-back").click();
+	}
+	const recents = page.getByTestId("recent");
+	await expect(recents.first()).toContainText("sample.csv");
+	await page.getByTestId("sort").click();
+	await page.getByTestId("sort-name").click();
+	await expect(recents.first()).toContainText("sample.csv");
+	await expect(recents.last()).toContainText("sample.pdf");
+
+	await page
+		.getByRole("button", { name: "More actions for sample.pdf" })
+		.click();
+	await page.getByTestId("menu-remove").click();
+	await expect(recents).toHaveCount(1);
+	await page.getByRole("button", { name: "Undo" }).click();
+	await expect(recents).toHaveCount(2);
+});
