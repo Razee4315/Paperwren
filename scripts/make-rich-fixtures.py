@@ -358,6 +358,21 @@ def make_locked_pdf(path):
     page.save()
 
 
+def make_hidden_sheet_xlsx(path):
+    """Two sheets on show and one the file hides between them."""
+    wb = Workbook()
+    shown = wb.active
+    shown.title = "Shown"
+    shown.append(["Item", "Qty"])
+    shown.append(["Pens", 4])
+    secret = wb.create_sheet("Secret")
+    secret.append(["needle", "only here"])
+    secret.sheet_state = "hidden"
+    notes = wb.create_sheet("Notes")
+    notes.append(["A second sheet that is on show"])
+    wb.save(path)
+
+
 def make_cjk_pdf(path):
     """A Chinese page whose font is named, not embedded: the reader must
     bring its own character maps to make sense of the text."""
@@ -468,6 +483,7 @@ if __name__ == "__main__":
     make_effects_pptx(os.path.join(OUT, "effects.pptx"))
     make_locked_pdf(os.path.join(OUT, "locked.pdf"))
     make_cjk_pdf(os.path.join(OUT, "cjk.pdf"))
+    make_hidden_sheet_xlsx(os.path.join(OUT, "hidden-sheet.xlsx"))
     make_picture(os.path.join(FIXTURES, "sample.png"))
     make_locked_agile(os.path.join(OUT, "locked-agile.xlsx"))
     make_locked_standard(os.path.join(OUT, "locked-standard.docx"))

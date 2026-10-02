@@ -314,7 +314,3 @@
 	background: var(--accent-soft);
 	color: var(--accent);
 }
-.hiddenTab {
-	font-style: italic;
-	opacity: 0.7;
-}

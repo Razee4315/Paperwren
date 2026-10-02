@@ -179,7 +179,12 @@ export default function SheetView({
 				);
 				setMediaUrls(urls);
 				setAccents(result.accents ?? []);
-				setIndex(saved >= 0 && saved < list.length ? saved : firstVisible);
+				// A sheet the file hides is not one to come back to.
+				setIndex(
+					saved >= 0 && saved < list.length && !list[saved].hiddenSheet
+						? saved
+						: firstVisible,
+				);
 				setStyles(result.styles ?? []);
 				setSheets(list);
 			})
@@ -194,6 +199,12 @@ export default function SheetView({
 	}, [data, fileFormat]);
 
 	const sheet = sheets?.[index];
+	// Sheets the file hides are left out, as Excel and Google Sheets
+	// leave them out: no tab, and find does not lead into them. (A
+	// workbook with nothing but hidden sheets still shows them; their
+	// cells keep feeding the charts that read from them.)
+	const anyVisible = sheets?.some((sh) => !sh.hiddenSheet) ?? false;
+	const offered = (sh: Sheet) => !sh.hiddenSheet || !anyVisible;
 	const widths = (sheet && resized[index]) || sheet?.widths || [];
 	// biome-ignore lint/correctness/useExhaustiveDependencies: `widths` is derived from sheet and resized
 	const colX = useMemo(() => columnOffsets(widths), [sheet, resized, index]);
@@ -502,6 +513,7 @@ export default function SheetView({
 			const found: Array<Point & { sheet: number }> = [];
 			if (q) {
 				sheets.forEach((sh, si) => {
+					if (!offered(sh)) return;
 					const here: Point[] = [];
 					for (const [k, cell] of sh.cells)
 						if (cell.value.toLowerCase().includes(q))
@@ -878,21 +890,23 @@ export default function SheetView({
 				</div>
 			)}
 			<div className={s.bar}>
-				{sheets.length > 1 ? (
+				{sheets.filter(offered).length > 1 ? (
 					<div className={s.tabs} role="tablist" aria-label={t("Sheets")}>
-						{sheets.map((sh, i) => (
-							<button
-								type="button"
-								role="tab"
-								key={sh.name}
-								aria-selected={i === index}
-								className={`${s.tab} ${sh.hiddenSheet ? s.hiddenTab : ""}`}
-								onClick={() => setIndex(i)}
-								data-testid={`sheet-tab-${i}`}
-							>
-								{sh.name}
-							</button>
-						))}
+						{sheets.map((sh, i) =>
+							offered(sh) ? (
+								<button
+									type="button"
+									role="tab"
+									key={sh.name}
+									aria-selected={i === index}
+									className={s.tab}
+									onClick={() => setIndex(i)}
+									data-testid={`sheet-tab-${i}`}
+								>
+									{sh.name}
+								</button>
+							) : null,
+						)}
 					</div>
 				) : (
 					<span className={s.size}>
