@@ -12,8 +12,17 @@ import {
 import { decodeText } from "@/lib/text";
 import type { GridObject, ParseResult } from "@/lib/workbookModel";
 import { useSettings } from "@/state/settings";
-import { Button, ErrorArt, IconButton, Spinner, StateView, toast } from "@/ui";
-import { Copy, Search } from "lucide-react";
+import {
+	Button,
+	Dialog,
+	ErrorArt,
+	IconButton,
+	SheetItem,
+	Spinner,
+	StateView,
+	toast,
+} from "@/ui";
+import { Copy, LocateFixed, Search } from "lucide-react";
 import {
 	type CSSProperties,
 	useCallback,
@@ -25,7 +34,13 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import s from "./Sheet.module.css";
-import { FindBar, type FindState, Shell, ZoomControl } from "./Shell";
+import {
+	FindBar,
+	type FindState,
+	Shell,
+	ZoomControl,
+	shellStyles,
+} from "./Shell";
 import { SlideChart } from "./SlideChart";
 import { useZoom } from "./hooks";
 import { runWorker } from "./runWorker";
@@ -35,6 +50,7 @@ import {
 	type Sheet,
 	chartColors,
 	key,
+	parseCellAddress,
 	printSheet,
 	rangeLabel,
 	rangeOf,
@@ -107,6 +123,8 @@ export default function SheetView({
 		total: 0,
 		current: -1,
 	});
+	// "Go to cell": the address being typed, or null when closed.
+	const [jump, setJump] = useState<string | null>(null);
 	const hits = useRef<Array<Point & { sheet: number }>>([]);
 	/** A cell to show once the sheet it is on has been switched to. */
 	const pending = useRef<Point | null>(null);
@@ -512,6 +530,22 @@ export default function SheetView({
 		go(hits.current[current]);
 	};
 
+	/** Select the cell at a typed address ("B12") and bring it into view. */
+	const goToCell = () => {
+		const typed = jump ?? "";
+		setJump(null);
+		const at = parseCellAddress(typed);
+		// Addresses are the file's; hidden rows and columns are not shown.
+		const r = at && sheet ? sheet.rowOrigins.indexOf(at.row) : -1;
+		const c = at && sheet ? sheet.colOrigins.indexOf(at.col) : -1;
+		if (r < 0 || c < 0) {
+			toast(t("No cell {cell} on this sheet", { cell: typed.trim() || "?" }));
+			return;
+		}
+		select(r, c);
+		reveal(r, c);
+	};
+
 	// --- charts on the sheet, parsed where there is a DOM ---
 	const charts = useMemo(() => {
 		const out = new Map<GridObject, Chart>();
@@ -878,6 +912,22 @@ export default function SheetView({
 			active={active}
 			hud={hud}
 			onFind={sheets ? () => setFindOpen(true) : undefined}
+			menu={
+				sheet
+					? (close) => (
+							<SheetItem
+								icon={<LocateFixed size={20} />}
+								onClick={() => {
+									close();
+									setJump("");
+								}}
+								testId="sheet-go-to"
+							>
+								{t("Go to cell")}
+							</SheetItem>
+						)
+					: undefined
+			}
 			onPrint={
 				sheet ? (root) => printSheet(root, sheet, widths, looks) : undefined
 			}
@@ -1034,6 +1084,41 @@ export default function SheetView({
 					<Spinner label={t("Opening spreadsheet")} />
 				</StateView>
 			)}
+			<Dialog
+				open={jump !== null}
+				title={t("Go to cell")}
+				onClose={() => setJump(null)}
+				actions={
+					<>
+						<Button variant="ghost" onClick={() => setJump(null)}>
+							{t("Cancel")}
+						</Button>
+						<Button onClick={goToCell} data-testid="sheet-go-to-go">
+							{t("Go")}
+						</Button>
+					</>
+				}
+			>
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						goToCell();
+					}}
+				>
+					<input
+						className={shellStyles.input}
+						dir="ltr"
+						autoCapitalize="characters"
+						autoComplete="off"
+						spellCheck={false}
+						placeholder="B12"
+						value={jump ?? ""}
+						onChange={(e) => setJump(e.target.value)}
+						aria-label={t("Cell, for example B12")}
+						data-testid="sheet-go-to-input"
+					/>
+				</form>
+			</Dialog>
 			{error && (
 				<StateView
 					icon={<ErrorArt />}

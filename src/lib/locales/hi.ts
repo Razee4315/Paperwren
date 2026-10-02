@@ -317,4 +317,7 @@ export const hi: Table = {
 	"Privacy policy": "गोपनीयता नीति",
 	"Show password": "पासवर्ड दिखाएँ",
 	"Hide password": "पासवर्ड छिपाएँ",
+	"Go to cell": "सेल पर जाएँ",
+	"Cell, for example B12": "सेल, जैसे B12",
+	"No cell {cell} on this sheet": "इस शीट में सेल {cell} नहीं है",
 };

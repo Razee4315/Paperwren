@@ -302,4 +302,7 @@ ROWS = [
     ("Privacy policy", "رازداری پالیسی", "سياسة الخصوصية", "隐私政策", "गोपनीयता नीति", "Política de privacidad", "Politique de confidentialité"),
     ("Show password", "پاس ورڈ دکھائیں", "إظهار كلمة المرور", "显示密码", "पासवर्ड दिखाएँ", "Mostrar contraseña", "Afficher le mot de passe"),
     ("Hide password", "پاس ورڈ چھپائیں", "إخفاء كلمة المرور", "隐藏密码", "पासवर्ड छिपाएँ", "Ocultar contraseña", "Masquer le mot de passe"),
+    ("Go to cell", "خانے پر جائیں", "الانتقال إلى خلية", "转到单元格", "सेल पर जाएँ", "Ir a la celda", "Aller à la cellule"),
+    ("Cell, for example B12", "خانہ، مثلاً B12", "خلية، مثل B12", "单元格，例如 B12", "सेल, जैसे B12", "Celda, por ejemplo B12", "Cellule, par exemple B12"),
+    ("No cell {cell} on this sheet", "اس شیٹ میں خانہ {cell} نہیں ہے", "لا توجد خلية {cell} في هذه الورقة", "此工作表中没有单元格 {cell}", "इस शीट में सेल {cell} नहीं है", "No hay celda {cell} en esta hoja", "Pas de cellule {cell} dans cette feuille"),
 ]

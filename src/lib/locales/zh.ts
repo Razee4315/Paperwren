@@ -306,4 +306,7 @@ export const zh: Table = {
 	"Privacy policy": "隐私政策",
 	"Show password": "显示密码",
 	"Hide password": "隐藏密码",
+	"Go to cell": "转到单元格",
+	"Cell, for example B12": "单元格，例如 B12",
+	"No cell {cell} on this sheet": "此工作表中没有单元格 {cell}",
 };

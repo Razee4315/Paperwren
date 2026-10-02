@@ -330,4 +330,7 @@ export const fr: Table = {
 	"Privacy policy": "Politique de confidentialité",
 	"Show password": "Afficher le mot de passe",
 	"Hide password": "Masquer le mot de passe",
+	"Go to cell": "Aller à la cellule",
+	"Cell, for example B12": "Cellule, par exemple B12",
+	"No cell {cell} on this sheet": "Pas de cellule {cell} dans cette feuille",
 };

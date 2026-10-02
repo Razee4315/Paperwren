@@ -327,4 +327,7 @@ export const es: Table = {
 	"Privacy policy": "Política de privacidad",
 	"Show password": "Mostrar contraseña",
 	"Hide password": "Ocultar contraseña",
+	"Go to cell": "Ir a la celda",
+	"Cell, for example B12": "Celda, por ejemplo B12",
+	"No cell {cell} on this sheet": "No hay celda {cell} en esta hoja",
 };

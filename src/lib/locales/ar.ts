@@ -323,4 +323,7 @@ export const ar: Table = {
 	"Privacy policy": "سياسة الخصوصية",
 	"Show password": "إظهار كلمة المرور",
 	"Hide password": "إخفاء كلمة المرور",
+	"Go to cell": "الانتقال إلى خلية",
+	"Cell, for example B12": "خلية، مثل B12",
+	"No cell {cell} on this sheet": "لا توجد خلية {cell} في هذه الورقة",
 };

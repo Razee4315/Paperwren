@@ -320,4 +320,7 @@ export const ur: Table = {
 	"Privacy policy": "رازداری پالیسی",
 	"Show password": "پاس ورڈ دکھائیں",
 	"Hide password": "پاس ورڈ چھپائیں",
+	"Go to cell": "خانے پر جائیں",
+	"Cell, for example B12": "خانہ، مثلاً B12",
+	"No cell {cell} on this sheet": "اس شیٹ میں خانہ {cell} نہیں ہے",
 };
