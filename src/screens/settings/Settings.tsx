@@ -245,8 +245,20 @@ export function SettingsScreen() {
 							hint={t("Stored only on this device")}
 							checked={settings.keepRecents}
 							onChange={(v) => {
-								update("keepRecents", v);
-								if (!v) toast(t("Recents cleared and turned off"));
+								if (v) {
+									update("keepRecents", true);
+									return;
+								}
+								// One tap must not cost the whole list: it can be undone.
+								const previous = clear();
+								update("keepRecents", false);
+								toast(t("Recents cleared and turned off"), {
+									label: t("Undo"),
+									run: () => {
+										update("keepRecents", true);
+										restore(previous);
+									},
+								});
 							}}
 							testId="keep-recents"
 						/>
