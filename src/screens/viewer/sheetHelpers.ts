@@ -119,25 +119,95 @@ function insetLine(border: string, side: "t" | "l"): string {
 		: `inset ${width}px 0 0 0 ${color}`;
 }
 
-/** A cell's authored look as inline CSS. A filled cell carries its
- * own ink (dark unless the file says otherwise) so it reads the same
- * in every app theme; an unfilled one keeps the theme's ink. */
-export function styleCss(st: CellStyle): CSSProperties {
+// The Ink theme's own surface, text and a line that shows on it.
+const INK_SURFACE = "#1f2226";
+const INK_TEXT = "#e6e2da";
+const INK_LINE = "#565d64";
+
+/** Blend two "#rrggbb" colours: `share` of `a`, the rest `b`. */
+export function mixHex(a: string, b: string, share: number): string {
+	const from = channels(a);
+	const to = channels(b);
+	return `#${from
+		.map((v, i) =>
+			Math.round(v * share + to[i] * (1 - share))
+				.toString(16)
+				.padStart(2, "0"),
+		)
+		.join("")}`;
+}
+
+const channels = (hex: string) =>
+	[0, 1, 2].map((i) => Number.parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16));
+
+/** How light a colour is, 0 (black) to 1 (white). */
+function lightness(hex: string): number {
+	const [r, g, b] = channels(hex);
+	return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+/** A fill as the dark theme shows it: its hue, as a tint of the
+ * surface. A pale fill (most are) gives a little, a deep one more, so
+ * every tint ends up dark enough for light text. */
+const inkFill = (fill: string) =>
+	mixHex(fill, INK_SURFACE, 0.5 - 0.3 * lightness(fill));
+
+/** Text colour on the dark theme: a dark neutral (black, the usual
+ * "automatic" ink) becomes the theme's text; anything with a hue
+ * keeps it, lifted towards white. */
+function inkText(color: string | undefined): string {
+	if (!color) return INK_TEXT;
+	const [r, g, b] = channels(color);
+	const grey = Math.max(r, g, b) - Math.min(r, g, b) < 40;
+	if (grey && lightness(color) < 0.6) return INK_TEXT;
+	return mixHex(color, "#ffffff", 0.45);
+}
+
+/** A border value with its colour replaced. */
+const recolor = (border: string, color: string) =>
+	`${border.slice(0, border.lastIndexOf(" "))} ${color}`;
+
+/**
+ * A cell's authored look as inline CSS. On the light themes a filled
+ * cell is drawn as the file has it, with its own ink (dark unless the
+ * file says otherwise); an unfilled one keeps the theme's ink.
+ *
+ * On the dark theme a sheet full of white, cream and yellow blocks
+ * with black rules would glare, so the same look is told in the dark:
+ * a fill keeps its hue as a deep tint of the surface, text on it is
+ * light, and authored borders become one quiet line.
+ */
+export function styleCss(st: CellStyle, dark = false): CSSProperties {
 	const decoration = [st.underline && "underline", st.strike && "line-through"]
 		.filter(Boolean)
 		.join(" ");
+	const border =
+		dark && st.border
+			? {
+					t: st.border.t && recolor(st.border.t, INK_LINE),
+					r: st.border.r && recolor(st.border.r, INK_LINE),
+					b: st.border.b && recolor(st.border.b, INK_LINE),
+					l: st.border.l && recolor(st.border.l, INK_LINE),
+				}
+			: st.border;
 	const inset = [
-		st.border?.t && insetLine(st.border.t, "t"),
-		st.border?.l && insetLine(st.border.l, "l"),
+		border?.t && insetLine(border.t, "t"),
+		border?.l && insetLine(border.l, "l"),
 	]
 		.filter(Boolean)
 		.join(", ");
+	const fill = st.fill && dark ? inkFill(st.fill) : st.fill;
+	const ink = st.fill
+		? dark
+			? inkText(st.color)
+			: (st.color ?? "#1b1b1f")
+		: undefined;
 	return {
 		fontWeight: st.bold ? 700 : undefined,
 		fontStyle: st.italic ? "italic" : undefined,
 		textDecoration: decoration || undefined,
-		background: st.fill,
-		color: st.fill ? (st.color ?? "#1b1b1f") : undefined,
+		background: fill,
+		color: ink,
 		["--ink" as string]: st.fill ? undefined : st.color,
 		justifyContent:
 			st.align === "center"
@@ -148,9 +218,10 @@ export function styleCss(st: CellStyle): CSSProperties {
 						? "flex-start"
 						: undefined,
 		textAlign: st.align,
-		whiteSpace: st.wrap ? "normal" : undefined,
-		borderRight: st.border?.r,
-		borderBottom: st.border?.b,
+		// Wrapped text keeps the line breaks typed into the cell.
+		whiteSpace: st.wrap ? "pre-wrap" : undefined,
+		borderRight: border?.r,
+		borderBottom: border?.b,
 		boxShadow: inset || undefined,
 	};
 }

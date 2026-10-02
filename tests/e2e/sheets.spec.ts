@@ -242,3 +242,18 @@ test("go to a cell by its address", async ({ page }) => {
 	await goTo("nowhere");
 	await expect(page.getByText("No cell nowhere on this sheet")).toBeVisible();
 });
+
+test("a sheet the file hides has no tab and is not searched", async ({
+	page,
+}) => {
+	await boot(page);
+	await openFixture(page, "viewer-regressions/hidden-sheet.xlsx");
+	const tabs = page.getByRole("tab");
+	await expect(tabs).toHaveText(["Shown", "Notes"], { timeout: 20_000 });
+	await page.getByTestId("sheet-find").click();
+	await page.getByTestId("find-input").fill("needle");
+	await expect(page.getByTestId("find-count")).toHaveText("No results");
+	await page.getByTestId("find-input").fill("second sheet");
+	await expect(page.getByTestId("find-count")).toHaveText("1 of 1");
+	await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
+});

@@ -142,6 +142,14 @@
 .num {
 	justify-content: flex-end;
 }
+/* Wrapped text starts at the top of its cell, so a cell too short for
+ * all of it shows its beginning rather than its middle. */
+.wrap {
+	align-items: flex-start;
+	padding-top: 5px;
+	line-height: 18px;
+	overflow-wrap: anywhere;
+}
 .merged {
 	white-space: normal;
 	justify-content: center;
@@ -305,8 +313,4 @@
 .tab[aria-selected="true"] {
 	background: var(--accent-soft);
 	color: var(--accent);
-}
-.hiddenTab {
-	font-style: italic;
-	opacity: 0.7;
 }

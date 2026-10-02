@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	type Sheet,
 	key,
+	mixHex,
 	parseCellAddress,
 	rangeLabel,
 	rangeOf,
@@ -89,6 +90,29 @@ describe("cell looks", () => {
 		const plain = styleCss({ color: "#c62828" }) as Record<string, unknown>;
 		expect(plain.color).toBeUndefined();
 		expect(plain["--ink"]).toBe("#c62828");
+	});
+
+	it("tells the same look in the dark: deep tints, light text, quiet lines", () => {
+		// A pale fill becomes a dark tint, and black ink the theme's text.
+		const cream = styleCss({ fill: "#fff2cc", color: "#000000" }, true);
+		expect(cream.background).not.toBe("#fff2cc");
+		expect(cream.color).toBe("#e6e2da");
+		// A hue is kept, lifted towards white.
+		const red = styleCss({ fill: "#fff2cc", color: "#c62828" }, true);
+		expect(red.color).toBe(mixHex("#c62828", "#ffffff", 0.45));
+		// White on a deep fill stays white.
+		const header = styleCss({ fill: "#1f4e78", color: "#ffffff" }, true);
+		expect(header.color).toBe("#ffffff");
+		// Authored borders keep their width and style, not their colour.
+		const ruled = styleCss({ border: { r: "2px solid #000000" } }, true);
+		expect(ruled.borderRight).toBe("2px solid #565d64");
+		// The light themes are untouched.
+		expect(styleCss({ fill: "#fff2cc" }).background).toBe("#fff2cc");
+	});
+
+	it("blends two colours", () => {
+		expect(mixHex("#000000", "#ffffff", 0.5)).toBe("#808080");
+		expect(mixHex("#ff0000", "#0000ff", 1)).toBe("#ff0000");
 	});
 
 	it("draws authored borders on all four sides", () => {

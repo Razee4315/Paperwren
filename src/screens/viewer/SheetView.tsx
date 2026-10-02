@@ -1,6 +1,7 @@
 import { hasRtl } from "@/lib/bidi";
 import { t } from "@/lib/i18n";
 import { type Chart, readChart } from "@/lib/pptx/chart";
+import { isDarkTheme } from "@/lib/settings";
 import {
 	DEFAULT_COL_WIDTH,
 	HEADER_HEIGHT,
@@ -10,7 +11,7 @@ import {
 	computeVisibleWindow,
 } from "@/lib/sheetLayout";
 import { decodeText } from "@/lib/text";
-import type { GridObject, ParseResult } from "@/lib/workbookModel";
+import type { CellStyle, GridObject, ParseResult } from "@/lib/workbookModel";
 import { useSettings } from "@/state/settings";
 import {
 	Button,
@@ -95,9 +96,15 @@ export default function SheetView({
 	onClose,
 	active,
 }: ViewerProps) {
-	const { settings } = useSettings();
+	const { settings, theme } = useSettings();
 	const [sheets, setSheets] = useState<Sheet[] | null>(null);
-	const [looks, setLooks] = useState<CSSProperties[]>([]);
+	// The file's cell styles, and how each is drawn in this theme.
+	const [styles, setStyles] = useState<CellStyle[]>([]);
+	const dark = isDarkTheme(theme);
+	const looks = useMemo<CSSProperties[]>(
+		() => styles.map((st) => styleCss(st, dark)),
+		[styles, dark],
+	);
 	const [mediaUrls, setMediaUrls] = useState<string[]>([]);
 	const [accents, setAccents] = useState<string[]>([]);
 	const [error, setError] = useState<string | null>(null);
@@ -172,8 +179,13 @@ export default function SheetView({
 				);
 				setMediaUrls(urls);
 				setAccents(result.accents ?? []);
-				setIndex(saved >= 0 && saved < list.length ? saved : firstVisible);
-				setLooks((result.styles ?? []).map(styleCss));
+				// A sheet the file hides is not one to come back to.
+				setIndex(
+					saved >= 0 && saved < list.length && !list[saved].hiddenSheet
+						? saved
+						: firstVisible,
+				);
+				setStyles(result.styles ?? []);
 				setSheets(list);
 			})
 			.catch((e) => {
@@ -187,6 +199,12 @@ export default function SheetView({
 	}, [data, fileFormat]);
 
 	const sheet = sheets?.[index];
+	// Sheets the file hides are left out, as Excel and Google Sheets
+	// leave them out: no tab, and find does not lead into them. (A
+	// workbook with nothing but hidden sheets still shows them; their
+	// cells keep feeding the charts that read from them.)
+	const anyVisible = sheets?.some((sh) => !sh.hiddenSheet) ?? false;
+	const offered = (sh: Sheet) => !sh.hiddenSheet || !anyVisible;
 	const widths = (sheet && resized[index]) || sheet?.widths || [];
 	// biome-ignore lint/correctness/useExhaustiveDependencies: `widths` is derived from sheet and resized
 	const colX = useMemo(() => columnOffsets(widths), [sheet, resized, index]);
@@ -219,6 +237,13 @@ export default function SheetView({
 		ro.observe(el);
 		return () => ro.disconnect();
 	}, [sheet]);
+
+	// The grid has the keyboard from the moment the sheet is shown, so
+	// the arrows move through cells without a click into it first.
+	useEffect(() => {
+		if (sheet && active && document.activeElement === document.body)
+			scroller.current?.focus({ preventScroll: true });
+	}, [sheet, active]);
 
 	const saveTimer = useRef(0);
 	const syncView = useCallback(() => {
@@ -488,6 +513,7 @@ export default function SheetView({
 			const found: Array<Point & { sheet: number }> = [];
 			if (q) {
 				sheets.forEach((sh, si) => {
+					if (!offered(sh)) return;
 					const here: Point[] = [];
 					for (const [k, cell] of sh.cells)
 						if (cell.value.toLowerCase().includes(q))
@@ -634,7 +660,7 @@ export default function SheetView({
 					value &&
 					!m &&
 					!numeric &&
-					look?.whiteSpace !== "normal" &&
+					look?.whiteSpace !== "pre-wrap" &&
 					look?.textAlign !== "center" &&
 					look?.textAlign !== "right" &&
 					!hasRtl(value)
@@ -672,7 +698,7 @@ export default function SheetView({
 						data-r={ghosts ? undefined : ar}
 						data-c={ghosts ? undefined : ac}
 						aria-hidden={ghosts || undefined}
-						className={`${s.cell} ${m ? s.merged : numeric ? s.num : ""} ${spilled ? s.spill : ""} ${ghosts ? s.ghost : ""} ${look?.["--ink" as keyof typeof look] ? s.ink : ""}`}
+						className={`${s.cell} ${m ? s.merged : numeric ? s.num : ""} ${spilled ? s.spill : ""} ${look?.whiteSpace === "pre-wrap" ? s.wrap : ""} ${ghosts ? s.ghost : ""} ${look?.["--ink" as keyof typeof look] ? s.ink : ""}`}
 						style={{
 							left: shift + colX[ac],
 							top,
@@ -864,21 +890,23 @@ export default function SheetView({
 				</div>
 			)}
 			<div className={s.bar}>
-				{sheets.length > 1 ? (
+				{sheets.filter(offered).length > 1 ? (
 					<div className={s.tabs} role="tablist" aria-label={t("Sheets")}>
-						{sheets.map((sh, i) => (
-							<button
-								type="button"
-								role="tab"
-								key={sh.name}
-								aria-selected={i === index}
-								className={`${s.tab} ${sh.hiddenSheet ? s.hiddenTab : ""}`}
-								onClick={() => setIndex(i)}
-								data-testid={`sheet-tab-${i}`}
-							>
-								{sh.name}
-							</button>
-						))}
+						{sheets.map((sh, i) =>
+							offered(sh) ? (
+								<button
+									type="button"
+									role="tab"
+									key={sh.name}
+									aria-selected={i === index}
+									className={s.tab}
+									onClick={() => setIndex(i)}
+									data-testid={`sheet-tab-${i}`}
+								>
+									{sh.name}
+								</button>
+							) : null,
+						)}
 					</div>
 				) : (
 					<span className={s.size}>
@@ -929,7 +957,16 @@ export default function SheetView({
 					: undefined
 			}
 			onPrint={
-				sheet ? (root) => printSheet(root, sheet, widths, looks) : undefined
+				sheet
+					? (root) =>
+							// Paper is light whatever the theme on screen.
+							printSheet(
+								root,
+								sheet,
+								widths,
+								styles.map((st) => styleCss(st)),
+							)
+					: undefined
 			}
 			actions={
 				<IconButton

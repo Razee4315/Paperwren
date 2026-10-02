@@ -533,12 +533,16 @@ export default function SlidesView({
 	useLayoutEffect(() => {
 		const el = scroller.current;
 		if (!el || !deck) return;
-		// The 12px side padding sits inside the zoomed box and scales too.
+		// A slide is looked at whole: it fits the width on a phone held
+		// upright, and the height too on a wide window, where fitting
+		// only the width would show half a slide. The list's padding sits
+		// inside the zoomed box and scales with it.
 		const measure = () => {
 			setFit(
 				Math.min(
 					2,
 					Math.floor((el.clientWidth / (deck.width + 24)) * 1e3) / 1e3,
+					Math.floor((el.clientHeight / (deck.height + 32)) * 1e3) / 1e3,
 				),
 			);
 			setMeasured(true);
@@ -641,6 +645,8 @@ export default function SlidesView({
 			active={active}
 			hud={hud}
 			progressOf={scroller}
+			// Page Up / Down step through the slides here.
+			pageKeys={false}
 			chromeHidden={chromeHidden && !find.open}
 			onFind={deck ? find.start : undefined}
 			onPrint={
@@ -718,13 +724,13 @@ export default function SlidesView({
 						<ZoomControl
 							label={
 								Math.abs(zoom - 1) < 0.005
-									? t("Fit width")
+									? t("Fit")
 									: `${Math.round(zoom * 100)}%`
 							}
 							onOut={() => zoomBy(1 / 1.25)}
 							onIn={() => zoomBy(1.25)}
 							onReset={() => zoomTo(1)}
-							resetLabel={t("Fit width")}
+							resetLabel={t("Fit to screen")}
 							testId="slides"
 						/>
 					</div>

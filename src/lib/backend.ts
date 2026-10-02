@@ -102,6 +102,9 @@ interface Backend {
 	/** Print the original file itself (exact, e.g. a PDF). False when
 	 * the host cannot. */
 	printOriginal(file: FileRef): Promise<boolean>;
+	/** Name the window after what it shows (desktop title bar, task
+	 * switcher). Phones have no title to set. */
+	setTitle(title: string): void;
 	/** Provider display name of a content:// URI, or null. */
 	providerName(uri: string): string | null;
 	read(reopen: Reopen): Promise<ArrayBuffer>;
@@ -250,6 +253,9 @@ function adoptBrowserFile(file: File): OpenRequest {
 
 const browserBackend: Backend = {
 	providerName: bridgeName,
+	setTitle(title) {
+		document.title = title;
+	},
 	async pickFile() {
 		const file = await browserPick();
 		return file ? adoptBrowserFile(file) : null;
@@ -618,6 +624,13 @@ async function requestForPath(path: string): Promise<OpenRequest> {
 
 const tauriBackend: Backend = {
 	providerName: bridgeName,
+	setTitle(title) {
+		document.title = title;
+		if (window.__paperwrenAndroid) return;
+		import("@tauri-apps/api/window")
+			.then(({ getCurrentWindow }) => getCurrentWindow().setTitle(title))
+			.catch(() => {});
+	},
 	async pickFile() {
 		const { open } = await import("@tauri-apps/plugin-dialog");
 		const picked = await open({

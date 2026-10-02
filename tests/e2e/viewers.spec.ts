@@ -438,3 +438,29 @@ test("a Chinese PDF that names its font instead of carrying it is readable", asy
 		timeout: 20_000,
 	});
 });
+
+test("the keyboard reads a document without a click into it first", async ({
+	page,
+}) => {
+	await boot(page);
+	await openFixture(page, "viewer-regressions/multipage.docx");
+	const pill = page.getByTestId("doc-page");
+	await expect(pill).toHaveText("1 / 3", { timeout: 20_000 });
+	// The window is named after the document.
+	await expect(page).toHaveTitle("multipage.docx - Paperwren");
+	await page.keyboard.press("End");
+	await expect(pill).toHaveText("3 / 3");
+	await page.keyboard.press("Home");
+	await expect(pill).toHaveText("1 / 3");
+	await page.keyboard.press("Space");
+	await expect
+		.poll(() => page.getByTestId("doc-scroll").evaluate((el) => el.scrollTop))
+		.toBeGreaterThan(100);
+	// Ctrl+W closes the document, as in a desktop reader.
+	await page.keyboard.press("Control+w");
+	await expect(page.getByTestId("viewer")).toBeHidden();
+	await expect(page).toHaveTitle("Paperwren");
+	// On Home, Ctrl+F goes to the search box.
+	await page.keyboard.press("Control+f");
+	await expect(page.getByTestId("search-input")).toBeFocused();
+});

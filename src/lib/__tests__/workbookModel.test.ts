@@ -167,8 +167,76 @@ describe("workbook meaning (audit XLS-04)", () => {
 		XLSX.utils.book_append_sheet(wb, ws, "W");
 		const result = parseWorkbookDirect(wb);
 		if (!result.ok) throw new Error("parse failed");
-		// px = wch * 7 + 5.
-		expect(result.sheets[0].widths).toEqual([75, 145]);
+		// `wch` leaves the cell padding out (wch * 7 + 5); the file's own
+		// `width` includes it (width * 7).
+		expect(result.sheets[0].widths).toEqual([75, 140]);
+	});
+
+	it("prefers the file's own width over the parser's pixel guess", () => {
+		const wb = XLSX.utils.book_new();
+		const ws = XLSX.utils.aoa_to_sheet([["a"]]);
+		// What the parser hands back for a column 44 characters wide.
+		ws["!cols"] = [{ width: 44, wch: 43.17, wpx: 264 }];
+		XLSX.utils.book_append_sheet(wb, ws, "W");
+		const result = parseWorkbookDirect(wb);
+		if (!result.ok) throw new Error("parse failed");
+		expect(result.sheets[0].widths).toEqual([308]);
+	});
+
+	it("reads a row's height from its points", () => {
+		const wb = XLSX.utils.book_new();
+		const ws = XLSX.utils.aoa_to_sheet([["a"]]);
+		ws["!rows"] = [{ hpt: 48, hpx: 48 }];
+		XLSX.utils.book_append_sheet(wb, ws, "H");
+		const result = parseWorkbookDirect(wb);
+		if (!result.ok) throw new Error("parse failed");
+		expect(result.sheets[0].rowHeights).toEqual([64]);
+	});
+
+	it("fits columns to their text when the file gives no widths", () => {
+		const result = parseAoa([
+			["id", "A description that is a good deal longer than a default column"],
+			["7", "short"],
+		]);
+		if (!result.ok) throw new Error("parse failed");
+		const [id, description] = result.sheets[0].widths;
+		// Never narrower than the default, wider for long text, capped.
+		expect(id).toBe(96);
+		expect(description).toBeGreaterThan(300);
+		expect(description).toBeLessThanOrEqual(360);
+	});
+
+	it("leaves authored widths alone, even next to long text", () => {
+		const result = parseAoa(
+			[["id", "A description that is a good deal longer than its column"]],
+			{ cols: [{ wpx: 60 }, { wpx: 80 }] },
+		);
+		if (!result.ok) throw new Error("parse failed");
+		expect(result.sheets[0].widths).toEqual([60, 80]);
+	});
+
+	it("makes a row tall enough for wrapped text it gives no height", () => {
+		const wb = XLSX.utils.book_new();
+		const ws = XLSX.utils.aoa_to_sheet([
+			["Wrapped text that needs several lines in a narrow column", "x"],
+			["plain text that is not wrapped and stays on one line", "y"],
+		]);
+		ws["!cols"] = [{ wpx: 120 }, { wpx: 60 }];
+		XLSX.utils.book_append_sheet(wb, ws, "S1");
+		const stubbed = { ...XLSX, read: () => wb } as typeof XLSX;
+		const result = parseWorkbook(stubbed, new ArrayBuffer(0), {
+			styles: [{ wrap: true }],
+			sheets: new Map([["S1", new Map([["A1", 0]])]]),
+			freeze: new Map(),
+			anchors: new Map(),
+			media: [],
+			accents: [],
+		});
+		if (!result.ok) throw new Error("parse failed");
+		const [wrapped, plain] = result.sheets[0].rowHeights;
+		expect(wrapped).toBeGreaterThan(60);
+		expect(plain).toBe(30);
+		expect(result.sheets[0].rowPrefix).toEqual([0, wrapped, wrapped + 30]);
 	});
 
 	it("labels a formula without a cached result instead of undefined", () => {

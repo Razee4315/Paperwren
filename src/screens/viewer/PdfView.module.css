@@ -7,15 +7,14 @@
 	touch-action: pan-x pan-y;
 	outline: none;
 	background: var(--canvas);
-	--page-margin: 8px auto;
-	--page-border: none;
 }
+/* Pages run edge to edge with a thin strip of canvas between them. */
 .container :global(.pdfViewer) {
-	padding: 4px 0 24px;
+	padding: 0 0 24px;
 }
-.container :global(.pdfViewer .page) {
+.container :global(.pdfViewer.removePageBorders .page) {
+	margin: 0 auto 6px;
 	box-shadow: var(--shadow-2);
-	border-radius: 2px;
 }
 .dark :global(.pdfViewer .page .canvasWrapper) {
 	filter: invert(0.88) hue-rotate(180deg);

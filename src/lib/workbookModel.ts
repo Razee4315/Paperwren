@@ -128,9 +128,17 @@ export const MAX_MERGE_EXPANSION = 200_000;
 export const DEFAULT_COL_WIDTH = 96;
 export const DEFAULT_ROW_HEIGHT = 30;
 const MIN_COL_WIDTH = 48;
-const MAX_COL_WIDTH = 320;
+const MAX_COL_WIDTH = 600;
 const MIN_ROW_HEIGHT = 20;
-const MAX_ROW_HEIGHT = 120;
+const MAX_ROW_HEIGHT = 240;
+/** Widest a column is made when its width is worked out from its text. */
+const MAX_FITTED_WIDTH = 360;
+/** Rows looked at when a width or height is worked out from text. */
+const FIT_SAMPLE_ROWS = 500;
+/** Average advance of a character in the grid's 13px font, and the
+ * height of a line of it. */
+const CHAR_PX = 7.2;
+const LINE_PX = 18;
 
 /** Error-code -> display string for cells stored without a formatted
  * error text (SheetJS stores the numeric code in `v`). */
@@ -156,47 +164,54 @@ interface RawRow {
 	hidden?: boolean;
 }
 
+const num = (v: unknown): v is number =>
+	typeof v === "number" && Number.isFinite(v);
+
+/** True when the file itself says how wide the column is. */
+const hasWidth = (col: RawCol | undefined) =>
+	!!col && (num(col.width) || num(col.wch) || num(col.wpx));
+
 /** One tested conversion for every supported width unit (audit
- * XLS-04 item 3): authored px wins, else character width via the
- * Calibri-11 approximation (px ≈ wch*7 + 5). */
+ * XLS-04 item 3). The file's own unit comes first: `width` is in
+ * characters of Calibri 11 with the cell padding included, 7 px each
+ * (8.43 characters, stored as 9.14, is Excel's 64 px default). `wch`
+ * is the same without the padding. The parser's own pixel guess
+ * assumes a narrower font and comes last. */
 function normalizeWidth(col: RawCol | undefined): number {
 	if (!col) return DEFAULT_COL_WIDTH;
-	if (typeof col.wpx === "number" && Number.isFinite(col.wpx)) {
-		return Math.min(
-			MAX_COL_WIDTH,
-			Math.max(MIN_COL_WIDTH, Math.round(col.wpx)),
-		);
-	}
-	const chars =
-		typeof col.wch === "number" && Number.isFinite(col.wch)
-			? col.wch
-			: typeof col.width === "number" && Number.isFinite(col.width)
-				? col.width
+	const px = num(col.width)
+		? col.width * 7
+		: num(col.wch)
+			? col.wch * 7 + 5
+			: num(col.wpx)
+				? col.wpx
 				: undefined;
-	if (chars !== undefined) {
-		return Math.min(
-			MAX_COL_WIDTH,
-			Math.max(MIN_COL_WIDTH, Math.round(chars * 7 + 5)),
-		);
-	}
-	return DEFAULT_COL_WIDTH;
+	if (px === undefined) return DEFAULT_COL_WIDTH;
+	return Math.min(MAX_COL_WIDTH, Math.max(MIN_COL_WIDTH, Math.round(px)));
 }
 
+/** True when the file itself says how tall the row is. */
+const hasHeight = (row: RawRow | undefined) =>
+	!!row && (num(row.hpt) || num(row.hpx));
+
 function normalizeHeight(row: RawRow | undefined): number {
-	if (row && typeof row.hpx === "number" && Number.isFinite(row.hpx)) {
-		return Math.min(
-			MAX_ROW_HEIGHT,
-			Math.max(MIN_ROW_HEIGHT, Math.round(row.hpx)),
-		);
-	}
-	if (row && typeof row.hpt === "number" && Number.isFinite(row.hpt)) {
-		// Points -> px at 96/72 dpi.
-		return Math.min(
-			MAX_ROW_HEIGHT,
-			Math.max(MIN_ROW_HEIGHT, Math.round((row.hpt * 96) / 72)),
-		);
-	}
-	return DEFAULT_ROW_HEIGHT;
+	if (!row) return DEFAULT_ROW_HEIGHT;
+	// Points are what the file stores: px at 96/72 dpi.
+	const px = num(row.hpt)
+		? (row.hpt * 96) / 72
+		: num(row.hpx)
+			? row.hpx
+			: undefined;
+	if (px === undefined) return DEFAULT_ROW_HEIGHT;
+	return Math.min(MAX_ROW_HEIGHT, Math.max(MIN_ROW_HEIGHT, Math.round(px)));
+}
+
+/** Roughly how wide a line of text is in the grid's font. CJK and
+ * other wide characters take about two Latin ones. */
+function textPx(line: string): number {
+	let units = 0;
+	for (const ch of line) units += (ch.codePointAt(0) ?? 0) >= 0x2e80 ? 1.8 : 1;
+	return units * CHAR_PX;
 }
 
 function cellValue(cell: CellObject): {
@@ -234,9 +249,12 @@ export function parseWorkbook(
 	try {
 		// Text (CSV/TSV) arrives already decoded by the app so its
 		// encoding is detected once, consistently with the text viewer.
+		// `cellStyles` is what makes the parser keep the file's column
+		// widths, row heights and hidden rows and columns; without it
+		// every column comes out at the default width.
 		wb = XLSX.read(data, {
 			type: typeof data === "string" ? "string" : "array",
-			cellStyles: false,
+			cellStyles: true,
 		});
 	} catch (e) {
 		return { ok: false, reason: "corrupt", detail: String(e) };
@@ -449,6 +467,48 @@ export function parseWorkbook(
 				if (vr === undefined || vc === undefined) continue;
 				cells.push([vr, vc, { value: "", style: index }]);
 			}
+		}
+
+		// A file that says nothing about its columns (CSV, most
+		// OpenDocument sheets) gets each one as wide as its text, within
+		// reason, instead of a row of equal boxes that cut everything off.
+		const sample = cells.filter(([r]) => r < FIT_SAMPLE_ROWS);
+		if (!colOrigins.some((c) => hasWidth(rawCols[c]))) {
+			const widest = new Array<number>(cols).fill(0);
+			for (const [, c, cell] of sample) {
+				for (const line of cell.value.split("\n"))
+					widest[c] = Math.max(widest[c], textPx(line));
+			}
+			for (let c = 0; c < widths.length; c++) {
+				if (widest[c] > 0)
+					widths[c] = Math.min(
+						MAX_FITTED_WIDTH,
+						// Never narrower than the default: short columns keep
+						// their room, long ones gain it.
+						Math.max(DEFAULT_COL_WIDTH, Math.round(widest[c]) + 20),
+					);
+			}
+		}
+		// Wrapped text in a row the file gave no height (it was left to
+		// fit itself): tall enough for its lines.
+		if (styles) {
+			let grew = false;
+			for (const [r, c, cell] of sample) {
+				if (cell.style === undefined || !styles[cell.style]?.wrap) continue;
+				if (hasHeight(rawRows[rowOrigins[r]]) || !cell.value) continue;
+				const room = Math.max(24, widths[c] - 14);
+				let lines = 0;
+				for (const line of cell.value.split("\n"))
+					lines += Math.max(1, Math.ceil(textPx(line) / room));
+				const needed = Math.min(MAX_ROW_HEIGHT, lines * LINE_PX + 10);
+				if (needed > rowHeights[r]) {
+					rowHeights[r] = needed;
+					grew = true;
+				}
+			}
+			if (grew)
+				for (let r = 0; r < rows; r++)
+					rowPrefix[r + 1] = rowPrefix[r] + rowHeights[r];
 		}
 
 		// Frozen panes count rows/columns as the file has them; hidden
