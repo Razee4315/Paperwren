@@ -90,9 +90,3 @@ export async function storedFileClear(): Promise<void> {
 	if (!hasIndexedDB) return;
 	await request("readwrite", (s) => s.clear());
 }
-
-export async function storedFileBytes(): Promise<number> {
-	if (!hasIndexedDB) return 0;
-	const records = await request<StoredRecord[]>("readonly", (s) => s.getAll());
-	return records.reduce((sum, r) => sum + r.bytes, 0);
-}

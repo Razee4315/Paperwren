@@ -28,7 +28,6 @@ export const initialNav: NavState = {
 export type NavAction =
 	| { type: "push"; screen: Screen }
 	| { type: "pop" }
-	| { type: "home" }
 	| { type: "overlay-open"; id: string }
 	| { type: "overlay-close"; id: string };
 
@@ -45,8 +44,6 @@ export function navReducer(state: NavState, action: NavAction): NavState {
 			return state.screens.length > 1
 				? { ...state, screens: state.screens.slice(0, -1) }
 				: state;
-		case "home":
-			return initialNav;
 		case "overlay-open":
 			return state.overlays.includes(action.id)
 				? state

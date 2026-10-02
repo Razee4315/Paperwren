@@ -50,11 +50,6 @@ export function columnOffsets(widths: number[]): number[] {
 	return offsets;
 }
 
-/** Column index c such that colOffsets[c] <= x < colOffsets[c+1]. */
-export function colIndexForX(colOffsets: number[], x: number): number {
-	return rowIndexForY(colOffsets, x);
-}
-
 export interface WindowRange {
 	r0: number;
 	r1: number;
