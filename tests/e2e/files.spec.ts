@@ -193,7 +193,14 @@ test("a folder's documents are listed, searched and opened", async ({
 	);
 	await page.getByTestId("folder-search").fill("");
 
-	await files.filter({ hasText: "people.csv" }).getByRole("button").click();
+	// A folder's file has the same menu as a recent.
+	const people = files.filter({ hasText: "people.csv" });
+	await people.getByTestId("folder-file-more").click();
+	await page.getByTestId("folder-details").click();
+	await expect(page.getByTestId("file-details")).toContainText("people.csv");
+	await page.keyboard.press("Escape");
+
+	await people.getByRole("button").first().click();
 	await expect(page.getByTestId("sheet-grid")).toContainText("Ravi", {
 		timeout: 20_000,
 	});
