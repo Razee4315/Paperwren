@@ -829,8 +829,8 @@ export default function SheetView({
 						{single ? (
 							<>
 								{cell?.noCachedResult
-									? t(t("No saved result"))
-									: cell?.value || t(t("Empty"))}
+									? t("No saved result")
+									: cell?.value || t("Empty")}
 								{cell?.formula && (
 									<span className={s.formula}>{cell.formula}</span>
 								)}
@@ -854,7 +854,7 @@ export default function SheetView({
 						)}
 					</span>
 					<IconButton
-						label={single ? t(t("Copy value")) : t(t("Copy cells"))}
+						label={single ? t("Copy value") : t("Copy cells")}
 						disabled={single && !cell?.value}
 						onClick={copySelection}
 						data-testid="sheet-copy"

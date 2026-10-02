@@ -38,11 +38,11 @@ function whereabouts(file: FileRef): string {
 		case "path":
 			return file.reopen.path;
 		case "managed":
-			return t(t("A private copy kept by Paperwren"));
+			return t("A private copy kept by Paperwren");
 		case "uri":
-			return t(t("Provided by another app"));
+			return t("Provided by another app");
 		default:
-			return t(t("This browser"));
+			return t("This browser");
 	}
 }
 
@@ -59,13 +59,13 @@ export function FileDetails({
 	onClose: () => void;
 }) {
 	const rows: Array<[string, string]> = [
-		[t(t("Name")), file.name],
+		[t("Name"), file.name],
 		[
-			t(t("Type")),
+			t("Type"),
 			`${formatLabel(file.format)} · ${kindLabel(kindOf(file.format))}`,
 		],
-		[t(t("Size")), size > 0 ? formatBytes(size) : t(t("Unknown"))],
-		[t(t("Location")), whereabouts(file)],
+		[t("Size"), size > 0 ? formatBytes(size) : t("Unknown")],
+		[t("Location"), whereabouts(file)],
 		...(extra ?? []),
 	];
 	return (

@@ -211,22 +211,14 @@ export default function ReflowView(props: ViewerProps) {
 					icon={<ErrorArt />}
 					title={
 						result.reason === "password"
-							? t(t("Password protected"))
-							: t(t("Can't open this file"))
+							? t("Password protected")
+							: t("Can't open this file")
 					}
 					action={<Button onClick={onClose}>{t("Close")}</Button>}
 				>
 					{result.reason === "password"
-						? t(
-								t(
-									"This document is locked with a password and can't be opened.",
-								),
-							)
-						: t(
-								t(
-									"The file is damaged or uses a variant Paperwren can't read.",
-								),
-							)}
+						? t("This document is locked with a password and can't be opened.")
+						: t("The file is damaged or uses a variant Paperwren can't read.")}
 				</StateView>
 			)}
 			{doc &&

@@ -660,9 +660,7 @@ export default function SlidesView({
 				<>
 					{hasNotes && (
 						<IconButton
-							label={
-								notes ? t(t("Hide speaker notes")) : t(t("Show speaker notes"))
-							}
+							label={notes ? t("Hide speaker notes") : t("Show speaker notes")}
 							active={notes}
 							onClick={() => setNotes((n) => !n)}
 						>
@@ -723,7 +721,7 @@ export default function SlidesView({
 						<ZoomControl
 							label={
 								Math.abs(zoom - 1) < 0.005
-									? t(t("Fit width"))
+									? t("Fit width")
 									: `${Math.round(zoom * 100)}%`
 							}
 							onOut={() => zoomBy(1 / 1.25)}
@@ -807,18 +805,16 @@ export default function SlidesView({
 					icon={<ErrorArt />}
 					title={
 						error === "password"
-							? t(t("Password protected"))
-							: t(t("Can't open this presentation"))
+							? t("Password protected")
+							: t("Can't open this presentation")
 					}
 					action={<Button onClick={onClose}>{t("Close")}</Button>}
 				>
 					{error === "password"
 						? t(
-								t(
-									"This presentation is locked with a password and can't be opened.",
-								),
+								"This presentation is locked with a password and can't be opened.",
 							)
-						: t(t("The file is damaged or isn't a valid presentation."))}
+						: t("The file is damaged or isn't a valid presentation.")}
 				</StateView>
 			)}
 		</Shell>

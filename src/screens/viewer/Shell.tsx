@@ -157,7 +157,7 @@ export function ZoomControl({
 	onOut,
 	onIn,
 	onReset,
-	resetLabel = t(t("Reset zoom")),
+	resetLabel = t("Reset zoom"),
 	testId,
 }: {
 	label: string;
@@ -222,7 +222,7 @@ export function FindBar({
 		: state.query
 			? state.total
 				? t("{n} of {total}", { n: state.current + 1, total: state.total })
-				: t(t("No results"))
+				: t("No results")
 			: "";
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: <search> is not yet in the React DOM typings

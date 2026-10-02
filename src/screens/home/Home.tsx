@@ -94,7 +94,7 @@ export function relativeTime(ts: number, now = Date.now()): string {
 			minute: "2-digit",
 		});
 	const yesterday = new Date(now - 86_400_000);
-	if (d.toDateString() === yesterday.toDateString()) return t(t("Yesterday"));
+	if (d.toDateString() === yesterday.toDateString()) return t("Yesterday");
 	return d.toLocaleDateString(locale(), {
 		month: "short",
 		day: "numeric",
@@ -103,10 +103,10 @@ export function relativeTime(ts: number, now = Date.now()): string {
 }
 
 function greeting(hour = new Date().getHours()): string {
-	if (hour < 5) return t(t("Up late"));
-	if (hour < 12) return t(t("Good morning"));
-	if (hour < 18) return t(t("Good afternoon"));
-	return t(t("Good evening"));
+	if (hour < 5) return t("Up late");
+	if (hour < 12) return t("Good morning");
+	if (hour < 18) return t("Good afternoon");
+	return t("Good evening");
 }
 
 function meta(e: RecentEntry): string {
@@ -241,7 +241,7 @@ export function Home({
 									<i style={{ width: `${Math.max(6, ratio * 100)}%` }} />
 								</span>
 							)}
-							{e.unavailable ? t(t("Unavailable · tap to locate")) : meta(e)}
+							{e.unavailable ? t("Unavailable · tap to locate") : meta(e)}
 						</span>
 					</span>
 				</button>
@@ -424,7 +424,7 @@ export function Home({
 									<SearchX size={36} strokeWidth={1.5} />
 									{q
 										? t("Nothing matches “{query}”.", { query: query.trim() })
-										: t(t("No files of this type yet."))}
+										: t("No files of this type yet.")}
 								</div>
 							)}
 							{pinned.length > 0 && (
@@ -500,13 +500,11 @@ export function Home({
 							onClick={() => {
 								togglePin(menuFor.id);
 								setMenuFor(null);
-								toast(
-									menuFor.pinned ? t(t("Unpinned")) : t(t("Pinned to the top")),
-								);
+								toast(menuFor.pinned ? t("Unpinned") : t("Pinned to the top"));
 							}}
 							testId="menu-pin"
 						>
-							{menuFor.pinned ? t(t("Unpin")) : t(t("Pin to top"))}
+							{menuFor.pinned ? t("Unpin") : t("Pin to top")}
 						</SheetItem>
 						{!menuFor.unavailable && (
 							<HandOffItems
@@ -551,7 +549,7 @@ export function Home({
 					size={detailsFor.size}
 					extra={[
 						[
-							t(t("Last opened")),
+							t("Last opened"),
 							new Date(detailsFor.openedAt).toLocaleString(locale(), {
 								dateStyle: "medium",
 								timeStyle: "short",

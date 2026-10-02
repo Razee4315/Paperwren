@@ -227,7 +227,7 @@ export default function DocxView({
 						<ZoomControl
 							label={
 								Math.abs(zoom - 1) < 0.005
-									? t(t("Fit width"))
+									? t("Fit width")
 									: `${Math.round(scale * 100)}%`
 							}
 							onOut={() => zoomBy(1 / 1.25)}

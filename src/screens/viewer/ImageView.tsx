@@ -43,7 +43,7 @@ export default function ImageView({
 		return () => URL.revokeObjectURL(made);
 	}, [data]);
 
-	// t(t("Fit")) shows the whole picture, never enlarged past its own pixels.
+	// t("Fit") shows the whole picture, never enlarged past its own pixels.
 	useLayoutEffect(() => {
 		const el = scroller.current;
 		if (!el || !size) return;
@@ -106,7 +106,7 @@ export default function ImageView({
 						<ZoomControl
 							label={
 								Math.abs(zoom - 1) < 0.005
-									? t(t("Fit"))
+									? t("Fit")
 									: `${Math.round(scale * 100)}%`
 							}
 							onOut={() => zoomBy(1 / 1.25)}

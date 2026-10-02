@@ -228,9 +228,9 @@ export function SettingsScreen() {
 							value={settings.pdfZoom}
 							onChange={(v) => update("pdfZoom", v)}
 							options={[
-								["page-width", t(t("Fit width"))],
-								["page-fit", t(t("Whole page"))],
-								["auto", t(t("Automatic"))],
+								["page-width", t("Fit width")],
+								["page-fit", t("Whole page")],
+								["auto", t("Automatic")],
 							]}
 							testId="pdf-zoom"
 						/>
@@ -301,7 +301,7 @@ export function SettingsScreen() {
 							onClick={() => {
 								const previous = clear();
 								toast(t("Recents cleared"), {
-									label: t(t("Undo")),
+									label: t("Undo"),
 									run: () => restore(previous),
 								});
 							}}
@@ -332,7 +332,7 @@ export function SettingsScreen() {
 												"{size} in {n} files you opened",
 												{ size: formatBytes(stored.bytes) },
 											)
-										: t(t("Copies of files you opened"))}
+										: t("Copies of files you opened")}
 								</span>
 							</span>
 						</button>

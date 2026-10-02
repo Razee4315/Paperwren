@@ -218,10 +218,10 @@ export function FolderList({
 				<div className={s.noMatch} data-testid="folder-empty">
 					<SearchX size={36} strokeWidth={1.5} />
 					{files.length === 0
-						? t(t("No documents in this folder."))
+						? t("No documents in this folder.")
 						: q
 							? t("Nothing matches “{query}”.", { query: query.trim() })
-							: t(t("No files of this type here."))}
+							: t("No files of this type here.")}
 				</div>
 			) : (
 				<div className={s.list}>
