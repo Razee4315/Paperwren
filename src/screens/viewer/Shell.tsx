@@ -1,3 +1,4 @@
+import { backend } from "@/lib/backend";
 import type { FileFormat } from "@/lib/formats";
 import { t, uiDir } from "@/lib/i18n";
 import { IconButton, formatColor } from "@/ui";
@@ -71,6 +72,7 @@ export function Shell({
 	chromeHidden = false,
 	children,
 	active,
+	pageKeys = true,
 }: {
 	name: string;
 	format: FileFormat;
@@ -91,7 +93,52 @@ export function Shell({
 	chromeHidden?: boolean;
 	children: ReactNode;
 	active: boolean;
+	/** False when the viewer turns pages itself with Page Up / Down. */
+	pageKeys?: boolean;
 }) {
+	// The window is named after the document, as in every desktop reader.
+	useEffect(() => {
+		if (!active) return;
+		backend.setTitle(`${name} - Paperwren`);
+		return () => backend.setTitle("Paperwren");
+	}, [active, name]);
+
+	// The button that opened the document (on Home, now underneath) lets
+	// go of the keyboard, so the keys below reach the document.
+	const shell = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const held = document.activeElement;
+		if (active && held instanceof HTMLElement && !shell.current?.contains(held))
+			held.blur();
+	}, [active]);
+
+	// The keyboard scrolls the document from the moment it opens, without
+	// a click into it first: Space, Page Up / Down, Home, End, the arrows.
+	useEffect(() => {
+		if (!active || !progressOf) return;
+		const onKey = (e: KeyboardEvent) => {
+			const el = progressOf.current;
+			// Only when nothing else has the keyboard (a field, a dialog,
+			// the document itself, which scrolls on its own).
+			if (!el || document.activeElement !== document.body) return;
+			if (e.ctrlKey || e.metaKey || e.altKey) return;
+			const page = el.clientHeight * 0.9;
+			const by: Record<string, number> = {
+				ArrowDown: 48,
+				ArrowUp: -48,
+				" ": e.shiftKey ? -page : page,
+				...(pageKeys ? { PageDown: page, PageUp: -page } : {}),
+			};
+			if (e.key === "Home") el.scrollTop = 0;
+			else if (e.key === "End") el.scrollTop = el.scrollHeight;
+			else if (e.key in by) el.scrollTop += by[e.key];
+			else return;
+			e.preventDefault();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [active, progressOf, pageKeys]);
+
 	const findRef = useRef(onFind);
 	findRef.current = onFind;
 	useEffect(() => {
@@ -109,6 +156,7 @@ export function Shell({
 
 	return (
 		<div
+			ref={shell}
 			className={s.shell}
 			data-testid="viewer"
 			style={active ? undefined : { display: "none" }}

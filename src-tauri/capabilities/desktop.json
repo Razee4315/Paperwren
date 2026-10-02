@@ -6,6 +6,7 @@
 	"windows": ["main"],
 	"permissions": [
 		"core:default",
+		"core:window:allow-set-title",
 		"dialog:allow-open",
 		{
 			"identifier": "fs:default",

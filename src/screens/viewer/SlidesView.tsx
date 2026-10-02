@@ -645,6 +645,8 @@ export default function SlidesView({
 			active={active}
 			hud={hud}
 			progressOf={scroller}
+			// Page Up / Down step through the slides here.
+			pageKeys={false}
 			chromeHidden={chromeHidden && !find.open}
 			onFind={deck ? find.start : undefined}
 			onPrint={

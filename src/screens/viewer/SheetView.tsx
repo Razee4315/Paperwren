@@ -227,6 +227,13 @@ export default function SheetView({
 		return () => ro.disconnect();
 	}, [sheet]);
 
+	// The grid has the keyboard from the moment the sheet is shown, so
+	// the arrows move through cells without a click into it first.
+	useEffect(() => {
+		if (sheet && active && document.activeElement === document.body)
+			scroller.current?.focus({ preventScroll: true });
+	}, [sheet, active]);
+
 	const saveTimer = useRef(0);
 	const syncView = useCallback(() => {
 		const el = scroller.current;
