@@ -156,7 +156,10 @@ function Root() {
 				const top = i === state.screens.length - 1;
 				if (screen.kind === "settings")
 					return <SettingsScreen key="settings" />;
-				if (screen.kind !== "viewer") return null;
+				// A document under another one (several shared at once, a file
+				// dropped while reading) is not kept in memory: Back opens it
+				// again, where the reader left it.
+				if (screen.kind !== "viewer" || !top) return null;
 				return (
 					<Suspense
 						key={screen.key}
