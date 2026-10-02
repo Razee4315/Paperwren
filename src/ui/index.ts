@@ -1,6 +1,7 @@
 export { Button, IconButton } from "./Button";
 export { Dialog, Sheet, SheetItem, ToastHost, toast } from "./Overlay";
 export {
+	DropHint,
 	FileBadge,
 	OpeningView,
 	Spinner,

@@ -1,11 +1,12 @@
 import { backend, requestForManagedCopy } from "@/lib/backend";
+import { language, subscribe, t } from "@/lib/i18n";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { Home } from "@/screens/home/Home";
 import { SettingsScreen } from "@/screens/settings/Settings";
 import { NavigationProvider, useNav } from "@/state/navigation";
 import { RecentsProvider, useRecents } from "@/state/recents";
 import { SettingsProvider } from "@/state/settings";
-import { OpeningView, ToastHost, toast } from "@/ui";
+import { DropHint, OpeningView, ToastHost, toast } from "@/ui";
 import {
 	Suspense,
 	lazy,
@@ -13,6 +14,7 @@ import {
 	useEffect,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from "react";
 
 // The viewer engines (pdf.js, docx-preview, the grid) are the bulk of
@@ -30,6 +32,9 @@ declare global {
 }
 
 function Root() {
+	// Every screen is drawn from here, so a change of language redraws
+	// them all.
+	useSyncExternalStore(subscribe, language);
 	const { state, push, back } = useNav();
 	const { entries, remove } = useRecents();
 	const nextKey = useRef(1);
@@ -67,7 +72,7 @@ function Root() {
 						: request,
 				);
 			} catch {
-				toast("Couldn't open the file picker");
+				toast(t("Couldn't open the file picker"));
 			} finally {
 				picking.current = false;
 			}
@@ -105,6 +110,37 @@ function Root() {
 		return () => window.removeEventListener("paperwren-file", drain);
 	}, [open, finishWelcome]);
 
+	// Desktop: the document the app was started with (double-click,
+	// "Open with Paperwren") opens straight away.
+	useEffect(() => {
+		let alive = true;
+		backend.launchFiles().then((files) => {
+			if (!alive || !files.length) return;
+			finishWelcome();
+			open(files[0]);
+		});
+		return () => {
+			alive = false;
+		};
+	}, [open, finishWelcome]);
+
+	// Desktop: drop a file anywhere on the window to open it.
+	const [dropping, setDropping] = useState(false);
+	useEffect(
+		() =>
+			backend.onFileDrop({
+				hover: setDropping,
+				drop: (requests) => {
+					if (!requests.length) return;
+					finishWelcome();
+					open(requests[0]);
+					if (requests.length > 1)
+						toast(t("Opened the first of {n} files", { n: requests.length }));
+				},
+			}),
+		[open, finishWelcome],
+	);
+
 	const entriesRef = useRef(entries);
 	entriesRef.current = entries;
 
@@ -113,6 +149,7 @@ function Root() {
 			<Home
 				onOpenFile={() => pick()}
 				onOpenRecent={openRecent}
+				onOpenRequest={open}
 				onSettings={() => push({ kind: "settings" })}
 			/>
 			{state.screens.map((screen, i) => {
@@ -145,6 +182,7 @@ function Root() {
 					<Onboarding onDone={finishWelcome} />
 				</Suspense>
 			)}
+			{dropping && <DropHint />}
 			<ToastHost />
 		</>
 	);

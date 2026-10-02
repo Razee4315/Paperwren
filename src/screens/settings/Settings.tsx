@@ -1,4 +1,5 @@
 import { backend, formatBytes } from "@/lib/backend";
+import { LANGUAGES, type LanguageSetting, t, tn } from "@/lib/i18n";
 import type { PdfZoom } from "@/lib/types";
 import { useNav } from "@/state/navigation";
 import { useRecents } from "@/state/recents";
@@ -7,11 +8,13 @@ import { Button, Dialog, IconButton, Switch, ThemePicker, toast } from "@/ui";
 import {
 	ArrowLeft,
 	BookOpen,
+	Check,
 	ChevronDown,
 	ChevronUp,
 	Copy,
 	FolderOpen,
 	Info,
+	Languages,
 	Palette,
 	ShieldCheck,
 } from "lucide-react";
@@ -119,26 +122,31 @@ export function SettingsScreen() {
 		for (const e of entries)
 			if (e.reopen.kind === "managed") markUnavailable(e.id);
 		setStored({ bytes: 0, files: 0 });
-		toast("Stored copies deleted");
+		toast(t("Stored copies deleted"));
 	};
 
 	return (
 		<div className={s.page} data-testid="settings">
 			<header className={s.bar}>
-				<IconButton label="Back" onClick={back} data-testid="settings-back">
-					<ArrowLeft size={22} />
+				<IconButton
+					label={t("Back")}
+					onClick={back}
+					data-testid="settings-back"
+				>
+					<ArrowLeft size={22} className="pw-flip" />
 				</IconButton>
-				<h1 className={s.title}>Settings</h1>
+				<h1 className={s.title}>{t("Settings")}</h1>
 			</header>
 			<main className={s.scroll}>
 				<div className={s.column}>
-					<Group icon={<Palette size={15} />}>Appearance</Group>
+					<Group icon={<Palette size={15} />}>{t("Appearance")}</Group>
 					<div className={s.card}>
 						<div className={s.field}>
-							<span className={s.label}>Theme</span>
+							<span className={s.label}>{t("Theme")}</span>
 							<span className={s.fieldHint}>
-								Each theme has its own calm colour. Auto follows your phone:
-								Paper by day, Ink at night.
+								{t(
+									"Each theme has its own calm colour. Auto follows your phone: Paper by day, Ink at night.",
+								)}
 							</span>
 							<ThemePicker
 								value={settings.theme}
@@ -147,49 +155,98 @@ export function SettingsScreen() {
 						</div>
 					</div>
 
-					<Group icon={<BookOpen size={15} />}>Reading</Group>
+					<Group icon={<Languages size={15} />}>{t("Language")}</Group>
+					<div className={s.card}>
+						<div className={s.field}>
+							<span className={s.label} id="language-label">
+								{t("Language")}
+							</span>
+							<span className={s.fieldHint}>
+								{t(
+									"The language of Paperwren's own buttons and messages. Your documents are shown as they are.",
+								)}
+							</span>
+							<div
+								className={s.choices}
+								role="radiogroup"
+								aria-labelledby="language-label"
+							>
+								{(
+									[["system", t("Same as the phone")], ...LANGUAGES] as Array<
+										[LanguageSetting, string]
+									>
+								).map(([value, name]) => (
+									<button
+										type="button"
+										key={value}
+										// biome-ignore lint/a11y/useSemanticElements: a list of choices styled as rows, ARIA radio semantics
+										role="radio"
+										aria-checked={settings.language === value}
+										className={s.choice}
+										// Each language is written in its own script and direction.
+										lang={value === "system" ? undefined : value}
+										dir="auto"
+										onClick={() => update("language", value)}
+										data-testid={`language-${value}`}
+									>
+										{name}
+										{settings.language === value && <Check size={18} />}
+									</button>
+								))}
+							</div>
+						</div>
+					</div>
+
+					<Group icon={<BookOpen size={15} />}>{t("Reading")}</Group>
 					<div className={s.card}>
 						<Segmented<PdfZoom>
-							label="PDF opens at"
+							label={t("PDF opens at")}
 							value={settings.pdfZoom}
 							onChange={(v) => update("pdfZoom", v)}
 							options={[
-								["page-width", "Fit width"],
-								["page-fit", "Whole page"],
-								["auto", "Automatic"],
+								["page-width", t(t("Fit width"))],
+								["page-fit", t(t("Whole page"))],
+								["auto", t(t("Automatic"))],
 							]}
 							testId="pdf-zoom"
 						/>
 						<Switch
-							label="Remember where I stopped"
-							hint="Reopen files at the same page and zoom"
+							label={t("Remember where I stopped")}
+							hint={t("Reopen files at the same page and zoom")}
 							checked={settings.rememberPosition}
 							onChange={(v) => update("rememberPosition", v)}
 						/>
 						<Switch
-							label="Dark pages"
-							hint="Invert PDF pages in the Ink theme for night reading"
+							label={t("Dark pages")}
+							hint={t("Invert PDF pages in the Ink theme for night reading")}
 							checked={settings.darkPages}
 							onChange={(v) => update("darkPages", v)}
 							testId="dark-pages"
 						/>
+						<Switch
+							label={t("Keep the screen on")}
+							hint={t("While a document is open, the screen won't dim or lock")}
+							checked={settings.keepAwake}
+							onChange={(v) => update("keepAwake", v)}
+							testId="keep-awake"
+						/>
 					</div>
 
-					<Group icon={<FolderOpen size={15} />}>Files</Group>
+					<Group icon={<FolderOpen size={15} />}>{t("Files")}</Group>
 					<div className={s.card}>
 						<Switch
-							label="Keep a list of recent files"
-							hint="Stored only on this device"
+							label={t("Keep a list of recent files")}
+							hint={t("Stored only on this device")}
 							checked={settings.keepRecents}
 							onChange={(v) => {
 								update("keepRecents", v);
-								if (!v) toast("Recents cleared and turned off");
+								if (!v) toast(t("Recents cleared and turned off"));
 							}}
 							testId="keep-recents"
 						/>
 						{settings.keepRecents && (
 							<Segmented<number>
-								label="Keep up to"
+								label={t("Keep up to")}
 								value={settings.recentsLimit}
 								onChange={(v) => update("recentsLimit", v)}
 								options={[
@@ -207,17 +264,19 @@ export function SettingsScreen() {
 							disabled={entries.length === 0}
 							onClick={() => {
 								const previous = clear();
-								toast("Recents cleared", {
-									label: "Undo",
+								toast(t("Recents cleared"), {
+									label: t(t("Undo")),
 									run: () => restore(previous),
 								});
 							}}
 							data-testid="clear-recents"
 						>
 							<span className={s.actionText}>
-								Clear recent files
+								{t("Clear recent files")}
 								<span className={s.hint}>
-									{entries.length} on this device. Your files are not touched.
+									{t("{n} on this device. Your files are not touched.", {
+										n: entries.length,
+									})}
 								</span>
 							</span>
 						</button>
@@ -228,33 +287,43 @@ export function SettingsScreen() {
 							onClick={() => setConfirmCopies(true)}
 						>
 							<span className={s.actionText}>
-								Delete stored copies
+								{t("Delete stored copies")}
 								<span className={s.hint}>
 									{stored
-										? `${formatBytes(stored.bytes)} in ${stored.files} ${stored.files === 1 ? "file" : "files"} you opened`
-										: "Copies of files you opened"}
+										? tn(
+												stored.files,
+												"{size} in {n} file you opened",
+												"{size} in {n} files you opened",
+												{ size: formatBytes(stored.bytes) },
+											)
+										: t(t("Copies of files you opened"))}
 								</span>
 							</span>
 						</button>
 					</div>
 
-					<Group icon={<ShieldCheck size={15} />}>Privacy</Group>
+					<Group icon={<ShieldCheck size={15} />}>{t("Privacy")}</Group>
 					<div className={s.card}>
 						<div className={s.prose}>
 							<p>
-								Paperwren never connects to the internet. It has no ads, no
-								accounts and no analytics, and it asks for no permissions.
+								{t(
+									"Paperwren never connects to the internet. It has no ads, no accounts and no analytics, and it asks for no permissions.",
+								)}
 							</p>
 							<p>
-								Files are read on this device. The recent list, your settings
-								and copies of files you open live in private app storage and can
-								be deleted above. PDF passwords are used once and never saved.
+								{t(
+									"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.",
+								)}
 							</p>
-							<p>Full privacy policy: razee4315.github.io/Paperwren/privacy</p>
+							<p>
+								{t("Full privacy policy: {url}", {
+									url: "razee4315.github.io/Paperwren/privacy",
+								})}
+							</p>
 						</div>
 					</div>
 
-					<Group icon={<Info size={15} />}>About</Group>
+					<Group icon={<Info size={15} />}>{t("About")}</Group>
 					<div className={s.card}>
 						<div className={s.action}>
 							<span className={s.actionText}>Paperwren</span>
@@ -266,15 +335,15 @@ export function SettingsScreen() {
 							onClick={() =>
 								navigator.clipboard
 									?.writeText(CONTACT)
-									.then(() => toast("Email address copied"))
+									.then(() => toast(t("Email address copied")))
 									.catch(() => toast(CONTACT))
 							}
 						>
 							<span className={s.actionText}>
-								Contact
+								{t("Contact")}
 								<span className={s.hint}>{CONTACT}</span>
 							</span>
-							<Copy size={18} aria-label="Copy email address" />
+							<Copy size={18} aria-label={t("Copy email address")} />
 						</button>
 						<button
 							type="button"
@@ -282,7 +351,7 @@ export function SettingsScreen() {
 							onClick={() => setShowLicenses((v) => !v)}
 							aria-expanded={showLicenses}
 						>
-							<span className={s.actionText}>Open-source licenses</span>
+							<span className={s.actionText}>{t("Open-source licenses")}</span>
 							{showLicenses ? (
 								<ChevronUp size={18} />
 							) : (
@@ -305,22 +374,22 @@ export function SettingsScreen() {
 
 			<Dialog
 				open={confirmCopies}
-				title="Delete stored copies?"
+				title={t("Delete stored copies?")}
 				onClose={() => setConfirmCopies(false)}
 				actions={
 					<>
 						<Button variant="ghost" onClick={() => setConfirmCopies(false)}>
-							Cancel
+							{t("Cancel")}
 						</Button>
 						<Button variant="danger" onClick={clearCopies}>
-							Delete
+							{t("Delete")}
 						</Button>
 					</>
 				}
 			>
-				Files you open are kept as private copies so they can be reopened after
-				the app is closed. Deleting them frees space; those recents will ask you
-				to locate the file again.
+				{t(
+					"Files you open are kept as private copies so they can be reopened after the app is closed. Deleting them frees space; those recents will ask you to locate the file again.",
+				)}
 			</Dialog>
 		</div>
 	);

@@ -7,17 +7,41 @@
  * 2. Hardens AndroidManifest.xml: no permissions at all (the Tauri
  *    template adds INTERNET), backup disabled, and "Open with" /
  *    "Share" intent filters for every supported document type.
+ * 3. Declares the FileProvider that lets "Share" and "Open in another
+ *    app" hand one imported copy to another app (no permission needed),
+ *    and writes its path list (res/xml/paperwren_files.xml).
  *
  * Usage:
  *   node scripts/install-android.mjs check   # validate sources only (CI)
  *   node scripts/install-android.mjs         # apply to src-tauri/gen/android
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const ACTIVITY_SRC = "src-tauri/android/MainActivity.kt";
 const GEN = "src-tauri/gen/android/app/src/main";
 const ACTIVITY_DEST = `${GEN}/java/app/paperwren/docs/MainActivity.kt`;
 const MANIFEST = `${GEN}/AndroidManifest.xml`;
+const PROVIDER_PATHS = `${GEN}/res/xml/paperwren_files.xml`;
+
+/** Only the imports store is ever shareable. */
+const PROVIDER_PATHS_XML = `<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <files-path name="imports" path="imports/" />
+</paths>
+`;
+
+const PROVIDER = `
+        <!-- paperwren:files -->
+        <provider
+            android:name=".PaperwrenFiles"
+            android:authorities="\${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/paperwren_files" />
+        </provider>
+`;
 
 export const MIME_TYPES = [
 	"application/pdf",
@@ -32,6 +56,11 @@ export const MIME_TYPES = [
 	"application/vnd.oasis.opendocument.presentation",
 	"application/rtf",
 	"text/rtf",
+	"image/png",
+	"image/jpeg",
+	"image/gif",
+	"image/webp",
+	"image/bmp",
 	"text/csv",
 	"text/comma-separated-values",
 	"text/tab-separated-values",
@@ -85,6 +114,9 @@ function validateActivity(src) {
 		"__paperwrenOpenFile",
 		"__paperwrenHandleBack",
 		"__paperwrenAndroid",
+		"__paperwrenAndroidExtras",
+		"class PaperwrenFiles : FileProvider()",
+		'"$packageName.files"',
 	];
 	for (const needle of required) {
 		if (!src.includes(needle)) fail(`MainActivity.kt is missing: ${needle}`);
@@ -114,6 +146,11 @@ export function hardenManifest(original) {
 	}
 	if (/<uses-permission\b/.test(src))
 		fail("Manifest still requests permissions.", src);
+	if (!src.includes("paperwren:files")) {
+		const end = src.lastIndexOf("</application>");
+		if (end === -1) fail("No </application> in manifest.", src);
+		src = `${src.slice(0, end).trimEnd()}\n${PROVIDER}    ${src.slice(end)}`;
+	}
 	if (!/launchMode="singleTask"/.test(src)) {
 		src = src.replace(
 			/(<activity\b[^>]*android:name="\.MainActivity")/,
@@ -162,6 +199,8 @@ if (mode === "check") {
 		fail("Manifest hardening is not idempotent.", once);
 	if (!once.includes('android:launchMode="singleTask"'))
 		fail("launchMode missing.", once);
+	if (!once.includes('android:name=".PaperwrenFiles"'))
+		fail("FileProvider missing.", once);
 	console.log(
 		"Android sources OK: activity validated, manifest patch idempotent, tao >= 0.37.",
 	);
@@ -180,4 +219,8 @@ if (!generated.includes("TauriActivity")) {
 }
 writeFileSync(ACTIVITY_DEST, activity);
 writeFileSync(MANIFEST, hardenManifest(readFileSync(MANIFEST, "utf8")));
-console.log("Installed MainActivity.kt and hardened AndroidManifest.xml.");
+mkdirSync(`${GEN}/res/xml`, { recursive: true });
+writeFileSync(PROVIDER_PATHS, PROVIDER_PATHS_XML);
+console.log(
+	"Installed MainActivity.kt, hardened AndroidManifest.xml, declared the share FileProvider.",
+);

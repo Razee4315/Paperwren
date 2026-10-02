@@ -3,13 +3,16 @@
 //! plugin so one code path covers desktop paths and Android
 //! `content://` URIs.
 //!
-//! Security boundary: every command here touches only two
+//! Security boundary: the storage commands touch only two
 //! directories the app owns (`app_data/store`, `app_data/imports`)
-//! and validates keys and relative paths before building a path.
-//! No command accepts an absolute path.
+//! and validate keys and relative paths before building a path.
+//! The desktop hand-off commands (`open.rs`) are the one exception:
+//! they take the absolute path of the user's document, and accept it
+//! only if it is an existing file of a document type the app opens.
 
 mod error;
 mod imports;
+mod open;
 mod store;
 
 use std::path::PathBuf;
@@ -88,6 +91,51 @@ async fn imports_prune(
     .await
 }
 
+/// Documents the app was started with (a double-clicked file, "Open
+/// with Paperwren"). Empty on mobile, where the system delivers
+/// files through intents instead.
+#[tauri::command]
+fn launch_files() -> Vec<String> {
+    #[cfg(desktop)]
+    {
+        open::launch_files(std::env::args_os().skip(1))
+    }
+    #[cfg(not(desktop))]
+    {
+        Vec::new()
+    }
+}
+
+/// Open a document in the system's default app for its type.
+#[tauri::command]
+async fn open_external(path: String) -> AppResult<()> {
+    let target = open::validated(&path)?;
+    #[cfg(desktop)]
+    {
+        blocking(move || Ok(open::open_with_default(&target)?)).await
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = target;
+        Err(AppError::new(error::ErrorKind::Path, "not available here"))
+    }
+}
+
+/// Show a document in the system file manager.
+#[tauri::command]
+async fn reveal_in_folder(path: String) -> AppResult<()> {
+    let target = open::validated(&path)?;
+    #[cfg(desktop)]
+    {
+        blocking(move || Ok(open::reveal(&target)?)).await
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = target;
+        Err(AppError::new(error::ErrorKind::Path, "not available here"))
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -99,7 +147,10 @@ pub fn run() {
             imports_stats,
             imports_clear,
             imports_remove,
-            imports_prune
+            imports_prune,
+            launch_files,
+            open_external,
+            reveal_in_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

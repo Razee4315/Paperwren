@@ -1,4 +1,5 @@
 import type { FileFormat } from "@/lib/formats";
+import { msg, t } from "@/lib/i18n";
 import { useBackClose } from "@/state/navigation";
 import { useSettings } from "@/state/settings";
 import { FileIcon, ThemePicker, Wren } from "@/ui";
@@ -47,13 +48,13 @@ function PrivacyScene() {
 			</div>
 			<ul className={s.tags}>
 				<li>
-					<CloudOff size={16} /> Offline
+					<CloudOff size={16} /> {t("Offline")}
 				</li>
 				<li>
-					<UserX size={16} /> No accounts
+					<UserX size={16} /> {t("No accounts")}
 				</li>
 				<li>
-					<Check size={16} /> No ads
+					<Check size={16} /> {t("No ads")}
 				</li>
 			</ul>
 		</div>
@@ -74,23 +75,29 @@ function CustomizeScene() {
 
 const STEPS = [
 	{
-		title: "Meet Paperwren",
-		body: "The small, quiet way to open every document on your phone.",
+		title: msg("Meet Paperwren"),
+		body: msg("The small, quiet way to open every document on your phone."),
 		Scene: HelloScene,
 	},
 	{
-		title: "Opens everything",
-		body: "PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text. Even old .doc and .ppt files.",
+		title: msg("Opens everything"),
+		body: msg(
+			"PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV and text. Even old .doc and .ppt files.",
+		),
 		Scene: FormatsScene,
 	},
 	{
-		title: "Private by design",
-		body: "No internet, no accounts, no ads. Your files never leave your phone.",
+		title: msg("Private by design"),
+		body: msg(
+			"No internet, no accounts, no ads. Your files never leave your phone.",
+		),
 		Scene: PrivacyScene,
 	},
 	{
-		title: "Pick a look",
-		body: "Paper, Sand or Ink, all easy on the eyes. Change it any time in Settings.",
+		title: msg("Pick a look"),
+		body: msg(
+			"Paper, Sand or Ink, all easy on the eyes. Change it any time in Settings.",
+		),
 		Scene: CustomizeScene,
 	},
 ];
@@ -149,7 +156,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 						onClick={finish}
 						data-testid="onboarding-skip"
 					>
-						Skip
+						{t("Skip")}
 					</button>
 				)}
 			</div>
@@ -159,18 +166,18 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 				</div>
 			</div>
 			<div className={s.copy} key={`copy-${step}`}>
-				<h1 className={s.title}>{STEPS[step].title}</h1>
-				<p className={s.body}>{STEPS[step].body}</p>
+				<h1 className={s.title}>{t(STEPS[step].title)}</h1>
+				<p className={s.body}>{t(STEPS[step].body)}</p>
 			</div>
 			<div className={s.foot}>
-				<div className={s.dots} role="tablist" aria-label="Steps">
+				<div className={s.dots} role="tablist" aria-label={t("Steps")}>
 					{STEPS.map((_, i) => (
 						<button
 							type="button"
 							key={i}
 							role="tab"
 							aria-selected={i === step}
-							aria-label={`Step ${i + 1}`}
+							aria-label={t("Step {n}", { n: i + 1 })}
 							className={`${s.dot} ${i === step ? s.dotOn : ""}`}
 							onClick={() => go(i)}
 						/>
@@ -182,7 +189,8 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 					onClick={() => (last ? finish() : go(step + 1))}
 					data-testid="onboarding-next"
 				>
-					{last ? "Start reading" : "Next"} <ArrowRight size={20} />
+					{last ? t("Start reading") : t("Next")}{" "}
+					<ArrowRight size={20} className="pw-flip" />
 				</button>
 			</div>
 		</div>

@@ -1,0 +1,36 @@
+.scroller {
+	position: absolute;
+	inset: 0;
+	overflow: auto;
+	overscroll-behavior: contain;
+	touch-action: pan-x pan-y;
+	background: var(--canvas);
+}
+/* Centres the picture while it is smaller than the screen; once it is
+ * larger the scroller pans it. */
+.stage {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 100%;
+	min-height: 100%;
+	width: max-content;
+	height: max-content;
+	padding: 8px;
+}
+.frame {
+	flex: none;
+	box-shadow: var(--shadow-2);
+	/* A checkerboard would be noise; white reads as "paper". */
+	background: #fff;
+}
+.picture {
+	display: block;
+	width: 100%;
+	height: 100%;
+	user-select: none;
+}
+.printed {
+	width: 100%;
+	height: auto;
+}

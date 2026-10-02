@@ -8,7 +8,15 @@ import { formatLabel, kindOf } from "@/lib/formats";
  * exported asset files (scripts/export-assets.tsx passes fixed colours).
  */
 
-type Glyph = "pdf" | "doc" | "sheet" | "slides" | "text" | "markdown" | "other";
+type Glyph =
+	| "pdf"
+	| "doc"
+	| "sheet"
+	| "slides"
+	| "text"
+	| "markdown"
+	| "image"
+	| "other";
 
 const KIND_VAR: Record<ReturnType<typeof kindOf>, string> = {
 	pdf: "var(--fmt-pdf)",
@@ -16,6 +24,7 @@ const KIND_VAR: Record<ReturnType<typeof kindOf>, string> = {
 	sheet: "var(--fmt-sheet)",
 	slides: "var(--fmt-slides)",
 	text: "var(--fmt-text)",
+	image: "var(--fmt-image)",
 	other: "var(--fmt-text)",
 };
 
@@ -32,7 +41,9 @@ function glyphFor(format: FileFormat): Glyph {
 					? "slides"
 					: kind === "text"
 						? "text"
-						: "other";
+						: kind === "image"
+							? "image"
+							: "other";
 }
 
 function GlyphShape({ glyph }: { glyph: Glyph }) {
@@ -105,6 +116,18 @@ function GlyphShape({ glyph }: { glyph: Glyph }) {
 				>
 					<path d="M12 29 V16 L17 22 L22 16 V29" />
 					<path d="M30 16 V28 M26 24 L30 28.5 L34 24" />
+				</g>
+			);
+		case "image":
+			// A sun over two hills.
+			return (
+				<g>
+					<circle cx="18" cy="17.5" r="3" fill={w} />
+					<path
+						d="M12 30 L20.5 21 L25 26 L29 22.5 L36 30 Z"
+						fill={w}
+						opacity="0.9"
+					/>
 				</g>
 			);
 		case "text":

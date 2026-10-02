@@ -15,8 +15,8 @@
       {
         "label": "main",
         "title": "Paperwren",
-        "width": 412,
-        "height": 892,
+        "width": 1080,
+        "height": 780,
         "minWidth": 320,
         "minHeight": 480,
         "resizable": true,
@@ -42,6 +42,135 @@
       "icons/icon.icns",
       "icons/icon.ico",
       "icons/icon.png"
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "pdf"
+        ],
+        "name": "PDF document",
+        "description": "PDF document",
+        "role": "Viewer",
+        "mimeType": "application/pdf"
+      },
+      {
+        "ext": [
+          "docx",
+          "docm",
+          "dotx"
+        ],
+        "name": "Word document",
+        "description": "Word document",
+        "role": "Viewer",
+        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      },
+      {
+        "ext": [
+          "doc"
+        ],
+        "name": "Word 97-2003 document",
+        "description": "Word 97-2003 document",
+        "role": "Viewer",
+        "mimeType": "application/msword"
+      },
+      {
+        "ext": [
+          "xlsx",
+          "xlsm",
+          "xlsb",
+          "xltx"
+        ],
+        "name": "Excel workbook",
+        "description": "Excel workbook",
+        "role": "Viewer",
+        "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "ext": [
+          "xls"
+        ],
+        "name": "Excel 97-2003 workbook",
+        "description": "Excel 97-2003 workbook",
+        "role": "Viewer",
+        "mimeType": "application/vnd.ms-excel"
+      },
+      {
+        "ext": [
+          "csv",
+          "tsv"
+        ],
+        "name": "Comma-separated values",
+        "description": "Comma-separated values",
+        "role": "Viewer",
+        "mimeType": "text/csv"
+      },
+      {
+        "ext": [
+          "pptx",
+          "pptm",
+          "ppsx"
+        ],
+        "name": "PowerPoint presentation",
+        "description": "PowerPoint presentation",
+        "role": "Viewer",
+        "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+      },
+      {
+        "ext": [
+          "ppt",
+          "pps"
+        ],
+        "name": "PowerPoint 97-2003 presentation",
+        "description": "PowerPoint 97-2003 presentation",
+        "role": "Viewer",
+        "mimeType": "application/vnd.ms-powerpoint"
+      },
+      {
+        "ext": [
+          "odt"
+        ],
+        "name": "OpenDocument text",
+        "description": "OpenDocument text",
+        "role": "Viewer",
+        "mimeType": "application/vnd.oasis.opendocument.text"
+      },
+      {
+        "ext": [
+          "ods"
+        ],
+        "name": "OpenDocument spreadsheet",
+        "description": "OpenDocument spreadsheet",
+        "role": "Viewer",
+        "mimeType": "application/vnd.oasis.opendocument.spreadsheet"
+      },
+      {
+        "ext": [
+          "odp"
+        ],
+        "name": "OpenDocument presentation",
+        "description": "OpenDocument presentation",
+        "role": "Viewer",
+        "mimeType": "application/vnd.oasis.opendocument.presentation"
+      },
+      {
+        "ext": [
+          "rtf"
+        ],
+        "name": "Rich Text document",
+        "description": "Rich Text document",
+        "role": "Viewer",
+        "mimeType": "application/rtf"
+      },
+      {
+        "ext": [
+          "md",
+          "markdown"
+        ],
+        "name": "Markdown document",
+        "description": "Markdown document",
+        "role": "Viewer",
+        "mimeType": "text/markdown"
+      }
     ]
   }
 }

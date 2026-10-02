@@ -1,19 +1,36 @@
 package app.paperwren.docs
 
+import android.content.ClipData
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.CancellationSignal
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelFileDescriptor
+import android.print.PageRange
+import android.print.PrintAttributes
+import android.print.PrintDocumentAdapter
+import android.print.PrintDocumentInfo
+import android.print.PrintManager
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
+import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.core.content.IntentCompat
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
 import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.util.ArrayDeque
@@ -22,7 +39,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * Paperwren's only native code. It does three small jobs and keeps
+ * Paperwren's only native code. It does a few small jobs and keeps
  * everything else in the web layer:
  *
  * 1. "Open with" / "Share": copy the incoming content:// stream into
@@ -35,6 +52,11 @@ import java.util.concurrent.TimeUnit
  * 3. A tiny JS bridge for the in-app picker: the provider's real
  *    display name and size, and a copy of the picked file into the
  *    same imports store so recents can reopen after a restart.
+ * 4. Hand-offs the web layer cannot do: share a file, open it in
+ *    another app, print (the page, or a PDF itself), keep the screen
+ *    on while reading, and browse a folder the user picked. None of
+ *    these needs a manifest permission: sharing goes through a
+ *    FileProvider grant, folders through the Storage Access Framework.
  *
  * This file is copied verbatim over the generated activity by
  * scripts/install-android.mjs. Keep it self-contained.
@@ -48,6 +70,38 @@ class MainActivity : TauriActivity() {
   private var delivering = false
 
   private data class Delivery(val path: String, val name: String, val size: Long)
+
+  /** Folder scans can be long; they must not hold up file imports. */
+  private val scanExecutor = Executors.newSingleThreadExecutor()
+  /** The web layer's token for the folder pick in flight, if any. */
+  private var folderToken: String? = null
+  /** Must be registered before the activity starts, hence a field. */
+  private val folderPicker =
+    registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+      val token = folderToken
+      folderToken = null
+      if (token != null) {
+        var result = "null"
+        if (uri != null) {
+          try {
+            // Keep reading this folder after the app restarts.
+            contentResolver.takePersistableUriPermission(
+              uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            val root = DocumentsContract.buildDocumentUriUsingTree(
+              uri, DocumentsContract.getTreeDocumentId(uri)
+            )
+            result = JSONObject()
+              .put("uri", uri.toString())
+              .put("name", queryDisplayName(root))
+              .toString()
+          } catch (e: Exception) {
+            result = "null"
+          }
+        }
+        callWeb("__paperwrenFolder", JSONObject.quote(token) + "," + result)
+      }
+    }
 
   /** Our Back bridge owns system Back; Wry's default would only walk
    * WebView history (and, registered later, would win over ours). */
@@ -77,7 +131,162 @@ class MainActivity : TauriActivity() {
 
   override fun onDestroy() {
     ingestExecutor.shutdown()
+    scanExecutor.shutdown()
     super.onDestroy()
+  }
+
+  // ---------- Hand-offs: share, open elsewhere, print ----------
+
+  /** A URI another app may read: the content:// URI itself, or a
+   * FileProvider URI for one of our own imported copies. Files
+   * outside the imports store are never exposed. */
+  private fun outgoingUri(target: String): Uri? {
+    if (target.startsWith("content://")) return Uri.parse(target)
+    return try {
+      val file = File(target).canonicalFile
+      val imports = File(filesDir, "imports").canonicalFile
+      if (!file.isFile || !file.path.startsWith(imports.path + File.separator)) null
+      else FileProvider.getUriForFile(this, "$packageName.files", file)
+    } catch (e: Exception) {
+      null
+    }
+  }
+
+  private fun openStream(target: String): InputStream? {
+    if (target.startsWith("content://"))
+      return contentResolver.openInputStream(Uri.parse(target))
+    val file = File(target).canonicalFile
+    val imports = File(filesDir, "imports").canonicalFile
+    if (!file.isFile || !file.path.startsWith(imports.path + File.separator)) return null
+    return file.inputStream()
+  }
+
+  private fun shareOut(uri: Uri, name: String, mime: String) {
+    val send = Intent(Intent.ACTION_SEND).apply {
+      type = mime
+      putExtra(Intent.EXTRA_STREAM, uri)
+      putExtra(Intent.EXTRA_TITLE, name)
+      // The chooser's own preview needs the grant too.
+      clipData = ClipData.newRawUri(name, uri)
+      addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    startActivity(Intent.createChooser(send, null))
+  }
+
+  private fun openElsewhere(uri: Uri, mime: String) {
+    val view = Intent(Intent.ACTION_VIEW).apply {
+      setDataAndType(uri, mime)
+      clipData = ClipData.newRawUri("", uri)
+      addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    // Offer every app that opens this type except Paperwren itself.
+    val chooser = Intent.createChooser(view, null).apply {
+      putExtra(
+        Intent.EXTRA_EXCLUDE_COMPONENTS,
+        arrayOf(ComponentName(this@MainActivity, MainActivity::class.java))
+      )
+    }
+    startActivity(chooser)
+  }
+
+  /** Prints a file's own bytes: for a PDF this is exact, with no
+   * re-rendering through the web page. */
+  private fun filePrintAdapter(target: String, name: String) = object : PrintDocumentAdapter() {
+    override fun onLayout(
+      oldAttributes: PrintAttributes?,
+      newAttributes: PrintAttributes?,
+      cancellationSignal: CancellationSignal?,
+      callback: PrintDocumentAdapter.LayoutResultCallback,
+      extras: Bundle?
+    ) {
+      if (cancellationSignal?.isCanceled == true) {
+        callback.onLayoutCancelled()
+        return
+      }
+      val info = PrintDocumentInfo.Builder(name)
+        .setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
+        .setPageCount(PrintDocumentInfo.PAGE_COUNT_UNKNOWN)
+        .build()
+      callback.onLayoutFinished(info, oldAttributes != newAttributes)
+    }
+
+    override fun onWrite(
+      pages: Array<out PageRange>?,
+      destination: ParcelFileDescriptor,
+      cancellationSignal: CancellationSignal?,
+      callback: PrintDocumentAdapter.WriteResultCallback
+    ) {
+      try {
+        val input = openStream(target) ?: throw IllegalStateException("no stream")
+        input.use { source ->
+          FileOutputStream(destination.fileDescriptor).use { out -> source.copyTo(out, 64 * 1024) }
+        }
+        callback.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
+      } catch (e: Exception) {
+        callback.onWriteFailed(e.message)
+      }
+    }
+  }
+
+  // ---------- Folders (Storage Access Framework) ----------
+
+  /** Every document under a picked folder, a few levels deep, as a
+   * JSON array of {uri, name, size, modified, folder}. Bounded so a
+   * huge tree can never hang the scan or flood the web layer. */
+  private fun scanFolder(tree: Uri, extensions: Set<String>): JSONArray {
+    val found = JSONArray()
+    val columns = arrayOf(
+      DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+      DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+      DocumentsContract.Document.COLUMN_MIME_TYPE,
+      DocumentsContract.Document.COLUMN_SIZE,
+      DocumentsContract.Document.COLUMN_LAST_MODIFIED
+    )
+    // (document id, folder label, depth) still to visit.
+    val queue = ArrayDeque<Triple<String, String, Int>>()
+    queue.addLast(Triple(DocumentsContract.getTreeDocumentId(tree), "", 0))
+    var visited = 0
+    while (queue.isNotEmpty() && found.length() < MAX_FOLDER_FILES && visited < MAX_FOLDERS) {
+      val (parent, label, depth) = queue.pollFirst() ?: break
+      visited++
+      val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parent)
+      try {
+        contentResolver.query(children, columns, null, null, null)?.use { c ->
+          while (c.moveToNext() && found.length() < MAX_FOLDER_FILES) {
+            val id = c.getString(0) ?: continue
+            val name = c.getString(1) ?: continue
+            val mime = c.getString(2)
+            if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
+              if (depth < MAX_FOLDER_DEPTH && !name.startsWith("."))
+                queue.addLast(Triple(id, if (label.isEmpty()) name else "$label/$name", depth + 1))
+              continue
+            }
+            val extension = name.substringAfterLast('.', "").lowercase()
+            if (extension !in extensions) continue
+            found.put(
+              JSONObject()
+                .put("uri", DocumentsContract.buildDocumentUriUsingTree(tree, id).toString())
+                .put("name", name)
+                .put("size", if (c.isNull(3)) 0L else c.getLong(3))
+                .put("modified", if (c.isNull(4)) 0L else c.getLong(4))
+                .put("folder", label)
+            )
+          }
+        }
+      } catch (e: Exception) {
+        // A folder we may not read: skip it, keep the rest.
+      }
+    }
+    return found
+  }
+
+  /** Call a web-layer callback, on the UI thread, if the app page is loaded. */
+  private fun callWeb(function: String, arguments: String) {
+    main.post {
+      val webView = findWebView() ?: return@post
+      if (!isAppOrigin(webView.url)) return@post
+      webView.evaluateJavascript("window.$function && window.$function($arguments)", null)
+    }
   }
 
   // ---------- Open with / Share ----------
@@ -225,6 +434,11 @@ class MainActivity : TauriActivity() {
       "application/rtf", "text/rtf" -> "rtf"
       "text/csv", "text/comma-separated-values" -> "csv"
       "text/tab-separated-values" -> "tsv"
+      "image/png" -> "png"
+      "image/jpeg" -> "jpg"
+      "image/gif" -> "gif"
+      "image/webp" -> "webp"
+      "image/bmp" -> "bmp"
       "text/markdown" -> "md"
       "text/plain" -> "txt"
       else -> null
@@ -322,6 +536,125 @@ class MainActivity : TauriActivity() {
       }
     }
     webView.addJavascriptInterface(bridge, "__paperwrenAndroid")
+    webView.addJavascriptInterface(handOffBridge(webView), "__paperwrenAndroidExtras")
+  }
+
+  /** Share, open elsewhere, print, keep awake, folders. A second
+   * object so the picker bridge above stays exactly as shipped. */
+  private fun handOffBridge(webView: WebView) = object : Any() {
+    private fun fromApp(): Boolean = isAppOrigin(currentUrl(webView))
+
+    private fun onMain(failure: String, action: () -> Unit) {
+      main.post {
+        try {
+          action()
+        } catch (e: Exception) {
+          Toast.makeText(this@MainActivity, failure, Toast.LENGTH_LONG).show()
+        }
+      }
+    }
+
+    @JavascriptInterface
+    fun shareFile(target: String, name: String, mime: String): Boolean {
+      if (!fromApp()) return false
+      val uri = outgoingUri(target) ?: return false
+      onMain("Paperwren couldn't share that file.") { shareOut(uri, name, mime) }
+      return true
+    }
+
+    @JavascriptInterface
+    fun openFile(target: String, name: String, mime: String): Boolean {
+      if (!fromApp()) return false
+      val uri = outgoingUri(target) ?: return false
+      onMain("No other app can open this file.") { openElsewhere(uri, mime) }
+      return true
+    }
+
+    /** Print the page as the web layer laid it out for paper. */
+    @JavascriptInterface
+    fun printPage(jobName: String): Boolean {
+      if (!fromApp()) return false
+      onMain("Paperwren couldn't start printing.") {
+        val manager = getSystemService(Context.PRINT_SERVICE) as PrintManager
+        manager.print(
+          jobName,
+          webView.createPrintDocumentAdapter(jobName),
+          PrintAttributes.Builder().build()
+        )
+      }
+      return true
+    }
+
+    /** Print a PDF's own bytes. */
+    @JavascriptInterface
+    fun printFile(target: String, jobName: String): Boolean {
+      if (!fromApp()) return false
+      if (!target.startsWith("content://") && outgoingUri(target) == null) return false
+      onMain("Paperwren couldn't start printing.") {
+        val manager = getSystemService(Context.PRINT_SERVICE) as PrintManager
+        manager.print(jobName, filePrintAdapter(target, jobName), PrintAttributes.Builder().build())
+      }
+      return true
+    }
+
+    @JavascriptInterface
+    fun keepAwake(on: Boolean) {
+      main.post {
+        if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+      }
+    }
+
+    /** Ask the user for a folder. Answers through
+     * window.__paperwrenFolder(token, {uri,name} | null). */
+    @JavascriptInterface
+    fun pickFolder(token: String): Boolean {
+      if (!fromApp()) return false
+      main.post {
+        try {
+          folderToken = token
+          folderPicker.launch(null)
+        } catch (e: Exception) {
+          folderToken = null
+          callWeb("__paperwrenFolder", JSONObject.quote(token) + ",null")
+        }
+      }
+      return true
+    }
+
+    /** List a picked folder's documents. Answers through
+     * window.__paperwrenFolderList(token, [...] | null). */
+    @JavascriptInterface
+    fun listFolder(treeUri: String, extensions: String, token: String): Boolean {
+      if (!fromApp() || !treeUri.startsWith("content://")) return false
+      val wanted = extensions.split(',').map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
+      return try {
+        scanExecutor.execute {
+          val result = try {
+            scanFolder(Uri.parse(treeUri), wanted).toString()
+          } catch (e: Exception) {
+            "null"
+          }
+          callWeb("__paperwrenFolderList", JSONObject.quote(token) + "," + result)
+        }
+        true
+      } catch (e: Exception) {
+        false
+      }
+    }
+
+    /** Stop holding on to a folder the user removed from the app. */
+    @JavascriptInterface
+    fun releaseFolder(treeUri: String) {
+      if (!fromApp() || !treeUri.startsWith("content://")) return
+      try {
+        contentResolver.releasePersistableUriPermission(
+          Uri.parse(treeUri), Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+      } catch (e: Exception) {
+        // Already released, or never held.
+      }
+    }
   }
 
   // ---------- Helpers ----------
@@ -361,3 +694,17 @@ class MainActivity : TauriActivity() {
     return null
   }
 }
+
+/** Bounds for a folder scan. */
+private const val MAX_FOLDER_FILES = 2000
+private const val MAX_FOLDERS = 400
+private const val MAX_FOLDER_DEPTH = 4
+
+/**
+ * Grants other apps temporary read access to one imported copy at a
+ * time (share / open in another app). A subclass of its own so its
+ * manifest entry can never collide with a FileProvider the template
+ * or a plugin declares. Declared by scripts/install-android.mjs with
+ * the authority "<package>.files" and res/xml/paperwren_files.xml.
+ */
+class PaperwrenFiles : FileProvider()

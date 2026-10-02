@@ -3,6 +3,7 @@
 	inset: 0;
 	overflow: auto;
 	overscroll-behavior: contain;
+	touch-action: pan-x pan-y;
 	background: var(--surface);
 	outline: none;
 	font-size: 13px;
@@ -11,25 +12,61 @@
 .surface {
 	position: relative;
 }
+
+/*
+ * Pinned layers, back to front: the body's cells scroll underneath;
+ * the side (row numbers + frozen columns) sticks to the left; frozen
+ * rows stick under the column letters; the letters stick on top.
+ * Each layer repeats the corner it shares with the next one in a
+ * `pin` that sticks to the left inside it.
+ */
 .head {
 	position: sticky;
 	top: 0;
-	z-index: 3;
+	z-index: 5;
+	overflow: clip;
 	background: var(--surface-2);
 	border-bottom: 1px solid var(--line-strong);
 }
-.corner {
+.topPane {
+	position: sticky;
+	z-index: 4;
+	top: 28px; /* HEADER_HEIGHT */
+	overflow: clip;
+	background: var(--surface);
+	border-bottom: 2px solid var(--line-strong);
+}
+.side {
 	position: sticky;
 	left: 0;
-	z-index: 4;
+	z-index: 3;
+	overflow: clip;
+}
+.pin {
+	position: sticky;
+	left: 0;
+	z-index: 3;
 	height: 100%;
+	overflow: clip;
+	background: var(--surface);
+}
+.head .pin {
+	background: var(--surface-2);
+}
+.corner {
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
 	background: var(--surface-2);
 	border-right: 1px solid var(--line-strong);
 }
 .rail {
-	position: sticky;
+	position: absolute;
 	left: 0;
-	z-index: 2;
+	top: 0;
+	bottom: 0;
+	z-index: 1;
 	background: var(--surface-2);
 	border-right: 1px solid var(--line-strong);
 }
@@ -39,6 +76,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	padding: 0;
 	color: var(--text-3);
 	font-size: 12px;
 	font-weight: 600;
@@ -58,6 +96,25 @@
 	background: var(--accent-soft);
 	color: var(--accent);
 }
+/* The draggable edge between two column letters. */
+.resizer {
+	position: absolute;
+	top: 0;
+	z-index: 1;
+	width: 14px;
+	height: 100%;
+	margin-left: -7px;
+	cursor: col-resize;
+	touch-action: none;
+}
+.resizer:hover::after,
+.resizer:active::after {
+	content: "";
+	position: absolute;
+	inset: 3px 6px;
+	border-radius: 2px;
+	background: var(--accent);
+}
 .body {
 	position: absolute;
 }
@@ -74,6 +131,14 @@
 	color: var(--text);
 	background: var(--surface);
 }
+/* Authored text colour on an unfilled cell: as written on the light
+ * themes, lifted towards white on the dark one so it stays legible. */
+.ink {
+	color: var(--ink);
+}
+:global([data-theme="dark"]) .ink {
+	color: color-mix(in srgb, var(--ink) 55%, #fff);
+}
 .num {
 	justify-content: flex-end;
 }
@@ -83,12 +148,57 @@
 	text-align: center;
 	z-index: 1;
 }
+/* Text running over the empty cells beside it: it covers their grid
+ * lines, as a spreadsheet does, and ends without one of its own. */
+.spill {
+	z-index: 1;
+	border-right-color: transparent;
+}
+/* The part of a frozen column's run that lies past the freeze line:
+ * drawn again in the scrolling pane, where taps go to the cells under
+ * it. */
+.ghost {
+	pointer-events: none;
+}
 .selected {
 	position: absolute;
 	z-index: 2;
 	pointer-events: none;
 	border: 2px solid var(--accent);
 	background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+/* Drag this corner to stretch the selection (touch has no shift-click). */
+.grip {
+	position: absolute;
+	right: -7px;
+	bottom: -7px;
+	width: 12px;
+	height: 12px;
+	border-radius: 999px;
+	border: 2px solid var(--surface);
+	background: var(--accent);
+	pointer-events: auto;
+	touch-action: none;
+	cursor: nwse-resize;
+}
+.grip::after {
+	content: "";
+	position: absolute;
+	inset: -12px;
+}
+/* A picture or chart floating over the cells. */
+.object {
+	position: absolute;
+	z-index: 1;
+	pointer-events: none;
+	background: #fff;
+	box-shadow: 0 0 0 1px var(--line-strong);
+}
+.object img,
+.object svg {
+	display: block;
+	width: 100%;
+	height: 100%;
 }
 .detail {
 	display: flex;
@@ -123,11 +233,52 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+/* The printed sheet: a plain ruled table. */
+.printTable {
+	border-collapse: collapse;
+	table-layout: fixed;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	color: #000;
+}
+.printTable td {
+	border: 1px solid #c4c4c4;
+	padding: 0 5px;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.printTitle {
+	margin-bottom: 6px;
+	font-size: 13px;
+	font-weight: 700;
+	color: #000;
+}
+.bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 52px;
+	padding: 0 calc(8px + var(--safe-right)) 0 calc(8px + var(--safe-left));
+}
+.size {
+	flex: 1;
+	min-width: 0;
+	padding: 0 8px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--text-3);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
 .tabs {
+	flex: 1;
+	min-width: 0;
 	display: flex;
 	gap: 4px;
 	overflow-x: auto;
-	padding: 6px calc(8px + var(--safe-right)) 6px calc(8px + var(--safe-left));
+	padding: 6px 0;
 	scrollbar-width: none;
 }
 .tab {

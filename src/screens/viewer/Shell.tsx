@@ -1,7 +1,16 @@
 import type { FileFormat } from "@/lib/formats";
+import { t, uiDir } from "@/lib/i18n";
 import { IconButton, formatColor } from "@/ui";
-import { ArrowLeft, ChevronDown, ChevronUp, X } from "lucide-react";
-import { type ReactNode, useEffect, useRef } from "react";
+import {
+	ArrowLeft,
+	ChevronDown,
+	ChevronUp,
+	Minus,
+	Plus,
+	X,
+} from "lucide-react";
+import { type ReactNode, type RefObject, useEffect, useRef } from "react";
+import { FileMenu } from "./FileMenu";
 import s from "./Shell.module.css";
 
 export { s as shellStyles };
@@ -20,10 +29,31 @@ function Title({ name, format }: { name: string; format: FileFormat }) {
 				style={{ background: formatColor(format) }}
 				aria-hidden="true"
 			/>
-			<span className={s.stem}>{hasExt ? name.slice(0, dot) : name}</span>
-			{hasExt && <span className={s.ext}>{name.slice(dot)}</span>}
+			<span className={s.name} dir="auto">
+				<span className={s.stem}>{hasExt ? name.slice(0, dot) : name}</span>
+				{hasExt && <span className={s.ext}>{name.slice(dot)}</span>}
+			</span>
 		</span>
 	);
+}
+
+/** How far through the document the reader is: a hairline under the
+ * top bar, driven straight from scroll events (no re-renders). */
+function Progress({ of }: { of: RefObject<HTMLElement | null> }) {
+	const bar = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const el = of.current;
+		if (!el) return;
+		const update = () => {
+			const range = el.scrollHeight - el.clientHeight;
+			const ratio = range > 1 ? Math.min(1, el.scrollTop / range) : 0;
+			if (bar.current) bar.current.style.transform = `scaleX(${ratio})`;
+		};
+		update();
+		el.addEventListener("scroll", update, { passive: true });
+		return () => el.removeEventListener("scroll", update);
+	}, [of]);
+	return <div ref={bar} className={s.progress} aria-hidden="true" />;
 }
 
 export function Shell({
@@ -33,6 +63,11 @@ export function Shell({
 	actions,
 	bottom,
 	find,
+	onFind,
+	menu,
+	onPrint,
+	hud,
+	progressOf,
 	chromeHidden = false,
 	children,
 	active,
@@ -43,10 +78,35 @@ export function Shell({
 	actions?: ReactNode;
 	bottom?: ReactNode;
 	find?: ReactNode;
+	/** Ctrl/Cmd+F opens the viewer's find bar. */
+	onFind?: () => void;
+	/** The viewer's own entries in the "more" menu. */
+	menu?: (close: () => void) => ReactNode;
+	/** Lay the document out for paper; enables Print. */
+	onPrint?: (root: HTMLElement) => Promise<void> | void;
+	/** Where `useZoom` writes the level during a gesture. */
+	hud?: RefObject<HTMLDivElement>;
+	/** The scroller whose reading progress the top bar shows. */
+	progressOf?: RefObject<HTMLElement | null>;
 	chromeHidden?: boolean;
 	children: ReactNode;
 	active: boolean;
 }) {
+	const findRef = useRef(onFind);
+	findRef.current = onFind;
+	useEffect(() => {
+		if (!active) return;
+		const onKey = (e: KeyboardEvent) => {
+			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+				if (!findRef.current) return;
+				e.preventDefault();
+				findRef.current();
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [active]);
+
 	return (
 		<div
 			className={s.shell}
@@ -58,15 +118,26 @@ export function Shell({
 				{...inert(chromeHidden)}
 			>
 				<div className={s.row}>
-					<IconButton label="Back" onClick={onClose} data-testid="viewer-back">
-						<ArrowLeft size={22} />
+					<IconButton
+						label={t("Back")}
+						onClick={onClose}
+						data-testid="viewer-back"
+					>
+						<ArrowLeft size={22} className="pw-flip" />
 					</IconButton>
 					<Title name={name} format={format} />
 					{actions}
+					<FileMenu extra={menu} onPrint={onPrint} active={active} />
 				</div>
 				{find}
+				{progressOf && <Progress of={progressOf} />}
 			</header>
-			<div className={s.body}>{children}</div>
+			<div className={s.body} dir="ltr">
+				{children}
+				{hud && (
+					<div ref={hud} className={s.hud} dir={uiDir()} aria-hidden="true" />
+				)}
+			</div>
 			{bottom && (
 				<footer
 					className={`${s.bottom} ${chromeHidden ? s.hiddenBottom : ""}`}
@@ -75,6 +146,53 @@ export function Shell({
 					{bottom}
 				</footer>
 			)}
+		</div>
+	);
+}
+
+/** The one zoom control every viewer shares: out, the current level
+ * (tap it to go back to the natural fit), in. */
+export function ZoomControl({
+	label,
+	onOut,
+	onIn,
+	onReset,
+	resetLabel = t(t("Reset zoom")),
+	testId,
+}: {
+	label: string;
+	onOut: () => void;
+	onIn: () => void;
+	onReset: () => void;
+	resetLabel?: string;
+	testId: string;
+}) {
+	return (
+		<div className={s.zoom}>
+			<IconButton
+				label={t("Zoom out")}
+				onClick={onOut}
+				data-testid={`${testId}-zoom-out`}
+			>
+				<Minus size={18} />
+			</IconButton>
+			<button
+				type="button"
+				className={s.zoomValue}
+				onClick={onReset}
+				aria-label={`${label}. ${resetLabel}`}
+				title={resetLabel}
+				data-testid={`${testId}-scale`}
+			>
+				{label}
+			</button>
+			<IconButton
+				label={t("Zoom in")}
+				onClick={onIn}
+				data-testid={`${testId}-zoom-in`}
+			>
+				<Plus size={18} />
+			</IconButton>
 		</div>
 	);
 }
@@ -103,8 +221,8 @@ export function FindBar({
 		? "…"
 		: state.query
 			? state.total
-				? `${state.current + 1} of ${state.total}`
-				: "No results"
+				? t("{n} of {total}", { n: state.current + 1, total: state.total })
+				: t(t("No results"))
 			: "";
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: <search> is not yet in the React DOM typings
@@ -112,35 +230,35 @@ export function FindBar({
 			<input
 				ref={input}
 				type="search"
-				placeholder="Find in document"
+				placeholder={t("Find in document")}
 				value={state.query}
 				onChange={(e) => onQuery(e.target.value)}
 				onKeyDown={(e) => {
 					if (e.key === "Enter") onStep(e.shiftKey ? -1 : 1);
 					if (e.key === "Escape") onClose();
 				}}
-				aria-label="Find in document"
+				aria-label={t("Find in document")}
 				data-testid="find-input"
 			/>
 			<span className={s.findCount} aria-live="polite" data-testid="find-count">
 				{label}
 			</span>
 			<IconButton
-				label="Previous match"
+				label={t("Previous match")}
 				disabled={!state.total}
 				onClick={() => onStep(-1)}
 			>
 				<ChevronUp size={20} />
 			</IconButton>
 			<IconButton
-				label="Next match"
+				label={t("Next match")}
 				disabled={!state.total}
 				onClick={() => onStep(1)}
 				data-testid="find-next"
 			>
 				<ChevronDown size={20} />
 			</IconButton>
-			<IconButton label="Close find" onClick={onClose}>
+			<IconButton label={t("Close find")} onClick={onClose}>
 				<X size={20} />
 			</IconButton>
 		</div>

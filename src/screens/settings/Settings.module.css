@@ -82,6 +82,30 @@
 	color: var(--text-3);
 }
 
+/* A short list of choices, one per row (the languages). */
+.choices {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 6px;
+}
+.choice {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	min-height: 44px;
+	padding: 0 14px;
+	border-radius: 12px;
+	background: var(--surface-2);
+	font-weight: 650;
+	color: var(--text-2);
+	text-align: start;
+}
+.choice[aria-checked="true"] {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
 /* Segmented control with a sliding thumb (--i of --n). */
 .segmented {
 	position: relative;
@@ -96,13 +120,16 @@
 	position: absolute;
 	top: 4px;
 	bottom: 4px;
-	left: 4px;
+	inset-inline-start: 4px;
 	width: calc((100% - 8px) / var(--n));
 	border-radius: 10px;
 	background: var(--surface);
 	box-shadow: 0 0 0 1px var(--line-strong);
 	transform: translateX(calc(100% * var(--i)));
 	transition: transform var(--t-med) var(--ease);
+}
+:global([dir="rtl"]) .thumb {
+	transform: translateX(calc(-100% * var(--i)));
 }
 .segment {
 	position: relative;
@@ -126,7 +153,7 @@
 	width: 100%;
 	min-height: 56px;
 	padding: 10px 16px;
-	text-align: left;
+	text-align: start;
 	transition: background-color var(--t-fast) var(--ease);
 }
 .action:hover:not(:disabled) {

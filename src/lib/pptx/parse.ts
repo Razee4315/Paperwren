@@ -1,8 +1,12 @@
 /**
  * A lean PPTX reader: turns a presentation into positioned shapes,
  * text, pictures and tables that the Slides viewer lays out with
- * plain HTML/SVG. Scope is deliberately bounded (no charts, SmartArt
- * or animations; those render as labelled placeholders).
+ * plain HTML/SVG. Scope is deliberately bounded (no animations; chart
+ * types the viewer cannot draw render as labelled placeholders).
+ * Charts come from chart.ts. Freeform shapes keep their own outlines;
+ * pictures keep their crop. SmartArt is drawn from the shapes the
+ * authoring app saved for it (the diagram's drawing part), not laid
+ * out again; a diagram saved without them shows a labelled box.
  *
  * Inheritance follows PowerPoint's order: master -> layout -> slide
  * for backgrounds, decorative shapes and placeholder geometry, and
@@ -11,6 +15,13 @@
  */
 
 import { unzipSync } from "fflate";
+import { hasRtl, startsRtl } from "../bidi";
+import { msg } from "../i18n";
+import { bulletGlyph } from "./bullets";
+import { type Chart, readChart } from "./chart";
+import { path, attrOf, kid, kids, relId } from "./xml";
+
+export type { Chart };
 
 export interface Run {
 	text: string;
@@ -37,6 +48,8 @@ export interface Para {
 	spaceAfter: number; // px
 	/** Size used for empty paragraphs so blank lines keep their height. */
 	endSize: number;
+	/** Right-to-left paragraph (Arabic, Urdu, Hebrew, ...). */
+	rtl?: boolean;
 }
 
 export interface TextBody {
@@ -57,16 +70,49 @@ interface Box {
 	flipV: boolean;
 }
 
+/** One outline of a freeform shape, in its own coordinate space. */
+export interface GeomPath {
+	d: string;
+	w: number;
+	h: number;
+	fill: boolean;
+	stroke: boolean;
+}
+
+/** A gradient fill, for shapes of any outline. */
+export interface Gradient {
+	kind: "linear" | "radial";
+	/** Degrees clockwise from left-to-right (linear only). */
+	angle: number;
+	stops: Array<{ at: number; color: string }>;
+}
+
 export type SlideElement =
 	| (Box & {
 			kind: "shape";
 			geom: string;
+			/** CSS colour; for a gradient, its CSS form (see `gradient`). */
 			fill?: string;
+			gradient?: Gradient;
+			/** Outer shadow as "dx dy blur colour" (CSS drop-shadow). */
+			shadow?: string;
+			/** Picture fill (blob URL), stretched over the shape. */
+			image?: string | null;
 			line?: { color: string; width: number; dash: boolean };
 			radius?: number;
+			/** Freeform outlines (custGeom); replaces the preset `geom`. */
+			paths?: GeomPath[];
 			text?: TextBody;
 	  })
-	| (Box & { kind: "image"; src: string | null })
+	| (Box & {
+			kind: "image";
+			src: string | null;
+			/** Cropped-away fractions of the source: left, top, right, bottom. */
+			crop?: [number, number, number, number];
+			/** Picture frame: an ellipse, or a corner radius in px. */
+			round?: "ellipse" | number;
+			shadow?: string;
+	  })
 	| (Box & {
 			kind: "table";
 			cols: number[];
@@ -80,7 +126,10 @@ export type SlideElement =
 					hidden: boolean;
 				}>;
 			}>;
+			/** Columns run right to left. */
+			rtl?: boolean;
 	  })
+	| (Box & { kind: "chart"; chart: Chart })
 	| (Box & { kind: "placeholder"; label: string });
 
 export interface Slide {
@@ -99,38 +148,6 @@ export interface Presentation {
 const EMU_PER_PX = 9525;
 const px = (emu: string | null | undefined) =>
 	emu ? Number(emu) / EMU_PER_PX : 0;
-
-// ---------- XML helpers (namespace-agnostic by local name) ----------
-
-function kids(el: Element | null | undefined, name?: string): Element[] {
-	if (!el) return [];
-	const out: Element[] = [];
-	for (const c of Array.from(el.children))
-		if (!name || c.localName === name) out.push(c);
-	return out;
-}
-function kid(el: Element | null | undefined, name: string): Element | null {
-	if (!el) return null;
-	for (const c of Array.from(el.children)) if (c.localName === name) return c;
-	return null;
-}
-function path(
-	el: Element | null | undefined,
-	...names: string[]
-): Element | null {
-	let cur: Element | null | undefined = el;
-	for (const n of names) cur = kid(cur, n);
-	return cur ?? null;
-}
-function attrOf(el: Element | null | undefined, name: string): string | null {
-	return el?.getAttribute(name) ?? null;
-}
-function relId(el: Element | null | undefined, name: string): string | null {
-	if (!el) return null;
-	for (const a of Array.from(el.attributes))
-		if (a.localName === name && a.prefix === "r") return a.value;
-	return el.getAttribute(`r:${name}`);
-}
 
 // ---------- Colour ----------
 
@@ -199,6 +216,13 @@ class Palette {
 		private theme: ColorMap,
 		private map: ColorMap,
 	) {}
+
+	/** Theme accent 1..6 (wrapping), for chart series without a colour. */
+	accent(n: number): string {
+		const hex = this.theme[`accent${((n - 1) % 6) + 1}`] ?? "4472C4";
+		const [r, g, b] = hexToRgb(hex);
+		return `rgb(${r}, ${g}, ${b})`;
+	}
 
 	/** Resolve a colour-choice element (solidFill, a:fgClr, ...). */
 	resolve(holder: Element | null | undefined): string | undefined {
@@ -273,6 +297,37 @@ class Palette {
 			return stops[0] ? this.resolve(stops[0]) : undefined;
 		}
 		return undefined;
+	}
+
+	/** The gradient in spPr, stop by stop, when it has at least two. */
+	gradient(props: Element | null | undefined): Gradient | undefined {
+		const grad = kid(props, "gradFill");
+		if (!grad) return undefined;
+		const stops = kids(kid(grad, "gsLst"), "gs")
+			.map((s) => ({
+				at: Number(attrOf(s, "pos") ?? 0) / 1000,
+				color: this.resolve(s) ?? "rgb(0, 0, 0)",
+			}))
+			.sort((a, b) => a.at - b.at);
+		if (stops.length < 2) return undefined;
+		if (kid(grad, "path")) return { kind: "radial", angle: 0, stops };
+		return {
+			kind: "linear",
+			angle: Number(attrOf(kid(grad, "lin"), "ang") ?? 0) / 60000,
+			stops,
+		};
+	}
+
+	/** The outer shadow in spPr's effect list, as a CSS drop-shadow. */
+	shadow(props: Element | null | undefined): string | undefined {
+		const sh = path(props, "effectLst", "outerShdw");
+		if (!sh) return undefined;
+		const color = this.resolve(sh);
+		if (!color) return undefined;
+		const dist = px(attrOf(sh, "dist"));
+		const dir = (Number(attrOf(sh, "dir") ?? 0) / 60000) * (Math.PI / 180);
+		const round = (n: number) => Math.round(n * 100) / 100;
+		return `${round(dist * Math.cos(dir))}px ${round(dist * Math.sin(dir))}px ${round(px(attrOf(sh, "blurRad")))}px ${color}`;
 	}
 }
 
@@ -383,7 +438,10 @@ interface Level {
 	italic?: boolean;
 	color?: string;
 	font?: string;
+	/** Complex-script face, used for right-to-left text. */
+	csFont?: string;
 	align?: Para["align"];
+	rtl?: boolean;
 	bullet?: string | null;
 	indent?: number;
 	lineHeight?: number;
@@ -406,11 +464,17 @@ function readLevel(pPr: Element | null, pal: Palette, fonts: Fonts): Level {
 					: algn === "just" || algn === "dist"
 						? "justify"
 						: "left";
+	const rtl = attrOf(pPr, "rtl");
+	if (rtl !== null) out.rtl = rtl === "1" || rtl === "true";
 	const marL = attrOf(pPr, "marL");
 	if (marL) out.indent = px(marL);
 	if (kid(pPr, "buNone")) out.bullet = null;
 	const buChar = kid(pPr, "buChar");
-	if (buChar) out.bullet = attrOf(buChar, "char") ?? "•";
+	if (buChar)
+		out.bullet = bulletGlyph(
+			attrOf(buChar, "char") ?? "•",
+			attrOf(kid(pPr, "buFont"), "typeface"),
+		);
 	if (kid(pPr, "buAutoNum")) out.bullet = "#";
 	const lnPct = attrOf(path(pPr, "lnSpc", "spcPct"), "val");
 	if (lnPct) out.lineHeight = Number(lnPct) / 100000;
@@ -435,6 +499,9 @@ function readRun(rPr: Element | null, pal: Palette, fonts: Fonts): Level {
 	if (color) out.color = color;
 	const latin = attrOf(kid(rPr, "latin"), "typeface");
 	if (latin) out.font = fonts.map(latin);
+	const complex = attrOf(kid(rPr, "cs"), "typeface");
+	// Theme references ("+mn-cs") name no face a viewer can load.
+	if (complex && !complex.startsWith("+")) out.csFont = complex;
 	return out;
 }
 
@@ -510,6 +577,70 @@ function readXfrm(xfrm: Element | null): Box | null {
 	};
 }
 
+/** custGeom path lists as SVG path data. Coordinates stay in each
+ * path's own space; the viewer maps that onto the shape's box. */
+function readPaths(custGeom: Element | null, box: Box): GeomPath[] {
+	const out: GeomPath[] = [];
+	for (const p of kids(kid(custGeom, "pathLst"), "path")) {
+		let d = "";
+		let cx = 0;
+		let cy = 0;
+		const pts = (el: Element) =>
+			kids(el, "pt").map(
+				(pt) => [Number(attrOf(pt, "x")), Number(attrOf(pt, "y"))] as const,
+			);
+		const xy = (list: ReadonlyArray<readonly [number, number]>) =>
+			list.map(([x, y]) => `${x} ${y}`).join(" ");
+		for (const cmd of kids(p)) {
+			const list = pts(cmd);
+			const last = list[list.length - 1];
+			if (list.some(([x, y]) => !Number.isFinite(x) || !Number.isFinite(y)))
+				continue; // guide formulas: not evaluated
+			switch (cmd.localName) {
+				case "moveTo":
+					if (last) d += `M${xy(list)}`;
+					break;
+				case "lnTo":
+					if (last) d += `L${xy(list)}`;
+					break;
+				case "cubicBezTo":
+					if (list.length === 3) d += `C${xy(list)}`;
+					break;
+				case "quadBezTo":
+					if (list.length === 2) d += `Q${xy(list)}`;
+					break;
+				case "arcTo": {
+					const wR = Number(attrOf(cmd, "wR"));
+					const hR = Number(attrOf(cmd, "hR"));
+					const st = (Number(attrOf(cmd, "stAng")) / 60000) * (Math.PI / 180);
+					const sw = (Number(attrOf(cmd, "swAng")) / 60000) * (Math.PI / 180);
+					if (![wR, hR, st, sw].every(Number.isFinite)) break;
+					const ex = cx - wR * Math.cos(st) + wR * Math.cos(st + sw);
+					const ey = cy - hR * Math.sin(st) + hR * Math.sin(st + sw);
+					d += `A${wR} ${hR} 0 ${Math.abs(sw) > Math.PI ? 1 : 0} ${sw > 0 ? 1 : 0} ${ex} ${ey}`;
+					cx = ex;
+					cy = ey;
+					break;
+				}
+				case "close":
+					d += "Z";
+					break;
+			}
+			if (last && cmd.localName !== "arcTo") [cx, cy] = last;
+		}
+		if (!d.startsWith("M")) continue;
+		out.push({
+			d,
+			// Without its own size a path is drawn in the shape's EMU box.
+			w: Number(attrOf(p, "w")) || box.w * EMU_PER_PX || 1,
+			h: Number(attrOf(p, "h")) || box.h * EMU_PER_PX || 1,
+			fill: attrOf(p, "fill") !== "none",
+			stroke: attrOf(p, "stroke") !== "0",
+		});
+	}
+	return out;
+}
+
 interface Context {
 	pkg: Pkg;
 	pal: Palette;
@@ -567,7 +698,12 @@ function readTextBody(
 		const level = Number(attrOf(pPr, "lvl") ?? 0);
 		const merged: Level = {};
 		for (const layer of layers) Object.assign(merged, layer[level] ?? {});
-		Object.assign(merged, readLevel(pPr, ctx.pal, ctx.fonts));
+		const own = readLevel(pPr, ctx.pal, ctx.fonts);
+		// What master and layout say about direction and side, before
+		// this paragraph's own settings are layered on top.
+		const inheritedRtl = merged.rtl === true;
+		const inheritedAlign = merged.align;
+		Object.assign(merged, own);
 		const baseSize = (merged.size ?? 24) * fontScale;
 		const runs: Run[] = [];
 		for (const r of kids(p)) {
@@ -581,9 +717,12 @@ function readTextBody(
 			const link = relId(path(r, "rPr", "hlinkClick"), "id");
 			const target = link ? ctx.rels.get(link) : undefined;
 			const rPr = kid(r, "rPr");
+			const text = kid(r, "t")?.textContent ?? "";
 			runs.push({
 				...runFrom(style, own.size ? own.size * fontScale : baseSize),
-				text: kid(r, "t")?.textContent ?? "",
+				text,
+				// Right-to-left text is set in the complex-script face.
+				font: hasRtl(text) ? (style.csFont ?? style.font) : style.font,
 				underline:
 					!!rPr && attrOf(rPr, "u") !== null && attrOf(rPr, "u") !== "none",
 				strike: !!rPr && (attrOf(rPr, "strike") ?? "noStrike") !== "noStrike",
@@ -594,9 +733,21 @@ function readTextBody(
 			});
 		}
 		const endSize = readRun(kid(p, "endParaRPr"), ctx.pal, ctx.fonts).size;
+		// A flag on the paragraph itself is final. A template's blanket
+		// "left-to-right, left-aligned" is not: there the text decides,
+		// so Urdu or Arabic typed into an English template still reads
+		// from the right.
+		const rtl =
+			own.rtl ?? (inheritedRtl || startsRtl(runs.map((r) => r.text).join("")));
+		const align =
+			own.align ??
+			(rtl && (!inheritedAlign || inheritedAlign === "left")
+				? "right"
+				: (inheritedAlign ?? "left"));
 		return {
 			runs,
-			align: merged.align ?? "left",
+			rtl: rtl || undefined,
+			align,
 			level,
 			bullet: merged.bullet ?? undefined,
 			indent: merged.indent ?? 0,
@@ -678,16 +829,33 @@ function readShape(
 			? null
 			: (ctx.pal.resolve(kid(ln, "solidFill")) ?? styleLine);
 	const lnW = ln ? px(attrOf(ln, "w") ?? "12700") : 0.75;
-	const geom =
-		attrOf(kid(spPr, "prstGeom"), "prst") ??
-		(kid(spPr, "custGeom") ? "rect" : "rect");
+	const geom = attrOf(kid(spPr, "prstGeom"), "prst") ?? "rect";
+	const paths = readPaths(kid(spPr, "custGeom"), box);
 	const adj = attrOf(path(spPr, "prstGeom", "avLst", "gd"), "fmla");
 	const mapped = ctx.map(box);
+	const blip = relId(path(spPr, "blipFill", "blip"), "embed");
+	const blipRel = blip ? ctx.rels.get(blip) : undefined;
+
+	const text = readTextBody(
+		kid(sp, "txBody"),
+		ctx,
+		inheritedLists,
+		inheritedBodyPr,
+	);
+	// A SmartArt shape says separately where its text sits.
+	const textBox = text ? readXfrm(kid(sp, "txXfrm")) : null;
 
 	out.push({
 		kind: "shape",
 		...mapped,
 		geom,
+		gradient: ctx.pal.gradient(spPr),
+		shadow: ctx.pal.shadow(spPr),
+		paths: paths.length ? paths : undefined,
+		image:
+			blipRel && !blipRel.external && mimeFor(blipRel.target)
+				? ctx.pkg.wantMedia(blipRel.target)
+				: undefined,
 		fill: fill === null ? undefined : (fill ?? (ph ? undefined : styleFill)),
 		line:
 			lnFill && (ln || style)
@@ -704,8 +872,10 @@ function readShape(
 				? Math.min(mapped.w, mapped.h) *
 					(adj ? Number(adj.split(" ")[1]) / 100000 : 0.1667)
 				: undefined,
-		text: readTextBody(kid(sp, "txBody"), ctx, inheritedLists, inheritedBodyPr),
+		text: textBox ? undefined : text,
 	});
+	if (textBox)
+		out.push({ kind: "shape", ...ctx.map(textBox), geom: "rect", text });
 }
 
 function readPicture(pic: Element, ctx: Context, out: SlideElement[]) {
@@ -717,7 +887,77 @@ function readPicture(pic: Element, ctx: Context, out: SlideElement[]) {
 		rel && !rel.external && mimeFor(rel.target)
 			? ctx.pkg.wantMedia(rel.target)
 			: null;
-	out.push({ kind: "image", ...ctx.map(box), src });
+	const rect = path(pic, "blipFill", "srcRect");
+	const side = (name: string) => Number(attrOf(rect, name) ?? 0) / 100000 || 0;
+	const crop: [number, number, number, number] = [
+		side("l"),
+		side("t"),
+		side("r"),
+		side("b"),
+	];
+	const cropped =
+		crop.some((c) => c !== 0) && crop[0] + crop[2] < 1 && crop[1] + crop[3] < 1;
+	const mapped = ctx.map(box);
+	const prst = attrOf(path(pic, "spPr", "prstGeom"), "prst");
+	out.push({
+		kind: "image",
+		...mapped,
+		src,
+		crop: cropped ? crop : undefined,
+		shadow: ctx.pal.shadow(kid(pic, "spPr")),
+		round:
+			prst === "ellipse"
+				? "ellipse"
+				: prst === "roundRect"
+					? Math.min(mapped.w, mapped.h) * 0.1667
+					: undefined,
+	});
+}
+
+/**
+ * SmartArt. The file keeps the diagram as data plus, since Office
+ * 2010, the shapes it was last laid out as: a drawing part, named by
+ * the data model's `dataModelExt`. Those shapes are drawn as they
+ * are, placed inside the frame. False when the file has none.
+ */
+function readDiagram(
+	data: Element | null,
+	box: Box,
+	ctx: Context,
+	out: SlideElement[],
+): boolean {
+	const model = ctx.rels.get(relId(kid(data, "relIds"), "dm") ?? "");
+	const modelDoc = model && !model.external ? ctx.pkg.xml(model.target) : null;
+	const named = attrOf(
+		modelDoc?.getElementsByTagNameNS("*", "dataModelExt")[0],
+		"relId",
+	);
+	const drawings = [...ctx.rels.values()].filter((r) =>
+		r.type.endsWith("/diagramDrawing"),
+	);
+	const rel =
+		(named ? ctx.rels.get(named) : undefined) ??
+		(drawings.length === 1 ? drawings[0] : undefined);
+	if (!rel || rel.external) return false;
+	const tree = kid(ctx.pkg.xml(rel.target)?.documentElement, "spTree");
+	if (!tree) return false;
+	const before = out.length;
+	const parent = ctx.map;
+	readTree(
+		tree,
+		{
+			...ctx,
+			part: rel.target,
+			rels: ctx.pkg.rels(rel.target),
+			layoutTree: null,
+			masterTree: null,
+			// The drawing's coordinates start at the frame's corner.
+			map: (b) => parent({ ...b, x: box.x + b.x, y: box.y + b.y }),
+		},
+		out,
+		false,
+	);
+	return out.length > before;
 }
 
 function readFrame(frame: Element, ctx: Context, out: SlideElement[]) {
@@ -727,11 +967,30 @@ function readFrame(frame: Element, ctx: Context, out: SlideElement[]) {
 	const tbl = kid(data, "tbl");
 	if (!tbl) {
 		const uri = attrOf(data, "uri") ?? "";
+		const chartRel = ctx.rels.get(relId(kid(data, "chart"), "id") ?? "");
+		const chartDoc =
+			chartRel && !chartRel.external ? ctx.pkg.xml(chartRel.target) : null;
+		if (chartDoc) {
+			let chart: Chart | null = null;
+			try {
+				chart = readChart(chartDoc, {
+					resolve: (holder) => ctx.pal.resolve(kid(holder, "solidFill")),
+					accent: (n) => ctx.pal.accent(n),
+				});
+			} catch {
+				// An odd chart part must not cost the whole deck.
+			}
+			if (chart) {
+				out.push({ kind: "chart", ...ctx.map(box), chart });
+				return;
+			}
+		}
+		if (uri.includes("diagram") && readDiagram(data, box, ctx, out)) return;
 		const label = uri.includes("chart")
-			? "Chart"
+			? msg("Chart")
 			: uri.includes("diagram")
-				? "Diagram"
-				: "Embedded object";
+				? msg("Diagram")
+				: msg("Embedded object");
 		out.push({ kind: "placeholder", ...ctx.map(box), label });
 		return;
 	}
@@ -763,7 +1022,14 @@ function readFrame(frame: Element, ctx: Context, out: SlideElement[]) {
 			};
 		}),
 	}));
-	out.push({ kind: "table", ...ctx.map(box), cols, rows });
+	const tableRtl = attrOf(kid(tbl, "tblPr"), "rtl");
+	out.push({
+		kind: "table",
+		...ctx.map(box),
+		cols,
+		rows,
+		rtl: tableRtl === "1" || tableRtl === "true" || undefined,
+	});
 }
 
 function readTree(
@@ -842,10 +1108,54 @@ function background(cSld: Element | null, ctx: Context): string | undefined {
 
 // ---------- Entry ----------
 
+/** The whole deck at once (tests, small files). */
 export function parsePptx(bytes: Uint8Array): Presentation {
+	const steps = readDeck(bytes);
+	for (;;) {
+		const step = steps.next();
+		if (step.done) return step.value;
+	}
+}
+
+/** Let the page breathe: a task boundary that timers' background
+ * throttling does not stretch. */
+const pause = () =>
+	new Promise<void>((resolve) => {
+		const channel = new MessageChannel();
+		channel.port1.onmessage = () => resolve();
+		channel.port2.postMessage(0);
+	});
+
+/**
+ * The same deck, read without freezing the page: parsing needs the
+ * DOM, so it cannot move to a worker, but it hands control back
+ * between slides so a long deck opens with the spinner turning and
+ * the Back button working. Aborting stops it at the next pause.
+ */
+export async function parsePptxAsync(
+	bytes: Uint8Array,
+	signal?: AbortSignal,
+): Promise<Presentation> {
+	const steps = readDeck(bytes);
+	let since = performance.now();
+	for (;;) {
+		const step = steps.next();
+		if (step.done) return step.value;
+		if (performance.now() - since < 12) continue;
+		await pause();
+		if (signal?.aborted) throw new DOMException("aborted", "AbortError");
+		since = performance.now();
+	}
+}
+
+/** Reads the deck, yielding after the archive is open and after each
+ * slide. */
+function* readDeck(bytes: Uint8Array): Generator<undefined, Presentation> {
+	yield;
 	const files = unzipSync(bytes, {
 		filter: (f) => f.name.endsWith(".xml") || f.name.endsWith(".rels"),
 	});
+	yield;
 	const pkg = new Pkg(files, bytes);
 	const presentation = pkg.xml("ppt/presentation.xml");
 	if (!presentation) throw new Error("corrupt: missing presentation.xml");
@@ -861,7 +1171,7 @@ export function parsePptx(bytes: Uint8Array): Presentation {
 	const slides: Slide[] = [];
 	const masterCache = new Map<
 		string,
-		{ doc: Document; theme: ColorMap; fonts: Fonts }
+		{ doc: Document | null; theme: ColorMap; fonts: Fonts }
 	>();
 
 	for (const part of slideParts) {
@@ -878,8 +1188,8 @@ export function parsePptx(bytes: Uint8Array): Presentation {
 				?.target ?? "";
 		let master = masterCache.get(masterPart);
 		if (!master) {
+			// A deck without a readable master still shows its slides.
 			const doc = pkg.xml(masterPart);
-			if (!doc) continue;
 			const themePart =
 				[...pkg.rels(masterPart).values()].find((r) =>
 					r.type.endsWith("/theme"),
@@ -904,7 +1214,7 @@ export function parsePptx(bytes: Uint8Array): Presentation {
 			};
 			masterCache.set(masterPart, master);
 		}
-		const masterRoot = master.doc.documentElement;
+		const masterRoot = master.doc?.documentElement ?? null;
 		const clrMap: ColorMap = {};
 		for (const a of Array.from(kid(masterRoot, "clrMap")?.attributes ?? []))
 			clrMap[a.localName] = a.value;
@@ -979,6 +1289,7 @@ export function parsePptx(bytes: Uint8Array): Presentation {
 			notes = texts.join("\n") || undefined;
 		}
 		slides.push({ background: bg, elements, notes });
+		yield;
 	}
 
 	pkg.loadMedia();
@@ -988,11 +1299,14 @@ export function parsePptx(bytes: Uint8Array): Presentation {
 		if (slide.background.startsWith("media:")) {
 			const url = pkg.media.get(slide.background.slice(6));
 			slide.background = url
-				? `center / cover no-repeat url("${url}")`
+				? `center / 100% 100% no-repeat url("${url}")`
 				: "#ffffff";
 		}
-		for (const el of slide.elements)
+		for (const el of slide.elements) {
 			if (el.kind === "image") el.src = resolveSrc(el.src);
+			else if (el.kind === "shape" && el.image)
+				el.image = resolveSrc(el.image) ?? undefined;
+		}
 	}
 
 	return {

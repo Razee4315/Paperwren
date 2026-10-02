@@ -1,4 +1,5 @@
 import type { FileFormat } from "./formats";
+import type { LanguageSetting } from "./i18n";
 
 /** How a file can be read again after the app restarts. */
 export type Reopen =
@@ -32,7 +33,7 @@ export type Position =
 			rotation: number;
 	  }
 	| { kind: "scroll"; ratio: number; zoom?: number }
-	| { kind: "sheet"; sheet: number; top: number; left: number }
+	| { kind: "sheet"; sheet: number; top: number; left: number; zoom?: number }
 	| { kind: "slides"; slide: number };
 
 export interface RecentEntry {
@@ -57,18 +58,24 @@ export type PdfZoom = "page-width" | "page-fit" | "auto";
 
 export interface Settings {
 	theme: ThemeSetting;
+	/** The interface language; "system" follows the phone. */
+	language: LanguageSetting;
 	pdfZoom: PdfZoom;
 	rememberPosition: boolean;
 	darkPages: boolean;
+	/** Keep the screen from dimming while a document is open. */
+	keepAwake: boolean;
 	keepRecents: boolean;
 	recentsLimit: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
 	theme: "system",
+	language: "system",
 	pdfZoom: "page-width",
 	rememberPosition: true,
 	darkPages: false,
+	keepAwake: false,
 	keepRecents: true,
 	recentsLimit: 50,
 };

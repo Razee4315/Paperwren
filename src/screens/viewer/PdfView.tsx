@@ -1,27 +1,26 @@
+import { t, tn } from "@/lib/i18n";
 import { isDarkTheme } from "@/lib/settings";
 import type { Position } from "@/lib/types";
 import { useSettings } from "@/state/settings";
 import {
 	Button,
-	Dialog,
 	ErrorArt,
 	IconButton,
 	Sheet,
 	SheetItem,
 	Spinner,
 	StateView,
+	toast,
 } from "@/ui";
 import {
+	LayoutGrid,
 	ListTree,
 	Maximize,
-	MoreVertical,
 	RotateCw,
 	Search,
 	StretchHorizontal,
-	ZoomIn,
-	ZoomOut,
 } from "lucide-react";
-import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import type {
 	EventBus,
 	PDFFindController,
@@ -30,15 +29,25 @@ import type {
 } from "pdfjs-dist/web/pdf_viewer.mjs";
 import "pdfjs-dist/web/pdf_viewer.css";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PageJump, PasswordDialog } from "./Dialogs";
+import { PdfThumbs } from "./PdfThumbs";
 import s from "./PdfView.module.css";
-import { FindBar, type FindState, Shell, shellStyles } from "./Shell";
+import { Scrubber } from "./Scrubber";
+import {
+	FindBar,
+	type FindState,
+	Shell,
+	ZoomControl,
+	shellStyles,
+} from "./Shell";
+import { useZoom } from "./hooks";
 import type { ViewerProps } from "./types";
 
 /**
  * PDF on pdf.js's own viewer component (the engine behind Firefox's
- * reader): virtualised page rendering, text selection, links, find
- * with highlighting, and anchored zoom all come from pdf.js. This
- * file only adds the chrome, touch gestures and position memory.
+ * reader): virtualised page rendering, text selection, links and find
+ * with highlighting all come from pdf.js. This file adds the chrome,
+ * the shared zoom gestures and position memory.
  */
 
 async function loadEngine() {
@@ -74,6 +83,7 @@ export default function PdfView({
 	const { settings, theme } = useSettings();
 	const container = useRef<HTMLDivElement>(null);
 	const viewerEl = useRef<HTMLDivElement>(null);
+	const hud = useRef<HTMLDivElement>(null);
 	const pdfViewer = useRef<PDFViewer | null>(null);
 	const bus = useRef<EventBus | null>(null);
 	const links = useRef<PDFLinkService | null>(null);
@@ -82,17 +92,14 @@ export default function PdfView({
 	const [status, setStatus] = useState<
 		"loading" | "ready" | "password" | "error"
 	>("loading");
-	const [password, setPassword] = useState("");
 	const [passwordWrong, setPasswordWrong] = useState(false);
 	const [page, setPage] = useState(1);
 	const [pages, setPages] = useState(0);
 	const [scaleLabel, setScaleLabel] = useState("");
 	const [chromeHidden, setChromeHidden] = useState(false);
-	const [menu, setMenu] = useState(false);
 	const [outline, setOutline] = useState<Outline[] | null>(null);
 	const [outlineOpen, setOutlineOpen] = useState(false);
-	const [jumpOpen, setJumpOpen] = useState(false);
-	const [jumpValue, setJumpValue] = useState("");
+	const [thumbsOpen, setThumbsOpen] = useState(false);
 	const [findOpen, setFindOpen] = useState(false);
 	const [find, setFind] = useState<FindState>({
 		query: "",
@@ -107,44 +114,60 @@ export default function PdfView({
 	rememberRef.current = settings.rememberPosition;
 	const defaultZoom = useRef(settings.pdfZoom);
 
-	// --- open the document (retries with a password) ---
-	const openDoc = useCallback(
-		async (pwd?: string) => {
-			setStatus("loading");
-			try {
-				const { pdfjs } = await loadEngine();
-				// pdf.js transfers the buffer it gets; keep ours for retries.
-				const task = pdfjs.getDocument({
-					data: new Uint8Array(data.slice(0)),
-					password: pwd,
+	// --- open the document ---
+	// pdf.js takes the bytes over: they move to its worker rather than
+	// being copied, so a large file is held once, not twice. A locked
+	// file asks for its password through the same load, so trying a
+	// password never reads the file again.
+	const unlock = useRef<((password: string) => void) | null>(null);
+	useEffect(() => {
+		let alive = true;
+		let task: PDFDocumentLoadingTask | null = null;
+		setStatus("loading");
+		loadEngine()
+			.then(({ pdfjs }) => {
+				// In development React runs this effect twice; the first run is
+				// cancelled before it gets here, so the bytes are given away once.
+				if (!alive) return;
+				if (data.byteLength === 0) {
+					setStatus("error");
+					return;
+				}
+				task = pdfjs.getDocument({
+					data: new Uint8Array(data),
 					isEvalSupported: false,
 				});
-				const pdf = await task.promise;
-				setDoc(pdf);
-				setPages(pdf.numPages);
-				setStatus("ready");
-				pdf
-					.getOutline()
-					.then((o) => setOutline((o as unknown as Outline[]) ?? []))
-					.catch(() => setOutline([]));
-			} catch (err) {
-				const e = err as { name?: string; code?: number };
-				if (e?.name === "PasswordException") {
-					setPasswordWrong(pwd !== undefined);
+				task.onPassword = (
+					update: (password: string) => void,
+					reason: number,
+				) => {
+					if (!alive) return;
+					unlock.current = update;
+					setPasswordWrong(
+						reason === pdfjs.PasswordResponses.INCORRECT_PASSWORD,
+					);
 					setStatus("password");
-				} else {
-					setStatus("error");
-				}
-			}
-		},
-		[data],
-	);
-
-	useEffect(() => {
-		openDoc();
-	}, [openDoc]);
-
-	useEffect(() => () => void doc?.destroy(), [doc]);
+				};
+				return task.promise.then((pdf) => {
+					if (!alive) return;
+					setDoc(pdf);
+					setPages(pdf.numPages);
+					setStatus("ready");
+					pdf
+						.getOutline()
+						.then((o) => setOutline((o as unknown as Outline[]) ?? []))
+						.catch(() => setOutline([]));
+				});
+			})
+			.catch(() => {
+				if (alive) setStatus("error");
+			});
+		return () => {
+			alive = false;
+			// Ends the load and frees the document, whichever it reached.
+			task?.destroy();
+		};
+	}, [data]);
 
 	// --- mount pdf.js's viewer once the document is ready ---
 	useEffect(() => {
@@ -202,9 +225,9 @@ export default function PdfView({
 				(e: { scale: number; presetValue?: string }) =>
 					setScaleLabel(
 						e.presetValue === "page-width"
-							? "Fit width"
+							? t(t("Fit width"))
 							: e.presetValue === "page-fit"
-								? "Whole page"
+								? t(t("Whole page"))
 								: `${Math.round(e.scale * 100)}%`,
 					),
 			);
@@ -275,139 +298,58 @@ export default function PdfView({
 		};
 	}, [doc]);
 
-	// --- zoom helpers ---
-	const zoomBy = useCallback((factor: number, origin?: [number, number]) => {
-		const v = pdfViewer.current;
-		if (!v) return;
-		const target = Math.min(
-			MAX_SCALE,
-			Math.max(MIN_SCALE, v.currentScale * factor),
-		);
-		v.updateScale({
-			scaleFactor: target / v.currentScale,
-			origin,
-			drawingDelay: 250,
-		});
-	}, []);
+	// --- zoom: the shared engine drives pdf.js's scale ---
 	const setPreset = (value: "page-width" | "page-fit") => {
 		if (pdfViewer.current) pdfViewer.current.currentScaleValue = value;
 	};
-
-	// --- touch: pinch zoom around the fingers, tap toggles chrome,
-	// double tap zooms in / back to fit ---
-	useEffect(() => {
-		const el = container.current;
-		if (!el || status !== "ready") return;
-		let pinch: {
-			dist: number;
-			pending: number;
-			raf: number;
-			origin: [number, number];
-		} | null = null;
-		let tap: { x: number; y: number; t: number; moved: boolean } | null = null;
-		let lastTap = 0;
-		let tapTimer = 0;
-		const dist = (t: TouchList) =>
-			Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-
-		const onStart = (e: TouchEvent) => {
-			if (e.touches.length === 2) {
-				e.preventDefault();
-				tap = null;
-				pinch = { dist: dist(e.touches), pending: 1, raf: 0, origin: [0, 0] };
-			} else if (e.touches.length === 1) {
-				tap = {
-					x: e.touches[0].clientX,
-					y: e.touches[0].clientY,
-					t: e.timeStamp,
-					moved: false,
-				};
-			}
-		};
-		const onMove = (e: TouchEvent) => {
-			if (tap && e.touches.length === 1) {
-				const dx = e.touches[0].clientX - tap.x;
-				const dy = e.touches[0].clientY - tap.y;
-				if (Math.hypot(dx, dy) > 10) tap.moved = true;
-			}
-			if (!pinch || e.touches.length !== 2) return;
-			e.preventDefault();
-			const d = dist(e.touches);
-			pinch.pending *= d / pinch.dist;
-			pinch.dist = d;
-			pinch.origin = [
-				(e.touches[0].clientX + e.touches[1].clientX) / 2,
-				(e.touches[0].clientY + e.touches[1].clientY) / 2,
-			];
-			if (!pinch.raf) {
-				pinch.raf = requestAnimationFrame(() => {
-					if (!pinch) return;
-					pinch.raf = 0;
-					if (Math.abs(pinch.pending - 1) > 0.01) {
-						zoomBy(pinch.pending, pinch.origin);
-						pinch.pending = 1;
-					}
-				});
-			}
-		};
-		const onEnd = (e: TouchEvent) => {
-			if (pinch && e.touches.length < 2) {
-				cancelAnimationFrame(pinch.raf);
-				if (Math.abs(pinch.pending - 1) > 0.01)
-					zoomBy(pinch.pending, pinch.origin);
-				pinch = null;
-				return;
-			}
-			if (
-				!tap ||
-				tap.moved ||
-				e.touches.length > 0 ||
-				e.timeStamp - tap.t > 300
-			) {
-				tap = null;
-				return;
-			}
-			const target = e.target as HTMLElement;
-			if (target.closest("a, button, input, .annotationLayer section")) return;
-			const { x, y } = tap;
-			tap = null;
-			if (e.timeStamp - lastTap < 300) {
-				window.clearTimeout(tapTimer);
-				lastTap = 0;
-				const v = pdfViewer.current;
-				if (!v) return;
-				if (
-					v.currentScaleValue === "page-width" ||
-					v.currentScaleValue === "page-fit" ||
-					v.currentScaleValue === "auto"
-				)
-					zoomBy(2, [x, y]);
-				else v.currentScaleValue = "page-width";
-				return;
-			}
-			lastTap = e.timeStamp;
-			if (window.getSelection()?.toString()) return;
-			tapTimer = window.setTimeout(() => setChromeHidden((h) => !h), 280);
-		};
-		const onWheel = (e: WheelEvent) => {
-			if (!e.ctrlKey && !e.metaKey) return;
-			e.preventDefault();
-			zoomBy(Math.exp(-e.deltaY * 0.01), [e.clientX, e.clientY]);
-		};
-		el.addEventListener("touchstart", onStart, { passive: false });
-		el.addEventListener("touchmove", onMove, { passive: false });
-		el.addEventListener("touchend", onEnd);
-		el.addEventListener("touchcancel", onEnd);
-		el.addEventListener("wheel", onWheel, { passive: false });
-		return () => {
-			window.clearTimeout(tapTimer);
-			el.removeEventListener("touchstart", onStart);
-			el.removeEventListener("touchmove", onMove);
-			el.removeEventListener("touchend", onEnd);
-			el.removeEventListener("touchcancel", onEnd);
-			el.removeEventListener("wheel", onWheel);
-		};
-	}, [status, zoomBy]);
+	const commit = useCallback((z: number) => {
+		const v = pdfViewer.current;
+		if (!v) return;
+		// Pages resize at once and keep their stretched bitmap until the
+		// sharp one is ready, so nothing blanks while it re-renders.
+		v.updateScale({ scaleFactor: z / v.currentScale, drawingDelay: 120 });
+	}, []);
+	/** The scale at which the current page fills the width. */
+	const fitWidthScale = () => {
+		const v = pdfViewer.current;
+		const box = container.current;
+		const view = v?.getPageView(v.currentPageNumber - 1) as
+			| { width: number; scale: number }
+			| undefined;
+		if (!v || !box || !view?.width) return 1;
+		return ((box.clientWidth - 40) / view.width) * view.scale;
+	};
+	const { zoomBy, zoomTo } = useZoom({
+		scroller: container,
+		content: viewerEl,
+		stage: viewerEl,
+		zoom: 1,
+		get: () => pdfViewer.current?.currentScale ?? 1,
+		commit,
+		hud,
+		min: MIN_SCALE,
+		max: MAX_SCALE,
+		// Pages scale; the gaps between them do not. Anchor to the page.
+		anchor: (x, y) =>
+			document.elementFromPoint(x, y)?.closest<HTMLElement>(".page") ??
+			(pdfViewer.current?.getPageView(pdfViewer.current.currentPageNumber - 1)
+				?.div as HTMLElement | undefined) ??
+			null,
+		onTap: () => setChromeHidden((h) => !h),
+		onDoubleTap: (x, y) => {
+			const v = pdfViewer.current;
+			if (!v) return;
+			const preset = ["page-width", "page-fit", "auto"].includes(
+				v.currentScaleValue,
+			);
+			if (preset) zoomBy(2, [x, y]);
+			else zoomTo(fitWidthScale(), [x, y], () => setPreset("page-width"));
+		},
+		onReset: () =>
+			zoomTo(fitWidthScale(), undefined, () => setPreset("page-width")),
+		enabled: status === "ready",
+		active,
+	});
 
 	// --- find ---
 	const runFind = useCallback(
@@ -443,22 +385,112 @@ export default function PdfView({
 
 	const darkPages = settings.darkPages && isDarkTheme(theme);
 
+	const pdfMenu = (close: () => void) => (
+		<>
+			<SheetItem
+				icon={<StretchHorizontal size={20} />}
+				onClick={() => {
+					setPreset("page-width");
+					close();
+				}}
+			>
+				{t(t("Fit width"))}
+			</SheetItem>
+			<SheetItem
+				icon={<Maximize size={20} />}
+				onClick={() => {
+					setPreset("page-fit");
+					close();
+				}}
+			>
+				{t(t("Whole page"))}
+			</SheetItem>
+			<SheetItem
+				icon={<RotateCw size={20} />}
+				onClick={() => {
+					const v = pdfViewer.current;
+					if (v) v.pagesRotation = (v.pagesRotation + 90) % 360;
+					close();
+				}}
+			>
+				{t("Rotate")}
+			</SheetItem>
+			<SheetItem
+				icon={<LayoutGrid size={20} />}
+				onClick={() => {
+					close();
+					setThumbsOpen(true);
+				}}
+				testId="pdf-pages"
+			>
+				{t("Pages")}
+			</SheetItem>
+			<SheetItem
+				icon={<ListTree size={20} />}
+				disabled={!outline?.length}
+				hint={
+					outline && !outline.length
+						? t(t("This PDF has no outline"))
+						: undefined
+				}
+				onClick={() => {
+					close();
+					setOutlineOpen(true);
+				}}
+			>
+				{t("Contents")}
+			</SheetItem>
+		</>
+	);
+
+	/** Every page as an image at print resolution: the screen only
+	 * ever holds the few pages around the reader. */
+	const printPages = async (root: HTMLElement) => {
+		if (!doc) return;
+		if (doc.numPages > 20)
+			toast(t("Preparing {n} pages for printing…", { n: doc.numPages }));
+		for (let n = 1; n <= doc.numPages; n++) {
+			const pdfPage = await doc.getPage(n);
+			const rotation =
+				(pdfPage.rotate + (pdfViewer.current?.pagesRotation ?? 0)) % 360;
+			const base = pdfPage.getViewport({ scale: 1, rotation });
+			// About 150 dpi on A4/Letter, bounded for very large pages.
+			const scale = Math.min(2.2, 1650 / Math.max(base.width, base.height));
+			const viewport = pdfPage.getViewport({ scale, rotation });
+			const canvas = document.createElement("canvas");
+			canvas.width = Math.ceil(viewport.width);
+			canvas.height = Math.ceil(viewport.height);
+			const context = canvas.getContext("2d");
+			if (!context) continue;
+			// The "print" intent also draws without waiting on animation
+			// frames, so a large file is not paced by the display.
+			await pdfPage.render({
+				canvasContext: context,
+				viewport,
+				intent: "print",
+			}).promise;
+			const blob = await new Promise<Blob | null>((resolve) =>
+				canvas.toBlob(resolve, "image/jpeg", 0.9),
+			);
+			canvas.width = canvas.height = 0;
+			if (!blob) continue;
+			const image = new Image();
+			image.className = "pw-page";
+			image.src = URL.createObjectURL(blob);
+			image.onload = () => URL.revokeObjectURL(image.src);
+			root.appendChild(image);
+		}
+	};
+
 	const actions = (
 		<>
 			<IconButton
-				label="Find"
+				label={t("Find")}
 				onClick={() => setFindOpen(true)}
 				active={findOpen}
 				data-testid="pdf-find"
 			>
 				<Search size={20} />
-			</IconButton>
-			<IconButton
-				label="More"
-				onClick={() => setMenu(true)}
-				data-testid="pdf-more"
-			>
-				<MoreVertical size={20} />
 			</IconButton>
 		</>
 	);
@@ -466,49 +498,21 @@ export default function PdfView({
 	const bottom =
 		status === "ready" ? (
 			<div className={shellStyles.pager}>
-				<button
-					type="button"
-					className={shellStyles.pill}
-					onClick={() => {
-						setJumpValue(String(page));
-						setJumpOpen(true);
-					}}
-					aria-label="Go to page"
-					data-testid="pdf-page"
-				>
-					{page} / {pages}
-				</button>
-				<div className={shellStyles.group}>
-					<IconButton
-						label="Zoom out"
-						onClick={() => zoomBy(1 / 1.25)}
-						data-testid="pdf-zoom-out"
-					>
-						<ZoomOut size={20} />
-					</IconButton>
-					<button
-						type="button"
-						className={shellStyles.pill}
-						onClick={() =>
-							setPreset(
-								pdfViewer.current?.currentScaleValue === "page-width"
-									? "page-fit"
-									: "page-width",
-							)
-						}
-						aria-label="Toggle fit"
-						data-testid="pdf-scale"
-					>
-						{scaleLabel || "Fit width"}
-					</button>
-					<IconButton
-						label="Zoom in"
-						onClick={() => zoomBy(1.25)}
-						data-testid="pdf-zoom-in"
-					>
-						<ZoomIn size={20} />
-					</IconButton>
-				</div>
+				<PageJump page={page} pages={pages} onGo={goTo} testId="pdf" />
+				<ZoomControl
+					label={scaleLabel || t(t("Fit width"))}
+					onOut={() => zoomBy(1 / 1.25)}
+					onIn={() => zoomBy(1.25)}
+					onReset={() =>
+						setPreset(
+							pdfViewer.current?.currentScaleValue === "page-width"
+								? "page-fit"
+								: "page-width",
+						)
+					}
+					resetLabel={t("Switch between fit width and whole page")}
+					testId="pdf"
+				/>
 			</div>
 		) : undefined;
 
@@ -518,8 +522,13 @@ export default function PdfView({
 			format={format}
 			onClose={onClose}
 			active={active}
+			hud={hud}
+			progressOf={container}
 			actions={actions}
 			bottom={bottom}
+			onFind={status === "ready" ? () => setFindOpen(true) : undefined}
+			menu={status === "ready" ? pdfMenu : undefined}
+			onPrint={doc ? printPages : undefined}
 			chromeHidden={chromeHidden && !findOpen}
 			find={
 				findOpen ? (
@@ -542,159 +551,61 @@ export default function PdfView({
 			>
 				<div ref={viewerEl} className="pdfViewer" />
 			</div>
+			<Scrubber
+				of={container}
+				label={`${page} / ${pages}`}
+				enabled={status === "ready"}
+			/>
 
 			{status === "loading" && (
 				<StateView>
-					<Spinner label="Opening PDF" />
+					<Spinner label={t("Opening PDF")} />
 				</StateView>
 			)}
 			{status === "error" && (
 				<StateView
 					icon={<ErrorArt />}
-					title="Can't open this PDF"
-					action={<Button onClick={onClose}>Close</Button>}
+					title={t("Can't open this PDF")}
+					action={<Button onClick={onClose}>{t("Close")}</Button>}
 					testId="pdf-error"
 				>
-					The file is damaged or isn't a valid PDF.
+					{t("The file is damaged or isn't a valid PDF.")}
 				</StateView>
 			)}
 
-			<Dialog
+			<PasswordDialog
 				open={status === "password"}
-				title="Password protected"
-				onClose={onClose}
-				actions={
-					<>
-						<Button variant="ghost" onClick={onClose}>
-							Cancel
-						</Button>
-						<Button
-							onClick={() => openDoc(password)}
-							disabled={!password}
-							data-testid="pdf-unlock"
-						>
-							Open
-						</Button>
-					</>
-				}
-			>
-				<form
-					onSubmit={(e) => {
-						e.preventDefault();
-						if (password) openDoc(password);
-					}}
-				>
-					<p className={s.passwordHint}>
-						{passwordWrong
-							? "That password didn't work. Try again."
-							: `Enter the password for “${name}”.`}
-					</p>
-					<input
-						className={s.input}
-						type="password"
-						autoComplete="off"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						aria-label="Password"
-						data-testid="pdf-password"
-					/>
-				</form>
-			</Dialog>
-
-			<Dialog
-				open={jumpOpen}
-				title="Go to page"
-				onClose={() => setJumpOpen(false)}
-				actions={
-					<>
-						<Button variant="ghost" onClick={() => setJumpOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							onClick={() => {
-								goTo(Number(jumpValue));
-								setJumpOpen(false);
-							}}
-							data-testid="pdf-jump-go"
-						>
-							Go
-						</Button>
-					</>
-				}
-			>
-				<form
-					onSubmit={(e) => {
-						e.preventDefault();
-						goTo(Number(jumpValue));
-						setJumpOpen(false);
-					}}
-				>
-					<input
-						className={s.input}
-						type="number"
-						inputMode="numeric"
-						min={1}
-						max={pages}
-						value={jumpValue}
-						onChange={(e) => setJumpValue(e.target.value)}
-						aria-label={`Page number, 1 to ${pages}`}
-						data-testid="pdf-jump-input"
-					/>
-				</form>
-			</Dialog>
+				name={name}
+				wrong={passwordWrong}
+				onSubmit={(password) => {
+					setStatus("loading");
+					unlock.current?.(password);
+				}}
+				onCancel={onClose}
+				testId="pdf"
+			/>
 
 			<Sheet
-				open={menu}
-				title="PDF"
-				onClose={() => setMenu(false)}
-				testId="pdf-menu"
+				open={thumbsOpen}
+				title={tn(pages, "{n} page", "{n} pages")}
+				onClose={() => setThumbsOpen(false)}
 			>
-				<SheetItem
-					icon={<StretchHorizontal size={20} />}
-					onClick={() => {
-						setPreset("page-width");
-						setMenu(false);
-					}}
-				>
-					Fit width
-				</SheetItem>
-				<SheetItem
-					icon={<Maximize size={20} />}
-					onClick={() => {
-						setPreset("page-fit");
-						setMenu(false);
-					}}
-				>
-					Whole page
-				</SheetItem>
-				<SheetItem
-					icon={<RotateCw size={20} />}
-					onClick={() => {
-						const v = pdfViewer.current;
-						if (v) v.pagesRotation = (v.pagesRotation + 90) % 360;
-						setMenu(false);
-					}}
-				>
-					Rotate
-				</SheetItem>
-				<SheetItem
-					icon={<ListTree size={20} />}
-					disabled={!outline?.length}
-					hint={
-						outline && !outline.length ? "This PDF has no outline" : undefined
-					}
-					onClick={() => {
-						setMenu(false);
-						setOutlineOpen(true);
-					}}
-				>
-					Contents
-				</SheetItem>
+				{doc && (
+					<PdfThumbs
+						doc={doc}
+						current={page}
+						rotation={pdfViewer.current?.pagesRotation ?? 0}
+						onPick={(n) => {
+							goTo(n);
+							setThumbsOpen(false);
+						}}
+					/>
+				)}
 			</Sheet>
 
 			<Sheet
 				open={outlineOpen}
-				title="Contents"
+				title={t("Contents")}
 				onClose={() => setOutlineOpen(false)}
 			>
 				<OutlineList

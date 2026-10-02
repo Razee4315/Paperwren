@@ -20,21 +20,6 @@
 .dark :global(.pdfViewer .page .canvasWrapper) {
 	filter: invert(0.88) hue-rotate(180deg);
 }
-.input {
-	width: 100%;
-	height: 46px;
-	padding: 0 14px;
-	border-radius: var(--r-m);
-	border: 1px solid var(--line-strong);
-	background: var(--surface-2);
-	outline: none;
-}
-.input:focus {
-	border-color: var(--accent);
-}
-.passwordHint {
-	margin-bottom: 12px;
-}
 .outline {
 	display: block;
 	width: 100%;
@@ -48,4 +33,41 @@
 }
 .outline:hover {
 	background: var(--surface-2);
+}
+/* The pages sheet: every page as a small picture. */
+.thumbs {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+	gap: 14px 12px;
+	padding: 4px 4px 8px;
+}
+.thumb {
+	--ratio: 0.707;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 6px 4px;
+	border-radius: var(--r-s);
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--text-3);
+	font-variant-numeric: tabular-nums;
+}
+.thumb canvas {
+	width: 100%;
+	aspect-ratio: var(--ratio);
+	background: #fff;
+	border-radius: 2px;
+	box-shadow: 0 0 0 1px var(--line-strong);
+}
+.thumb:hover {
+	background: var(--surface-2);
+}
+.thumb[aria-current="page"] {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+.thumb[aria-current="page"] canvas {
+	box-shadow: 0 0 0 2px var(--accent);
 }

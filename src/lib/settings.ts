@@ -1,3 +1,4 @@
+import { LANGUAGES, type LanguageSetting } from "./i18n";
 import {
 	DEFAULT_SETTINGS,
 	type PdfZoom,
@@ -37,12 +38,18 @@ export function normalizeSettings(value: unknown): Settings {
 			THEMES,
 			DEFAULT_SETTINGS.theme,
 		),
+		language: pick(
+			raw.language,
+			["system", ...LANGUAGES.map(([lang]) => lang)] as LanguageSetting[],
+			DEFAULT_SETTINGS.language,
+		),
 		pdfZoom: pick(raw.pdfZoom, ZOOMS, DEFAULT_SETTINGS.pdfZoom),
 		rememberPosition: bool(
 			raw.rememberPosition,
 			DEFAULT_SETTINGS.rememberPosition,
 		),
 		darkPages: bool(raw.darkPages, DEFAULT_SETTINGS.darkPages),
+		keepAwake: bool(raw.keepAwake, DEFAULT_SETTINGS.keepAwake),
 		keepRecents: bool(raw.keepRecents, DEFAULT_SETTINGS.keepRecents),
 		recentsLimit: pick(raw.recentsLimit, LIMITS, DEFAULT_SETTINGS.recentsLimit),
 	};

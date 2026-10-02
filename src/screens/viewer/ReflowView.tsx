@@ -1,33 +1,42 @@
-import type { Block, Extracted } from "@/lib/office/model";
+import { t, uiDir } from "@/lib/i18n";
+import type { Block } from "@/lib/office/model";
+import type { DocResult } from "@/lib/parseWorker";
+import { sheet } from "@/lib/print";
 import { Button, ErrorArt, IconButton, Spinner, StateView } from "@/ui";
 import { Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import "@/styles/office-fonts.css";
 import d from "./Doc.module.css";
-import { FindBar, Shell } from "./Shell";
-import { usePinchZoom, useScrollMemory } from "./hooks";
+import { RichDocument } from "./RichDocument";
+import { FindBar, Shell, ZoomControl, shellStyles } from "./Shell";
+import { useScrollMemory, useZoom } from "./hooks";
 import { runWorker } from "./runWorker";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
 
-type Result =
-	| { ok: true; doc: Extracted }
-	| { ok: false; reason: "corrupt" | "password" };
+type Result = DocResult;
 
 async function extract(
 	props: ViewerProps,
 	signal: AbortSignal,
 ): Promise<Result> {
 	const { format, data } = props;
-	if (format === "odt" || format === "odp") {
-		const { extractOdf } = await import("@/lib/office/odf");
+	if (format === "odt") {
+		const { parseOdt } = await import("@/lib/office/odf");
 		try {
-			return { ok: true, doc: extractOdf(new Uint8Array(data), format) };
-		} catch {
-			return { ok: false, reason: "corrupt" };
+			return { ok: true, doc: parseOdt(new Uint8Array(data)) };
+		} catch (err) {
+			return {
+				ok: false,
+				reason: String(err).includes("password") ? "password" : "corrupt",
+			};
 		}
 	}
-	const type = format === "doc" ? "doc" : format === "ppt" ? "ppt" : "rtf";
-	return runWorker<Result>({ type, buffer: data }, signal);
+	return runWorker<Result>(
+		{ type: format === "doc" ? "doc" : "rtf", buffer: data },
+		signal,
+	);
 }
 
 function Blocks({ blocks }: { blocks: Block[] }) {
@@ -45,14 +54,19 @@ function Blocks({ blocks }: { blocks: Block[] }) {
 	);
 }
 
-/** Formats read as text structure: legacy .doc/.ppt, OpenDocument
- * text and slides, and RTF. Honest about what is not shown. */
+/** Documents that flow to the screen instead of being paginated:
+ * legacy Word and OpenDocument text (with their formatting, tables
+ * and pictures) and RTF. Honest about what is not shown. */
 export default function ReflowView(props: ViewerProps) {
 	const { name, format, position, onPosition, onClose, active } = props;
 	const scroller = useRef<HTMLDivElement>(null);
+	const stage = useRef<HTMLDivElement>(null);
+	const hud = useRef<HTMLDivElement>(null);
+	const pages = useRef<HTMLDivElement>(null);
 	const content = useRef<HTMLDivElement>(null);
 	const [result, setResult] = useState<Result | null>(null);
 	const [zoom, setZoom] = useState(1);
+	const [chromeHidden, setChromeHidden] = useState(false);
 	const find = useDomFind(content, scroller);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: extract once per document
@@ -68,16 +82,38 @@ export default function ReflowView(props: ViewerProps) {
 		return () => abort.abort();
 	}, [props.data]);
 
-	usePinchZoom(scroller, zoom, setZoom, 0.6, 3);
-	useScrollMemory(scroller, !!result?.ok, position, onPosition);
-
 	const doc = result?.ok ? result.doc : null;
+	useEffect(() => {
+		if (position?.kind === "scroll" && position.zoom) setZoom(position.zoom);
+	}, [position]);
+	const commit = useCallback((z: number) => flushSync(() => setZoom(z)), []);
+	const { zoomBy, zoomTo } = useZoom({
+		scroller,
+		content: pages,
+		stage,
+		zoom,
+		commit,
+		hud,
+		min: 0.6,
+		max: 3,
+		enabled: !!doc,
+		active,
+		onTap: () => setChromeHidden((h) => !h),
+	});
+	useScrollMemory(scroller, !!result?.ok, position, onPosition, zoom);
+
 	const note =
-		format === "doc" || format === "ppt"
-			? "Older Office format: showing the text only. Layout and images aren't displayed."
+		doc?.kind === "rich"
+			? format === "doc"
+				? t(
+						"Older Word format: formatting, tables and pictures are shown; the page layout is not.",
+					)
+				: t(
+						"OpenDocument text: formatting, tables and pictures are shown; the page layout is not.",
+					)
 			: format === "rtf"
-				? "Showing the text of this RTF document."
-				: "Showing the text of this OpenDocument file. Layout and images aren't displayed.";
+				? t("Showing the text of this RTF document.")
+				: t("This file's formatting couldn't be read; showing its text.");
 
 	return (
 		<Shell
@@ -85,9 +121,36 @@ export default function ReflowView(props: ViewerProps) {
 			format={format}
 			onClose={onClose}
 			active={active}
+			hud={hud}
+			progressOf={scroller}
+			chromeHidden={chromeHidden && !find.open}
+			onFind={doc ? find.start : undefined}
+			onPrint={
+				doc
+					? (root) => {
+							const clone = content.current?.cloneNode(true);
+							if (clone) root.appendChild(sheet(clone));
+						}
+					: undefined
+			}
+			bottom={
+				doc ? (
+					<div className={shellStyles.pager}>
+						<span className={shellStyles.meta}>{t("Text size")}</span>
+						<ZoomControl
+							label={`${Math.round(zoom * 100)}%`}
+							onOut={() => zoomBy(1 / 1.15)}
+							onIn={() => zoomBy(1.15)}
+							onReset={() => zoomTo(1)}
+							resetLabel={t("Reset text size")}
+							testId="reflow"
+						/>
+					</div>
+				) : undefined
+			}
 			actions={
 				<IconButton
-					label="Find"
+					label={t("Find")}
 					onClick={find.start}
 					active={find.open}
 					disabled={!doc}
@@ -109,30 +172,38 @@ export default function ReflowView(props: ViewerProps) {
 		>
 			<div ref={scroller} className={d.scroller} data-testid="reflow-scroll">
 				{doc && (
-					<div className={d.pages} style={{ zoom, width: "100%" }}>
-						<p className={d.banner}>{note}</p>
-						<div ref={content}>
-							{doc.kind === "document" ? (
-								<article className={d.paper}>
-									<Blocks blocks={doc.blocks} />
-								</article>
-							) : (
-								doc.slides.map((slide, i) => (
-									<section key={i}>
-										<p className={d.slideNum}>Slide {i + 1}</p>
-										<div className={d.slideText}>
-											<Blocks blocks={slide} />
-										</div>
-									</section>
-								))
-							)}
+					<div ref={stage} className={`${d.stage} ${d.reflow}`}>
+						<div ref={pages} className={d.pages} style={{ zoom }}>
+							<p className={d.banner} dir={uiDir()}>
+								{note}
+							</p>
+							<div ref={content}>
+								{doc.kind === "rich" ? (
+									<RichDocument doc={doc} />
+								) : doc.kind === "document" ? (
+									<article className={d.paper}>
+										<Blocks blocks={doc.blocks} />
+									</article>
+								) : (
+									doc.slides.map((slide, i) => (
+										<section key={i}>
+											<p className={d.slideNum}>
+												{t("Slide {n}", { n: i + 1 })}
+											</p>
+											<div className={d.slideText}>
+												<Blocks blocks={slide} />
+											</div>
+										</section>
+									))
+								)}
+							</div>
 						</div>
 					</div>
 				)}
 			</div>
 			{!result && (
 				<StateView>
-					<Spinner label="Opening document" />
+					<Spinner label={t("Opening document")} />
 				</StateView>
 			)}
 			{result && !result.ok && (
@@ -140,22 +211,30 @@ export default function ReflowView(props: ViewerProps) {
 					icon={<ErrorArt />}
 					title={
 						result.reason === "password"
-							? "Password protected"
-							: "Can't open this file"
+							? t(t("Password protected"))
+							: t(t("Can't open this file"))
 					}
-					action={<Button onClick={onClose}>Close</Button>}
+					action={<Button onClick={onClose}>{t("Close")}</Button>}
 				>
 					{result.reason === "password"
-						? "Encrypted Office documents can't be opened."
-						: "The file is damaged or uses a variant Paperwren can't read."}
+						? t(
+								t(
+									"This document is locked with a password and can't be opened.",
+								),
+							)
+						: t(
+								t(
+									"The file is damaged or uses a variant Paperwren can't read.",
+								),
+							)}
 				</StateView>
 			)}
 			{doc &&
-				(doc.kind === "document"
-					? doc.blocks.length === 0
-					: doc.slides.length === 0) && (
-					<StateView title="No text found">
-						This file has no readable text.
+				(doc.kind === "slides"
+					? doc.slides.length === 0
+					: doc.blocks.length === 0) && (
+					<StateView title={t("No text found")}>
+						{t("This file has no readable text.")}
 					</StateView>
 				)}
 		</Shell>
