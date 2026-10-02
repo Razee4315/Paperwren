@@ -13,7 +13,9 @@ import { createPortal } from "react-dom";
 import { IconButton } from "./Button";
 import s from "./Overlay.module.css";
 
-/** Trap Tab inside `root`, close on Escape, restore focus on unmount. */
+/** Trap Tab inside `root`, close on Escape, restore focus on unmount.
+ * A dialog that asks for something (a password, a page number) starts
+ * in its field, so typing works at once and a phone shows its keyboard. */
 function useModalFocus(
 	root: React.RefObject<HTMLElement | null>,
 	onClose: () => void,
@@ -22,7 +24,8 @@ function useModalFocus(
 	closeRef.current = onClose;
 	useEffect(() => {
 		const opener = document.activeElement as HTMLElement | null;
-		root.current?.focus();
+		const field = root.current?.querySelector<HTMLElement>("input, textarea");
+		(field ?? root.current)?.focus();
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
 				e.stopPropagation();
