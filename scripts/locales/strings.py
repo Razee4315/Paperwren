@@ -307,4 +307,5 @@ ROWS = [
     ("Sort", "ترتیب دیں", "فرز", "排序", "क्रम बदलें", "Ordenar", "Trier"),
     ("Sort by", "ترتیب بلحاظ", "فرز حسب", "排序方式", "इसके अनुसार क्रम", "Ordenar por", "Trier par"),
     ("Last opened", "آخری بار کھولی گئی", "آخر فتح", "上次打开", "पिछली बार खोली गई", "Última apertura", "Dernière ouverture"),
+    ("Show {n} more", "مزید {n} دکھائیں", "عرض {n} أخرى", "再显示 {n} 个", "{n} और दिखाएँ", "Mostrar {n} más", "Afficher {n} de plus"),
 ]

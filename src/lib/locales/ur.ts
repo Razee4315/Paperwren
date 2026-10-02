@@ -325,4 +325,5 @@ export const ur: Table = {
 	Sort: "ترتیب دیں",
 	"Sort by": "ترتیب بلحاظ",
 	"Last opened": "آخری بار کھولی گئی",
+	"Show {n} more": "مزید {n} دکھائیں",
 };

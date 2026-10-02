@@ -322,4 +322,5 @@ export const hi: Table = {
 	Sort: "क्रम बदलें",
 	"Sort by": "इसके अनुसार क्रम",
 	"Last opened": "पिछली बार खोली गई",
+	"Show {n} more": "{n} और दिखाएँ",
 };

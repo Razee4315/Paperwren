@@ -38,6 +38,10 @@ const refOf = (f: FolderFile): FileRef => ({
 	reopen: f.request.reopen,
 });
 
+/** Rows drawn at a time: a folder can hold two thousand documents, and
+ * a phone should not lay out all of them to show the first screen. */
+const PAGE = 200;
+
 type Listing =
 	| { state: "loading" }
 	| { state: "failed" }
@@ -57,6 +61,7 @@ export function FolderList({
 	const [listing, setListing] = useState<Listing>({ state: "loading" });
 	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState<KindFilter>("all");
+	const [shownRows, setShownRows] = useState(PAGE);
 	const [menuFor, setMenuFor] = useState<FolderFile | null>(null);
 	const [detailsFor, setDetailsFor] = useState<FolderFile | null>(null);
 
@@ -158,7 +163,7 @@ export function FolderList({
 				</div>
 			) : (
 				<div className={s.list}>
-					{visible.map((f) => (
+					{visible.slice(0, shownRows).map((f) => (
 						<div key={f.request.id} className={s.row} data-testid="folder-file">
 							<button
 								type="button"
@@ -189,6 +194,19 @@ export function FolderList({
 							</IconButton>
 						</div>
 					))}
+				</div>
+			)}
+			{visible.length > shownRows && (
+				<div className={s.placeActions}>
+					<Button
+						variant="secondary"
+						onClick={() => setShownRows((n) => n + PAGE)}
+						data-testid="folder-more"
+					>
+						{t("Show {n} more", {
+							n: Math.min(PAGE, visible.length - shownRows),
+						})}
+					</Button>
 				</div>
 			)}
 			{files.length >= FOLDER_LIMITS.files && (

@@ -332,4 +332,5 @@ export const es: Table = {
 	Sort: "Ordenar",
 	"Sort by": "Ordenar por",
 	"Last opened": "Última apertura",
+	"Show {n} more": "Mostrar {n} más",
 };

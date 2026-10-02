@@ -328,4 +328,5 @@ export const ar: Table = {
 	Sort: "فرز",
 	"Sort by": "فرز حسب",
 	"Last opened": "آخر فتح",
+	"Show {n} more": "عرض {n} أخرى",
 };

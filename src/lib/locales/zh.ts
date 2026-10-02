@@ -311,4 +311,5 @@ export const zh: Table = {
 	Sort: "排序",
 	"Sort by": "排序方式",
 	"Last opened": "上次打开",
+	"Show {n} more": "再显示 {n} 个",
 };

@@ -335,4 +335,5 @@ export const fr: Table = {
 	Sort: "Trier",
 	"Sort by": "Trier par",
 	"Last opened": "Dernière ouverture",
+	"Show {n} more": "Afficher {n} de plus",
 };
