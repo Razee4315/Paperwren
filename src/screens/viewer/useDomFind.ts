@@ -28,27 +28,100 @@ function clearHighlights() {
 	reg?.delete("pw-find-active");
 }
 
-/** Case-insensitive search over the text nodes under `root`. */
+/** Elements that end a line of text: a match never runs across one. */
+const BLOCKS = new Set([
+	"P",
+	"DIV",
+	"LI",
+	"TD",
+	"TH",
+	"TR",
+	"H1",
+	"H2",
+	"H3",
+	"H4",
+	"H5",
+	"H6",
+	"PRE",
+	"BLOCKQUOTE",
+	"SECTION",
+	"ARTICLE",
+	"TABLE",
+	"UL",
+	"OL",
+]);
+
+function blockOf(node: Node, root: Node): Node {
+	for (let el = node.parentNode; el && el !== root; el = el.parentNode)
+		if (BLOCKS.has((el as Element).tagName)) return el;
+	return root;
+}
+
+/** Lower-cased without changing length, so offsets still point into
+ * the original text (a few letters grow when lower-cased). */
+function folded(text: string): string {
+	const lower = text.toLowerCase();
+	return lower.length === text.length ? lower : text;
+}
+
+/**
+ * Case-insensitive search over the text under `root`. A document
+ * splits its words across formatting runs ("Qua" + "rterly"), so each
+ * block's text nodes are searched as one string and a match may start
+ * in one node and end in another.
+ */
 export function findRanges(root: Node, query: string): Range[] {
-	const needle = query.toLocaleLowerCase();
+	const needle = folded(query);
 	if (!needle) return [];
 	const ranges: Range[] = [];
 	const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+	// The text nodes of the block being read, and where each starts in
+	// their joined text.
+	let nodes: Node[] = [];
+	let starts: number[] = [];
+	let text = "";
+	let block: Node | null = null;
+
+	/** The node holding the character at `offset` (for an end offset,
+	 * the one holding the character before it). */
+	const nodeAt = (offset: number, end: boolean) => {
+		let i = nodes.length - 1;
+		while (i > 0 && (end ? starts[i] >= offset : starts[i] > offset)) i--;
+		return i;
+	};
+	const flush = () => {
+		let at = text.indexOf(needle);
+		while (at !== -1 && ranges.length < MAX_MATCHES) {
+			const from = nodeAt(at, false);
+			const to = nodeAt(at + needle.length, true);
+			const r = document.createRange();
+			r.setStart(nodes[from], at - starts[from]);
+			r.setEnd(nodes[to], at + needle.length - starts[to]);
+			ranges.push(r);
+			at = text.indexOf(needle, at + needle.length);
+		}
+		nodes = [];
+		starts = [];
+		text = "";
+	};
+
 	for (
 		let node = walker.nextNode();
 		node && ranges.length < MAX_MATCHES;
 		node = walker.nextNode()
 	) {
-		const text = node.nodeValue?.toLocaleLowerCase() ?? "";
-		let at = text.indexOf(needle);
-		while (at !== -1 && ranges.length < MAX_MATCHES) {
-			const r = document.createRange();
-			r.setStart(node, at);
-			r.setEnd(node, at + needle.length);
-			ranges.push(r);
-			at = text.indexOf(needle, at + needle.length);
+		const value = node.nodeValue ?? "";
+		if (!value) continue;
+		const owner = blockOf(node, root);
+		if (owner !== block) {
+			flush();
+			block = owner;
 		}
+		nodes.push(node);
+		starts.push(text.length);
+		text += folded(value);
 	}
+	flush();
 	return ranges;
 }
 
