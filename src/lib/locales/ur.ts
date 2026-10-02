@@ -307,4 +307,6 @@ export const ur: Table = {
 	"Drop to open": "کھولنے کے لیے چھوڑیں",
 	"PDF, Word, Excel, PowerPoint and text files":
 		"PDF، Word، Excel، PowerPoint اور متنی فائلیں",
+	"Open a document": "دستاویز کھولیں",
+	"Choose a folder to browse": "دیکھنے کے لیے فولڈر منتخب کریں",
 };

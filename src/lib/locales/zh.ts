@@ -295,4 +295,6 @@ export const zh: Table = {
 	"Drop to open": "松开以打开",
 	"PDF, Word, Excel, PowerPoint and text files":
 		"PDF、Word、Excel、PowerPoint 和文本文件",
+	"Open a document": "打开文档",
+	"Choose a folder to browse": "选择要浏览的文件夹",
 };

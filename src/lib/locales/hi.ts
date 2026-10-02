@@ -306,4 +306,6 @@ export const hi: Table = {
 	"Drop to open": "खोलने के लिए छोड़ें",
 	"PDF, Word, Excel, PowerPoint and text files":
 		"PDF, Word, Excel, PowerPoint और टेक्स्ट फ़ाइलें",
+	"Open a document": "दस्तावेज़ खोलें",
+	"Choose a folder to browse": "देखने के लिए फ़ोल्डर चुनें",
 };

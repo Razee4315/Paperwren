@@ -292,4 +292,6 @@ ROWS = [
     ("The file is damaged or isn't a picture format Paperwren shows.", "فائل خراب ہے یا ایسا تصویری فارمیٹ نہیں جو Paperwren دکھاتا ہے۔", "الملف تالف أو ليس بصيغة صور يعرضها Paperwren.", "文件已损坏，或不是 Paperwren 可显示的图片格式。", "फ़ाइल खराब है या ऐसा चित्र फ़ॉर्मेट नहीं है जिसे Paperwren दिखाता है।", "El archivo está dañado o no es un formato de imagen que Paperwren muestre.", "Le fichier est endommagé ou n'est pas un format d'image que Paperwren affiche."),
     ("Drop to open", "کھولنے کے لیے چھوڑیں", "أفلت للفتح", "松开以打开", "खोलने के लिए छोड़ें", "Suelta para abrir", "Déposez pour ouvrir"),
     ("PDF, Word, Excel, PowerPoint and text files", "PDF، Word، Excel، PowerPoint اور متنی فائلیں", "ملفات PDF و Word و Excel و PowerPoint والنصوص", "PDF、Word、Excel、PowerPoint 和文本文件", "PDF, Word, Excel, PowerPoint और टेक्स्ट फ़ाइलें", "Archivos PDF, Word, Excel, PowerPoint y de texto", "Fichiers PDF, Word, Excel, PowerPoint et texte"),
+    ("Open a document", "دستاویز کھولیں", "فتح مستند", "打开文档", "दस्तावेज़ खोलें", "Abrir un documento", "Ouvrir un document"),
+    ("Choose a folder to browse", "دیکھنے کے لیے فولڈر منتخب کریں", "اختر مجلدًا لتصفحه", "选择要浏览的文件夹", "देखने के लिए फ़ोल्डर चुनें", "Elige una carpeta para explorar", "Choisissez un dossier à parcourir"),
 ]

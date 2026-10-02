@@ -14,6 +14,7 @@ import {
 	formatFromName,
 	mimeOf,
 } from "./formats";
+import { t } from "./i18n";
 import { idForReopen, managedRelPath } from "./recents";
 import { createSerializedWriter } from "./serializedWriter";
 import type { OpenRequest, Reopen } from "./types";
@@ -621,8 +622,8 @@ const tauriBackend: Backend = {
 		const { open } = await import("@tauri-apps/plugin-dialog");
 		const picked = await open({
 			multiple: false,
-			title: "Open a document",
-			filters: [{ name: "Documents", extensions: PICKER_EXTENSIONS }],
+			title: t("Open a document"),
+			filters: [{ name: t("Documents"), extensions: PICKER_EXTENSIONS }],
 		});
 		if (!picked || typeof picked !== "string") return null;
 		if (picked.startsWith("content://")) {
@@ -686,7 +687,7 @@ const tauriBackend: Backend = {
 		const picked = await open({
 			directory: true,
 			multiple: false,
-			title: "Choose a folder to browse",
+			title: t("Choose a folder to browse"),
 		});
 		if (!picked || typeof picked !== "string") return null;
 		return {

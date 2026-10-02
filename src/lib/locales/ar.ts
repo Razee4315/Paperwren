@@ -312,4 +312,6 @@ export const ar: Table = {
 	"Drop to open": "أفلت للفتح",
 	"PDF, Word, Excel, PowerPoint and text files":
 		"ملفات PDF و Word و Excel و PowerPoint والنصوص",
+	"Open a document": "فتح مستند",
+	"Choose a folder to browse": "اختر مجلدًا لتصفحه",
 };

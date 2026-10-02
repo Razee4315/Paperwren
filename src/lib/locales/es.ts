@@ -314,4 +314,6 @@ export const es: Table = {
 	"Drop to open": "Suelta para abrir",
 	"PDF, Word, Excel, PowerPoint and text files":
 		"Archivos PDF, Word, Excel, PowerPoint y de texto",
+	"Open a document": "Abrir un documento",
+	"Choose a folder to browse": "Elige una carpeta para explorar",
 };
