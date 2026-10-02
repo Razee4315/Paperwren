@@ -14,6 +14,8 @@ import { useDomFind } from "./useDomFind";
 
 /** First chunk shown for very large text files; the rest on demand. */
 const CHUNK = 1_000_000;
+/** JSON up to this many characters is re-indented for reading. */
+const PRETTY_JSON_MAX = 2_000_000;
 
 export default function TextView({
 	data,
@@ -29,7 +31,17 @@ export default function TextView({
 	const hud = useRef<HTMLDivElement>(null);
 	const content = useRef<HTMLDivElement>(null);
 	const [chromeHidden, setChromeHidden] = useState(false);
-	const text = useMemo(() => decodeText(data), [data]);
+	const text = useMemo(() => {
+		const raw = decodeText(data);
+		// JSON usually arrives on one line, written for machines: lay it
+		// out for reading. Anything that does not parse is shown as it is.
+		if (!/[.]json$/i.test(name) || raw.length > PRETTY_JSON_MAX) return raw;
+		try {
+			return JSON.stringify(JSON.parse(raw), null, 2);
+		} catch {
+			return raw;
+		}
+	}, [data, name]);
 	const [all, setAll] = useState(text.length <= CHUNK);
 	const [zoom, commit] = useZoomLevel(position);
 	const find = useDomFind(content, scroller);
