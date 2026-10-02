@@ -2,7 +2,7 @@ import { webcrypto } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
-import { isEncryptedPackage, sniffFormat } from "../formats";
+import { isEncryptedPackage, sniffFormat } from "../sniff";
 import { decryptPackage } from "./crypto";
 
 const read = (name: string) => new Uint8Array(readFileSync(`fixtures/${name}`));

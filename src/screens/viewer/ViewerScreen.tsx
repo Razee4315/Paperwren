@@ -1,14 +1,9 @@
 import { backend, formatBytes } from "@/lib/backend";
 import { type OpenFailure, classifyError, failureCopy } from "@/lib/errors";
-import {
-	type FileFormat,
-	friendlyName,
-	isEncryptedPackage,
-	isLargeFile,
-	sniffFormat,
-} from "@/lib/formats";
+import { type FileFormat, friendlyName, isLargeFile } from "@/lib/formats";
 import { t } from "@/lib/i18n";
 import type { DecryptResult } from "@/lib/parseWorker";
+import { isEncryptedPackage, sniffFormat } from "@/lib/sniff";
 import type { OpenRequest, Position } from "@/lib/types";
 import { holdScreen } from "@/lib/wake";
 import { useRecents } from "@/state/recents";

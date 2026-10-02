@@ -1,5 +1,5 @@
-import { sniffImageType } from "@/lib/formats";
 import { t } from "@/lib/i18n";
+import { sniffImageType } from "@/lib/sniff";
 import { Button, ErrorArt, StateView } from "@/ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import s from "./Image.module.css";
