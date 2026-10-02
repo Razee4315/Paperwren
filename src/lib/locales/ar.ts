@@ -316,4 +316,9 @@ export const ar: Table = {
 		"يحتفظ Paperwren بما يصل إلى {n} مجلدًا. أزل واحدًا لإضافة آخر.",
 	"Only the first {n} rows are shown.": "تُعرض أول {n} صف فقط.",
 	"Only the first {n} columns are shown.": "تُعرض أول {n} عمود فقط.",
+	"Link in this document": "رابط في هذا المستند",
+	"Paperwren doesn't open web pages. Copy the address to open it in your browser.":
+		"Paperwren لا يفتح صفحات الويب. انسخ العنوان لفتحه في متصفحك.",
+	"Copy link": "نسخ الرابط",
+	"Link copied": "نُسخ الرابط",
 };

@@ -6,7 +6,7 @@ import { SettingsScreen } from "@/screens/settings/Settings";
 import { NavigationProvider, useNav } from "@/state/navigation";
 import { RecentsProvider, useRecents } from "@/state/recents";
 import { SettingsProvider } from "@/state/settings";
-import { DropHint, OpeningView, ToastHost, toast } from "@/ui";
+import { DropHint, LinkGuard, OpeningView, ToastHost, toast } from "@/ui";
 import {
 	Suspense,
 	lazy,
@@ -186,6 +186,7 @@ function Root() {
 				</Suspense>
 			)}
 			{dropping && <DropHint />}
+			<LinkGuard />
 			<ToastHost />
 		</>
 	);

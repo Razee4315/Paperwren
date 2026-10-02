@@ -89,6 +89,19 @@
 	color: var(--text-2);
 	margin-bottom: 20px;
 }
+/* A value the dialog is about (an address): selectable, wraps anywhere. */
+.dialogNote {
+	display: block;
+	margin-top: 12px;
+	padding: 10px 12px;
+	border-radius: var(--r-m);
+	background: var(--surface-2);
+	color: var(--text);
+	font-size: 13px;
+	text-align: start;
+	overflow-wrap: anywhere;
+	user-select: text;
+}
 .dialogArt {
 	display: flex;
 	justify-content: center;

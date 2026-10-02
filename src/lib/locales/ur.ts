@@ -313,4 +313,9 @@ export const ur: Table = {
 		"صرف پہلی {n} قطاریں دکھائی جا رہی ہیں۔",
 	"Only the first {n} columns are shown.":
 		"صرف پہلے {n} کالم دکھائے جا رہے ہیں۔",
+	"Link in this document": "اس دستاویز میں لنک",
+	"Paperwren doesn't open web pages. Copy the address to open it in your browser.":
+		"Paperwren ویب صفحات نہیں کھولتا۔ پتہ کاپی کریں اور اپنے براؤزر میں کھولیں۔",
+	"Copy link": "لنک کاپی کریں",
+	"Link copied": "لنک کاپی ہو گیا",
 };

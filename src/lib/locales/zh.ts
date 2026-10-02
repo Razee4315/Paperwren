@@ -299,4 +299,9 @@ export const zh: Table = {
 		"Paperwren 最多保留 {n} 个文件夹。请先移除一个再添加。",
 	"Only the first {n} rows are shown.": "仅显示前 {n} 行。",
 	"Only the first {n} columns are shown.": "仅显示前 {n} 列。",
+	"Link in this document": "此文档中的链接",
+	"Paperwren doesn't open web pages. Copy the address to open it in your browser.":
+		"Paperwren 不会打开网页。请复制地址，在浏览器中打开。",
+	"Copy link": "复制链接",
+	"Link copied": "已复制链接",
 };

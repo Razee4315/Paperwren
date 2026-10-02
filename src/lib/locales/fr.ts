@@ -323,4 +323,9 @@ export const fr: Table = {
 		"Seules les {n} premières lignes sont affichées.",
 	"Only the first {n} columns are shown.":
 		"Seules les {n} premières colonnes sont affichées.",
+	"Link in this document": "Lien dans ce document",
+	"Paperwren doesn't open web pages. Copy the address to open it in your browser.":
+		"Paperwren n'ouvre pas de pages web. Copiez l'adresse pour l'ouvrir dans votre navigateur.",
+	"Copy link": "Copier le lien",
+	"Link copied": "Lien copié",
 };

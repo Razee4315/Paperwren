@@ -310,4 +310,9 @@ export const hi: Table = {
 		"Paperwren अधिकतम {n} फ़ोल्डर रखता है। नया जोड़ने के लिए एक हटाएँ।",
 	"Only the first {n} rows are shown.": "केवल पहली {n} पंक्तियाँ दिखाई जा रही हैं।",
 	"Only the first {n} columns are shown.": "केवल पहले {n} कॉलम दिखाए जा रहे हैं।",
+	"Link in this document": "इस दस्तावेज़ में लिंक",
+	"Paperwren doesn't open web pages. Copy the address to open it in your browser.":
+		"Paperwren वेब पेज नहीं खोलता। पता कॉपी करके अपने ब्राउज़र में खोलें।",
+	"Copy link": "लिंक कॉपी करें",
+	"Link copied": "लिंक कॉपी हो गया",
 };

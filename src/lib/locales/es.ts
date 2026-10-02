@@ -320,4 +320,9 @@ export const es: Table = {
 		"Solo se muestran las primeras {n} filas.",
 	"Only the first {n} columns are shown.":
 		"Solo se muestran las primeras {n} columnas.",
+	"Link in this document": "Enlace en este documento",
+	"Paperwren doesn't open web pages. Copy the address to open it in your browser.":
+		"Paperwren no abre páginas web. Copia la dirección para abrirla en tu navegador.",
+	"Copy link": "Copiar enlace",
+	"Link copied": "Enlace copiado",
 };

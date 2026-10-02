@@ -391,3 +391,33 @@ test("the screen is kept on only while a document is open, and only if asked", a
 		"true",
 	);
 });
+
+test("a link in a document is never followed; its address can be copied", async ({
+	page,
+}) => {
+	await boot(page);
+	await page.evaluate(() => {
+		window.__paperwrenTestFile = new File(
+			[
+				"# Notes\n\nSee [the site](https://example.com/page) and [a file](other.md).",
+			],
+			"notes.md",
+		);
+	});
+	await page.getByTestId("open-file").click();
+	const viewer = page.getByTestId("viewer");
+	await expect(viewer).toContainText("See the site");
+
+	// A relative link leads nowhere, and goes nowhere.
+	await viewer.getByRole("link", { name: "a file" }).click();
+	await expect(page.getByTestId("link-guard")).toHaveCount(0);
+
+	await viewer.getByRole("link", { name: "the site" }).click();
+	await expect(page.getByTestId("link-address")).toHaveText(
+		"https://example.com/page",
+	);
+	expect(new URL(page.url()).pathname).toBe("/");
+	await page.keyboard.press("Escape");
+	await expect(page.getByTestId("link-guard")).toHaveCount(0);
+	await expect(viewer).toBeVisible();
+});
