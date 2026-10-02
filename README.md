@@ -10,9 +10,9 @@ Paperwren is a small, fast document viewer. It opens PDF, Word, Excel, PowerPoin
 
 | Format | How it is shown |
 |---|---|
-| PDF | pdf.js viewer: fast virtualised pages, text selection, links, find with highlights, contents, rotate, password-protected files. Go to a page by number, pick one from a sheet of page thumbnails, or drag the handle on the right edge |
+| PDF | pdf.js viewer: fast virtualised pages, text selection, find with highlights, contents, rotate, password-protected files. Its character maps and standard fonts ship with the app, so Chinese, Japanese and Korean files that name a font without carrying it still read. Go to a page by number, pick one from a sheet of page thumbnails, or drag the handle on the right edge |
 | Word `.docx` | The document's own page layout (docx-preview), fit to width, find, "3 / 12" page counter and go to page. Long documents only lay out the pages near the screen |
-| Excel `.xlsx` `.xlsm` `.xlsb`, `.xls`, `.ods`, `.csv` `.tsv` | Virtualised grid: frozen rows and columns, merged cells, sheet tabs, find across every sheet, zoom that keeps the headers pinned. Select a range (drag, shift-click, or the corner grip on touch) to copy it and see its sum, average and count. Drag a column edge to resize, double-click to fit. `.xlsx` cells keep their bold/italic, text colours, fills, borders and alignment; long text runs over empty neighbours; charts and pictures on a sheet are drawn where the file puts them |
+| Excel `.xlsx` `.xlsm` `.xlsb`, `.xls`, `.ods`, `.csv` `.tsv` | Virtualised grid: frozen rows and columns, merged cells, sheet tabs, find across every sheet, go to a cell by its address, zoom that keeps the headers pinned. Select a range (drag, shift-click, or the corner grip on touch) to copy it and see its sum, average and count. Drag a column edge to resize, double-click to fit. `.xlsx` cells keep their bold/italic, text colours, fills, borders and alignment; long text runs over empty neighbours; charts and pictures on a sheet are drawn where the file puts them |
 | PowerPoint `.pptx` | Slides drawn from their own shapes, theme colours, layouts, freeform outlines, gradients, shadows, cropped pictures and tables, plus speaker notes. Bar, line, area, pie, doughnut and scatter charts are drawn from the numbers stored in the file; SmartArt is drawn from the shapes the file saved for it. Full screen shows one slide at a time: swipe, tap a side, or use the arrow keys |
 | Legacy `.doc`, OpenDocument `.odt` | A flowing document with its formatting, lists, tables and pictures (the page layout is not reproduced, and the viewer says so). Word 6/95 files and `.rtf` show their text |
 | Legacy `.ppt`, OpenDocument `.odp` | Drawn as slides, like `.pptx`: shapes, text, pictures, tables and backgrounds |
@@ -32,7 +32,9 @@ On desktop, drop a file anywhere on the window to open it.
 - **The file menu** in every viewer: share (or save a copy), open in another app, show in folder, print, details. What a platform cannot do is left out rather than greyed out.
 - **Print** lays the whole document out again for paper, including pages that were never scrolled into view.
 - **Folders**: pick a folder on Home to browse the documents inside it, with the same search and type filters as recents.
-- **Large files**: a file big enough to be slow, or to be more than a phone can hold, asks before it is read.
+- **Large files**: a file big enough to be slow, or to be more than a phone can hold, asks before it is read. A sheet with more cells than can be held is shown up to its last whole row that fits, and says so.
+- **Links** in a document are never followed (the app has no network access): a link within the document scrolls to its target, and a web or mail address is shown so it can be copied.
+- **Recents** can be sorted by last opened, name or size; removing one, clearing them or turning them off can be undone for a few seconds.
 - **Keep the screen on** while a document is open (off by default; no permission needed).
 - **Languages**: English, 中文, हिन्दी, Español, Français, العربية and اردو, following the phone or chosen in Settings. Arabic and Urdu mirror the app; documents keep their own direction. See "Translations" below.
 
@@ -135,7 +137,7 @@ See `docs/13-redesign.md` for the audit that led to this structure.
 
 ## Builds and releases
 
-A push to `main` runs CI (lint, type check, unit tests, Rust tests) and the release pipeline, which bumps the patch version and publishes a Windows installer and an Android APK. The APK is signed with a debug key and is meant for testing.
+A push to `main` runs CI (lint, type check, unit tests, Rust tests) and the release pipeline, which bumps the patch version and publishes a Windows installer, an Android APK and a Play bundle. With the upload keystore in the repository's secrets the bundle is signed for Google Play; without it the build falls back to a debug key and is only good for testing. Pull requests run the browser tests as well (`validate.yml`).
 
 ## License
 

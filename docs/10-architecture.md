@@ -18,7 +18,7 @@ flowchart TB
         STORE[Store: settings · recents]
         CACHE[Cache manager · LRU]
     end
-    subgraph WEB["WebView (Svelte 5 + TypeScript)"]
+    subgraph WEB["WebView (React 18 + TypeScript)"]
         UI[UI kit · screens · motion]
         PDFV[pdf.js viewer]
         XLSV[SheetJS + virtual grid]
@@ -40,13 +40,13 @@ flowchart TB
 | Layer | Choice | Why | Alternatives considered |
 |-------|--------|-----|------------------------|
 | Shell | **Tauri 2 (Android stable)** | Small APK (~15–25 MB incl. assets), Rust file layer, shared future iOS/desktop code, system WebView = no bundled browser | Flutter (no good Office web renderers story), React Native (heavier), pure Kotlin (Office rendering would still be web-based — same WebView, more glue) |
-| UI framework | **React 18 + TypeScript + styled-components** | The project scaffold the team standardized on (Tauri + React boilerplate); predictable state model, CSS-var theming keeps runtime color logic out of components. Svelte 5 remains the recommended smaller-runtime option if the bundle budget ever demands it | Svelte 5 (smallest bundle; deferred for ecosystem familiarity), SolidJS (fine, smaller ecosystem), vanilla (velocity cost) |
+| UI framework | **React 18 + TypeScript + CSS Modules** | The project scaffold the team standardized on (Tauri + React boilerplate); predictable state model, CSS-var theming keeps runtime color logic out of components. Svelte 5 remains the recommended smaller-runtime option if the bundle budget ever demands it | Svelte 5 (smallest bundle; deferred for ecosystem familiarity), SolidJS (fine, smaller ecosystem), vanilla (velocity cost) |
 | PDF | **pdf.js** (MPL-2.0) | The reference web PDF engine; progressive render, text layer, outline, search — all built in | pdfium native bindings (better perf, loses text search/selection work; revisit if perf gate fails) |
 | DOCX | **docx-preview** (Apache-2.0) | Best-in-class HTML fidelity for view-only | mammoth (semantics, loses layout), custom OOXML (v2 if fidelity demands) |
 | XLSX | **SheetJS CE** (Apache-2.0) + **custom virtual grid** | Parse is solved; grids with 100k+ rows must be virtualized (no library grid is both light and good) | Handsontable (heavy/commercial), canvas grid lib (licensing risk) |
 | PPTX | **Custom renderer, PPTXjs evaluated as base** | Existing libs are janky; scope is bounded (text/images/tables/shapes) | LibreOfficeKit (100 MB+ — kills the brand promise) |
-| Misc JS | **fflate** (MIT) unzip, **file-type** sniffing | OOXML = zips; tiny deps only | — |
-| Fonts/icons | Manrope, Fraunces, Lucide | OFL/ISC, subset locally | — |
+| Misc JS | **fflate** (MIT) unzip; format sniffing is the app's own (`src/lib/formats.ts`) | OOXML = zips; tiny deps only | — |
+| Fonts/icons | Manrope, Lucide; metric-compatible stand-ins for the Office fonts | OFL/ISC, bundled | — |
 
 > License rule: every dependency is recorded with license + version in the licenses screen generator (doc 12). Verify at integration time; nothing copyleft-AGPL enters the app.
 
