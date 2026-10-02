@@ -24,6 +24,20 @@ import s from "./Settings.module.css";
 
 const VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
 const CONTACT = "saqlainrazee@gmail.com";
+const PRIVACY_POLICY = "razee4315.github.io/Paperwren/privacy";
+
+/** Put a value on the clipboard and say so; where there is no
+ * clipboard, show the value itself so it can still be read off. */
+function copy(value: string, done: string) {
+	if (!navigator.clipboard) {
+		toast(value);
+		return;
+	}
+	navigator.clipboard
+		.writeText(value)
+		.then(() => toast(done))
+		.catch(() => toast(value));
+}
 
 const LICENSES: Array<[string, string]> = [
 	["pdf.js", "Apache-2.0"],
@@ -337,12 +351,24 @@ export function SettingsScreen() {
 									"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.",
 								)}
 							</p>
-							<p>
-								{t("Full privacy policy: {url}", {
-									url: "razee4315.github.io/Paperwren/privacy",
-								})}
-							</p>
 						</div>
+						{/* The app opens no web pages: the address is there to copy. */}
+						<button
+							type="button"
+							className={s.action}
+							onClick={() =>
+								copy(`https://${PRIVACY_POLICY}`, t("Link copied"))
+							}
+							data-testid="privacy-policy"
+						>
+							<span className={s.actionText}>
+								{t("Privacy policy")}
+								<span className={s.hint} dir="ltr">
+									{PRIVACY_POLICY}
+								</span>
+							</span>
+							<Copy size={18} aria-label={t("Copy link")} />
+						</button>
 					</div>
 
 					<Group icon={<Info size={15} />}>{t("About")}</Group>
@@ -354,12 +380,7 @@ export function SettingsScreen() {
 						<button
 							type="button"
 							className={s.action}
-							onClick={() =>
-								navigator.clipboard
-									?.writeText(CONTACT)
-									.then(() => toast(t("Email address copied")))
-									.catch(() => toast(CONTACT))
-							}
+							onClick={() => copy(CONTACT, t("Email address copied"))}
 						>
 							<span className={s.actionText}>
 								{t("Contact")}

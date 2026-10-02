@@ -177,7 +177,6 @@ export const hi: Table = {
 		"Paperwren कभी इंटरनेट से नहीं जुड़ता। इसमें न विज्ञापन हैं, न खाते, न एनालिटिक्स, और यह कोई अनुमति नहीं माँगता।",
 	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
 		"फ़ाइलें इसी डिवाइस पर पढ़ी जाती हैं। हाल की सूची, आपकी सेटिंग और खोली गई फ़ाइलों की प्रतियाँ ऐप के निजी स्टोरेज में रहती हैं और ऊपर से हटाई जा सकती हैं। पासवर्ड एक बार इस्तेमाल होते हैं और कभी सहेजे नहीं जाते।",
-	"Full privacy policy: {url}": "पूरी गोपनीयता नीति: {url}",
 	About: "परिचय",
 	"Email address copied": "ईमेल पता कॉपी हो गया",
 	Contact: "संपर्क",
@@ -315,4 +314,5 @@ export const hi: Table = {
 		"Paperwren वेब पेज नहीं खोलता। पता कॉपी करके अपने ब्राउज़र में खोलें।",
 	"Copy link": "लिंक कॉपी करें",
 	"Link copied": "लिंक कॉपी हो गया",
+	"Privacy policy": "गोपनीयता नीति",
 };

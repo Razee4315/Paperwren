@@ -181,7 +181,6 @@ export const fr: Table = {
 		"Paperwren ne se connecte jamais à internet. Il n'a ni publicité, ni compte, ni statistiques, et ne demande aucune autorisation.",
 	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
 		"Les fichiers sont lus sur cet appareil. La liste des récents, vos réglages et les copies des fichiers ouverts restent dans le stockage privé de l'application et peuvent être supprimés ci-dessus. Les mots de passe sont utilisés une seule fois et jamais enregistrés.",
-	"Full privacy policy: {url}": "Politique de confidentialité complète : {url}",
 	About: "À propos",
 	"Email address copied": "Adresse e-mail copiée",
 	Contact: "Contact",
@@ -328,4 +327,5 @@ export const fr: Table = {
 		"Paperwren n'ouvre pas de pages web. Copiez l'adresse pour l'ouvrir dans votre navigateur.",
 	"Copy link": "Copier le lien",
 	"Link copied": "Lien copié",
+	"Privacy policy": "Politique de confidentialité",
 };

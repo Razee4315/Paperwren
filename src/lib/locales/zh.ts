@@ -174,7 +174,6 @@ export const zh: Table = {
 		"Paperwren 从不连接互联网。它没有广告、账号和分析统计，也不请求任何权限。",
 	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
 		"文件在此设备上读取。最近列表、你的设置以及你打开的文件的副本保存在应用的私有存储中，可在上方删除。密码只使用一次，绝不保存。",
-	"Full privacy policy: {url}": "完整隐私政策：{url}",
 	About: "关于",
 	"Email address copied": "已复制邮箱地址",
 	Contact: "联系",
@@ -304,4 +303,5 @@ export const zh: Table = {
 		"Paperwren 不会打开网页。请复制地址，在浏览器中打开。",
 	"Copy link": "复制链接",
 	"Link copied": "已复制链接",
+	"Privacy policy": "隐私政策",
 };

@@ -178,7 +178,6 @@ export const ur: Table = {
 		"Paperwren کبھی انٹرنیٹ سے نہیں جڑتا۔ اس میں نہ اشتہار ہیں، نہ اکاؤنٹ، نہ تجزیات، اور یہ کوئی اجازت نہیں مانگتا۔",
 	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
 		"فائلیں اسی آلے پر پڑھی جاتی ہیں۔ حالیہ فہرست، آپ کی ترتیبات اور کھولی گئی فائلوں کی نقلیں ایپ کے نجی ذخیرے میں رہتی ہیں اور اوپر سے حذف کی جا سکتی ہیں۔ پاس ورڈ ایک بار استعمال ہوتے ہیں اور کبھی محفوظ نہیں کیے جاتے۔",
-	"Full privacy policy: {url}": "مکمل رازداری پالیسی: {url}",
 	About: "تعارف",
 	"Email address copied": "ای میل پتہ کاپی ہو گیا",
 	Contact: "رابطہ",
@@ -318,4 +317,5 @@ export const ur: Table = {
 		"Paperwren ویب صفحات نہیں کھولتا۔ پتہ کاپی کریں اور اپنے براؤزر میں کھولیں۔",
 	"Copy link": "لنک کاپی کریں",
 	"Link copied": "لنک کاپی ہو گیا",
+	"Privacy policy": "رازداری پالیسی",
 };
