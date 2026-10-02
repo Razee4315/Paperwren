@@ -34,6 +34,11 @@ export default function TextView({
 	const [all, setAll] = useState(text.length <= CHUNK);
 	const [zoom, setZoom] = useState(1);
 	const find = useDomFind(content, scroller);
+	// Find looks through what is on the page: put all of it there first.
+	const startFind = () => {
+		setAll(true);
+		find.start();
+	};
 
 	const html = useMemo(() => {
 		if (format !== "md") return null;
@@ -71,7 +76,7 @@ export default function TextView({
 			hud={hud}
 			progressOf={scroller}
 			chromeHidden={chromeHidden && !find.open}
-			onFind={find.start}
+			onFind={startFind}
 			onPrint={(root) => {
 				const clone = content.current?.cloneNode(true) as HTMLElement | null;
 				if (!clone) return;
@@ -94,7 +99,7 @@ export default function TextView({
 			actions={
 				<IconButton
 					label={t("Find")}
-					onClick={find.start}
+					onClick={startFind}
 					active={find.open}
 					data-testid="text-find"
 				>
