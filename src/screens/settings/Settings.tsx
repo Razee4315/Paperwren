@@ -380,6 +380,7 @@ export function SettingsScreen() {
 
 			<Dialog
 				open={confirmCopies}
+				alert
 				title={t("Delete stored copies?")}
 				onClose={() => setConfirmCopies(false)}
 				actions={

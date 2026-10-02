@@ -98,6 +98,7 @@ class ViewerBoundary extends Component<
 				title={t("Couldn't show this file")}
 				onClose={this.props.onClose}
 				testId="viewer-crash"
+				alert
 				art={<ErrorArt />}
 				actions={<Button onClick={this.props.onClose}>{t("OK")}</Button>}
 			>
@@ -239,6 +240,7 @@ export default function ViewerScreen({
 				title={copy.title}
 				onClose={onClose}
 				testId="open-error"
+				alert
 				art={<ErrorArt />}
 				actions={
 					<>

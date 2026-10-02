@@ -13,6 +13,9 @@ import { createPortal } from "react-dom";
 import { IconButton } from "./Button";
 import s from "./Overlay.module.css";
 
+/** Open sheets and dialogs; the app is inert while there is one. */
+let modals = 0;
+
 /** Trap Tab inside `root`, close on Escape, restore focus on unmount.
  * A dialog that asks for something (a password, a page number) starts
  * in its field, so typing works at once and a phone shows its keyboard. */
@@ -26,6 +29,11 @@ function useModalFocus(
 		const opener = document.activeElement as HTMLElement | null;
 		const field = root.current?.querySelector<HTMLElement>("input, textarea");
 		(field ?? root.current)?.focus();
+		// Overlays are portalled beside the app, so the app itself can be
+		// taken out of reach of Tab and assistive tech while one is open.
+		const app = document.getElementById("root");
+		modals++;
+		app?.setAttribute("inert", "");
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
 				e.stopPropagation();
@@ -37,10 +45,11 @@ function useModalFocus(
 				if (!items.length) return;
 				const first = items[0];
 				const last = items[items.length - 1];
-				if (e.shiftKey && document.activeElement === first) {
+				const at = document.activeElement;
+				if (e.shiftKey && (at === first || at === root.current)) {
 					e.preventDefault();
 					last.focus();
-				} else if (!e.shiftKey && document.activeElement === last) {
+				} else if (!e.shiftKey && at === last) {
 					e.preventDefault();
 					first.focus();
 				}
@@ -49,6 +58,7 @@ function useModalFocus(
 		window.addEventListener("keydown", onKey, true);
 		return () => {
 			window.removeEventListener("keydown", onKey, true);
+			if (--modals === 0) app?.removeAttribute("inert");
 			opener?.focus?.();
 		};
 	}, [root]);
@@ -191,6 +201,7 @@ export function Dialog({
 	onClose,
 	testId,
 	art,
+	alert = false,
 }: {
 	open: boolean;
 	title: string;
@@ -200,6 +211,8 @@ export function Dialog({
 	testId?: string;
 	/** Optional illustration above the title. */
 	art?: ReactNode;
+	/** An error or a destructive confirmation: announced at once. */
+	alert?: boolean;
 }) {
 	const id = useId();
 	useBackClose(`dialog${id}`, open, onClose);
@@ -211,6 +224,7 @@ export function Dialog({
 			onClose={onClose}
 			testId={testId}
 			art={art}
+			alert={alert}
 		>
 			{children}
 		</DialogPanel>,
@@ -225,6 +239,7 @@ function DialogPanel({
 	onClose,
 	testId,
 	art,
+	alert,
 }: {
 	title: string;
 	children?: ReactNode;
@@ -232,6 +247,7 @@ function DialogPanel({
 	onClose: () => void;
 	testId?: string;
 	art?: ReactNode;
+	alert: boolean;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
 	useModalFocus(ref, onClose);
@@ -244,7 +260,7 @@ function DialogPanel({
 				<div
 					ref={ref}
 					className={s.dialog}
-					role="alertdialog"
+					role={alert ? "alertdialog" : "dialog"}
 					aria-modal="true"
 					aria-label={title}
 					tabIndex={-1}
