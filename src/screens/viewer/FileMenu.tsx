@@ -120,8 +120,10 @@ export function FileMenu({
 	// Ctrl/Cmd+P prints the document, not the app's chrome.
 	const printRef = useRef(print);
 	printRef.current = print;
+	const printable = !!context && !!onPrint;
 	useEffect(() => {
-		if (!active) return;
+		// With nothing to print the shortcut is left alone.
+		if (!active || !printable) return;
 		const onKey = (e: KeyboardEvent) => {
 			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
 				e.preventDefault();
@@ -130,7 +132,7 @@ export function FileMenu({
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [active]);
+	}, [active, printable]);
 
 	if (!context) return null;
 	const { file, size } = context;
