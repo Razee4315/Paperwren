@@ -11,13 +11,6 @@
  * shown as they are, in their own direction.
  */
 
-import { ar } from "./locales/ar";
-import { es } from "./locales/es";
-import { fr } from "./locales/fr";
-import { hi } from "./locales/hi";
-import { ur } from "./locales/ur";
-import { zh } from "./locales/zh";
-
 export type Language = "en" | "zh" | "hi" | "es" | "fr" | "ar" | "ur";
 export type LanguageSetting = "system" | Language;
 
@@ -39,15 +32,24 @@ export const LANGUAGES: Array<[Language, string]> = [
 	["ur", "اردو"],
 ];
 
-const TABLES: Record<Language, Table | null> = {
-	en: null,
-	zh,
-	hi,
-	es,
-	fr,
-	ar,
-	ur,
+/** Each language's table is its own chunk: a start in English (or in
+ * any one language) never pays for the other six. */
+const LOADERS: Record<Exclude<Language, "en">, () => Promise<Table>> = {
+	zh: () => import("./locales/zh").then((m) => m.zh),
+	hi: () => import("./locales/hi").then((m) => m.hi),
+	es: () => import("./locales/es").then((m) => m.es),
+	fr: () => import("./locales/fr").then((m) => m.fr),
+	ar: () => import("./locales/ar").then((m) => m.ar),
+	ur: () => import("./locales/ur").then((m) => m.ur),
 };
+const TABLES: Partial<Record<Language, Table>> = {};
+
+/** Fetch a language's table, once. Until it is in, that language's
+ * strings read in English. */
+export async function loadLanguage(lang: Language): Promise<void> {
+	if (lang === "en" || TABLES[lang]) return;
+	TABLES[lang] = await LOADERS[lang]();
+}
 const RTL: Language[] = ["ur", "ar"];
 const HINT_KEY = "paperwren.lang";
 

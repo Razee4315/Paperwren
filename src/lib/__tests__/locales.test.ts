@@ -1,10 +1,11 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
 	LANGUAGES,
 	type Table,
 	isRtl,
+	loadLanguage,
 	resolveLanguage,
 	setLanguage,
 	t,
@@ -48,6 +49,7 @@ function sourceKeys(): Set<string> {
 	return keys;
 }
 
+beforeAll(() => Promise.all(LANGUAGES.map(([lang]) => loadLanguage(lang))));
 afterEach(() => setLanguage("en"));
 
 describe("translations", () => {

@@ -1,5 +1,5 @@
 import { backend } from "@/lib/backend";
-import { resolveLanguage, setLanguage } from "@/lib/i18n";
+import { loadLanguage, resolveLanguage, setLanguage } from "@/lib/i18n";
 import {
 	migrateLegacySettings,
 	normalizeSettings,
@@ -91,9 +91,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 			?.setAttribute("content", THEME_COLOR[theme]);
 	}, [theme]);
 
-	// The interface language follows the setting as soon as it is known.
+	// The interface language follows the setting as soon as it is known
+	// and its table is in. A later choice wins over a slower load.
 	useEffect(() => {
-		if (ready) setLanguage(resolveLanguage(settings.language));
+		if (!ready) return;
+		let alive = true;
+		const lang = resolveLanguage(settings.language);
+		loadLanguage(lang)
+			.then(() => alive && setLanguage(lang))
+			.catch(() => {});
+		return () => {
+			alive = false;
+		};
 	}, [ready, settings.language]);
 
 	const update = useCallback(
