@@ -8,6 +8,7 @@ export {
 	StateView,
 	Switch,
 	formatColor,
+	kindColor,
 } from "./Misc";
 export { EmptyScene, ErrorArt, PageLoader, Wren } from "./Art";
 export { FileIcon } from "./FileIcon";

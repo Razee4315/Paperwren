@@ -6,54 +6,21 @@ import {
 	backend,
 	formatBytes,
 } from "@/lib/backend";
-import {
-	type FormatKind,
-	formatFromName,
-	kindLabel,
-	kindOf,
-} from "@/lib/formats";
+import { formatFromName, kindOf } from "@/lib/formats";
 import { isolate, locale, t } from "@/lib/i18n";
 import type { OpenRequest } from "@/lib/types";
 import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
 import { Button, FileBadge, IconButton, Sheet, SheetItem, Spinner } from "@/ui";
-import {
-	FolderX,
-	Info,
-	MoreVertical,
-	RefreshCw,
-	Search,
-	SearchX,
-	X,
-} from "lucide-react";
-import {
-	type CSSProperties,
-	useCallback,
-	useEffect,
-	useMemo,
-	useState,
-} from "react";
+import { FolderX, Info, MoreVertical, RefreshCw, SearchX } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import s from "./Home.module.css";
-
-const FILTERS: Array<FormatKind | "all"> = [
-	"all",
-	"pdf",
-	"doc",
-	"sheet",
-	"slides",
-	"text",
-	"image",
-];
-
-const KIND_COLOR: Record<FormatKind | "all", string> = {
-	all: "var(--accent)",
-	pdf: "var(--fmt-pdf)",
-	doc: "var(--fmt-doc)",
-	sheet: "var(--fmt-sheet)",
-	slides: "var(--fmt-slides)",
-	text: "var(--fmt-text)",
-	image: "var(--fmt-image)",
-	other: "var(--fmt-text)",
-};
+import {
+	type KindFilter,
+	SearchField,
+	TypeChips,
+	countKinds,
+	filterInForce,
+} from "./ListTools";
 
 function dated(ms: number): string {
 	if (!ms) return "";
@@ -89,7 +56,7 @@ export function FolderList({
 }) {
 	const [listing, setListing] = useState<Listing>({ state: "loading" });
 	const [query, setQuery] = useState("");
-	const [filter, setFilter] = useState<FormatKind | "all">("all");
+	const [filter, setFilter] = useState<KindFilter>("all");
 	const [menuFor, setMenuFor] = useState<FolderFile | null>(null);
 	const [detailsFor, setDetailsFor] = useState<FolderFile | null>(null);
 
@@ -113,14 +80,10 @@ export function FolderList({
 	useEffect(() => load(), [load]);
 
 	const files = listing.state === "ready" ? listing.files : [];
-	const counts = useMemo(() => {
-		const c: Record<string, number> = { all: files.length };
-		for (const f of files) {
-			const kind = kindOf(formatFromName(f.name));
-			c[kind] = (c[kind] ?? 0) + 1;
-		}
-		return c;
-	}, [files]);
+	const counts = useMemo(
+		() => countKinds(files.map((f) => kindOf(formatFromName(f.name)))),
+		[files],
+	);
 
 	if (listing.state === "loading")
 		return (
@@ -147,8 +110,7 @@ export function FolderList({
 			</div>
 		);
 
-	// A type with no files left (after looking again) has no chip: show all.
-	const shown = filter !== "all" && !counts[filter] ? "all" : filter;
+	const shown = filterInForce(filter, counts);
 	const q = query.trim().toLowerCase();
 	const visible = files.filter(
 		(f) =>
@@ -158,44 +120,15 @@ export function FolderList({
 
 	return (
 		<>
-			<label className={s.search}>
-				<Search size={18} />
-				<input
-					type="search"
-					placeholder={t("Search {name}", { name: folder.name })}
-					value={query}
-					onChange={(e) => setQuery(e.target.value)}
-					aria-label={t("Search {name}", { name: folder.name })}
-					data-testid="folder-search"
-				/>
-				{query && (
-					<IconButton label={t("Clear search")} onClick={() => setQuery("")}>
-						<X size={18} />
-					</IconButton>
-				)}
-			</label>
-
+			<SearchField
+				value={query}
+				onChange={setQuery}
+				placeholder={t("Search {name}", { name: folder.name })}
+				label={t("Search {name}", { name: folder.name })}
+				testId="folder-search"
+			/>
 			{files.length > 0 && (
-				<div
-					className={s.chips}
-					role="toolbar"
-					aria-label={t("Filter by type")}
-				>
-					{FILTERS.filter((f) => f === "all" || counts[f]).map((f) => (
-						<button
-							type="button"
-							key={f}
-							className={s.chip}
-							aria-pressed={shown === f}
-							onClick={() => setFilter(f)}
-							style={{ "--c": KIND_COLOR[f] } as CSSProperties}
-						>
-							{f !== "all" && <span className={s.dot} />}
-							{f === "all" ? t("All") : kindLabel(f)}
-							<span className={s.count}>{counts[f] ?? 0}</span>
-						</button>
-					))}
-				</div>
+				<TypeChips counts={counts} value={shown} onChange={setFilter} />
 			)}
 
 			<h2 className={s.section}>

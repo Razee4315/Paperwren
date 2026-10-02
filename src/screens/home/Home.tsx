@@ -1,5 +1,5 @@
 import { type FileRef, backend, formatBytes } from "@/lib/backend";
-import { type FormatKind, kindLabel, kindOf } from "@/lib/formats";
+import { type FormatKind, kindOf } from "@/lib/formats";
 import { isolate, locale, msg, t } from "@/lib/i18n";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
@@ -12,6 +12,7 @@ import {
 	Sheet,
 	SheetItem,
 	Wren,
+	kindColor,
 	toast,
 } from "@/ui";
 import {
@@ -24,37 +25,21 @@ import {
 	Pin,
 	PinOff,
 	Plus,
-	Search,
 	SearchX,
 	Settings as SettingsIcon,
 	ShieldCheck,
 	Trash2,
-	X,
 } from "lucide-react";
 import { type CSSProperties, useMemo, useState } from "react";
 import { FolderList } from "./FolderList";
 import s from "./Home.module.css";
-
-const FILTERS: Array<FormatKind | "all"> = [
-	"all",
-	"pdf",
-	"doc",
-	"sheet",
-	"slides",
-	"text",
-	"image",
-];
-
-const KIND_COLOR: Record<FormatKind | "all", string> = {
-	all: "var(--accent)",
-	pdf: "var(--fmt-pdf)",
-	doc: "var(--fmt-doc)",
-	sheet: "var(--fmt-sheet)",
-	slides: "var(--fmt-slides)",
-	text: "var(--fmt-text)",
-	image: "var(--fmt-image)",
-	other: "var(--fmt-text)",
-};
+import {
+	type KindFilter,
+	SearchField,
+	TypeChips,
+	countKinds,
+	filterInForce,
+} from "./ListTools";
 
 /** The formats listed on the empty state, each in its family colour. */
 const SUPPORTED: Array<[string, FormatKind]> = [
@@ -134,7 +119,7 @@ export function Home({
 }) {
 	const { entries, ready, togglePin, remove, restore } = useRecents();
 	const [query, setQuery] = useState("");
-	const [filter, setFilter] = useState<FormatKind | "all">("all");
+	const [filter, setFilter] = useState<KindFilter>("all");
 	const [sort, setSort] = useState<Sort>("opened");
 	const [sortOpen, setSortOpen] = useState(false);
 	const [menuFor, setMenuFor] = useState<RecentEntry | null>(null);
@@ -163,15 +148,12 @@ export function Home({
 		reopen: e.reopen,
 	});
 
-	const counts = useMemo(() => {
-		const c: Record<string, number> = { all: entries.length };
-		for (const e of entries)
-			c[kindOf(e.format)] = (c[kindOf(e.format)] ?? 0) + 1;
-		return c;
-	}, [entries]);
+	const counts = useMemo(
+		() => countKinds(entries.map((e) => kindOf(e.format))),
+		[entries],
+	);
 
-	// A type whose last file was removed has no chip any more: show all.
-	const shown = filter !== "all" && !counts[filter] ? "all" : filter;
+	const shown = filterInForce(filter, counts);
 	const q = query.trim().toLowerCase();
 	const visible = entries.filter(
 		(e) =>
@@ -351,7 +333,7 @@ export function Home({
 									<span
 										key={label}
 										className={s.fmt}
-										style={{ "--c": KIND_COLOR[kind] } as CSSProperties}
+										style={{ "--c": kindColor(kind) } as CSSProperties}
 									>
 										{label}
 									</span>
@@ -377,47 +359,14 @@ export function Home({
 
 					{!activeFolder && hasAny && (
 						<>
-							<label className={s.search}>
-								<Search size={18} />
-								<input
-									type="search"
-									placeholder={t("Search your files")}
-									value={query}
-									onChange={(e) => setQuery(e.target.value)}
-									aria-label={t("Search recent files")}
-									data-testid="search-input"
-								/>
-								{query && (
-									<IconButton
-										label={t("Clear search")}
-										onClick={() => setQuery("")}
-									>
-										<X size={18} />
-									</IconButton>
-								)}
-							</label>
-
-							<div
-								className={s.chips}
-								role="toolbar"
-								aria-label={t("Filter by type")}
-							>
-								{FILTERS.filter((f) => f === "all" || counts[f]).map((f) => (
-									<button
-										type="button"
-										key={f}
-										className={s.chip}
-										aria-pressed={shown === f}
-										onClick={() => setFilter(f)}
-										style={{ "--c": KIND_COLOR[f] } as CSSProperties}
-										data-testid={`filter-${f}`}
-									>
-										{f !== "all" && <span className={s.dot} />}
-										{f === "all" ? t("All") : kindLabel(f)}
-										<span className={s.count}>{counts[f] ?? 0}</span>
-									</button>
-								))}
-							</div>
+							<SearchField
+								value={query}
+								onChange={setQuery}
+								placeholder={t("Search your files")}
+								label={t("Search recent files")}
+								testId="search-input"
+							/>
+							<TypeChips counts={counts} value={shown} onChange={setFilter} />
 
 							{visible.length === 0 && (
 								<div className={s.noMatch} data-testid="no-match">

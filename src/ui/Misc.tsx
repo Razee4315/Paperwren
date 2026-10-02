@@ -1,4 +1,4 @@
-import { type FileFormat, kindOf } from "@/lib/formats";
+import { type FileFormat, type FormatKind, kindOf } from "@/lib/formats";
 import { t, uiDir } from "@/lib/i18n";
 import { FileDown } from "lucide-react";
 import type { ReactNode } from "react";
@@ -16,8 +16,13 @@ const KIND_COLOR = {
 	other: "var(--fmt-text)",
 } as const;
 
+/** A file family's colour; "all" takes the theme's accent. */
+export function kindColor(kind: FormatKind | "all"): string {
+	return kind === "all" ? "var(--accent)" : KIND_COLOR[kind];
+}
+
 export function formatColor(format: FileFormat): string {
-	return KIND_COLOR[kindOf(format)];
+	return kindColor(kindOf(format));
 }
 
 /** A file's icon at list size, with a playful tilt on hover/press
