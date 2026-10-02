@@ -256,14 +256,13 @@ export function Home({
 					{canBrowse && (hasAny || folders.length > 0) && (
 						<div
 							className={s.places}
-							role="tablist"
+							role="toolbar"
 							aria-label={t("Where to look")}
 						>
 							<button
 								type="button"
-								role="tab"
 								className={s.place}
-								aria-selected={!activeFolder}
+								aria-pressed={!activeFolder}
 								onClick={() => setPlace(null)}
 								data-testid="place-recent"
 							>
@@ -272,10 +271,9 @@ export function Home({
 							{folders.map((f) => (
 								<button
 									type="button"
-									role="tab"
 									key={f.id}
 									className={s.place}
-									aria-selected={activeFolder?.id === f.id}
+									aria-pressed={activeFolder?.id === f.id}
 									onClick={() => setPlace(f.id)}
 									data-testid="place-folder"
 								>

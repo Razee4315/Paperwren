@@ -179,7 +179,7 @@ test("a folder's documents are listed, searched and opened", async ({
 	await chooser.setFiles(folder);
 	const place = page.getByTestId("place-folder");
 	await expect(place).toHaveText("Reports");
-	await expect(place).toHaveAttribute("aria-selected", "true");
+	await expect(place).toHaveAttribute("aria-pressed", "true");
 	const files = page.getByTestId("folder-file");
 	// The zip is not a document: left out. Subfolders are looked into.
 	await expect(files).toHaveCount(3);
