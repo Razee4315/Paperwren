@@ -499,6 +499,8 @@ export default function SlidesView({
 	const [error, setError] = useState<"corrupt" | "password" | null>(null);
 	const [textOnly, setTextOnly] = useState(false);
 	const [fit, setFit] = useState(1);
+	// The slides have their real size only once the width was measured.
+	const [measured, setMeasured] = useState(false);
 	const [zoom, setZoom] = useState(1);
 	const [current, setCurrent] = useState(0);
 	const [notes, setNotes] = useState(false);
@@ -534,13 +536,15 @@ export default function SlidesView({
 		const el = scroller.current;
 		if (!el || !deck) return;
 		// The 12px side padding sits inside the zoomed box and scales too.
-		const measure = () =>
+		const measure = () => {
 			setFit(
 				Math.min(
 					2,
 					Math.floor((el.clientWidth / (deck.width + 24)) * 1e3) / 1e3,
 				),
 			);
+			setMeasured(true);
+		};
 		measure();
 		const ro = new ResizeObserver(measure);
 		ro.observe(el);
@@ -571,7 +575,7 @@ export default function SlidesView({
 	// Restore the saved slide once the deck is laid out.
 	const restored = useRef(false);
 	useLayoutEffect(() => {
-		if (!deck || restored.current || fit === 1) return;
+		if (!deck || restored.current || !measured) return;
 		restored.current = true;
 		if (
 			settings.rememberPosition &&
