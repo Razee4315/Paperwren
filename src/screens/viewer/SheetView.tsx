@@ -1,6 +1,7 @@
 import { hasRtl } from "@/lib/bidi";
 import { t } from "@/lib/i18n";
 import { type Chart, readChart } from "@/lib/pptx/chart";
+import { isDarkTheme } from "@/lib/settings";
 import {
 	DEFAULT_COL_WIDTH,
 	HEADER_HEIGHT,
@@ -10,7 +11,7 @@ import {
 	computeVisibleWindow,
 } from "@/lib/sheetLayout";
 import { decodeText } from "@/lib/text";
-import type { GridObject, ParseResult } from "@/lib/workbookModel";
+import type { CellStyle, GridObject, ParseResult } from "@/lib/workbookModel";
 import { useSettings } from "@/state/settings";
 import {
 	Button,
@@ -95,9 +96,15 @@ export default function SheetView({
 	onClose,
 	active,
 }: ViewerProps) {
-	const { settings } = useSettings();
+	const { settings, theme } = useSettings();
 	const [sheets, setSheets] = useState<Sheet[] | null>(null);
-	const [looks, setLooks] = useState<CSSProperties[]>([]);
+	// The file's cell styles, and how each is drawn in this theme.
+	const [styles, setStyles] = useState<CellStyle[]>([]);
+	const dark = isDarkTheme(theme);
+	const looks = useMemo<CSSProperties[]>(
+		() => styles.map((st) => styleCss(st, dark)),
+		[styles, dark],
+	);
 	const [mediaUrls, setMediaUrls] = useState<string[]>([]);
 	const [accents, setAccents] = useState<string[]>([]);
 	const [error, setError] = useState<string | null>(null);
@@ -173,7 +180,7 @@ export default function SheetView({
 				setMediaUrls(urls);
 				setAccents(result.accents ?? []);
 				setIndex(saved >= 0 && saved < list.length ? saved : firstVisible);
-				setLooks((result.styles ?? []).map(styleCss));
+				setStyles(result.styles ?? []);
 				setSheets(list);
 			})
 			.catch((e) => {
@@ -634,7 +641,7 @@ export default function SheetView({
 					value &&
 					!m &&
 					!numeric &&
-					look?.whiteSpace !== "normal" &&
+					look?.whiteSpace !== "pre-wrap" &&
 					look?.textAlign !== "center" &&
 					look?.textAlign !== "right" &&
 					!hasRtl(value)
@@ -672,7 +679,7 @@ export default function SheetView({
 						data-r={ghosts ? undefined : ar}
 						data-c={ghosts ? undefined : ac}
 						aria-hidden={ghosts || undefined}
-						className={`${s.cell} ${m ? s.merged : numeric ? s.num : ""} ${spilled ? s.spill : ""} ${ghosts ? s.ghost : ""} ${look?.["--ink" as keyof typeof look] ? s.ink : ""}`}
+						className={`${s.cell} ${m ? s.merged : numeric ? s.num : ""} ${spilled ? s.spill : ""} ${look?.whiteSpace === "pre-wrap" ? s.wrap : ""} ${ghosts ? s.ghost : ""} ${look?.["--ink" as keyof typeof look] ? s.ink : ""}`}
 						style={{
 							left: shift + colX[ac],
 							top,
@@ -929,7 +936,16 @@ export default function SheetView({
 					: undefined
 			}
 			onPrint={
-				sheet ? (root) => printSheet(root, sheet, widths, looks) : undefined
+				sheet
+					? (root) =>
+							// Paper is light whatever the theme on screen.
+							printSheet(
+								root,
+								sheet,
+								widths,
+								styles.map((st) => styleCss(st)),
+							)
+					: undefined
 			}
 			actions={
 				<IconButton
