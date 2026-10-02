@@ -35,6 +35,12 @@ const LICENSES: Array<[string, string]> = [
 	["React", "MIT"],
 	["Lucide icons", "ISC"],
 	["Manrope", "SIL OFL 1.1"],
+	// The stand-ins for the fonts Office documents name (office-fonts.css).
+	["Carlito", "SIL OFL 1.1"],
+	["Caladea", "SIL OFL 1.1"],
+	["Arimo", "SIL OFL 1.1"],
+	["Tinos", "SIL OFL 1.1"],
+	["Cousine", "SIL OFL 1.1"],
 	["Tauri", "MIT / Apache-2.0"],
 ];
 
