@@ -68,6 +68,11 @@ interface Outline {
 	items: Outline[];
 }
 
+/** Where pdf.js finds its character maps and standard fonts: beside
+ * the app (see vite.config.ts), never on the network. */
+const pdfAsset = (dir: string) =>
+	new URL(`pdfjs/${dir}/`, document.baseURI).toString();
+
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 8;
 
@@ -136,6 +141,9 @@ export default function PdfView({
 				task = pdfjs.getDocument({
 					data: new Uint8Array(data),
 					isEvalSupported: false,
+					cMapUrl: pdfAsset("cmaps"),
+					cMapPacked: true,
+					standardFontDataUrl: pdfAsset("standard_fonts"),
 				});
 				task.onPassword = (
 					update: (password: string) => void,

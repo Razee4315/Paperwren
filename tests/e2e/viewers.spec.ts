@@ -421,3 +421,15 @@ test("a link in a document is never followed; its address can be copied", async 
 	await expect(page.getByTestId("link-guard")).toHaveCount(0);
 	await expect(viewer).toBeVisible();
 });
+
+test("a Chinese PDF that names its font instead of carrying it is readable", async ({
+	page,
+}) => {
+	await boot(page);
+	await openFixture(page, "viewer-regressions/cjk.pdf");
+	// The text is only there to select and find if the reader can map
+	// the file's character codes, which takes pdf.js's own tables.
+	await expect(page.locator(".textLayer").first()).toContainText("季度报告", {
+		timeout: 20_000,
+	});
+});

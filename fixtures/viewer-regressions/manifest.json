@@ -23,6 +23,9 @@
 	"grid.xlsx": {
 		"tests": "The spreadsheet grid: panes frozen at C2 (one header row, two columns), a bordered cell, text that runs over empty neighbours and text that is stopped by one, a bar chart and a picture on the sheet, a second sheet for find-across-sheets. Regenerate with scripts/make-rich-fixtures.py"
 	},
+	"cjk.pdf": {
+		"tests": "A Chinese page set in a font the file names but does not embed (STSong-Light): readable only with pdf.js's character maps, which ship with the app. Regenerate with scripts/make-rich-fixtures.py"
+	},
 	"wide-fit.pdf": {
 		"tests": "PDF-02 fit -> manual conversion preserves a fit scale far below 0.5"
 	},
