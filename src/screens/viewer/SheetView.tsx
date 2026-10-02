@@ -222,6 +222,7 @@ export default function SheetView({
 		const el = scroller.current;
 		if (!el) return;
 		syncView();
+		if (!settings.rememberPosition) return;
 		window.clearTimeout(saveTimer.current);
 		saveTimer.current = window.setTimeout(
 			() =>

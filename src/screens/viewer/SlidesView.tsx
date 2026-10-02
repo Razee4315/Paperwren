@@ -602,6 +602,7 @@ export default function SlidesView({
 		if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2)
 			idx = frames.length - 1;
 		if (idx !== current) setCurrent(idx);
+		if (!settings.rememberPosition) return;
 		window.clearTimeout(saveTimer.current);
 		saveTimer.current = window.setTimeout(
 			() => onPosition({ kind: "slides", slide: idx }),
