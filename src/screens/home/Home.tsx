@@ -126,7 +126,7 @@ export function Home({
 	onOpenRequest: (request: OpenRequest) => void;
 	onSettings: () => void;
 }) {
-	const { entries, ready, togglePin, remove } = useRecents();
+	const { entries, ready, togglePin, remove, restore } = useRecents();
 	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState<FormatKind | "all">("all");
 	const [menuFor, setMenuFor] = useState<RecentEntry | null>(null);
@@ -518,9 +518,12 @@ export function Home({
 							danger
 							hint={t("The file itself is not deleted")}
 							onClick={() => {
-								remove(menuFor.id);
+								const previous = remove(menuFor.id);
 								setMenuFor(null);
-								toast(t("Removed from recents"));
+								toast(t("Removed from recents"), {
+									label: t("Undo"),
+									run: () => restore(previous),
+								});
 							}}
 							testId="menu-remove"
 						>
