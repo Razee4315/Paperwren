@@ -1,3 +1,4 @@
+import { msg, t } from "@/lib/i18n";
 import { THEMES } from "@/lib/settings";
 import type { ThemeSetting } from "@/lib/types";
 import { Check } from "lucide-react";
@@ -5,10 +6,10 @@ import type { CSSProperties } from "react";
 import s from "./Pickers.module.css";
 
 const THEME_NAMES: Record<ThemeSetting, string> = {
-	system: "Auto",
-	light: "Paper",
-	sepia: "Sand",
-	dark: "Ink",
+	system: msg("Auto"),
+	light: msg("Paper"),
+	sepia: msg("Sand"),
+	dark: msg("Ink"),
 };
 
 /** A tiny Home screen drawn with the theme's own variables. */
@@ -39,20 +40,20 @@ export function ThemePicker({
 	onChange: (t: ThemeSetting) => void;
 }) {
 	return (
-		<div className={s.themes} role="radiogroup" aria-label="Theme">
-			{THEMES.map((t) => (
+		<div className={s.themes} role="radiogroup" aria-label={t("Theme")}>
+			{THEMES.map((theme) => (
 				<button
 					type="button"
-					key={t}
+					key={theme}
 					// biome-ignore lint/a11y/useSemanticElements: visual previews with ARIA radio semantics
 					role="radio"
-					aria-checked={t === value}
+					aria-checked={theme === value}
 					className={s.theme}
-					onClick={() => onChange(t)}
-					data-testid={`theme-${t}`}
+					onClick={() => onChange(theme)}
+					data-testid={`theme-${theme}`}
 				>
 					<span className={s.preview}>
-						{t === "system" ? (
+						{theme === "system" ? (
 							<>
 								<span className={s.half} data-theme="light">
 									<Mock />
@@ -62,17 +63,17 @@ export function ThemePicker({
 								</span>
 							</>
 						) : (
-							<span className={s.half} data-theme={t}>
+							<span className={s.half} data-theme={theme}>
 								<Mock />
 							</span>
 						)}
-						{t === value && (
+						{theme === value && (
 							<span className={s.check}>
 								<Check size={13} strokeWidth={3.5} />
 							</span>
 						)}
 					</span>
-					{THEME_NAMES[t]}
+					{t(THEME_NAMES[theme])}
 				</button>
 			))}
 		</div>

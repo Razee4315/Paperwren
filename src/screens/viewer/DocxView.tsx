@@ -1,11 +1,26 @@
+import { t } from "@/lib/i18n";
+import { fitted } from "@/lib/print";
 import { Button, ErrorArt, IconButton, Spinner, StateView } from "@/ui";
-import { Search, ZoomIn, ZoomOut } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Search } from "lucide-react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
+import { flushSync } from "react-dom";
+import "@/styles/office-fonts.css";
+import { PageJump } from "./Dialogs";
 import s from "./Doc.module.css";
-import { FindBar, Shell, shellStyles } from "./Shell";
-import { usePinchZoom, useScrollMemory } from "./hooks";
+import { Scrubber } from "./Scrubber";
+import { FindBar, Shell, ZoomControl, shellStyles } from "./Shell";
+import { useScrollMemory, useZoom } from "./hooks";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
+
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 5;
 
 /** Word (.docx) with docx-preview: the document's own page layout,
  * fitted to the screen width, pinch-zoomable. */
@@ -19,12 +34,19 @@ export default function DocxView({
 	active,
 }: ViewerProps) {
 	const scroller = useRef<HTMLDivElement>(null);
+	const stage = useRef<HTMLDivElement>(null);
+	const hud = useRef<HTMLDivElement>(null);
+	const pages = useRef<HTMLDivElement>(null);
 	const host = useRef<HTMLDivElement>(null);
 	const [status, setStatus] = useState<"loading" | "ready" | "error">(
 		"loading",
 	);
 	const [zoom, setZoom] = useState(1);
 	const [fit, setFit] = useState(1);
+	const [pageCount, setPageCount] = useState(0);
+	const [page, setPage] = useState(1);
+	const sheets = useRef<HTMLElement[]>([]);
+	const [chromeHidden, setChromeHidden] = useState(false);
 	const find = useDomFind(host, scroller);
 
 	useEffect(() => {
@@ -41,8 +63,13 @@ export default function DocxView({
 					useBase64URL: true,
 				});
 				if (cancelled || !host.current) return;
-				if (!staging.querySelector("section.docx")) throw new Error("empty");
+				const count = staging.querySelectorAll("section.docx").length;
+				if (!count) throw new Error("empty");
 				host.current.replaceChildren(...staging.childNodes);
+				sheets.current = [
+					...host.current.querySelectorAll<HTMLElement>("section.docx"),
+				];
+				setPageCount(count);
 				setStatus("ready");
 			} catch {
 				if (!cancelled) setStatus("error");
@@ -64,7 +91,14 @@ export default function DocxView({
 			) ?? []) {
 				widest = Math.max(widest, sec.offsetWidth);
 			}
-			if (widest > 0) setFit(Math.min(1.5, (el.clientWidth - 24) / widest));
+			// The 12px side padding sits inside the zoomed box and scales too.
+			if (widest > 0)
+				setFit(
+					Math.min(
+						1.5,
+						Math.floor((el.clientWidth / (widest + 24)) * 1e3) / 1e3,
+					),
+				);
 		};
 		measure();
 		const ro = new ResizeObserver(measure);
@@ -77,8 +111,64 @@ export default function DocxView({
 	}, [position]);
 
 	const scale = fit * zoom;
-	usePinchZoom(scroller, zoom, setZoom, 0.5, 5);
+	const commit = useCallback((z: number) => flushSync(() => setZoom(z)), []);
+	const { zoomBy, zoomTo } = useZoom({
+		scroller,
+		content: pages,
+		stage,
+		zoom,
+		commit,
+		hud,
+		label: (z) => `${Math.round(fit * z * 100)}%`,
+		min: MIN_ZOOM,
+		max: MAX_ZOOM,
+		active,
+		onTap: () => setChromeHidden((h) => !h),
+	});
 	useScrollMemory(scroller, status === "ready", position, onPosition, zoom);
+
+	// Which page the reader is on: the one under a line a third of the
+	// way down the screen (the last one, at the very end).
+	// biome-ignore lint/correctness/useExhaustiveDependencies: a new scale moves every page
+	useEffect(() => {
+		const el = scroller.current;
+		if (status !== "ready" || !el) return;
+		let raf = 0;
+		const update = () => {
+			raf = 0;
+			const list = sheets.current;
+			let at = list.length - 1;
+			if (el.scrollTop + el.clientHeight < el.scrollHeight - 2) {
+				const line = el.getBoundingClientRect().top + el.clientHeight / 3;
+				let lo = 0;
+				let hi = at;
+				while (lo < hi) {
+					const mid = (lo + hi + 1) >> 1;
+					if (list[mid].getBoundingClientRect().top <= line) lo = mid;
+					else hi = mid - 1;
+				}
+				at = lo;
+			}
+			setPage(at + 1);
+		};
+		const onScroll = () => {
+			if (!raf) raf = requestAnimationFrame(update);
+		};
+		update();
+		el.addEventListener("scroll", onScroll, { passive: true });
+		return () => {
+			cancelAnimationFrame(raf);
+			el.removeEventListener("scroll", onScroll);
+		};
+	}, [status, scale]);
+
+	const goTo = (n: number) => {
+		const el = scroller.current;
+		const target = sheets.current[n - 1];
+		if (!el || !target) return;
+		el.scrollTop +=
+			target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+	};
 
 	return (
 		<Shell
@@ -86,9 +176,27 @@ export default function DocxView({
 			format={format}
 			onClose={onClose}
 			active={active}
+			hud={hud}
+			progressOf={scroller}
+			chromeHidden={chromeHidden && !find.open}
+			onFind={status === "ready" ? find.start : undefined}
+			onPrint={
+				status === "ready"
+					? (root) => {
+							const source = host.current;
+							if (!source) return;
+							let widest = 1;
+							for (const page of source.querySelectorAll<HTMLElement>(
+								"section.docx",
+							))
+								widest = Math.max(widest, page.offsetWidth);
+							root.appendChild(fitted(source.cloneNode(true), widest, s.docx));
+						}
+					: undefined
+			}
 			actions={
 				<IconButton
-					label="Find"
+					label={t("Find")}
 					onClick={find.start}
 					active={find.open}
 					disabled={status !== "ready"}
@@ -110,50 +218,56 @@ export default function DocxView({
 			bottom={
 				status === "ready" ? (
 					<div className={shellStyles.pager}>
-						<span />
-						<div className={shellStyles.group}>
-							<IconButton
-								label="Zoom out"
-								onClick={() => setZoom((z) => Math.max(0.5, z / 1.25))}
-							>
-								<ZoomOut size={20} />
-							</IconButton>
-							<button
-								type="button"
-								className={shellStyles.pill}
-								onClick={() => setZoom(1)}
-								data-testid="doc-fit"
-							>
-								{zoom === 1 ? "Fit width" : `${Math.round(scale * 100)}%`}
-							</button>
-							<IconButton
-								label="Zoom in"
-								onClick={() => setZoom((z) => Math.min(5, z * 1.25))}
-							>
-								<ZoomIn size={20} />
-							</IconButton>
-						</div>
+						<PageJump
+							page={Math.min(page, pageCount)}
+							pages={pageCount}
+							onGo={goTo}
+							testId="doc"
+						/>
+						<ZoomControl
+							label={
+								Math.abs(zoom - 1) < 0.005
+									? t(t("Fit width"))
+									: `${Math.round(scale * 100)}%`
+							}
+							onOut={() => zoomBy(1 / 1.25)}
+							onIn={() => zoomBy(1.25)}
+							onReset={() => zoomTo(1)}
+							resetLabel={t("Fit width")}
+							testId="doc"
+						/>
 					</div>
 				) : undefined
 			}
 		>
 			<div ref={scroller} className={s.scroller} data-testid="doc-scroll">
-				<div className={`${s.pages} ${s.docx}`} style={{ zoom: scale }}>
-					<div ref={host} />
+				<div ref={stage} className={s.stage}>
+					<div
+						ref={pages}
+						className={`${s.pages} ${s.docx}`}
+						style={{ zoom: scale }}
+					>
+						<div ref={host} />
+					</div>
 				</div>
 			</div>
+			<Scrubber
+				of={scroller}
+				label={`${Math.min(page, pageCount)} / ${pageCount}`}
+				enabled={status === "ready"}
+			/>
 			{status === "loading" && (
 				<StateView>
-					<Spinner label="Opening document" />
+					<Spinner label={t("Opening document")} />
 				</StateView>
 			)}
 			{status === "error" && (
 				<StateView
 					icon={<ErrorArt />}
-					title="Can't open this document"
-					action={<Button onClick={onClose}>Close</Button>}
+					title={t("Can't open this document")}
+					action={<Button onClick={onClose}>{t("Close")}</Button>}
 				>
-					The file is damaged or isn't a valid Word document.
+					{t("The file is damaged or isn't a valid Word document.")}
 				</StateView>
 			)}
 		</Shell>

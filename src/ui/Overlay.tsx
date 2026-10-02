@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 import { useBackClose } from "@/state/navigation";
 import { X } from "lucide-react";
 import {
@@ -134,7 +135,7 @@ function SheetPanel({
 					<div className={s.handle} />
 					<div className={s.sheetHead}>
 						<h2 className={s.sheetTitle}>{title}</h2>
-						<IconButton label="Close" onClick={onClose}>
+						<IconButton label={t("Close")} onClick={onClose}>
 							<X size={20} />
 						</IconButton>
 					</div>

@@ -109,7 +109,7 @@
 	min-height: 52px;
 	padding: 10px 12px;
 	border-radius: var(--r-m);
-	text-align: left;
+	text-align: start;
 	color: var(--text);
 }
 .item:hover:not(:disabled),

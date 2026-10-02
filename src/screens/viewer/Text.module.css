@@ -8,6 +8,21 @@
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
 	color: var(--text);
+	/* Each line reads in its own direction (Urdu, Arabic, Hebrew). */
+	unicode-bidi: plaintext;
+	text-align: start;
+}
+.md p,
+.md li,
+.md h1,
+.md h2,
+.md h3,
+.md h4,
+.md blockquote,
+.md td,
+.md th {
+	unicode-bidi: plaintext;
+	text-align: start;
 }
 .wrap {
 	position: absolute;
@@ -16,6 +31,16 @@
 	background: var(--bg);
 	overscroll-behavior: contain;
 	touch-action: pan-x pan-y;
+}
+/* On paper the sheet supplies the margins. */
+.printed .plain,
+.printed .md {
+	max-width: none;
+	padding: 0;
+	color: #000;
+}
+.stage {
+	width: 100%;
 }
 .more {
 	display: flex;

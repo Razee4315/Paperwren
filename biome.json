@@ -61,7 +61,9 @@
 			"fixtures/**",
 			"playwright-report/**",
 			"src-tauri/target/**",
-			"website/**"
+			"website/**",
+			"launch-film/**",
+			"src/styles/office-fonts.css"
 		]
 	},
 	"css": {

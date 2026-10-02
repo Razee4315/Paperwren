@@ -3,14 +3,30 @@
 	position: absolute;
 	inset: 0;
 	overflow: auto;
+	/* Fit-to-width is measured once; a late scrollbar must not narrow it. */
+	scrollbar-gutter: stable;
 	overscroll-behavior: contain;
 	touch-action: pan-x pan-y;
 	background: var(--canvas);
 }
-.pages {
+/* The stage is what a pinch scales on the compositor; the page box
+ * inside it carries the real (CSS) zoom and is centred when it is
+ * narrower than the screen. */
+.stage {
+	display: flex;
+	justify-content: center;
 	width: max-content;
 	min-width: 100%;
+}
+.reflow {
+	width: 100%;
+}
+.pages {
+	flex: none;
 	padding: 16px 12px 40px;
+}
+.reflow > .pages {
+	width: 100%;
 }
 
 /* docx-preview output: paper stays white in every theme. */
@@ -27,6 +43,30 @@
 	color: #111;
 	box-shadow: var(--shadow-2) !important;
 	margin: 0 0 16px !important;
+	/* A long document only lays out and paints the pages near the
+	 * screen; the rest keep their page height (or the height they had
+	 * when last drawn). */
+	content-visibility: auto;
+	contain-intrinsic-size: auto 816px auto 1056px;
+}
+
+@media print {
+	/* One document page per sheet of paper, edge to edge. */
+	.docx :global(.docx-wrapper > section.docx) {
+		margin: 0 !important;
+		box-shadow: none !important;
+		break-after: page;
+		content-visibility: visible;
+	}
+	.paper {
+		max-width: none;
+		padding: 0;
+		box-shadow: none;
+	}
+	.slideText {
+		box-shadow: 0 0 0 1px #bbb;
+		break-inside: avoid;
+	}
 }
 
 /* Reflowed text documents (legacy Word, ODF, RTF). */
@@ -41,6 +81,14 @@
 	font-size: 16px;
 	line-height: 1.65;
 	overflow-wrap: anywhere;
+}
+.paper p,
+.paper h1,
+.paper h2,
+.paper h3,
+.paper h4 {
+	/* Each paragraph reads in its own direction. */
+	unicode-bidi: plaintext;
 }
 .paper p {
 	min-height: 1em;
@@ -98,4 +146,85 @@
 	border: 1px solid var(--line);
 	font-size: 13px;
 	color: var(--text-2);
+}
+
+/* Rich documents: legacy Word and OpenDocument text with their own
+ * formatting. Sizes and colours come from the file. */
+.rich {
+	font-family: Calibri, Arial, sans-serif;
+	font-size: 11pt;
+	line-height: 1.4;
+}
+.rich p {
+	margin: 0 0 0.5em;
+	min-height: 1.2em;
+}
+.rich h1,
+.rich h2,
+.rich h3,
+.rich h4,
+.rich h5,
+.rich h6 {
+	margin: 0.9em 0 0.4em;
+	font-weight: 700;
+	line-height: 1.25;
+}
+.rich h1 {
+	font-size: 1.6em;
+}
+.rich h2 {
+	font-size: 1.35em;
+}
+.rich h3 {
+	font-size: 1.15em;
+}
+.rich h4,
+.rich h5,
+.rich h6 {
+	font-size: 1em;
+}
+.rich a {
+	color: #1a5fb4;
+}
+.listItem {
+	position: relative;
+}
+.marker {
+	position: absolute;
+	inset-inline-start: 0;
+	width: 100%;
+	max-width: inherit;
+	padding-inline-start: inherit;
+	margin-inline-start: -1.6em;
+	pointer-events: none;
+	white-space: nowrap;
+}
+.richImage {
+	max-width: 100%;
+	height: auto;
+	vertical-align: bottom;
+}
+.pageBreak {
+	border: none;
+	border-top: 1px dashed #c9c9c9;
+	margin: 1.6em -32px;
+}
+.tableWrap {
+	max-width: 100%;
+	overflow-x: auto;
+	margin: 0.6em 0;
+}
+.richTable {
+	border-collapse: collapse;
+	table-layout: fixed;
+	max-width: none;
+}
+.richTable td {
+	border: 1px solid #b5b5b5;
+	padding: 4px 7px;
+	vertical-align: top;
+	overflow-wrap: anywhere;
+}
+.richTable td > p:last-child {
+	margin-bottom: 0;
 }

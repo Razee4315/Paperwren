@@ -11,7 +11,31 @@
 	"multipage.docx": {
 		"tests": "docs/15 #4 DOCX zoom reachable at 320px: zoom in/out/fit-width, pannable zoomed content, last page reachable"
 	},
+	"styled.xlsx": {
+		"tests": "Cell styling from the workbook's own style table: bold/italic/underline/strike, font colours, solid fills (rgb and tinted theme colours), alignment, filled cells with no value, an unstyled second sheet. Regenerate with scripts/make-rich-fixtures.py"
+	},
+	"charts.pptx": {
+		"tests": "Slide charts drawn from cached values: clustered columns with title and legend, stacked sideways bars, lines with markers, pie, scatter; a radar chart must fall back to the labelled placeholder. Regenerate with scripts/make-rich-fixtures.py"
+	},
+	"rtl.pptx": {
+		"tests": "Right-to-left text in slides: an Urdu title with no direction flag (detected from the text), a flagged Urdu bullet, an English line that stays left-to-right, an Arabic line. Regenerate with scripts/make-rich-fixtures.py"
+	},
+	"grid.xlsx": {
+		"tests": "The spreadsheet grid: panes frozen at C2 (one header row, two columns), a bordered cell, text that runs over empty neighbours and text that is stopped by one, a bar chart and a picture on the sheet, a second sheet for find-across-sheets. Regenerate with scripts/make-rich-fixtures.py"
+	},
 	"wide-fit.pdf": {
 		"tests": "PDF-02 fit -> manual conversion preserves a fit scale far below 0.5"
+	},
+	"effects.pptx": {
+		"tests": "Slide effects: an outer shadow on a shape and on a picture, linear gradients on a triangle and a freeform, a radial gradient on an ellipse, and a SmartArt diagram stored as PowerPoint stores one (a data model naming the drawing part with its laid-out shapes; hand-built, not saved by PowerPoint). Three slides, for full-screen mode. Regenerate with scripts/make-rich-fixtures.py"
+	},
+	"locked.pdf": {
+		"tests": "A two-page PDF that needs the password \"wren\": the password dialog, a wrong password, and the retry that reuses the same load. Regenerate with scripts/make-rich-fixtures.py"
+	},
+	"locked-agile.xlsx": {
+		"tests": "sample.xlsx protected with the password \"wren\" the Office 2010+ way (agile encryption: AES-256-CBC, SHA-512, 100,000 rounds), written by msoffcrypto-tool. Salts are random, so the bytes differ on every regeneration. Regenerate with scripts/make-rich-fixtures.py"
+	},
+	"locked-standard.docx": {
+		"tests": "sample.docx protected with the password \"wren\" the Office 2007 way (standard encryption: AES-128-ECB, SHA-1, 50,000 rounds). Assembled by the generator from the specification and read back with msoffcrypto-tool as a check; not saved by Office. Regenerate with scripts/make-rich-fixtures.py"
 	}
 }

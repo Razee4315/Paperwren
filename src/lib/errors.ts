@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 /**
  * Typed open failures: each has a name, an honest message, and one
  * recovery action. "File not found" is never a catch-all.
@@ -49,49 +51,65 @@ export interface FailureCopy {
 }
 
 export function failureCopy(failure: OpenFailure, name: string): FailureCopy {
-	const file = name ? `“${name}”` : "This file";
+	const file = name ? `“${name}”` : t("This file");
 	switch (failure) {
 		case "not_found":
 			return {
-				title: "File not found",
-				message: `${file} has been moved or deleted. Choose it again to update this recent.`,
+				title: t("File not found"),
+				message: t(
+					"{file} has been moved or deleted. Choose it again to update this recent.",
+					{ file },
+				),
 				action: "locate",
 			};
 		case "permission":
 			return {
-				title: "Access expired",
-				message: `Paperwren no longer has access to ${file}. Choose it again to restore access.`,
+				title: t("Access expired"),
+				message: t(
+					"Paperwren no longer has access to {file}. Choose it again to restore access.",
+					{ file },
+				),
 				action: "locate",
 			};
 		case "unreadable":
 			return {
-				title: "Couldn't read the file",
-				message: `${file} could not be read. The app that provided it may be unavailable.`,
+				title: t("Couldn't read the file"),
+				message: t(
+					"{file} could not be read. The app that provided it may be unavailable.",
+					{ file },
+				),
 				action: "locate",
 			};
 		case "empty":
 			return {
-				title: "Empty file",
-				message: `${file} contains no data.`,
+				title: t("Empty file"),
+				message: t("{file} contains no data.", { file }),
 				action: null,
 			};
 		case "corrupt":
 			return {
-				title: "File is damaged",
-				message: `${file} looks damaged or incomplete. Try downloading it again.`,
+				title: t("File is damaged"),
+				message: t(
+					"{file} looks damaged or incomplete. Try downloading it again.",
+					{ file },
+				),
 				action: null,
 			};
 		case "unsupported":
 			return {
-				title: "Unsupported file",
-				message:
-					"Paperwren opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV, Markdown and text files.",
+				title: t("Unsupported file"),
+				message: t(
+					"Paperwren opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV, Markdown and text files, and pictures.",
+				),
 				action: null,
 			};
 		case "password":
 			return {
-				title: "Password required",
-				message: `${file} is protected.`,
+				title: t("Can't unlock this file"),
+				message: t(
+					"{file} is protected in a way Paperwren can't open (a certificate or rights management, not a password).",
+					{ file },
+				),
 				action: null,
 			};
 	}

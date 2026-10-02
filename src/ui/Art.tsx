@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 import s from "./Art.module.css";
 
 /**
@@ -168,7 +169,7 @@ export function EmptyScene() {
 }
 
 /** Loading: a still page with a calm indeterminate bar under it. */
-export function PageLoader({ label = "Opening" }: { label?: string }) {
+export function PageLoader({ label = t("Opening") }: { label?: string }) {
 	return (
 		<div
 			className={s.loader}

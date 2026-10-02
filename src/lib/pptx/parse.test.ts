@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
-import { type SlideElement, parsePptx } from "./parse";
+import { describe, expect, it, vi } from "vitest";
+import { type SlideElement, parsePptx, parsePptxAsync } from "./parse";
 
 const deck = () =>
 	parsePptx(new Uint8Array(readFileSync("fixtures/sample.pptx")));
@@ -58,5 +58,37 @@ describe("parsePptx", () => {
 		expect(table.rows).toHaveLength(2);
 		expect(table.rows[1].cells[1].text.paras[0].runs[0].text).toBe("R2C2");
 		expect(slide.notes).toBe("Speaker note text");
+	});
+});
+
+describe("parsePptxAsync", () => {
+	const bytes = () =>
+		new Uint8Array(readFileSync("fixtures/viewer-regressions/charts.pptx"));
+	// Every step looks slow, so the reader pauses between all of them.
+	const slowClock = () => {
+		let now = 0;
+		return vi.spyOn(performance, "now").mockImplementation(() => {
+			now += 20;
+			return now;
+		});
+	};
+
+	it("reads the same deck as the one-go reader", async () => {
+		const clock = slowClock();
+		const deck = await parsePptxAsync(bytes());
+		clock.mockRestore();
+		const whole = parsePptx(bytes());
+		expect(deck.slides.length).toBe(whole.slides.length);
+		expect(JSON.stringify(deck.slides)).toBe(JSON.stringify(whole.slides));
+	});
+
+	it("stops at the next pause when aborted", async () => {
+		const clock = slowClock();
+		const abort = new AbortController();
+		abort.abort();
+		await expect(parsePptxAsync(bytes(), abort.signal)).rejects.toMatchObject({
+			name: "AbortError",
+		});
+		clock.mockRestore();
 	});
 });

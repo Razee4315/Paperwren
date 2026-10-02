@@ -74,6 +74,7 @@
 	--fmt-sheet: #2f8a5b;
 	--fmt-slides: #cf8420;
 	--fmt-text: #7d65b0;
+	--fmt-image: #b3567f;
 
 	--scrim: rgba(35, 34, 31, 0.36);
 	--canvas: #e7e4dd;
@@ -111,6 +112,7 @@
 	--fmt-sheet: #4f7f3a;
 	--fmt-slides: #bf7a1f;
 	--fmt-text: #7f5f96;
+	--fmt-image: #a85a72;
 
 	--scrim: rgba(58, 46, 34, 0.36);
 	--canvas: #e0d3ba;
@@ -148,6 +150,7 @@
 	--fmt-sheet: #74c095;
 	--fmt-slides: #e6b25e;
 	--fmt-text: #ac99d9;
+	--fmt-image: #e39bbd;
 
 	--scrim: rgba(0, 0, 0, 0.55);
 	--canvas: #111315;
@@ -281,6 +284,12 @@ html.touch ::-webkit-scrollbar {
 	white-space: nowrap;
 }
 
+/* Icons that point along the reading direction (back, next) turn
+ * around in right-to-left languages. */
+[dir="rtl"] .pw-flip {
+	transform: scaleX(-1);
+}
+
 /* The accent word in brand moments ("Paper*wren*"). */
 .brand-accent {
 	color: var(--accent);
@@ -303,5 +312,50 @@ html.touch ::-webkit-scrollbar {
 		animation-duration: 1ms !important;
 		animation-iteration-count: 1 !important;
 		transition-duration: 1ms !important;
+	}
+}
+
+/* ---------- Printing ----------
+ * The app never prints its own screens: a print job lays the document
+ * out again, for paper, inside #pw-print (see lib/print.ts). */
+#pw-print {
+	display: none;
+}
+@media print {
+	@page {
+		margin: 0;
+	}
+	html,
+	body {
+		height: auto !important;
+		overflow: visible !important;
+		background: #fff !important;
+	}
+	body > :not(#pw-print) {
+		display: none !important;
+	}
+	#pw-print {
+		display: block;
+		color: #000;
+		background: #fff;
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+	}
+	#pw-print .pw-sheet {
+		padding: 12mm;
+	}
+	#pw-print .pw-page {
+		break-after: page;
+		break-inside: avoid;
+	}
+	#pw-print .pw-page:last-child {
+		break-after: auto;
+	}
+	#pw-print img.pw-page {
+		display: block;
+		width: 100%;
+	}
+	#pw-print .pw-keep {
+		break-inside: avoid;
 	}
 }

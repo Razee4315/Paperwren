@@ -91,6 +91,81 @@
 	color: var(--text-3);
 }
 
+/* Where the list looks: recents, or a folder the user chose. */
+.places {
+	display: flex;
+	gap: 6px;
+	overflow-x: auto;
+	margin: 0 -16px 14px;
+	padding: 2px 16px;
+	scrollbar-width: none;
+}
+.place {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	max-width: 220px;
+	height: 38px;
+	padding: 0 14px;
+	border-radius: var(--r-m);
+	color: var(--text-2);
+	font-size: 14px;
+	font-weight: 750;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	transition: background-color var(--t-fast) var(--ease), color var(--t-fast)
+		var(--ease);
+}
+.place:hover {
+	background: var(--surface-2);
+}
+.place[aria-selected="true"] {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+.addPlace {
+	color: var(--text-3);
+}
+.placeActions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 8px;
+}
+.sectionActions {
+	display: flex;
+	margin-inline-start: auto;
+	text-transform: none;
+}
+.sectionActions button {
+	width: 36px;
+	height: 36px;
+}
+.limit {
+	margin: 12px 4px 0;
+	font-size: 13px;
+	color: var(--text-3);
+	text-align: center;
+}
+.browse {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 14px;
+	height: 42px;
+	padding: 0 18px;
+	border-radius: 999px;
+	background: var(--surface-2);
+	color: var(--text);
+	font-weight: 700;
+	font-size: 14px;
+}
+.browse:hover {
+	background: var(--surface-3);
+}
 .chips {
 	display: flex;
 	gap: 8px;
@@ -186,7 +261,7 @@
 	display: flex;
 	align-items: center;
 	gap: 14px;
-	text-align: left;
+	text-align: start;
 	align-self: stretch;
 }
 .rowText {
@@ -233,7 +308,7 @@
 .pin {
 	color: var(--accent);
 	vertical-align: -2px;
-	margin-right: 4px;
+	margin-inline-end: 4px;
 }
 
 .fab {

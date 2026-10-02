@@ -1,4 +1,5 @@
 import { backend } from "@/lib/backend";
+import { resolveLanguage, setLanguage } from "@/lib/i18n";
 import {
 	migrateLegacySettings,
 	normalizeSettings,
@@ -89,6 +90,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 			.querySelector('meta[name="theme-color"]')
 			?.setAttribute("content", THEME_COLOR[theme]);
 	}, [theme]);
+
+	// The interface language follows the setting as soon as it is known.
+	useEffect(() => {
+		if (ready) setLanguage(resolveLanguage(settings.language));
+	}, [ready, settings.language]);
 
 	const update = useCallback(
 		<K extends keyof Settings>(key: K, value: Settings[K]) => {

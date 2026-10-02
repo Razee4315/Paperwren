@@ -54,14 +54,21 @@ export function extractDoc(stream: StreamLookup): Extracted {
 	const word = stream("WordDocument");
 	if (!word || word.length < 0x1aa)
 		throw new Error("corrupt: no WordDocument stream");
-	if (u16(word, 0) !== 0xa5ec) throw new Error("corrupt: bad FIB");
+	// 0xA5EC is Word 97-2003; 0xA5DC is Word 6/95, read as plain text.
+	const ident = u16(word, 0);
+	if (ident !== 0xa5ec && ident !== 0xa5dc) throw new Error("corrupt: bad FIB");
 	const flags = u16(word, 0x0a);
 	if (flags & 0x0100) throw new Error("password: encrypted document");
 	const table = stream(flags & 0x0200 ? "1Table" : "0Table");
 	const fcClx = u32(word, 0x01a2);
 	const lcbClx = u32(word, 0x01a6);
 	let text = "";
-	if (table && lcbClx > 0 && fcClx + lcbClx <= table.length) {
+	if (
+		ident === 0xa5ec &&
+		table &&
+		lcbClx > 0 &&
+		fcClx + lcbClx <= table.length
+	) {
 		let pos = fcClx;
 		const end = fcClx + lcbClx;
 		// Skip Prc entries, find the Pcdt piece table.

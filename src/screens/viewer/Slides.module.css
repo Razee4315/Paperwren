@@ -1,6 +1,7 @@
+@import "@/styles/motion.css";
+
 .list {
-	width: max-content;
-	min-width: 100%;
+	flex: none;
 	padding: 16px 12px 40px;
 	display: flex;
 	flex-direction: column;
@@ -9,6 +10,16 @@
 }
 .frame {
 	content-visibility: auto;
+}
+@media print {
+	/* Every slide prints, whole, even those never scrolled into view. */
+	.frame {
+		content-visibility: visible;
+		break-inside: avoid;
+	}
+	.slide {
+		box-shadow: 0 0 0 1px #bbb;
+	}
 }
 .slide {
 	position: relative;
@@ -43,7 +54,13 @@
 .bullet {
 	display: inline-block;
 	min-width: 1.1em;
-	margin-left: -1.1em;
+	margin-inline-start: -1.1em;
+}
+/* A picture's frame: clips the crop and the rounded corners. */
+.clip {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
 }
 .img {
 	width: 100%;
@@ -90,4 +107,91 @@
 	font-size: 14px;
 	color: var(--text-2);
 	white-space: pre-wrap;
+}
+
+/* Full screen: one slide on black, as large as the screen allows. */
+.present {
+	position: fixed;
+	inset: 0;
+	z-index: 60;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	background: #000;
+	outline: none;
+	touch-action: none;
+	user-select: none;
+	animation: pw-fade-in var(--t-med) var(--ease);
+}
+.presentTrack {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.presentSlide {
+	flex: none;
+}
+.presentSlide .slide {
+	box-shadow: none;
+	border-radius: 0;
+}
+.presentSlide[data-from="1"] {
+	animation: pw-slide-next var(--t-slow) var(--ease);
+}
+.presentSlide[data-from="-1"] {
+	animation: pw-slide-prev var(--t-slow) var(--ease);
+}
+@keyframes pw-slide-next {
+	from {
+		transform: translateX(48px);
+		opacity: 0;
+	}
+}
+@keyframes pw-slide-prev {
+	from {
+		transform: translateX(-48px);
+		opacity: 0;
+	}
+}
+.presentBar {
+	position: absolute;
+	left: 50%;
+	bottom: calc(16px + var(--safe-bottom));
+	transform: translateX(-50%);
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 4px;
+	border-radius: 999px;
+	background: rgba(28, 28, 30, 0.86);
+	color: #fff;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity var(--t-slow) var(--ease), visibility 0s linear
+		var(--t-slow);
+}
+.presentBar[data-on] {
+	opacity: 1;
+	visibility: visible;
+	transition: opacity var(--t-fast) var(--ease);
+}
+.presentBar button {
+	color: #fff;
+}
+.presentBar button:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.14);
+}
+.presentCount {
+	min-width: 64px;
+	text-align: center;
+	font-size: 14px;
+	font-weight: 750;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+	.presentSlide[data-from] {
+		animation: none;
+	}
 }

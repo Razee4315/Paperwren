@@ -14,22 +14,30 @@
  * viewer can disclose original addresses (audit XLS-04 item 3).
  *
  * Fidelity policy (audit XLS-04): SheetJS Community does not expose a
- * cell style engine, so font emphasis / fills / alignment are NOT
- * invented here — cells render with the app's neutral style.
+ * cell style engine, so nothing is invented here. Font emphasis,
+ * colours, fills and alignment come only from the file's own style
+ * table (see sheetStyles.ts, .xlsx/.xlsm); every other format renders
+ * with the app's neutral style.
  * Formulas are never recalculated; a formula without a cached result
  * is flagged, never displayed as undefined.
  */
 
 import type * as XLSXNamespace from "xlsx";
+import {
+	type CellStyle,
+	type WorkbookStyles,
+	isDefaultInk,
+} from "./sheetStyles";
+
+export type { CellStyle };
 
 type WorkBook = XLSXNamespace.WorkBook;
 type CellObject = XLSXNamespace.CellObject;
 
 export interface GridCell {
 	value: string;
-	bold?: boolean;
-	italic?: boolean;
-	align?: string;
+	/** Index into the result's `styles`; absent for the neutral look. */
+	style?: number;
 	formula?: string;
 	/** The cell holds a formula whose cached result is missing: the
 	 * details view must say "No cached result" (audit XLS-04 item 4). */
@@ -71,10 +79,41 @@ export interface GridSheet {
 	/** Precise disclosure when the supported boundary truncated
 	 * content (audit XLS-04 item 7), e.g. wide/tall sheets. */
 	limitNote?: string;
+	/** Rows and columns the file freezes at the top / left, counted in
+	 * VISIBLE rows and columns. */
+	freeze?: { rows: number; cols: number };
+	/** Pictures and charts on the sheet, in sheet pixels. */
+	objects?: GridObject[];
+}
+
+/** A picture or chart floating over the grid. */
+export interface GridObject {
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+	/** The left edge as a visible column (it may lie past the last
+	 * one) plus an offset in px, so the object follows column widths. */
+	col: number;
+	dx: number;
+	/** The right edge likewise, when the object stretches with cells. */
+	endCol?: number;
+	endDx?: number;
+	/** Index into the result's `media`. */
+	image?: number;
+	/** Chart part XML; drawn where there is a DOM. */
+	chartXml?: string;
 }
 
 export type ParseResult =
-	| { ok: true; sheets: GridSheet[] }
+	| {
+			ok: true;
+			sheets: GridSheet[];
+			styles?: CellStyle[];
+			media?: Array<{ bytes: Uint8Array; type: string }>;
+			/** Theme accents, for charts on sheets. */
+			accents?: string[];
+	  }
 	| { ok: false; reason: "corrupt" | "too-large"; detail?: string };
 
 /** Disclosed supported limits (audit XLS-04 item 7: a tested,
@@ -188,6 +227,7 @@ function cellValue(cell: CellObject): {
 export function parseWorkbook(
 	XLSX: typeof XLSXNamespace,
 	data: ArrayBuffer | string,
+	authored?: WorkbookStyles | null,
 ): ParseResult {
 	let wb: WorkBook;
 	try {
@@ -206,6 +246,17 @@ export function parseWorkbook(
 		wb as { Workbook?: { Sheets?: Array<{ Hidden?: number }> } }
 	).Workbook?.Sheets;
 	const sheets: GridSheet[] = [];
+	// On an unfilled cell "black" only restates the default ink; it
+	// must follow the app theme instead of going black on dark.
+	const styles = authored?.styles.map((s) => {
+		if (s.fill || !isDefaultInk(s.color)) return s;
+		const { color: _, ...rest } = s;
+		return rest;
+	});
+	const styled = (i: number | undefined) =>
+		i !== undefined && styles && Object.keys(styles[i] ?? {}).length > 0
+			? i
+			: undefined;
 
 	for (let si = 0; si < wb.SheetNames.length; si++) {
 		const sheetName = wb.SheetNames[si];
@@ -340,6 +391,7 @@ export function parseWorkbook(
 		}
 
 		const cells: Array<[number, number, GridCell]> = [];
+		const sheetStyles = authored?.sheets.get(sheetName);
 		for (const key of Object.keys(ws)) {
 			if (key.startsWith("!")) continue;
 			const addr = XLSX.utils.decode_cell(key);
@@ -365,8 +417,108 @@ export function parseWorkbook(
 					value,
 					noCachedResult,
 					formula: cell.f ? `=${cell.f}` : undefined,
+					style: styled(sheetStyles?.get(key)),
 				},
 			]);
+		}
+		// Filled cells without a value still paint (header bands,
+		// colour-coded blocks). Never at the cost of the cell budget.
+		if (sheetStyles && styles) {
+			for (const [key, index] of sheetStyles) {
+				if (cells.length >= MAX_POPULATED_CELLS) break;
+				if (!styles[index]?.fill || ws[key]) continue;
+				const addr = XLSX.utils.decode_cell(key);
+				if (addr.r > rowLimit || addr.c > colLimit) continue;
+				if (mergeCovered.has(addr.r * 1024 + addr.c)) continue;
+				const vr = rowIndexOf.get(addr.r);
+				const vc = colIndexOf.get(addr.c);
+				if (vr === undefined || vc === undefined) continue;
+				cells.push([vr, vc, { value: "", style: index }]);
+			}
+		}
+
+		// Frozen panes count rows/columns as the file has them; hidden
+		// ones do not take part in the visible grid.
+		const frozen = authored?.freeze.get(sheetName);
+		const visibleBefore = (origins: number[], limit: number) => {
+			let n = 0;
+			while (n < origins.length && origins[n] < limit) n++;
+			return n;
+		};
+		const freeze = frozen
+			? {
+					rows: Math.min(rows - 1, visibleBefore(rowOrigins, frozen.rows)),
+					cols: Math.min(cols - 1, visibleBefore(colOrigins, frozen.cols)),
+				}
+			: undefined;
+
+		// Pictures and charts: cell anchors + EMU offsets -> sheet pixels.
+		// An anchor is often past the last used cell (a chart beside the
+		// data); the rows and columns out there have the default size.
+		const colPrefix: number[] = [0];
+		for (let c = 0; c < widths.length; c++)
+			colPrefix.push(colPrefix[c] + widths[c]);
+		const emu = (v: number) => v / 9525;
+		const edge = (
+			prefix: number[],
+			origins: number[],
+			limit: number,
+			at: number,
+			unit: number,
+		) => {
+			const inside = visibleBefore(origins, at);
+			const beyond = Math.max(0, at - (limit + 1));
+			return {
+				index: inside + beyond,
+				px: (prefix[inside] ?? 0) + beyond * unit,
+			};
+		};
+		const objects: GridObject[] = [];
+		for (const anchor of authored?.anchors.get(sheetName) ?? []) {
+			const at = (p: {
+				col: number;
+				row: number;
+				colOff: number;
+				rowOff: number;
+			}) => {
+				const col = edge(
+					colPrefix,
+					colOrigins,
+					colLimit,
+					p.col,
+					DEFAULT_COL_WIDTH,
+				);
+				const row = edge(
+					rowPrefix,
+					rowOrigins,
+					rowLimit,
+					p.row,
+					DEFAULT_ROW_HEIGHT,
+				);
+				return {
+					col: col.index,
+					dx: emu(p.colOff),
+					x: col.px + emu(p.colOff),
+					y: row.px + emu(p.rowOff),
+				};
+			};
+			const from = at(anchor.from);
+			const to = !anchor.ext && anchor.to ? at(anchor.to) : undefined;
+			const w = anchor.ext ? emu(anchor.ext.cx) : to ? to.x - from.x : 0;
+			const h = anchor.ext ? emu(anchor.ext.cy) : to ? to.y - from.y : 0;
+			if (w < 4 || h < 4) continue;
+			objects.push({
+				x: Math.round(from.x),
+				y: Math.round(from.y),
+				w: Math.round(w),
+				h: Math.round(h),
+				col: from.col,
+				dx: Math.round(from.dx),
+				endCol: to?.col,
+				endDx: to ? Math.round(to.dx) : undefined,
+				image: anchor.image,
+				chartXml: anchor.chartXml,
+			});
 		}
 
 		sheets.push({
@@ -383,7 +535,16 @@ export function parseWorkbook(
 			mergeLimitHit,
 			limitNote,
 			hiddenSheet: hidden || undefined,
+			freeze:
+				freeze && (freeze.rows > 0 || freeze.cols > 0) ? freeze : undefined,
+			objects: objects.length ? objects : undefined,
 		});
 	}
-	return { ok: true, sheets };
+	return {
+		ok: true,
+		sheets,
+		styles: authored ? styles : undefined,
+		media: authored?.media.length ? authored.media : undefined,
+		accents: authored?.accents,
+	};
 }

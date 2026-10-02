@@ -2,8 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import { cleanWordText, extractDoc, extractPpt } from "./legacy";
-import type { Extracted } from "./model";
-import { extractOdf } from "./odf";
+import type { Block } from "./model";
 import { extractRtf, rtfToText } from "./rtf";
 
 const bytes = (name: string) =>
@@ -17,14 +16,20 @@ function lookup(name: string) {
 	};
 }
 
-const allText = (doc: Extracted) =>
-	(doc.kind === "document" ? doc.blocks : doc.slides.flat())
+/** The plain-text readers: what a file falls back to when its
+ * formatting cannot be read. */
+const allText = (doc: { blocks: Block[] } | { slides: Block[][] }) =>
+	("blocks" in doc ? doc.blocks : doc.slides.flat())
 		.map((b) => b.text)
 		.join("\n");
+const plain = <T extends { kind: string }>(doc: T) => {
+	if (doc.kind === "rich") throw new Error("expected plain text");
+	return doc as Exclude<T, { kind: "rich" }>;
+};
 
 describe("legacy Word (.doc)", () => {
 	it("extracts paragraphs including non-ASCII text", () => {
-		const doc = extractDoc(lookup("sample.doc"));
+		const doc = plain(extractDoc(lookup("sample.doc")));
 		const text = allText(doc);
 		expect(text).toContain("Paperwren Legacy Fixture");
 		expect(text).toContain("The quick brown fox jumps over the lazy dog.");
@@ -49,29 +54,15 @@ describe("legacy PowerPoint (.ppt)", () => {
 		);
 		expect(allText(doc)).not.toContain("Speaker note text");
 	});
-});
-
-describe("OpenDocument", () => {
-	it("reads odt headings and paragraphs", () => {
-		const doc = extractOdf(bytes("sample.odt"), "odt");
-		expect(doc.kind).toBe("document");
-		if (doc.kind !== "document") return;
-		expect(doc.blocks.find((b) => b.kind === "heading")?.text).toBe(
-			"Paperwren Legacy Fixture",
-		);
-		expect(allText(doc)).toContain("lazy dog");
-	});
-	it("reads odp slides", () => {
-		const doc = extractOdf(bytes("sample.odp"), "odp");
-		if (doc.kind !== "slides") throw new Error("expected slides");
-		expect(doc.slides.length).toBe(3);
-		expect(allText(doc)).toContain("R2C2");
+	it("reads Word 6/95 files as text instead of refusing them", () => {
+		const text = allText(plain(extractDoc(lookup("legacy/Word95.doc"))));
+		expect(text.length).toBeGreaterThan(100);
 	});
 });
 
 describe("RTF", () => {
 	it("extracts text from a real file", () => {
-		const text = allText(extractRtf(bytes("sample.rtf")));
+		const text = allText(plain(extractRtf(bytes("sample.rtf"))));
 		expect(text).toContain("The quick brown fox");
 		expect(text).toContain("ünïcödé");
 		expect(text).not.toMatch(/\\|fonttbl|Times New Roman;/);

@@ -67,3 +67,75 @@ test("text with an unknown extension still opens as text", async ({ page }) => {
 	await openFixture(page, "archive.xyz");
 	await expect(page.getByTestId("viewer")).toContainText("just some bytes");
 });
+
+test("spreadsheets zoom from the shared control", async ({ page }) => {
+	await boot(page);
+	await openFixture(page, "sample.csv");
+	await expect(page.getByTestId("sheet-grid")).toContainText("Ravi");
+	const scale = page.getByTestId("sheet-scale");
+	await expect(scale).toHaveText("100%");
+	await page.getByTestId("sheet-zoom-in").click();
+	await expect(scale).toHaveText("120%");
+	// Cells still answer taps at the new size.
+	await page.getByTestId("sheet-grid").getByText("Ravi").click();
+	await expect(page.getByTestId("cell-detail")).toContainText("A3");
+	await scale.click();
+	await expect(scale).toHaveText("100%");
+});
+
+test("Word documents zoom and return to fit width", async ({ page }) => {
+	await boot(page);
+	await openFixture(page, "sample.docx");
+	const scale = page.getByTestId("doc-scale");
+	await expect(scale).toHaveText("Fit width", { timeout: 20_000 });
+	await page.getByTestId("doc-zoom-in").click();
+	await expect(scale).not.toHaveText("Fit width");
+	await scale.click();
+	await expect(scale).toHaveText("Fit width");
+});
+
+test("slide charts are drawn from the file's own numbers", async ({ page }) => {
+	await boot(page);
+	await openFixture(page, "viewer-regressions/charts.pptx");
+	const charts = page.getByTestId("slide-chart");
+	await expect(charts).toHaveCount(5, { timeout: 20_000 });
+	await expect(charts.first()).toContainText("Quarterly results");
+	await expect(charts.first()).toContainText("Revenue");
+	// A radar chart is not drawn; it says so instead.
+	await expect(page.getByTestId("slide").last()).toContainText("Chart");
+});
+
+test("spreadsheet cells keep their bold, colours and fills", async ({
+	page,
+}) => {
+	await boot(page);
+	await openFixture(page, "viewer-regressions/styled.xlsx");
+	const header = page.getByTestId("sheet-grid").getByText("Owner");
+	await expect(header).toBeVisible({ timeout: 20_000 });
+	await expect(header).toHaveCSS("background-color", "rgb(31, 78, 120)");
+	await expect(header).toHaveCSS("color", "rgb(255, 255, 255)");
+	await expect(header).toHaveCSS("font-weight", "700");
+	const plain = page.getByTestId("sheet-grid").getByText("Aisha");
+	await expect(plain).not.toHaveCSS("font-weight", "700");
+});
+
+test("a file dropped on the window opens", async ({ page }) => {
+	await boot(page);
+	const drag = (type: string) =>
+		page.evaluate((type) => {
+			const data = new DataTransfer();
+			data.items.add(new File(["dropped text"], "dropped.txt"));
+			document.body.dispatchEvent(
+				new DragEvent(type, {
+					dataTransfer: data,
+					bubbles: true,
+					cancelable: true,
+				}),
+			);
+		}, type);
+	await drag("dragenter");
+	await expect(page.getByTestId("drop-hint")).toBeVisible();
+	await drag("drop");
+	await expect(page.getByTestId("drop-hint")).toHaveCount(0);
+	await expect(page.getByTestId("viewer")).toContainText("dropped text");
+});
