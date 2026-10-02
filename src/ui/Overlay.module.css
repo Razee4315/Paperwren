@@ -142,7 +142,9 @@
 	position: fixed;
 	left: 16px;
 	right: 16px;
-	bottom: calc(20px + var(--safe-bottom));
+	/* Above Home's "Open file" button and a viewer's bottom bar: a
+	 * message must never sit on the next thing to tap. */
+	bottom: calc(88px + var(--safe-bottom));
 	z-index: 120;
 	margin: 0 auto;
 	max-width: 480px;
