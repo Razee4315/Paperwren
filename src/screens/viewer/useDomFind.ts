@@ -202,7 +202,12 @@ export function useDomFind(
 
 	return {
 		open,
-		start: () => setOpen(true),
+		/** Open the find bar, at a text when given one. */
+		start: (query?: string) => {
+			if (typeof query === "string" && query)
+				setState((s) => ({ ...s, query }));
+			setOpen(true);
+		},
 		close,
 		state,
 		setQuery: (query: string) => setState((s) => ({ ...s, query })),

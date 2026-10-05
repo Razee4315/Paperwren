@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import android.os.CancellationSignal
@@ -26,6 +27,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.core.content.IntentCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -57,6 +61,10 @@ import java.util.concurrent.TimeUnit
  *    on while reading, and browse a folder the user picked. None of
  *    these needs a manifest permission: sharing goes through a
  *    FileProvider grant, folders through the Storage Access Framework.
+ * 5. The system bars. A slide show hides them and turns the screen
+ *    sideways (the WebView turns down a page's own request for full
+ *    screen, so the page asks here instead), and the status-bar icons
+ *    follow the app's theme rather than the phone's.
  *
  * This file is copied verbatim over the generated activity by
  * scripts/install-android.mjs. Keep it self-contained.
@@ -103,6 +111,9 @@ class MainActivity : TauriActivity() {
       }
     }
 
+  /** A slide show has the screen: the system bars are hidden. */
+  private var barsHidden = false
+
   /** Our Back bridge owns system Back; Wry's default would only walk
    * WebView history (and, registered later, would win over ours). */
   override val handleBackNavigation: Boolean = false
@@ -133,6 +144,60 @@ class MainActivity : TauriActivity() {
     ingestExecutor.shutdown()
     scanExecutor.shutdown()
     super.onDestroy()
+  }
+
+  /** Coming back to a slide show (from the share sheet, another app,
+   * the notification shade): the system may have brought its bars
+   * back with it. */
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    if (hasFocus && barsHidden) {
+      WindowCompat.getInsetsController(window, window.decorView)
+        .hide(WindowInsetsCompat.Type.systemBars())
+    }
+  }
+
+  // ---------- System bars ----------
+
+  /** Hide the status and navigation bars for a slide show (a swipe
+   * from an edge shows them for a moment) and, for slides wider than
+   * tall, turn the screen sideways; or put both back. Main thread. */
+  private fun setImmersive(on: Boolean, landscape: Boolean) {
+    barsHidden = on
+    val bars = WindowCompat.getInsetsController(window, window.decorView)
+    if (on) {
+      bars.systemBarsBehavior =
+        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      bars.hide(WindowInsetsCompat.Type.systemBars())
+      if (landscape) {
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+      }
+    } else {
+      bars.show(WindowInsetsCompat.Type.systemBars())
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    }
+  }
+
+  /** Say that something failed. The page holds the translations, so it
+   * says it when it is up to (window.__paperwrenNativeError answers
+   * true); before that, or in a build whose page does not know how,
+   * a plain toast does. */
+  private fun report(code: String, fallback: String) {
+    main.post {
+      val webView = findWebView()
+      if (webView == null || !isAppOrigin(webView.url)) {
+        Toast.makeText(this, fallback, Toast.LENGTH_LONG).show()
+        return@post
+      }
+      webView.evaluateJavascript(
+        "(window.__paperwrenNativeError && window.__paperwrenNativeError(" +
+          JSONObject.quote(code) + ")) ? 'ok' : 'no'"
+      ) { result ->
+        if (result != "\"ok\"") {
+          Toast.makeText(this, fallback, Toast.LENGTH_LONG).show()
+        }
+      }
+    }
   }
 
   // ---------- Hand-offs: share, open elsewhere, print ----------
@@ -319,9 +384,7 @@ class MainActivity : TauriActivity() {
         deliverNext(0)
       }
     } catch (e: Exception) {
-      main.post {
-        Toast.makeText(this, "Paperwren couldn't open that file.", Toast.LENGTH_LONG).show()
-      }
+      report("open", "Paperwren couldn't open that file.")
     }
   }
 
@@ -424,10 +487,19 @@ class MainActivity : TauriActivity() {
       "application/pdf" -> "pdf"
       "application/msword" -> "doc"
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "docx"
+      "application/vnd.ms-word.document.macroEnabled.12" -> "docm"
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.template" -> "dotx"
       "application/vnd.ms-excel" -> "xls"
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> "xlsx"
+      "application/vnd.ms-excel.sheet.macroEnabled.12" -> "xlsm"
+      "application/vnd.ms-excel.sheet.binary.macroEnabled.12" -> "xlsb"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.template" -> "xltx"
       "application/vnd.ms-powerpoint" -> "ppt"
       "application/vnd.openxmlformats-officedocument.presentationml.presentation" -> "pptx"
+      "application/vnd.ms-powerpoint.presentation.macroEnabled.12" -> "pptm"
+      "application/vnd.openxmlformats-officedocument.presentationml.slideshow" -> "ppsx"
+      "application/json" -> "json"
+      "application/xml", "text/xml" -> "xml"
       "application/vnd.oasis.opendocument.text" -> "odt"
       "application/vnd.oasis.opendocument.spreadsheet" -> "ods"
       "application/vnd.oasis.opendocument.presentation" -> "odp"
@@ -544,12 +616,12 @@ class MainActivity : TauriActivity() {
   private fun handOffBridge(webView: WebView) = object : Any() {
     private fun fromApp(): Boolean = isAppOrigin(currentUrl(webView))
 
-    private fun onMain(failure: String, action: () -> Unit) {
+    private fun onMain(code: String, failure: String, action: () -> Unit) {
       main.post {
         try {
           action()
         } catch (e: Exception) {
-          Toast.makeText(this@MainActivity, failure, Toast.LENGTH_LONG).show()
+          report(code, failure)
         }
       }
     }
@@ -558,7 +630,7 @@ class MainActivity : TauriActivity() {
     fun shareFile(target: String, name: String, mime: String): Boolean {
       if (!fromApp()) return false
       val uri = outgoingUri(target) ?: return false
-      onMain("Paperwren couldn't share that file.") { shareOut(uri, name, mime) }
+      onMain("share", "Paperwren couldn't share that file.") { shareOut(uri, name, mime) }
       return true
     }
 
@@ -566,7 +638,7 @@ class MainActivity : TauriActivity() {
     fun openFile(target: String, name: String, mime: String): Boolean {
       if (!fromApp()) return false
       val uri = outgoingUri(target) ?: return false
-      onMain("No other app can open this file.") { openElsewhere(uri, mime) }
+      onMain("open-with", "No other app can open this file.") { openElsewhere(uri, mime) }
       return true
     }
 
@@ -574,7 +646,7 @@ class MainActivity : TauriActivity() {
     @JavascriptInterface
     fun printPage(jobName: String): Boolean {
       if (!fromApp()) return false
-      onMain("Paperwren couldn't start printing.") {
+      onMain("print", "Paperwren couldn't start printing.") {
         val manager = getSystemService(Context.PRINT_SERVICE) as PrintManager
         manager.print(
           jobName,
@@ -590,7 +662,7 @@ class MainActivity : TauriActivity() {
     fun printFile(target: String, jobName: String): Boolean {
       if (!fromApp()) return false
       if (!target.startsWith("content://") && outgoingUri(target) == null) return false
-      onMain("Paperwren couldn't start printing.") {
+      onMain("print", "Paperwren couldn't start printing.") {
         val manager = getSystemService(Context.PRINT_SERVICE) as PrintManager
         manager.print(jobName, filePrintAdapter(target, jobName), PrintAttributes.Builder().build())
       }
@@ -602,6 +674,28 @@ class MainActivity : TauriActivity() {
       main.post {
         if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+      }
+    }
+
+    /** A slide show takes the whole screen, or gives it back: the
+     * status and navigation bars, and (for slides wider than tall) the
+     * way the screen is turned. */
+    @JavascriptInterface
+    fun immersive(on: Boolean, landscape: Boolean) {
+      if (!fromApp()) return
+      main.post { setImmersive(on, landscape) }
+    }
+
+    /** Which way the app's own bars are coloured (its theme, which
+     * need not be the phone's), so the clock and battery are drawn to
+     * be read on them. */
+    @JavascriptInterface
+    fun systemBars(dark: Boolean) {
+      if (!fromApp()) return
+      main.post {
+        val bars = WindowCompat.getInsetsController(window, window.decorView)
+        bars.isAppearanceLightStatusBars = !dark
+        bars.isAppearanceLightNavigationBars = !dark
       }
     }
 

@@ -15,9 +15,31 @@
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	padding: calc(10px + var(--safe-top)) calc(8px + var(--safe-right)) 6px
+	padding: calc(10px + var(--safe-top))
+		calc(8px + var(--safe-right) + var(--win-controls)) 6px
 		calc(18px + var(--safe-left));
 	min-height: calc(64px + var(--safe-top));
+}
+/* "Open file" in the bar (desktop). */
+.open {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+	height: 36px;
+	padding: 0 14px 0 10px;
+	border-radius: var(--r-m);
+	background: var(--accent);
+	color: var(--on-accent);
+	font-weight: 750;
+	font-size: 14px;
+	transition: background-color var(--t-fast) var(--ease);
+}
+.open:hover {
+	background: var(--accent-hover);
+}
+:global(html.desktop) .column {
+	padding-bottom: calc(40px + var(--safe-bottom));
 }
 .logo {
 	display: flex;

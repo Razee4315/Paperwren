@@ -24,7 +24,41 @@
 	align-items: center;
 	gap: 2px;
 	height: var(--bar-h);
-	padding: 0 calc(4px + var(--safe-right)) 0 calc(4px + var(--safe-left));
+	padding: 0 calc(4px + var(--safe-right) + var(--win-controls)) 0
+		calc(4px + var(--safe-left));
+}
+/* The page counter and zoom control, in the bar on a desktop. */
+.tools {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+	margin-inline-end: 6px;
+}
+.pageField {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--text-3);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+.pageField input {
+	min-width: 38px;
+	height: 28px;
+	padding: 0 6px;
+	border-radius: var(--r-s);
+	border: 1px solid var(--line);
+	background: var(--surface-2);
+	color: var(--text);
+	font-weight: 750;
+	text-align: center;
+	outline: none;
+}
+.pageField input:focus {
+	border-color: var(--accent);
 }
 .title {
 	flex: 1;
@@ -55,9 +89,107 @@
 	flex-shrink: 0;
 }
 .body {
-	position: relative;
+	display: flex;
 	flex: 1;
 	min-height: 0;
+}
+/* The document. Its text can be selected even where the app's own
+ * labels cannot (global.css, html.desktop). */
+.main {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+	user-select: text;
+}
+/* The panel beside the document: pages, contents, slides. */
+.side {
+	display: flex;
+	flex-direction: column;
+	flex-shrink: 0;
+	width: 232px;
+	background: var(--surface);
+	border-inline-end: 1px solid var(--line);
+}
+.sideHead {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+	height: 40px;
+	padding: 0 4px 0 8px;
+	border-bottom: 1px solid var(--line);
+}
+.sideHead > button {
+	width: 28px;
+	height: 28px;
+}
+.sideTabs {
+	flex: 1;
+	display: flex;
+	gap: 2px;
+	min-width: 0;
+}
+.sideTab {
+	height: 28px;
+	padding: 0 10px;
+	border-radius: var(--r-s);
+	font-size: 13px;
+	font-weight: 750;
+	color: var(--text-3);
+	white-space: nowrap;
+}
+.sideTab:hover {
+	color: var(--text);
+}
+.sideTab[aria-selected="true"] {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+.sideBody {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 8px;
+}
+/* A list of places in the document: outline entries, headings. */
+.sideItem {
+	display: block;
+	width: 100%;
+	min-height: 30px;
+	padding: 5px 8px;
+	border-radius: var(--r-s);
+	font-size: 13px;
+	color: var(--text-2);
+	text-align: start;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.sideItem:hover {
+	background: var(--surface-2);
+	color: var(--text);
+}
+/* The same list in a sheet on a phone: rows a thumb can hit. */
+.listItem {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+	padding: 10px 12px;
+	border-radius: var(--r-s);
+	text-align: start;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.listItem:hover {
+	background: var(--surface-2);
+}
+.sideEmpty {
+	padding: 16px 8px;
+	font-size: 13px;
+	color: var(--text-3);
+	text-align: center;
 }
 .bottom {
 	position: relative;
@@ -157,6 +289,75 @@
 	font-size: 13px;
 	color: var(--text-3);
 	font-variant-numeric: tabular-nums;
+}
+/* A switch in the find bar: match case, whole words. */
+.findOption {
+	flex-shrink: 0;
+	height: 28px;
+	padding: 0 8px;
+	border-radius: var(--r-s);
+	font-size: 12px;
+	font-weight: 800;
+	color: var(--text-3);
+}
+.findOption:hover {
+	background: var(--surface-2);
+}
+.findOption[aria-pressed="true"] {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+/* ---------- Desktop ---------- */
+/* Find is a small box over the corner of the document, so opening it
+ * does not push the page down. */
+:global(html.desktop) .find {
+	position: absolute;
+	top: calc(100% + 8px);
+	inset-inline-end: 16px;
+	width: min(460px, calc(100vw - 32px));
+	height: 44px;
+	padding: 0 4px 0 6px;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--r-m);
+	background: var(--surface);
+}
+:global(html.desktop) .find input {
+	height: 30px;
+	font-size: 14px;
+}
+:global(html.desktop) .title {
+	font-size: 14px;
+}
+:global(html.desktop) .zoom,
+:global(html.desktop) .zoom > button:first-child,
+:global(html.desktop) .zoom > button:last-child {
+	height: 30px;
+}
+:global(html.desktop) .zoom > button:first-child,
+:global(html.desktop) .zoom > button:last-child {
+	width: 30px;
+}
+:global(html.desktop) .zoomValue {
+	min-width: 68px;
+	height: 30px;
+	font-size: 13px;
+}
+/* Full screen (F11): the bars step aside. The top one comes back over
+ * the page, without moving it, while the pointer is at the top edge
+ * or a search is open. */
+:global(html[data-fullscreen="page"]) .top {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	transition: transform var(--t-med) var(--ease);
+}
+:global(html[data-fullscreen="page"]:not([data-reveal])) .top:not(.pinned) {
+	transform: translateY(-101%);
+}
+:global(html[data-fullscreen="page"]) .bottom {
+	display: none;
 }
 
 .pager {

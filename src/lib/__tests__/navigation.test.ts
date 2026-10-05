@@ -50,4 +50,22 @@ describe("navReducer", () => {
 		s = navReducer(s, { type: "overlay-close", id: "sheet" });
 		expect(canGoBack(s)).toBe(false);
 	});
+
+	it("puts one viewer in place of another, and never in place of Home", () => {
+		const viewer = (key: number) =>
+			({ kind: "viewer", request: req, key }) as const;
+		let s: NavState = navReducer(initialNav, {
+			type: "push",
+			screen: viewer(1),
+		});
+		s = navReducer(s, { type: "replace", screen: viewer(2) });
+		expect(s.screens).toHaveLength(2);
+		expect(s.screens[1]).toMatchObject({ key: 2 });
+		// Back leaves the viewer: no trail of replaced files behind it.
+		s = navReducer(s, { type: "pop" });
+		expect(s.screens).toEqual([{ kind: "home" }]);
+		// With only Home on the stack, a replace opens on top of it.
+		s = navReducer(s, { type: "replace", screen: viewer(3) });
+		expect(s.screens.map((screen) => screen.kind)).toEqual(["home", "viewer"]);
+	});
 });

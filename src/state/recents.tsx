@@ -1,4 +1,5 @@
 import { backend, managedRelPath } from "@/lib/backend";
+import { isDesktop, isTauri } from "@/lib/env";
 import { isOpaqueName } from "@/lib/formats";
 import {
 	migrateLegacyRecents,
@@ -39,6 +40,13 @@ interface RecentsApi {
  * snackbar's Undo can bring back an entry that still opens. */
 const UNDO_MS = 6000;
 
+/** On a desktop every document opened from the file manager is its own
+ * window of the app, and they all keep one list. A window that wrote
+ * the list as it remembered it would erase what the others had added,
+ * so there a change is made to the list as it is in the store now. (A
+ * phone runs one copy of the app; its list is written as it stands.) */
+const SHARED = isTauri && isDesktop;
+
 const RecentsContext = createContext<RecentsApi | null>(null);
 
 function managedPaths(entries: RecentEntry[]): string[] {
@@ -78,6 +86,25 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		setEntries(next);
 	}, []);
 
+	const writing = useRef<Promise<unknown>>(Promise.resolve());
+
+	// Coming back to this window, show what the other windows did since.
+	useEffect(() => {
+		if (!SHARED || !ready) return;
+		const refresh = () => {
+			writing.current = writing.current
+				.then(() => backend.storeGet(STORAGE_KEYS.recents))
+				.then((stored) => {
+					const there = stored ? normalizeRecents(stored) : [];
+					if (JSON.stringify(there) !== JSON.stringify(current.current))
+						apply(there);
+				})
+				.catch(() => {});
+		};
+		window.addEventListener("focus", refresh);
+		return () => window.removeEventListener("focus", refresh);
+	}, [ready, apply]);
+
 	/** Every mutation goes through here: state, persistence, and
 	 * deletion of managed copies nothing references any more. An
 	 * `undoable` change keeps those copies for a moment, so Undo restores
@@ -88,7 +115,19 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			const next = fn(prev);
 			if (next === prev) return prev;
 			apply(next);
-			backend.storeSet(STORAGE_KEYS.recents, next).catch(() => {});
+			if (SHARED) {
+				// One after another, so two changes never read the same list.
+				writing.current = writing.current
+					.then(() => backend.storeGet(STORAGE_KEYS.recents))
+					.then((stored) => {
+						const there = stored ? normalizeRecents(stored) : [];
+						const merged = fn(there);
+						return merged === there
+							? undefined
+							: backend.storeSet(STORAGE_KEYS.recents, merged);
+					})
+					.catch(() => {});
+			} else backend.storeSet(STORAGE_KEYS.recents, next).catch(() => {});
 			const release = () => {
 				const kept = new Set(managedPaths(current.current));
 				const dropped = managedPaths(prev).filter((p) => !kept.has(p));

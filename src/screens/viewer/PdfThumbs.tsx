@@ -16,14 +16,25 @@ export function PdfThumbs({
 	current,
 	rotation,
 	onPick,
+	follow = false,
 }: {
 	doc: PDFDocumentProxy;
 	current: number;
 	rotation: number;
 	onPick: (page: number) => void;
+	/** Keep the page being read in view (the list stays open beside
+	 * the document). */
+	follow?: boolean;
 }) {
 	const grid = useRef<HTMLDivElement>(null);
 	const start = useRef(current);
+
+	useEffect(() => {
+		if (!follow) return;
+		grid.current
+			?.querySelector(`[data-page="${current}"]`)
+			?.scrollIntoView({ block: "nearest" });
+	}, [follow, current]);
 
 	useEffect(() => {
 		const root = grid.current;

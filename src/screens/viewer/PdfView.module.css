@@ -70,3 +70,25 @@
 .thumb[aria-current="page"] canvas {
 	box-shadow: 0 0 0 2px var(--accent);
 }
+
+/* In the side panel the pages run down one column. */
+:global(html.desktop) aside .thumbs {
+	grid-template-columns: 1fr;
+	gap: 6px;
+	padding: 0;
+}
+:global(html.desktop) aside .thumb canvas {
+	width: 132px;
+}
+/* "Pages 3 to 7" in the print question. */
+.range {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+.range input {
+	width: 84px;
+	text-align: center;
+}

@@ -1,5 +1,6 @@
 import { hasRtl } from "@/lib/bidi";
-import { t } from "@/lib/i18n";
+import { isDesktop } from "@/lib/env";
+import { locale, t } from "@/lib/i18n";
 import { type Chart, readChart } from "@/lib/pptx/chart";
 import { isDarkTheme } from "@/lib/settings";
 import {
@@ -40,6 +41,7 @@ import {
 	type FindState,
 	Shell,
 	ZoomControl,
+	percentPresets,
 	shellStyles,
 } from "./Shell";
 import { SlideChart } from "./SlideChart";
@@ -79,8 +81,12 @@ interface Point {
 	c: number;
 }
 
+const ZOOM_LEVELS = [50, 75, 100, 125, 150, 200];
+
+/** A sum or an average, written the way the reader's language writes
+ * numbers. */
 const format = (n: number) =>
-	n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+	n.toLocaleString(locale(), { maximumFractionDigits: 4 });
 
 /** Spreadsheets (xlsx/xls/ods/csv): parsed in a worker, drawn as a
  * virtualised grid. Frozen rows and columns stay pinned, long text
@@ -404,19 +410,71 @@ export default function SheetView({
 		);
 	};
 
+	/** Where Ctrl+arrow lands: the far end of the run of filled cells
+	 * the cell is in, else the next filled cell, else the sheet's edge. */
+	const dataEdge = (from: Point, dr: number, dc: number): Point => {
+		if (!sheet) return from;
+		const inside = (r: number, c: number) =>
+			r >= 0 && r < sheet.rows && c >= 0 && c < sheet.cols;
+		const filled = (r: number, c: number) =>
+			!!sheet.cells.get(key(r, c))?.value;
+		let { r, c } = from;
+		if (!inside(r + dr, c + dc)) return from;
+		if (filled(r, c) && filled(r + dr, c + dc)) {
+			while (inside(r + dr, c + dc) && filled(r + dr, c + dc)) {
+				r += dr;
+				c += dc;
+			}
+		} else {
+			do {
+				r += dr;
+				c += dc;
+			} while (!filled(r, c) && inside(r + dr, c + dc));
+		}
+		return { r, c };
+	};
+	/** The row a screenful above or below a row. */
+	const pageFrom = (r: number, dir: 1 | -1): number => {
+		const el = scroller.current;
+		if (!sheet || !el) return r;
+		const tall = Math.max(
+			sheet.rowHeights[r] ?? 0,
+			el.clientHeight / zoomRef.current - HEADER_HEIGHT - frozenH,
+		);
+		let to = r;
+		while (
+			to + dir >= 0 &&
+			to + dir < sheet.rows &&
+			Math.abs(sheet.rowPrefix[to + dir] - sheet.rowPrefix[r]) < tall
+		)
+			to += dir;
+		return to === r ? Math.min(sheet.rows - 1, Math.max(0, r + dir)) : to;
+	};
+
 	const onKey = (e: React.KeyboardEvent) => {
-		if (!sheet) return;
-		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+		if (!sheet || !sheets) return;
+		const mod = e.ctrlKey || e.metaKey;
+		if (mod && e.key.toLowerCase() === "c") {
 			if (range && !window.getSelection()?.toString()) {
 				e.preventDefault();
 				copySelection();
 			}
 			return;
 		}
-		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+		if (mod && e.key.toLowerCase() === "a") {
 			e.preventDefault();
 			setAnchor({ r: 0, c: 0 });
 			setFocus({ r: sheet.rows - 1, c: sheet.cols - 1 });
+			return;
+		}
+		const paging = e.key === "PageDown" || e.key === "PageUp";
+		if (mod && paging) {
+			// Ctrl+Page Down and Up: the next and the previous sheet.
+			const shown = sheets.map((sh, i) => (offered(sh) ? i : -1));
+			const tabs = shown.filter((i) => i >= 0);
+			const next = tabs[tabs.indexOf(index) + (e.key === "PageDown" ? 1 : -1)];
+			e.preventDefault();
+			if (next !== undefined) setIndex(next);
 			return;
 		}
 		const d: Record<string, [number, number]> = {
@@ -425,14 +483,34 @@ export default function SheetView({
 			ArrowLeft: [0, -1],
 			ArrowRight: [0, 1],
 		};
-		const delta = d[e.key];
-		if (!delta) return;
-		e.preventDefault();
-		// Shift moves the far corner of the range; plain arrows move the cell.
+		// Shift moves the far corner of the range; plain keys move the cell.
 		const base = (e.shiftKey ? (focus ?? anchor) : anchor) ?? { r: 0, c: 0 };
-		const r = Math.min(sheet.rows - 1, Math.max(0, base.r + delta[0]));
-		const c = Math.min(sheet.cols - 1, Math.max(0, base.c + delta[1]));
-		select(r, c, e.shiftKey);
+		const delta = d[e.key];
+		let to: Point;
+		if (delta)
+			to = mod
+				? dataEdge(base, delta[0], delta[1])
+				: { r: base.r + delta[0], c: base.c + delta[1] };
+		else if (e.altKey) return;
+		else if (e.key === "Home") to = mod ? { r: 0, c: 0 } : { r: base.r, c: 0 };
+		else if (e.key === "End")
+			to = mod
+				? { r: sheet.rows - 1, c: sheet.cols - 1 }
+				: { r: base.r, c: sheet.cols - 1 };
+		else if (paging)
+			to = { r: pageFrom(base.r, e.key === "PageDown" ? 1 : -1), c: base.c };
+		else if (e.key === "Enter")
+			// Enter goes down a cell and Shift+Enter up, as when reading
+			// down a column in a spreadsheet program.
+			to = {
+				r: (anchor?.r ?? 0) + (e.shiftKey ? -1 : 1),
+				c: anchor?.c ?? 0,
+			};
+		else return;
+		e.preventDefault();
+		const r = Math.min(sheet.rows - 1, Math.max(0, to.r));
+		const c = Math.min(sheet.cols - 1, Math.max(0, to.c));
+		select(r, c, e.shiftKey && e.key !== "Enter");
 		reveal(r, c);
 	};
 
@@ -698,7 +776,7 @@ export default function SheetView({
 						data-r={ghosts ? undefined : ar}
 						data-c={ghosts ? undefined : ac}
 						aria-hidden={ghosts || undefined}
-						className={`${s.cell} ${m ? s.merged : numeric ? s.num : ""} ${spilled ? s.spill : ""} ${look?.whiteSpace === "pre-wrap" ? s.wrap : ""} ${ghosts ? s.ghost : ""} ${look?.["--ink" as keyof typeof look] ? s.ink : ""}`}
+						className={`${s.cell} ${m ? s.merged : numeric ? s.num : ""} ${spilled ? s.spill : ""} ${look?.whiteSpace === "pre-wrap" ? s.wrap : ""} ${ghosts ? s.ghost : ""} ${look?.["--ink" as keyof typeof look] ? s.ink : ""} ${cell?.link ? s.linked : ""} ${cell?.note ? s.noted : ""}`}
 						style={{
 							left: shift + colX[ac],
 							top,
@@ -841,6 +919,18 @@ export default function SheetView({
 		.filter(Boolean)
 		.join(" ");
 
+	const zoomControl = (
+		<ZoomControl
+			label={`${Math.round(zoom * 100)}%`}
+			onOut={() => zoomBy(1 / 1.2)}
+			onIn={() => zoomBy(1.2)}
+			onReset={() => zoomTo(1)}
+			resetLabel={t("Reset zoom to 100%")}
+			presets={percentPresets(ZOOM_LEVELS, zoom, zoomTo)}
+			testId="sheet"
+		/>
+	);
+
 	const bottom = sheets ? (
 		<>
 			{limited && (
@@ -859,6 +949,27 @@ export default function SheetView({
 									: cell?.value || t("Empty")}
 								{cell?.formula && (
 									<span className={s.formula}>{cell.formula}</span>
+								)}
+								{cell?.link && (
+									// Shown to copy: the app follows no link (LinkGuard).
+									<a
+										className={s.link}
+										href={cell.link}
+										dir="ltr"
+										data-testid="cell-link"
+									>
+										{cell.link}
+									</a>
+								)}
+								{cell?.note && (
+									<span
+										className={s.note}
+										dir="auto"
+										title={cell.note}
+										data-testid="cell-note"
+									>
+										{cell.note}
+									</span>
 								)}
 							</>
 						) : (
@@ -918,14 +1029,8 @@ export default function SheetView({
 							: ""}
 					</span>
 				)}
-				<ZoomControl
-					label={`${Math.round(zoom * 100)}%`}
-					onOut={() => zoomBy(1 / 1.2)}
-					onIn={() => zoomBy(1.2)}
-					onReset={() => zoomTo(1)}
-					resetLabel={t("Reset zoom to 100%")}
-					testId="sheet"
-				/>
+				{/* On a desktop the zoom control is in the top bar. */}
+				{!isDesktop && zoomControl}
 			</div>
 		</>
 	) : undefined;
@@ -939,7 +1044,15 @@ export default function SheetView({
 			onClose={onClose}
 			active={active}
 			hud={hud}
-			onFind={sheets ? () => setFindOpen(true) : undefined}
+			pager={sheets && isDesktop ? zoomControl : undefined}
+			onFind={
+				sheets
+					? (query) => {
+							if (query) setFind((f) => ({ ...f, query }));
+							setFindOpen(true);
+						}
+					: undefined
+			}
 			menu={
 				sheet
 					? (close) => (
@@ -971,6 +1084,7 @@ export default function SheetView({
 			actions={
 				<IconButton
 					label={t("Find")}
+					shortcut="Ctrl+F"
 					onClick={() => setFindOpen(true)}
 					active={findOpen}
 					disabled={!sheets}

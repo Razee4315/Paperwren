@@ -31,6 +31,8 @@ export type Position =
 			top: number; // PDF points from the page top
 			left: number;
 			rotation: number;
+			/** Two pages side by side. */
+			spread?: boolean;
 	  }
 	| { kind: "scroll"; ratio: number; zoom?: number }
 	| { kind: "sheet"; sheet: number; top: number; left: number; zoom?: number }
@@ -67,6 +69,13 @@ export interface Settings {
 	keepAwake: boolean;
 	keepRecents: boolean;
 	recentsLimit: number;
+	/** Desktop: the panel of pages, contents or slides is open. */
+	sidePanel: boolean;
+	/** Word documents flow to the width of the screen instead of
+	 * keeping their paper pages. */
+	readingView: boolean;
+	/** Text files wrap long lines to the width of the screen. */
+	wrapText: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -80,6 +89,9 @@ export const DEFAULT_SETTINGS: Settings = {
 	keepAwake: false,
 	keepRecents: true,
 	recentsLimit: 50,
+	sidePanel: false,
+	readingView: false,
+	wrapText: true,
 };
 
 export const STORAGE_KEYS = {

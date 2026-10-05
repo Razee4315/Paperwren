@@ -52,6 +52,9 @@ export function normalizeSettings(value: unknown): Settings {
 		keepAwake: bool(raw.keepAwake, DEFAULT_SETTINGS.keepAwake),
 		keepRecents: bool(raw.keepRecents, DEFAULT_SETTINGS.keepRecents),
 		recentsLimit: pick(raw.recentsLimit, LIMITS, DEFAULT_SETTINGS.recentsLimit),
+		sidePanel: bool(raw.sidePanel, DEFAULT_SETTINGS.sidePanel),
+		readingView: bool(raw.readingView, DEFAULT_SETTINGS.readingView),
+		wrapText: bool(raw.wrapText, DEFAULT_SETTINGS.wrapText),
 	};
 }
 

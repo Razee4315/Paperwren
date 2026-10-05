@@ -16,7 +16,8 @@
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	padding: calc(8px + var(--safe-top)) 8px 4px calc(4px + var(--safe-left));
+	padding: calc(8px + var(--safe-top)) calc(8px + var(--win-controls)) 4px
+		calc(4px + var(--safe-left));
 	min-height: calc(64px + var(--safe-top));
 }
 .title {
@@ -203,4 +204,30 @@
 	font-weight: 800;
 	font-size: 13px;
 	font-variant-numeric: tabular-nums;
+}
+/* The keyboard shortcuts: keys, then what they do. */
+.keys {
+	display: grid;
+	padding: 6px 16px;
+}
+.keys > div {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 7px 0;
+}
+.keys > div + div {
+	border-top: 1px solid var(--line);
+}
+.keys dt {
+	flex-shrink: 0;
+	font-family: var(--mono);
+	font-size: 12.5px;
+	font-weight: 700;
+	color: var(--text-2);
+}
+.keys dd {
+	font-size: 14px;
+	text-align: end;
 }

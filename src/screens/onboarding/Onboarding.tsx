@@ -160,7 +160,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 					go(step + (dx < 0 ? forward : -forward));
 			}}
 		>
-			<div className={s.top}>
+			<div className={s.top} data-tauri-drag-region="deep">
 				{!last && (
 					<button
 						type="button"

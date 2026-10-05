@@ -1,13 +1,25 @@
 import { backend, requestForManagedCopy } from "@/lib/backend";
-import { isTauri, isTouch } from "@/lib/env";
+import { isDesktop, isTauri } from "@/lib/env";
+import { toggleFullscreen, watchFullscreen } from "@/lib/fullscreen";
 import { language, subscribe, t } from "@/lib/i18n";
+import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { Home } from "@/screens/home/Home";
 import { SettingsScreen } from "@/screens/settings/Settings";
 import { NavigationProvider, useNav } from "@/state/navigation";
 import { RecentsProvider, useRecents } from "@/state/recents";
 import { SettingsProvider } from "@/state/settings";
-import { DropHint, LinkGuard, OpeningView, ToastHost, toast } from "@/ui";
+import {
+	DropHint,
+	LinkGuard,
+	OpeningView,
+	Sheet,
+	SheetItem,
+	ToastHost,
+	WindowControls,
+	toast,
+} from "@/ui";
+import { Copy, Search, TextSelect } from "lucide-react";
 import {
 	Suspense,
 	lazy,
@@ -36,7 +48,7 @@ function Root() {
 	// Every screen is drawn from here, so a change of language redraws
 	// them all.
 	useSyncExternalStore(subscribe, language);
-	const { state, push, back } = useNav();
+	const { state, push, replace, back } = useNav();
 	const { entries, remove } = useRecents();
 	const nextKey = useRef(1);
 	const picking = useRef(false);
@@ -161,6 +173,18 @@ function Root() {
 			} else if (mod && !e.shiftKey && key === "w" && deep) {
 				e.preventDefault();
 				back();
+			} else if (e.altKey && !e.ctrlKey && e.key === "ArrowLeft" && deep) {
+				// Alt+Left goes back, as in a browser.
+				e.preventDefault();
+				back();
+			} else if (isDesktop && e.key === "F11") {
+				e.preventDefault();
+				toggleFullscreen();
+			} else if (isTauri && mod && ["=", "+", "-", "_", "0"].includes(e.key)) {
+				// The webview's own zoom would scale the whole app. Zoom
+				// belongs to the document: a viewer hears these keys itself
+				// (viewer/hooks.ts), and nothing else may act on them.
+				e.preventDefault();
 			} else if (mod && key === "f") {
 				if (isTauri) e.preventDefault();
 				if (!deep) {
@@ -183,17 +207,68 @@ function Root() {
 		return () => window.removeEventListener("keydown", onKey);
 	}, [pick, back, deep]);
 
-	// A desktop app has no "Reload" or "Back" menu on a right-click. The
-	// menu stays where it is useful: on selected text and in fields.
+	// Ctrl+wheel, which is also how a trackpad pinch arrives: the same
+	// rule as the zoom keys above. A viewer takes it for its document
+	// first; here it is only kept from the webview.
 	useEffect(() => {
-		if (!isTauri || isTouch) return;
+		if (!isTauri) return;
+		const onWheel = (e: WheelEvent) => {
+			if (e.ctrlKey || e.metaKey) e.preventDefault();
+		};
+		window.addEventListener("wheel", onWheel, { passive: false });
+		return () => window.removeEventListener("wheel", onWheel);
+	}, []);
+
+	useEffect(() => (isDesktop ? watchFullscreen() : undefined), []);
+
+	// Android: the shell cannot translate, so a hand-off that fails there
+	// is said here.
+	useEffect(() => {
+		const say = (code: string) => {
+			toast(
+				code === "share"
+					? t("Couldn't share this file")
+					: code === "open-with"
+						? t("No other app can open this file")
+						: code === "print"
+							? t("Couldn't start printing")
+							: t("Couldn't open that file"),
+			);
+			return true;
+		};
+		window.__paperwrenNativeError = say;
+		return () => {
+			if (window.__paperwrenNativeError === say)
+				window.__paperwrenNativeError = undefined;
+		};
+	}, []);
+
+	// A desktop app has no "Reload" or "Back" menu on a right-click, and
+	// the webview's own menu acts on the app, not the document (its
+	// "Print" prints the app). Fields keep their menu; selected text gets
+	// a small one of ours.
+	const [picked, setPicked] = useState<string | null>(null);
+	useEffect(() => {
+		if (!isDesktop) return;
 		const onMenu = (e: MouseEvent) => {
-			const field = (e.target as Element | null)?.closest?.("input, textarea");
-			if (!field && !window.getSelection()?.toString()) e.preventDefault();
+			// A list row has already opened its own menu.
+			if (e.defaultPrevented) return;
+			if ((e.target as Element | null)?.closest?.("input, textarea")) return;
+			e.preventDefault();
+			const text = window.getSelection()?.toString().trim();
+			if (text) setPicked(text);
 		};
 		window.addEventListener("contextmenu", onMenu);
 		return () => window.removeEventListener("contextmenu", onMenu);
 	}, []);
+	const copyPicked = () => {
+		const text = picked ?? "";
+		setPicked(null);
+		navigator.clipboard
+			?.writeText(text)
+			.then(() => toast(t("Copied")))
+			.catch(() => toast(t("Couldn't copy")));
+	};
 
 	return (
 		<>
@@ -220,6 +295,9 @@ function Root() {
 							request={screen.request}
 							active={top}
 							onClose={back}
+							onReplace={(request) =>
+								replace({ kind: "viewer", request, key: nextKey.current++ })
+							}
 							onLocate={() => {
 								const entry = entriesRef.current.find(
 									(e) => e.id === screen.request.id,
@@ -237,8 +315,52 @@ function Root() {
 				</Suspense>
 			)}
 			{dropping && <DropHint />}
+			<Sheet
+				open={picked !== null}
+				title={t("Selected text")}
+				onClose={() => setPicked(null)}
+				testId="selection-menu"
+			>
+				<SheetItem
+					icon={<Copy size={20} />}
+					shortcut="Ctrl+C"
+					onClick={copyPicked}
+					testId="selection-copy"
+				>
+					{t("Copy")}
+				</SheetItem>
+				{deep && (
+					<>
+						<SheetItem
+							icon={<TextSelect size={20} />}
+							shortcut="Ctrl+A"
+							onClick={() => {
+								setPicked(null);
+								window.dispatchEvent(new Event(SELECT_ALL_EVENT));
+							}}
+						>
+							{t("Select all")}
+						</SheetItem>
+						<SheetItem
+							icon={<Search size={20} />}
+							onClick={() => {
+								// One line of it, and not a whole page of it.
+								const text = (picked ?? "").split(/\r?\n/)[0].slice(0, 120);
+								setPicked(null);
+								window.dispatchEvent(
+									new CustomEvent(FIND_EVENT, { detail: text }),
+								);
+							}}
+							testId="selection-find"
+						>
+							{t("Find this text")}
+						</SheetItem>
+					</>
+				)}
+			</Sheet>
 			<LinkGuard />
 			<ToastHost />
+			<WindowControls />
 		</>
 	);
 }

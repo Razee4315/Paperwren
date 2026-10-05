@@ -1,5 +1,6 @@
 import { backend, formatBytes } from "@/lib/backend";
-import { LANGUAGES, type LanguageSetting, t, tn } from "@/lib/i18n";
+import { isDesktop, isTauri, ownsFrame } from "@/lib/env";
+import { LANGUAGES, type LanguageSetting, msg, t, tn } from "@/lib/i18n";
 import type { PdfZoom } from "@/lib/types";
 import { useNav } from "@/state/navigation";
 import { useRecents } from "@/state/recents";
@@ -14,6 +15,7 @@ import {
 	Copy,
 	FolderOpen,
 	Info,
+	Keyboard,
 	Languages,
 	Palette,
 	ShieldCheck,
@@ -60,6 +62,24 @@ const LICENSES: Array<[string, string]> = [
 	["PDFium base-14 fonts (Foxit)", "BSD-3-Clause"],
 	["Adobe CMap resources", "BSD-3-Clause"],
 	["Tauri", "MIT / Apache-2.0"],
+];
+
+/** What the keyboard does, said once where a reader can find it. */
+const SHORTCUTS: Array<[string, string]> = [
+	["Ctrl+O", msg("Open a file")],
+	["Ctrl+W", msg("Close the document")],
+	["Ctrl+F", msg("Find in the document")],
+	["F3 · Shift+F3", msg("Next and previous match")],
+	["Ctrl+P", msg("Print")],
+	["Ctrl + · Ctrl - · Ctrl 0", msg("Zoom in, zoom out, back to the fit")],
+	["F11", msg("Full screen")],
+	["Space · Page Up · Page Down", msg("Scroll a screen at a time")],
+	["Home · End", msg("The start and the end of the document")],
+	["← · →", msg("The previous and the next page or slide")],
+	["F5", msg("Start a slide show")],
+	["Ctrl+] · Ctrl+[", msg("Turn the pages of a PDF")],
+	["Ctrl+Page Up · Ctrl+Page Down", msg("The previous and the next sheet")],
+	["Alt+←", msg("Back")],
 ];
 
 function Segmented<T extends string | number>({
@@ -151,7 +171,7 @@ export function SettingsScreen() {
 
 	return (
 		<div className={s.page} data-testid="settings">
-			<header className={s.bar}>
+			<header className={s.bar} data-tauri-drag-region="deep">
 				<IconButton
 					label={t("Back")}
 					onClick={back}
@@ -337,6 +357,33 @@ export function SettingsScreen() {
 							</span>
 						</button>
 					</div>
+
+					{isDesktop && (
+						<>
+							<Group icon={<Keyboard size={15} />}>{t("Keyboard")}</Group>
+							<div className={s.card}>
+								<dl className={s.keys} data-testid="shortcuts">
+									{SHORTCUTS.map(([keys, what]) => (
+										<div key={keys}>
+											<dt dir="ltr">{keys}</dt>
+											<dd>{t(what)}</dd>
+										</div>
+									))}
+								</dl>
+							</div>
+							{isTauri && ownsFrame && (
+								<div className={s.card}>
+									<div className={s.prose}>
+										<p>
+											{t(
+												"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.",
+											)}
+										</p>
+									</div>
+								</div>
+							)}
+						</>
+					)}
 
 					<Group icon={<ShieldCheck size={15} />}>{t("Privacy")}</Group>
 					<div className={s.card}>

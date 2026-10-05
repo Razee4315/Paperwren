@@ -95,6 +95,8 @@ Limits: > 500 MB file → caution dialog before parse (doc 09); pivot tables sho
 
 **Engine:** docx-preview → HTML/CSS, paginated view; plus a **Reading mode** (reflow, user text size). Quality bar: *school notes, letters, invoices, and reports read as they should — pixel-perfection with Word is explicitly not promised anywhere in the UI.*
 
+The page counter ("3 / 12") counts the pages docx-preview breaks the document into, from the break hints Word saved in the file. It can differ from the count Word shows for the same document; that is a limit of the engine, not a bug to chase.
+
 ### Fidelity contract
 
 | Tier | Elements | Behavior |

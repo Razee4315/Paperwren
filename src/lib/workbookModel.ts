@@ -42,6 +42,29 @@ export interface GridCell {
 	/** The cell holds a formula whose cached result is missing: the
 	 * details view must say "No cached result" (audit XLS-04 item 4). */
 	noCachedResult?: boolean;
+	/** Where the cell's link leads: a web or mail address, or a place
+	 * in the workbook ("#Sheet2!A1"). Shown to copy, never followed. */
+	link?: string;
+	/** The note or comment attached to the cell, as plain text. */
+	note?: string;
+}
+
+const MAX_NOTE = 4000;
+
+/** A cell's link and note, as SheetJS read them. */
+function extras(cell: CellObject): Pick<GridCell, "link" | "note"> {
+	const out: Pick<GridCell, "link" | "note"> = {};
+	const target = cell.l?.Target;
+	if (typeof target === "string" && target.trim())
+		out.link = target.trim().slice(0, 2000);
+	if (Array.isArray(cell.c) && cell.c.length) {
+		const note = cell.c
+			.map((comment) => (typeof comment.t === "string" ? comment.t.trim() : ""))
+			.filter(Boolean)
+			.join("\n");
+		if (note) out.note = note.slice(0, MAX_NOTE);
+	}
+	return out;
 }
 
 export interface MergeRange {
@@ -433,6 +456,7 @@ export function parseWorkbook(
 					noCachedResult,
 					formula: cell.f ? `=${cell.f}` : undefined,
 					style: styled(sheetStyles?.get(key)),
+					...extras(cell),
 				},
 			]);
 		}

@@ -90,6 +90,10 @@ interface Backend {
 	/** Files the app was started with (desktop: a double-clicked
 	 * document, "Open with Paperwren"). */
 	launchFiles(): Promise<OpenRequest[]>;
+	/** The pictures in the folder a picture was opened from, itself
+	 * included, in name order. Empty where the folder cannot be read (a
+	 * phone is handed one file, not the folder around it). */
+	picturesBeside(file: FileRef): Promise<OpenRequest[]>;
 	abilities(file: FileRef): FileAbilities;
 	/** Hand the file to the system share sheet. Rejects when it fails;
 	 * a share the user cancels resolves quietly. */
@@ -134,6 +138,12 @@ declare global {
 			printPage(jobName: string): boolean;
 			printFile(target: string, jobName: string): boolean;
 			keepAwake(on: boolean): void;
+			/** Hide the status and navigation bars (a slide show), turning
+			 * the screen sideways for it when asked. Added after 1.0.4. */
+			immersive?(on: boolean, landscape: boolean): void;
+			/** Tell the system which way the app's bars are coloured, so
+			 * the clock and battery are drawn to be read on them. */
+			systemBars?(dark: boolean): void;
 			pickFolder(token: string): boolean;
 			listFolder(treeUri: string, extensions: string, token: string): boolean;
 			releaseFolder(treeUri: string): void;
@@ -153,6 +163,10 @@ declare global {
 				folder: string;
 			}> | null,
 		) => void;
+		/** MainActivity reports a hand-off that failed ("share", "print",
+		 * "open-with", "open"); the page says so in the reader's language
+		 * and answers true. */
+		__paperwrenNativeError?: (code: string) => boolean;
 		/** MainActivity's answer to importPicked. */
 		__paperwrenImported?: (token: string, copy: ManagedCopy | null) => void;
 		/** Test hook: the next pick returns this file. */
@@ -340,6 +354,9 @@ const browserBackend: Backend = {
 			browserFolders.delete(folder.source.key);
 	},
 	async launchFiles() {
+		return [];
+	},
+	async picturesBeside() {
 		return [];
 	},
 	abilities() {
@@ -747,6 +764,28 @@ const tauriBackend: Backend = {
 		try {
 			const paths = await invoke<string[]>("launch_files");
 			return await Promise.all(paths.map(requestForPath));
+		} catch {
+			return [];
+		}
+	},
+	async picturesBeside(file) {
+		if (window.__paperwrenAndroid || file.reopen.kind !== "path") return [];
+		const { path } = file.reopen;
+		const cut = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+		if (cut < 0) return [];
+		const folder = path.slice(0, cut + 1);
+		try {
+			const { readDir } = await import("@tauri-apps/plugin-fs");
+			return (await readDir(folder))
+				.filter((e) => e.isFile && formatFromName(e.name) === "image")
+				.map((e) => e.name)
+				.sort((a, b) =>
+					a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+				)
+				.slice(0, FOLDER_LIMITS.files)
+				.map((name) =>
+					request(name, true, 0, { kind: "path", path: folder + name }),
+				);
 		} catch {
 			return [];
 		}

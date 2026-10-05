@@ -312,4 +312,26 @@ describe("merge ranges (audit XLS-03)", () => {
 			result.sheets[0].cells.filter(([r, c]) => r === 0 && c === 1),
 		).toHaveLength(0);
 	});
+
+	it("keeps a cell's link and its note, to show beside the cell", () => {
+		const wb = XLSX.utils.book_new();
+		const ws = XLSX.utils.aoa_to_sheet([
+			["Site", "Total"],
+			["plain", 5],
+		]);
+		ws.A1.l = { Target: "https://example.org/report" };
+		ws.B1.c = [
+			{ a: "Aisha", t: "Checked against the ledger" },
+			{ a: "Ravi", t: "Agreed" },
+		];
+		XLSX.utils.book_append_sheet(wb, ws, "S1");
+		const result = parseWorkbookDirect(wb);
+		if (!result.ok) throw new Error("parse failed");
+		const cell = (r: number, c: number) =>
+			result.sheets[0].cells.find(([row, col]) => row === r && col === c)?.[2];
+		expect(cell(0, 0)?.link).toBe("https://example.org/report");
+		expect(cell(0, 1)?.note).toBe("Checked against the ledger\nAgreed");
+		expect(cell(1, 0)?.link).toBeUndefined();
+		expect(cell(1, 0)?.note).toBeUndefined();
+	});
 });

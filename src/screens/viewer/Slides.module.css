@@ -124,6 +124,101 @@
 	user-select: none;
 	animation: pw-fade-in var(--t-med) var(--ease);
 }
+/* With a mouse the pointer leaves with the controls. */
+.present[data-idle] {
+	cursor: none;
+}
+/* Speaker notes, over the foot of the slide while asked for. */
+.presentNotes {
+	position: absolute;
+	left: 50%;
+	bottom: calc(76px + var(--safe-bottom));
+	transform: translateX(-50%);
+	width: min(720px, calc(100% - 32px));
+	max-height: 34%;
+	overflow-y: auto;
+	padding: 12px 16px;
+	border-radius: var(--r-m);
+	background: rgba(28, 28, 30, 0.9);
+	color: #fff;
+	font-size: 15px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	user-select: text;
+}
+/* A slide the author hid: shown, and marked. */
+.hidden .slide {
+	opacity: 0.45;
+}
+.tag {
+	align-self: flex-start;
+	margin-bottom: 6px;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: var(--surface-2);
+	color: var(--text-3);
+	font-size: 12px;
+	font-weight: 700;
+}
+/* Small slides to pick from: a strip beside the deck on a desktop, a
+ * grid in a sheet on a phone. */
+.thumbs {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+	gap: 12px 10px;
+	padding: 4px 4px 8px;
+}
+:global(html.desktop) aside .thumbs {
+	grid-template-columns: 1fr;
+	gap: 6px;
+	padding: 0;
+}
+.thumb {
+	position: relative;
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 6px;
+	border-radius: var(--r-s);
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--text-3);
+	font-variant-numeric: tabular-nums;
+	text-align: start;
+}
+.thumb:hover {
+	background: var(--surface-2);
+}
+.thumb[aria-current="true"] {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+/* The whole card is the button; the slide drawn in it is a picture. */
+.thumbHit {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+}
+.thumbNumber {
+	flex-shrink: 0;
+	min-width: 1.6em;
+}
+.thumbFrame {
+	position: relative;
+	flex: none;
+	overflow: hidden;
+	background: #fff;
+	border-radius: 2px;
+	box-shadow: 0 0 0 1px var(--line-strong);
+	pointer-events: none;
+}
+.thumb[aria-current="true"] .thumbFrame {
+	box-shadow: 0 0 0 2px var(--accent);
+}
+.thumbFrame .slide {
+	box-shadow: none;
+	border-radius: 0;
+}
 .presentTrack {
 	display: flex;
 	align-items: center;

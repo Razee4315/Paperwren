@@ -1,13 +1,18 @@
 import { type FileRef, backend, formatBytes } from "@/lib/backend";
+import { isDesktop } from "@/lib/env";
 import { formatLabel, kindLabel, kindOf } from "@/lib/formats";
+import { inFullscreen, toggleFullscreen } from "@/lib/fullscreen";
 import { t } from "@/lib/i18n";
 import { printDocument } from "@/lib/print";
+import type { OpenRequest } from "@/lib/types";
 import { Button, Dialog, IconButton, Sheet, SheetItem, toast } from "@/ui";
 import {
 	AppWindow,
 	Download,
 	FolderOpen,
 	Info,
+	Maximize,
+	Minimize,
 	MoreVertical,
 	Printer,
 	Share2,
@@ -28,6 +33,9 @@ export interface ViewerFile {
 	file: FileRef;
 	/** Bytes, as read. */
 	size: number;
+	/** Show another file in place of this one (the next picture of a
+	 * folder): Back then leaves the viewer, not a trail of files. */
+	openOther?: (request: OpenRequest) => void;
 }
 
 export const ViewerFileContext = createContext<ViewerFile | null>(null);
@@ -156,11 +164,14 @@ export function HandOffItems({
  */
 export function FileMenu({
 	extra,
+	details: more,
 	onPrint,
 	active,
 }: {
 	/** The viewer's own items; `close` dismisses the menu. */
 	extra?: (close: () => void) => ReactNode;
+	/** What the viewer knows about the document, for Details. */
+	details?: Array<[string, string]>;
 	/** Lay the document out for paper inside `root`. */
 	onPrint?: (root: HTMLElement) => Promise<void> | void;
 	active: boolean;
@@ -209,10 +220,26 @@ export function FileMenu({
 			</IconButton>
 			<Sheet open={open} title={file.name} onClose={close} testId="file-menu">
 				{extra?.(close)}
+				{isDesktop && (
+					<SheetItem
+						icon={
+							inFullscreen() ? <Minimize size={20} /> : <Maximize size={20} />
+						}
+						shortcut="F11"
+						onClick={() => {
+							setOpen(false);
+							toggleFullscreen();
+						}}
+						testId="file-fullscreen"
+					>
+						{inFullscreen() ? t("Leave full screen") : t("Full screen")}
+					</SheetItem>
+				)}
 				<HandOffItems file={file} onDone={close} testPrefix="file" />
 				{onPrint && (
 					<SheetItem
 						icon={<Printer size={20} />}
+						shortcut="Ctrl+P"
 						onClick={print}
 						testId="file-print"
 					>
@@ -234,6 +261,7 @@ export function FileMenu({
 				<FileDetails
 					file={file}
 					size={size}
+					extra={more}
 					onClose={() => setDetails(false)}
 				/>
 			)}

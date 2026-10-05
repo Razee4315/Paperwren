@@ -34,6 +34,30 @@
 
 	--bar-h: 56px;
 	--content-max: 720px;
+	/* An icon button: a finger's width on a phone, a pointer's on a desk. */
+	--icon-btn: 44px;
+	/* Room the window's own buttons take at the right of the top bar. */
+	--win-controls: 0px;
+}
+
+/* ---------- Desktop ----------
+ * main.tsx sets these classes: `desktop` for the mouse-and-keyboard
+ * layout, `frame` where the app draws the window's frame itself. A
+ * phone has neither, so nothing here reaches it. */
+html.desktop {
+	--bar-h: 44px;
+	--icon-btn: 36px;
+	/* The webview's own pinch would scale the whole app; inside a
+	 * document the viewer takes the pinch itself (viewer/hooks.ts). */
+	touch-action: pan-x pan-y;
+}
+html.frame {
+	--win-controls: 138px;
+}
+/* Buttons and labels are not text to select; a document is (the
+ * viewer turns selection back on for it). */
+html.desktop body {
+	user-select: none;
 }
 
 /* ---------- Themes ----------

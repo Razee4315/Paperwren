@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { type Page, expect } from "@playwright/test";
 
-export async function boot(page: Page, storage: Record<string, unknown> = {}) {
+/** Start the app with `storage` already saved. `query` picks a layout:
+ * "?desktop" for the desktop one (the phone layout is the default). */
+export async function boot(
+	page: Page,
+	storage: Record<string, unknown> = {},
+	query = "",
+) {
 	const seeded = { onboarded: true, ...storage };
 	await page.addInitScript((entries) => {
 		if (sessionStorage.getItem("booted")) return;
@@ -9,7 +15,7 @@ export async function boot(page: Page, storage: Record<string, unknown> = {}) {
 		for (const [k, v] of Object.entries(entries))
 			localStorage.setItem(`paperwren.${k}`, JSON.stringify(v));
 	}, seeded);
-	await page.goto("/");
+	await page.goto(`/${query}`);
 	await expect(page.getByTestId("home")).toBeVisible();
 }
 
