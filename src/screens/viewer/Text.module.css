@@ -128,3 +128,34 @@
 	border-top: 1px solid var(--line);
 	margin: 2em 0;
 }
+/* "Wrap lines" off: a line keeps its length and the page pans. */
+.wide {
+	width: max-content;
+	min-width: 100%;
+}
+.nowrap {
+	max-width: none;
+	white-space: pre;
+	overflow-wrap: normal;
+}
+/* Line numbers: each line is its own box, counted in the margin. */
+.numbered {
+	counter-reset: line;
+	padding-inline-start: 0;
+}
+.numbered > div {
+	counter-increment: line;
+	position: relative;
+	padding-inline-start: 4.5em;
+	min-height: 1.6em;
+}
+.numbered > div::before {
+	content: counter(line);
+	position: absolute;
+	inset-inline-start: 0;
+	width: 3.6em;
+	text-align: end;
+	color: var(--text-3);
+	user-select: none;
+	font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,36 @@
+/* The window's own buttons, over the right end of the top bar. Above
+ * the scrim, dialogs and toasts: the window closes whatever is open. */
+.controls {
+	position: fixed;
+	top: 0;
+	right: 0;
+	z-index: 130;
+	display: flex;
+	width: var(--win-controls);
+	height: var(--bar-h);
+}
+.controls button {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	color: var(--text-2);
+	transition: background-color var(--t-fast) var(--ease), color var(--t-fast)
+		var(--ease);
+}
+.controls button:hover {
+	background: var(--surface-3);
+	color: var(--text);
+}
+.controls .close:hover {
+	background: #c42b1c;
+	color: #fff;
+}
+.restore {
+	transform: scaleX(-1);
+}
+/* Full screen has no window to move or close. */
+:global(html[data-fullscreen]) .controls {
+	display: none;
+}

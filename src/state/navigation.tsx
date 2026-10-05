@@ -26,6 +26,8 @@ declare global {
 interface NavApi {
 	state: NavState;
 	push: (screen: Screen) => void;
+	/** Put a screen in place of the one on top. */
+	replace: (screen: Screen) => void;
 	back: () => boolean;
 	/** Register an open overlay; its `close` runs when Back targets it. */
 	registerOverlay: (id: string, close: () => void) => () => void;
@@ -80,6 +82,10 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 		(screen: Screen) => dispatch({ type: "push", screen }),
 		[],
 	);
+	const replace = useCallback(
+		(screen: Screen) => dispatch({ type: "replace", screen }),
+		[],
+	);
 
 	useEffect(() => {
 		window.__paperwrenHandleBack = back;
@@ -114,8 +120,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 	}, [back]);
 
 	const api = useMemo(
-		() => ({ state, push, back, registerOverlay }),
-		[state, push, back, registerOverlay],
+		() => ({ state, push, replace, back, registerOverlay }),
+		[state, push, replace, back, registerOverlay],
 	);
 	return <NavContext.Provider value={api}>{children}</NavContext.Provider>;
 }

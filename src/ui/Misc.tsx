@@ -98,7 +98,13 @@ export function Spinner({ label = t("Opening") }: { label?: string }) {
  * a tap always gets visible feedback. */
 export function OpeningView({ name }: { name?: string }) {
 	return (
-		<div className={s.opening} data-testid="opening">
+		// Where the app draws the window's frame, the window can still be
+		// moved while a file opens (no bar of a screen is in reach then).
+		<div
+			className={s.opening}
+			data-testid="opening"
+			data-tauri-drag-region="deep"
+		>
 			<StateView>
 				<Spinner label={name ? t("Opening {name}", { name }) : t("Opening")} />
 			</StateView>

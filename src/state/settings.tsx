@@ -1,4 +1,5 @@
 import { backend } from "@/lib/backend";
+import { isDesktop, isTauri } from "@/lib/env";
 import { loadLanguage, resolveLanguage, setLanguage } from "@/lib/i18n";
 import {
 	migrateLegacySettings,
@@ -75,6 +76,25 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 		};
 	}, []);
 
+	// Desktop: each open document is a window of its own, and they share
+	// the settings. Coming back to a window, take up what was changed in
+	// another (the theme, most of all), so that this one does not write
+	// its older copy back over it.
+	useEffect(() => {
+		if (!ready || !isTauri || !isDesktop) return;
+		const refresh = () => {
+			loadSettings()
+				.then((fresh) =>
+					setSettings((mine) =>
+						JSON.stringify(mine) === JSON.stringify(fresh) ? mine : fresh,
+					),
+				)
+				.catch(() => {});
+		};
+		window.addEventListener("focus", refresh);
+		return () => window.removeEventListener("focus", refresh);
+	}, [ready]);
+
 	useEffect(() => {
 		const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
 		if (!mq) return;
@@ -89,6 +109,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 		document
 			.querySelector('meta[name="theme-color"]')
 			?.setAttribute("content", THEME_COLOR[theme]);
+		// Android draws the clock and battery over the app's top bar, and
+		// picks their colour from the phone's own light or dark mode. The
+		// app's theme need not be the phone's: tell the shell which it is.
+		try {
+			window.__paperwrenAndroidExtras?.systemBars?.(theme === "dark");
+		} catch {
+			// A shell from before this was added: the phone's choice stands.
+		}
 	}, [theme]);
 
 	// The interface language follows the setting as soon as it is known

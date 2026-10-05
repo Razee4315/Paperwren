@@ -1,11 +1,14 @@
+import { isDesktop } from "@/lib/env";
 import { t } from "@/lib/i18n";
 import { useBackClose } from "@/state/navigation";
 import { X } from "lucide-react";
 import {
+	type CSSProperties,
 	type ReactNode,
 	useCallback,
 	useEffect,
 	useId,
+	useLayoutEffect,
 	useRef,
 	useState,
 } from "react";
@@ -15,6 +18,78 @@ import s from "./Overlay.module.css";
 
 /** Open sheets and dialogs; the app is inert while there is one. */
 let modals = 0;
+
+/** True while a sheet, menu or dialog is open over the app. */
+export const modalOpen = () => modals > 0;
+
+/** Where the pointer last went down, and whether that was a right
+ * click: on a desktop a menu opens there, not at the foot of the
+ * window. */
+let pointer: { x: number; y: number; context: boolean } | null = null;
+if (typeof window !== "undefined") {
+	window.addEventListener(
+		"pointerdown",
+		(e) => {
+			pointer = { x: e.clientX, y: e.clientY, context: e.button === 2 };
+		},
+		true,
+	);
+	window.addEventListener(
+		"contextmenu",
+		(e) => {
+			pointer = { x: e.clientX, y: e.clientY, context: true };
+		},
+		true,
+	);
+}
+
+interface Box {
+	left: number;
+	right: number;
+	top: number;
+	bottom: number;
+}
+
+/** What a menu opening now hangs from: the point of a right click,
+ * else the button that has just been pressed. */
+function anchorBox(): Box | null {
+	const point = pointer && {
+		left: pointer.x,
+		right: pointer.x,
+		top: pointer.y,
+		bottom: pointer.y,
+	};
+	if (pointer?.context) return point;
+	const opener = document.activeElement;
+	if (opener instanceof HTMLElement && opener !== document.body) {
+		const r = opener.getBoundingClientRect();
+		if (r.width || r.height) return r;
+	}
+	return point;
+}
+
+const EDGE = 8;
+const GAP = 6;
+
+/** Place a menu `w` by `h` against its anchor, inside the window. */
+export function placeMenu(
+	anchor: Box | null,
+	w: number,
+	h: number,
+	vw: number,
+	vh: number,
+): { left: number; top: number } {
+	if (!anchor) return { left: (vw - w) / 2, top: Math.max(EDGE, (vh - h) / 3) };
+	// Hang towards the middle of the window: a button at the right edge
+	// opens its menu leftwards.
+	const leftwards = (anchor.left + anchor.right) / 2 > vw / 2;
+	let left = leftwards ? anchor.right - w : anchor.left;
+	left = Math.max(EDGE, Math.min(left, vw - w - EDGE));
+	let top = anchor.bottom + GAP;
+	if (top + h > vh - EDGE) top = anchor.top - GAP - h;
+	if (top < EDGE) top = Math.max(EDGE, vh - h - EDGE);
+	return { left, top };
+}
 
 /** Trap Tab inside `root`, close on Escape, restore focus on unmount.
  * A dialog that asks for something (a password, a page number) starts
@@ -64,43 +139,38 @@ function useModalFocus(
 	}, [root]);
 }
 
+interface PanelProps {
+	title: ReactNode;
+	onClose: () => void;
+	children: ReactNode;
+	testId?: string;
+}
+
 /** Bottom sheet. Dismiss: scrim tap, Escape, system Back, or a
- * downward drag on the handle area. */
+ * downward drag on the handle area. On a desktop a sheet of actions is
+ * a menu beside the button that opened it; `wide` keeps the sheet, for
+ * content that needs the room (a grid of pages). */
 export function Sheet({
 	open,
 	title,
 	onClose,
 	children,
 	testId,
-}: {
-	open: boolean;
-	title: ReactNode;
-	onClose: () => void;
-	children: ReactNode;
-	testId?: string;
-}) {
+	wide = false,
+}: PanelProps & { open: boolean; wide?: boolean }) {
 	const id = useId();
 	useBackClose(`sheet${id}`, open, onClose);
 	if (!open) return null;
+	const Panel = isDesktop && !wide ? MenuPanel : SheetPanel;
 	return createPortal(
-		<SheetPanel title={title} onClose={onClose} testId={testId}>
+		<Panel title={title} onClose={onClose} testId={testId}>
 			{children}
-		</SheetPanel>,
+		</Panel>,
 		document.body,
 	);
 }
 
-function SheetPanel({
-	title,
-	onClose,
-	children,
-	testId,
-}: {
-	title: ReactNode;
-	onClose: () => void;
-	children: ReactNode;
-	testId?: string;
-}) {
+function SheetPanel({ title, onClose, children, testId }: PanelProps) {
 	const ref = useRef<HTMLDivElement>(null);
 	const [drag, setDrag] = useState(0);
 	const start = useRef<number | null>(null);
@@ -159,10 +229,84 @@ function SheetPanel({
 	);
 }
 
+/** The desktop form of a sheet of actions: a menu at the pointer. */
+function MenuPanel({ title, onClose, children, testId }: PanelProps) {
+	const ref = useRef<HTMLDivElement>(null);
+	// Read before the menu takes the focus from the button it hangs on.
+	const [anchor] = useState(anchorBox);
+	const [at, setAt] = useState<CSSProperties>({ visibility: "hidden" });
+	useModalFocus(ref, onClose);
+
+	useLayoutEffect(() => {
+		const el = ref.current;
+		if (!el) return;
+		const place = () =>
+			setAt(
+				placeMenu(
+					anchor,
+					el.offsetWidth,
+					el.offsetHeight,
+					window.innerWidth,
+					window.innerHeight,
+				),
+			);
+		place();
+		window.addEventListener("resize", place);
+		return () => window.removeEventListener("resize", place);
+	}, [anchor]);
+
+	/** Up and Down walk the items, as in any menu. */
+	const onKey = (e: React.KeyboardEvent) => {
+		if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+		const items = [
+			...(ref.current?.querySelectorAll<HTMLElement>(
+				"button:not(:disabled), input",
+			) ?? []),
+		];
+		if (!items.length) return;
+		e.preventDefault();
+		const from = items.indexOf(document.activeElement as HTMLElement);
+		const step = e.key === "ArrowDown" ? 1 : -1;
+		const to = from < 0 ? (step > 0 ? 0 : -1) : from + step;
+		items[(to + items.length) % items.length].focus();
+	};
+
+	return (
+		<>
+			{/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer shortcut; Escape closes it from the keyboard */}
+			<div
+				className={s.veil}
+				onClick={onClose}
+				onContextMenu={(e) => {
+					e.preventDefault();
+					onClose();
+				}}
+				aria-hidden="true"
+			/>
+			<div
+				ref={ref}
+				className={s.menu}
+				// biome-ignore lint/a11y/useSemanticElements: the same items the sheet holds, as a menu
+				role="dialog"
+				aria-modal="true"
+				aria-label={typeof title === "string" ? title : undefined}
+				tabIndex={-1}
+				data-testid={testId}
+				style={at}
+				onKeyDown={onKey}
+			>
+				{children}
+			</div>
+		</>
+	);
+}
+
 export function SheetItem({
 	icon,
 	children,
 	hint,
+	shortcut,
+	checked,
 	danger,
 	onClick,
 	disabled,
@@ -171,6 +315,10 @@ export function SheetItem({
 	icon?: ReactNode;
 	children: ReactNode;
 	hint?: string;
+	/** The keys that do the same, shown beside the item on a desktop. */
+	shortcut?: string;
+	/** A choice that is on (a view mode, a toggle). */
+	checked?: boolean;
 	danger?: boolean;
 	onClick: () => void;
 	disabled?: boolean;
@@ -179,9 +327,10 @@ export function SheetItem({
 	return (
 		<button
 			type="button"
-			className={`${s.item} ${danger ? s.itemDanger : ""}`}
+			className={`${s.item} ${danger ? s.itemDanger : ""} ${checked ? s.itemOn : ""}`}
 			onClick={onClick}
 			disabled={disabled}
+			aria-pressed={checked}
 			data-testid={testId}
 		>
 			{icon}
@@ -189,6 +338,7 @@ export function SheetItem({
 				{children}
 				{hint && <span className={s.itemHint}>{hint}</span>}
 			</span>
+			{shortcut && isDesktop && <kbd className={s.itemKeys}>{shortcut}</kbd>}
 		</button>
 	);
 }

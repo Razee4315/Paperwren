@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { describe, expect, it, vi } from "vitest";
 import { type SlideElement, parsePptx, parsePptxAsync } from "./parse";
 
@@ -13,6 +14,20 @@ const texts = (els: SlideElement[]) =>
 	);
 
 describe("parsePptx", () => {
+	it("marks the slides the author hid, so a slide show can pass over them", () => {
+		// PowerPoint hides a slide by writing show="0" on its root.
+		const files = unzipSync(
+			new Uint8Array(readFileSync("fixtures/sample.pptx")),
+		);
+		const part = "ppt/slides/slide2.xml";
+		const xml = strFromU8(files[part]);
+		expect(xml).toContain("<p:sld ");
+		files[part] = strToU8(xml.replace("<p:sld ", '<p:sld show="0" '));
+		const hidden = parsePptx(zipSync(files)).slides.map((s) => !!s.hidden);
+		expect(hidden).toEqual([false, true, false]);
+		expect(deck().slides.some((s) => s.hidden)).toBe(false);
+	});
+
 	it("reads slide size and order", () => {
 		const p = deck();
 		expect(p.width).toBe(960);

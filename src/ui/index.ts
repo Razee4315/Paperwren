@@ -1,5 +1,13 @@
 export { Button, IconButton } from "./Button";
-export { Dialog, Sheet, SheetItem, ToastHost, toast } from "./Overlay";
+export {
+	Dialog,
+	Sheet,
+	SheetItem,
+	ToastHost,
+	modalOpen,
+	toast,
+} from "./Overlay";
+export { WindowControls } from "./WindowControls";
 export {
 	DropHint,
 	FileBadge,

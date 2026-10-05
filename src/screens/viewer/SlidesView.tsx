@@ -1,3 +1,4 @@
+import { isDesktop } from "@/lib/env";
 import { t, uiDir } from "@/lib/i18n";
 import type { DeckResult } from "@/lib/parseWorker";
 import {
@@ -11,10 +12,19 @@ import {
 } from "@/lib/pptx/parse";
 import { fitted } from "@/lib/print";
 import { useSettings } from "@/state/settings";
-import { Button, ErrorArt, IconButton, Spinner, StateView } from "@/ui";
+import {
+	Button,
+	ErrorArt,
+	IconButton,
+	Sheet,
+	SheetItem,
+	Spinner,
+	StateView,
+} from "@/ui";
 import {
 	ChevronLeft,
 	ChevronRight,
+	LayoutGrid,
 	Maximize,
 	Search,
 	StickyNote,
@@ -24,13 +34,22 @@ import {
 	useEffect,
 	useId,
 	useLayoutEffect,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
 import "@/styles/office-fonts.css";
+import { PageJump } from "./Dialogs";
 import d from "./Doc.module.css";
 import { Present } from "./Present";
-import { FindBar, Shell, ZoomControl, shellStyles } from "./Shell";
+import {
+	FindBar,
+	Shell,
+	type SideTab,
+	ZoomControl,
+	percentPresets,
+	shellStyles,
+} from "./Shell";
 import { SlideChart } from "./SlideChart";
 import s from "./Slides.module.css";
 import { useZoom, useZoomLevel } from "./hooks";
@@ -433,6 +452,102 @@ function SlideCanvas({
 	);
 }
 
+/** Width a slide is drawn at in the list of slides, in CSS pixels. */
+const THUMB_WIDTH = 150;
+const ZOOM_LEVELS = [50, 75, 100, 150, 200];
+
+/**
+ * Every slide as a small picture, to find one by its look: a strip
+ * beside the deck on a desktop, a grid in a sheet on a phone. A slide
+ * is only drawn once it has scrolled into view, so a long deck costs
+ * no more than the slides looked at.
+ */
+function SlideThumbs({
+	deck,
+	current,
+	onPick,
+	follow = false,
+}: {
+	deck: Presentation;
+	current: number;
+	onPick: (index: number) => void;
+	/** Keep the slide being read in view (the strip stays open). */
+	follow?: boolean;
+}) {
+	const grid = useRef<HTMLDivElement>(null);
+	const start = useRef(current);
+	const [drawn, setDrawn] = useState<ReadonlySet<number>>(() => new Set());
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the cells are those of this deck
+	useEffect(() => {
+		const root = grid.current;
+		if (!root) return;
+		const seen = new IntersectionObserver(
+			(entries) => {
+				const fresh = entries
+					.filter((entry) => entry.isIntersecting)
+					.map((entry) => Number((entry.target as HTMLElement).dataset.index));
+				if (!fresh.length) return;
+				setDrawn((before) => {
+					const after = new Set(before);
+					for (const i of fresh) after.add(i);
+					return after.size === before.size ? before : after;
+				});
+			},
+			{ root: root.parentElement, rootMargin: "400px 0px" },
+		);
+		for (const cell of root.children) seen.observe(cell);
+		root
+			.querySelector(`[data-index="${start.current}"]`)
+			?.scrollIntoView({ block: "center" });
+		return () => seen.disconnect();
+	}, [deck]);
+
+	useEffect(() => {
+		if (!follow) return;
+		grid.current
+			?.querySelector(`[data-index="${current}"]`)
+			?.scrollIntoView({ block: "nearest" });
+	}, [follow, current]);
+
+	const k = THUMB_WIDTH / deck.width;
+	return (
+		<div ref={grid} className={s.thumbs} data-testid="slide-thumbs">
+			{deck.slides.map((slide, i) => (
+				<div
+					key={i}
+					data-index={i}
+					className={`${s.thumb} ${slide.hidden ? s.hidden : ""}`}
+					aria-current={i === current ? "true" : undefined}
+				>
+					<button
+						type="button"
+						className={s.thumbHit}
+						aria-label={t("Slide {n}", { n: i + 1 })}
+						onClick={() => onPick(i)}
+						data-testid="slide-thumb"
+					/>
+					<span className={s.thumbNumber}>{i + 1}</span>
+					<div
+						className={s.thumbFrame}
+						style={{ width: THUMB_WIDTH, height: deck.height * k }}
+					>
+						{drawn.has(i) && (
+							<div style={{ zoom: k }}>
+								<SlideCanvas
+									slide={slide}
+									width={deck.width}
+									height={deck.height}
+								/>
+							</div>
+						)}
+					</div>
+				</div>
+			))}
+		</div>
+	);
+}
+
 type Loaded =
 	| { deck: Presentation; textOnly: boolean }
 	| { failed: "corrupt" | "password" };
@@ -504,6 +619,7 @@ export default function SlidesView({
 	const [notes, setNotes] = useState(false);
 	const [chromeHidden, setChromeHidden] = useState(false);
 	const [presenting, setPresenting] = useState(false);
+	const [thumbsOpen, setThumbsOpen] = useState(false);
 	const find = useDomFind(list, scroller);
 
 	useEffect(() => {
@@ -636,6 +752,31 @@ export default function SlidesView({
 
 	const total = deck?.slides.length ?? 0;
 	const hasNotes = deck?.slides.some((sl) => sl.notes) ?? false;
+	// A deck that hides every slide still has to show something.
+	const someShown = deck?.slides.some((sl) => !sl.hidden) ?? false;
+
+	const goToRef = useRef(goTo);
+	goToRef.current = goTo;
+	const side = useMemo<SideTab[]>(
+		() =>
+			deck && deck.slides.length > 1
+				? [
+						{
+							id: "slides",
+							label: t("Slides"),
+							content: (
+								<SlideThumbs
+									deck={deck}
+									current={current}
+									onPick={(i) => goToRef.current(i)}
+									follow
+								/>
+							),
+						},
+					]
+				: [],
+		[deck, current],
+	);
 
 	return (
 		<Shell
@@ -647,8 +788,25 @@ export default function SlidesView({
 			progressOf={scroller}
 			// Page Up / Down step through the slides here.
 			pageKeys={false}
+			side={side}
 			chromeHidden={chromeHidden && !find.open}
 			onFind={deck ? find.start : undefined}
+			menu={
+				deck && total > 1 && !isDesktop
+					? (close) => (
+							<SheetItem
+								icon={<LayoutGrid size={20} />}
+								onClick={() => {
+									close();
+									setThumbsOpen(true);
+								}}
+								testId="slides-grid"
+							>
+								{t("All slides")}
+							</SheetItem>
+						)
+					: undefined
+			}
 			onPrint={
 				deck
 					? (root) => {
@@ -671,7 +829,8 @@ export default function SlidesView({
 						</IconButton>
 					)}
 					<IconButton
-						label={t("Full screen")}
+						label={t("Slide show")}
+						shortcut="F5"
 						onClick={() => setPresenting(true)}
 						disabled={!total}
 						data-testid="slides-present"
@@ -680,7 +839,8 @@ export default function SlidesView({
 					</IconButton>
 					<IconButton
 						label={t("Find")}
-						onClick={find.start}
+						shortcut="Ctrl+F"
+						onClick={() => find.start()}
 						active={find.open}
 						disabled={!deck}
 						data-testid="slides-find"
@@ -699,9 +859,9 @@ export default function SlidesView({
 					/>
 				) : undefined
 			}
-			bottom={
+			pager={
 				deck ? (
-					<div className={shellStyles.pager}>
+					<>
 						<div className={shellStyles.group}>
 							<IconButton
 								label={t("Previous slide")}
@@ -710,9 +870,14 @@ export default function SlidesView({
 							>
 								<ChevronLeft size={22} className="pw-flip" />
 							</IconButton>
-							<span className={shellStyles.count} data-testid="slide-counter">
-								{current + 1} / {total}
-							</span>
+							<PageJump
+								page={Math.min(current + 1, Math.max(1, total))}
+								pages={total}
+								onGo={(n) => goTo(n - 1)}
+								what="slide"
+								testId="slide"
+								counterTestId="slide-counter"
+							/>
 							<IconButton
 								label={t("Next slide")}
 								disabled={current >= total - 1}
@@ -731,9 +896,17 @@ export default function SlidesView({
 							onIn={() => zoomBy(1.25)}
 							onReset={() => zoomTo(1)}
 							resetLabel={t("Fit to screen")}
+							presets={[
+								{
+									label: t("Fit"),
+									run: () => zoomTo(1),
+									on: Math.abs(zoom - 1) < 0.005,
+								},
+								...percentPresets(ZOOM_LEVELS, scale, (to) => zoomTo(to / fit)),
+							]}
 							testId="slides"
 						/>
-					</div>
+					</>
 				) : undefined
 			}
 		>
@@ -749,12 +922,17 @@ export default function SlidesView({
 							{deck.slides.map((slide, i) => (
 								<div
 									key={i}
-									className={s.frame}
+									className={`${s.frame} ${slide.hidden ? s.hidden : ""}`}
 									style={{
 										containIntrinsicSize: `${deck.width}px ${deck.height}px`,
 									}}
 									data-testid="slide"
 								>
+									{slide.hidden && (
+										<span className={s.tag} dir={uiDir()}>
+											{t("Hidden slide")}
+										</span>
+									)}
 									<SlideCanvas
 										slide={slide}
 										width={deck.width}
@@ -777,6 +955,8 @@ export default function SlidesView({
 					height={deck.height}
 					total={total}
 					start={current}
+					skip={(i) => someShown && !!deck.slides[i]?.hidden}
+					notes={hasNotes ? (i) => deck.slides[i]?.notes : undefined}
 					render={(i) => (
 						<SlideCanvas
 							slide={deck.slides[i]}
@@ -790,6 +970,23 @@ export default function SlidesView({
 					}}
 				/>
 			)}
+			<Sheet
+				open={thumbsOpen}
+				title={t("All slides")}
+				onClose={() => setThumbsOpen(false)}
+				wide
+			>
+				{deck && (
+					<SlideThumbs
+						deck={deck}
+						current={current}
+						onPick={(i) => {
+							setThumbsOpen(false);
+							goTo(i);
+						}}
+					/>
+				)}
+			</Sheet>
 			{!deck && !error && (
 				<StateView>
 					<Spinner label={t("Opening presentation")} />

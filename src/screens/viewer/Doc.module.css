@@ -37,6 +37,29 @@
 	flex-direction: column;
 	align-items: center;
 }
+/* Reading view: the text flows to the screen. The page's own margins
+ * and width belong to its paper, not to a phone. */
+.reading :global(.docx-wrapper) {
+	align-items: stretch;
+}
+.reading :global(.docx-wrapper > section.docx) {
+	width: auto !important;
+	max-width: 760px;
+	min-height: 0 !important;
+	margin-inline: auto !important;
+	padding: 20px 18px 28px !important;
+	column-count: 1 !important;
+	content-visibility: visible;
+	overflow-wrap: break-word;
+}
+.reading :global(section.docx img),
+.reading :global(section.docx svg) {
+	max-width: 100%;
+	height: auto;
+}
+.reading :global(section.docx table) {
+	max-width: 100%;
+}
 .docx :global(.docx-wrapper > section.docx) {
 	font-family: Calibri, Carlito, "Liberation Sans", Arial, sans-serif;
 	background: #fff;

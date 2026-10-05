@@ -1,20 +1,39 @@
+import { isDesktop } from "@/lib/env";
 import { t, uiDir } from "@/lib/i18n";
 import type { Block } from "@/lib/office/model";
 import type { DocResult } from "@/lib/parseWorker";
 import { sheet } from "@/lib/print";
-import { Button, ErrorArt, IconButton, Spinner, StateView } from "@/ui";
-import { Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+	Button,
+	ErrorArt,
+	IconButton,
+	Sheet,
+	SheetItem,
+	Spinner,
+	StateView,
+} from "@/ui";
+import { ListTree, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "@/styles/office-fonts.css";
 import d from "./Doc.module.css";
 import { RichDocument } from "./RichDocument";
-import { FindBar, Shell, ZoomControl, shellStyles } from "./Shell";
+import {
+	FindBar,
+	Shell,
+	type SideTab,
+	ZoomControl,
+	percentPresets,
+	shellStyles,
+} from "./Shell";
+import { type Heading, HeadingList, readHeadings } from "./headings";
 import { useScrollMemory, useZoom, useZoomLevel } from "./hooks";
 import { runWorker } from "./runWorker";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
 
 type Result = DocResult;
+
+const TEXT_SIZES = [80, 100, 125, 150, 200];
 
 async function extract(
 	props: ViewerProps,
@@ -66,6 +85,8 @@ export default function ReflowView(props: ViewerProps) {
 	const [result, setResult] = useState<Result | null>(null);
 	const [zoom, commit] = useZoomLevel(position);
 	const [chromeHidden, setChromeHidden] = useState(false);
+	const [headings, setHeadings] = useState<Heading[]>([]);
+	const [outlineOpen, setOutlineOpen] = useState(false);
 	const find = useDomFind(content, scroller);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: extract once per document
@@ -82,6 +103,11 @@ export default function ReflowView(props: ViewerProps) {
 	}, [props.data]);
 
 	const doc = result?.ok ? result.doc : null;
+	// The headings, read from the document once it is on the page.
+	useEffect(() => {
+		setHeadings(doc && content.current ? readHeadings(content.current) : []);
+	}, [doc]);
+
 	const { zoomBy, zoomTo } = useZoom({
 		scroller,
 		content: pages,
@@ -96,6 +122,36 @@ export default function ReflowView(props: ViewerProps) {
 		onTap: () => setChromeHidden((h) => !h),
 	});
 	useScrollMemory(scroller, !!result?.ok, position, onPosition, zoom);
+
+	const goToHeading = (heading: Heading) => {
+		const el = scroller.current;
+		if (!el || !heading.el.isConnected) return;
+		el.scrollTop +=
+			heading.el.getBoundingClientRect().top -
+			el.getBoundingClientRect().top -
+			12;
+	};
+	const pick = useRef(goToHeading);
+	pick.current = goToHeading;
+	const side = useMemo<SideTab[]>(
+		() =>
+			doc
+				? [
+						{
+							id: "contents",
+							label: t("Contents"),
+							content: (
+								<HeadingList
+									headings={headings}
+									onPick={(h) => pick.current(h)}
+									compact
+								/>
+							),
+						},
+					]
+				: [],
+		[doc, headings],
+	);
 
 	const note =
 		doc?.kind === "rich"
@@ -118,8 +174,25 @@ export default function ReflowView(props: ViewerProps) {
 			active={active}
 			hud={hud}
 			progressOf={scroller}
+			side={side}
 			chromeHidden={chromeHidden && !find.open}
 			onFind={doc ? find.start : undefined}
+			menu={
+				doc && !isDesktop && headings.length
+					? (close) => (
+							<SheetItem
+								icon={<ListTree size={20} />}
+								onClick={() => {
+									close();
+									setOutlineOpen(true);
+								}}
+								testId="doc-contents"
+							>
+								{t("Contents")}
+							</SheetItem>
+						)
+					: undefined
+			}
 			onPrint={
 				doc
 					? (root) => {
@@ -128,25 +201,29 @@ export default function ReflowView(props: ViewerProps) {
 						}
 					: undefined
 			}
-			bottom={
+			pager={
 				doc ? (
-					<div className={shellStyles.pager}>
-						<span className={shellStyles.meta}>{t("Text size")}</span>
+					<>
+						{!isDesktop && (
+							<span className={shellStyles.meta}>{t("Text size")}</span>
+						)}
 						<ZoomControl
 							label={`${Math.round(zoom * 100)}%`}
 							onOut={() => zoomBy(1 / 1.15)}
 							onIn={() => zoomBy(1.15)}
 							onReset={() => zoomTo(1)}
 							resetLabel={t("Reset text size")}
+							presets={percentPresets(TEXT_SIZES, zoom, zoomTo)}
 							testId="reflow"
 						/>
-					</div>
+					</>
 				) : undefined
 			}
 			actions={
 				<IconButton
 					label={t("Find")}
-					onClick={find.start}
+					shortcut="Ctrl+F"
+					onClick={() => find.start()}
 					active={find.open}
 					disabled={!doc}
 					data-testid="reflow-find"
@@ -224,6 +301,20 @@ export default function ReflowView(props: ViewerProps) {
 						{t("This file has no readable text.")}
 					</StateView>
 				)}
+			<Sheet
+				open={outlineOpen}
+				title={t("Contents")}
+				onClose={() => setOutlineOpen(false)}
+				wide
+			>
+				<HeadingList
+					headings={headings}
+					onPick={(h) => {
+						setOutlineOpen(false);
+						goToHeading(h);
+					}}
+				/>
+			</Sheet>
 		</Shell>
 	);
 }

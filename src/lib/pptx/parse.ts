@@ -136,6 +136,8 @@ export interface Slide {
 	background: string; // CSS background
 	elements: SlideElement[];
 	notes?: string;
+	/** The author hid this slide: a slide show passes over it. */
+	hidden?: boolean;
 }
 
 export interface Presentation {
@@ -1288,7 +1290,13 @@ function* readDeck(bytes: Uint8Array): Generator<undefined, Presentation> {
 			}
 			notes = texts.join("\n") || undefined;
 		}
-		slides.push({ background: bg, elements, notes });
+		slides.push({
+			background: bg,
+			elements,
+			notes,
+			// PowerPoint marks a hidden slide show="0" on its root.
+			...(attrOf(slideRoot, "show") === "0" ? { hidden: true } : {}),
+		});
 		yield;
 	}
 

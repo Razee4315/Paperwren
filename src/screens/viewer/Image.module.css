@@ -19,6 +19,7 @@
 	padding: 8px;
 }
 .frame {
+	position: relative;
 	flex: none;
 	box-shadow: var(--shadow-2);
 	/* A checkerboard would be noise; white reads as "paper". */
@@ -33,4 +34,12 @@
 .printed {
 	width: 100%;
 	height: auto;
+}
+/* Turned a quarter or a half: the picture keeps its own box and is
+ * spun about the middle of the frame, which has the turned size. */
+.turned {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	max-width: none;
 }

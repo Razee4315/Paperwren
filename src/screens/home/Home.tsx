@@ -1,4 +1,5 @@
 import { type FileRef, backend, formatBytes } from "@/lib/backend";
+import { isDesktop } from "@/lib/env";
 import { type FormatKind, kindOf } from "@/lib/formats";
 import { isolate, locale, msg, t } from "@/lib/i18n";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
@@ -241,7 +242,8 @@ export function Home({
 
 	return (
 		<div className={s.page} data-testid="home">
-			<header className={s.bar}>
+			{/* Where the app draws the window's frame, this bar moves the window. */}
+			<header className={s.bar} data-tauri-drag-region="deep">
 				<span className={s.logo}>
 					<Wren size={30} />
 				</span>
@@ -251,6 +253,18 @@ export function Home({
 						Paper<span className="brand-accent">wren</span>
 					</h1>
 				</div>
+				{isDesktop && (
+					<button
+						type="button"
+						className={s.open}
+						onClick={onOpenFile}
+						title={`${t("Open file")} (Ctrl+O)`}
+						data-testid="open-file"
+					>
+						<Plus size={18} strokeWidth={2.5} />
+						{t("Open file")}
+					</button>
+				)}
 				<IconButton
 					label={t("Settings")}
 					onClick={onSettings}
@@ -339,6 +353,11 @@ export function Home({
 									</span>
 								))}
 							</div>
+							{isDesktop && (
+								<p className={s.emptyBody} data-testid="drop-tip">
+									{t("Drop a file anywhere on this window, or press Ctrl+O.")}
+								</p>
+							)}
 							<p className={s.privacy}>
 								<ShieldCheck size={16} />{" "}
 								{t("No ads · no accounts · no tracking")}
@@ -401,15 +420,19 @@ export function Home({
 				</div>
 			</main>
 
-			<button
-				type="button"
-				className={s.fab}
-				onClick={onOpenFile}
-				data-testid="open-file"
-			>
-				<Plus size={22} strokeWidth={2.5} />
-				{t("Open file")}
-			</button>
+			{/* A thumb's button at the foot of a phone; on a desktop it is in
+			    the bar, beside Settings. */}
+			{!isDesktop && (
+				<button
+					type="button"
+					className={s.fab}
+					onClick={onOpenFile}
+					data-testid="open-file"
+				>
+					<Plus size={22} strokeWidth={2.5} />
+					{t("Open file")}
+				</button>
+			)}
 
 			<Sheet
 				open={sortOpen}

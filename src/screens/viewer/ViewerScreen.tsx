@@ -111,11 +111,14 @@ export default function ViewerScreen({
 	active,
 	onClose,
 	onLocate,
+	onReplace,
 }: {
 	request: OpenRequest;
 	active: boolean;
 	onClose: () => void;
 	onLocate: () => void;
+	/** Show another file in place of this one. */
+	onReplace: (request: OpenRequest) => void;
 }) {
 	const { entries, record, setPosition, markUnavailable, remove } =
 		useRecents();
@@ -315,6 +318,7 @@ export default function ViewerScreen({
 					reopen: request.reopen,
 				},
 				size: loaded.data.byteLength || loaded.size,
+				openOther: onReplace,
 			}}
 		>
 			<ViewerBoundary name={loaded.name} onClose={onClose}>

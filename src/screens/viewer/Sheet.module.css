@@ -314,3 +314,48 @@
 	background: var(--accent-soft);
 	color: var(--accent);
 }
+/* A cell that carries a link reads as one; where it leads is in the
+ * strip under the grid, to copy. */
+.linked {
+	color: var(--accent);
+	text-decoration: underline;
+}
+/* A cell with a note: the corner mark spreadsheet programs use. */
+.noted::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	right: 0;
+	border: 4px solid transparent;
+	border-top-color: var(--danger);
+	border-right-color: var(--danger);
+}
+.link,
+.note {
+	display: block;
+	font-size: 12px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.link {
+	color: var(--accent);
+}
+.note {
+	color: var(--text-2);
+	user-select: text;
+}
+:global(html.desktop) .bar {
+	min-height: 40px;
+}
+:global(html.desktop) .tab {
+	height: 28px;
+	font-size: 13px;
+}
+:global(html.desktop) .detail {
+	min-height: 36px;
+}
+/* What a cell holds can be selected and copied by hand too. */
+.value {
+	user-select: text;
+}

@@ -67,6 +67,10 @@ async function imagesReady(root: HTMLElement) {
 
 let printing = false;
 
+/** Thrown by a `fill` when the reader backed out of printing (closed
+ * the "which pages" question): the job ends quietly. */
+export class PrintCancelled extends Error {}
+
 /**
  * Print a document: the original file when the host can (exact), else
  * the page `fill` lays out for paper.
@@ -80,7 +84,13 @@ export async function printDocument(
 	try {
 		if (await backend.printOriginal(file)) return;
 		const root = printRoot();
-		await fill(root);
+		try {
+			await fill(root);
+		} catch (err) {
+			root.replaceChildren();
+			if (err instanceof PrintCancelled) return;
+			throw err;
+		}
 		await imagesReady(root);
 		// Let layout settle before the host snapshots the page.
 		await new Promise((resolve) => {

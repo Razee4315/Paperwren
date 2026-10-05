@@ -1,3 +1,4 @@
+import { isDesktop } from "@/lib/env";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import s from "./Button.module.css";
 
@@ -27,6 +28,7 @@ export function Button({
 
 export function IconButton({
 	label,
+	shortcut,
 	active = false,
 	className,
 	children,
@@ -34,6 +36,8 @@ export function IconButton({
 	...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
 	label: string;
+	/** The keys that do the same, named in the tooltip on a desktop. */
+	shortcut?: string;
 	active?: boolean;
 	children: ReactNode;
 }) {
@@ -45,7 +49,7 @@ export function IconButton({
 			type={type}
 			className={cls}
 			aria-label={label}
-			title={label}
+			title={shortcut && isDesktop ? `${label} (${shortcut})` : label}
 			{...rest}
 		>
 			{children}
