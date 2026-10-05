@@ -47,10 +47,17 @@ export const MIME_TYPES = [
 	"application/pdf",
 	"application/msword",
 	"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"application/vnd.ms-word.document.macroEnabled.12",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.template",
 	"application/vnd.ms-excel",
 	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	"application/vnd.ms-excel.sheet.macroEnabled.12",
+	"application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.template",
 	"application/vnd.ms-powerpoint",
 	"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	"application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+	"application/vnd.openxmlformats-officedocument.presentationml.slideshow",
 	"application/vnd.oasis.opendocument.text",
 	"application/vnd.oasis.opendocument.spreadsheet",
 	"application/vnd.oasis.opendocument.presentation",
@@ -66,6 +73,9 @@ export const MIME_TYPES = [
 	"text/tab-separated-values",
 	"text/markdown",
 	"text/plain",
+	"application/json",
+	"application/xml",
+	"text/xml",
 ];
 
 const data = MIME_TYPES.map(
@@ -115,6 +125,9 @@ function validateActivity(src) {
 		"__paperwrenHandleBack",
 		"__paperwrenAndroid",
 		"__paperwrenAndroidExtras",
+		"__paperwrenNativeError",
+		"fun immersive(on: Boolean, landscape: Boolean)",
+		"fun systemBars(dark: Boolean)",
 		"class PaperwrenFiles : FileProvider()",
 		'"$packageName.files"',
 	];
@@ -201,6 +214,13 @@ if (mode === "check") {
 		fail("launchMode missing.", once);
 	if (!once.includes('android:name=".PaperwrenFiles"'))
 		fail("FileProvider missing.", once);
+	// Each type appears once per filter (open-with, share), exactly.
+	for (const type of MIME_TYPES) {
+		const found = once.split(`android:mimeType="${type}"`).length - 1;
+		if (found !== 2) fail(`Intent filters list ${type} ${found} times.`, once);
+	}
+	if (new Set(MIME_TYPES).size !== MIME_TYPES.length)
+		fail("MIME_TYPES repeats a type.");
 	console.log(
 		"Android sources OK: activity validated, manifest patch idempotent, tao >= 0.37.",
 	);
