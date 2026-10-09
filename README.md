@@ -50,7 +50,7 @@ Every release is on the [releases page](https://github.com/Razee4315/Paperwren/r
 | Platform | File | Notes |
 |---|---|---|
 | Windows 10 and 11, 64-bit | `Paperwren_<version>_x64-setup.exe` or `Paperwren_<version>_x64_en-US.msi` | Registers Paperwren for the document types it opens. Drop a file on the window, double-click one, or press Ctrl+O |
-| macOS on Apple silicon | [`Paperwren_1.1.0_aarch64.dmg`](https://github.com/Razee4315/Paperwren/releases/download/v1.1.0/Paperwren_1.1.0_aarch64.dmg) | Drag Paperwren into Applications. It is not notarized by Apple, so the first time macOS declines to open it: allow it in System Settings, under Privacy & Security, with Open Anyway. Built by hand, so it can be a version behind the others |
+| macOS, Apple silicon and Intel | `Paperwren_<version>_universal.dmg` | Drag Paperwren into Applications. It is not notarized by Apple, so the first time macOS declines to open it: allow it in System Settings, under Privacy & Security, with Open Anyway |
 | Android 8.0 and later | `Paperwren-v<version>-android.apk` | One universal APK. Open a file from any app with "Open with", share one into Paperwren, or pick one inside it |
 
 ## What it opens
@@ -104,7 +104,7 @@ The desktop layout again, with the Mac's own manners:
 - **A pinch on the trackpad** zooms the document, about the point under the cursor.
 - **Double-click a document in Finder**, or drop one on the Dock icon, and it opens in the window that is already there. Paperwren offers itself under "Open with" and takes no file type over: make it the default for one in Finder, under File, Get Info.
 
-The download is for Apple silicon; on an Intel Mac, build it from the source (see [Development](#development)).
+The download is one file for Apple silicon and Intel. The app has been run on Apple silicon; the Intel half is built and checked by the release pipeline, but has not yet been run on an Intel Mac.
 
 ## Zoom and keyboard
 
@@ -249,18 +249,9 @@ The product and design documentation is in [`docs/`](docs/README.md); `docs/13-r
 
 ## Builds and releases
 
-A push to `main` runs CI (lint, type check, unit tests, Rust tests) and the release pipeline, which bumps the patch version and publishes a Windows installer, an Android APK and a Play bundle. With the upload keystore in the repository's secrets the bundle is signed for Google Play; without it the build falls back to a debug key and is only good for testing. Pull requests run the browser tests as well and build a debug APK (`validate.yml`).
+A push to `main` runs CI (lint, type check, unit tests, Rust tests) and the release pipeline, which bumps the patch version and publishes a Windows installer, a macOS disk image, an Android APK and a Play bundle. With the upload keystore in the repository's secrets the bundle is signed for Google Play; without it the build falls back to a debug key and is only good for testing. Pull requests run the browser tests as well and build a debug APK and the macOS disk image (`validate.yml`).
 
-The Mac app is not part of that pipeline. It is built on a Mac and added to a release by hand:
-
-```bash
-npx tauri build --bundles app
-mkdir -p dmg && cp -R src-tauri/target/release/bundle/macos/Paperwren.app dmg/ && ln -s /Applications dmg/Applications
-hdiutil create -volname Paperwren -srcfolder dmg -ov -format UDZO Paperwren_<version>_aarch64.dmg
-gh release upload v<version> Paperwren_<version>_aarch64.dmg
-```
-
-Then point the Mac row of the download table at the new file.
+The Mac app is built by the same pipeline, on a macOS runner: one universal disk image for Apple silicon and Intel, signed ad hoc and not notarized. Before it is attached to the release, `scripts/verify-macos-bundle.mjs` checks that the app carries both architectures and that the signature covers the whole bundle. That proves the packaging, not that the app runs: only a Mac does. Release 1.1.0 has a Mac build made by hand, for Apple silicon only (`Paperwren_1.1.0_aarch64.dmg`); 1.1.1 has none.
 
 ## License
 
