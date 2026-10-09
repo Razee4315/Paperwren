@@ -16,6 +16,7 @@ mod open;
 mod store;
 
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::SystemTime;
 
 use serde_json::Value;
@@ -25,6 +26,34 @@ use error::{AppError, AppResult};
 
 /// Size cap for managed copies before the oldest are evicted.
 const IMPORTS_MAX_BYTES: u64 = 250 * 1024 * 1024;
+
+/// Tells the window that documents are waiting in `Waiting`.
+#[cfg(target_os = "macos")]
+const OPEN_EVENT: &str = "paperwren-open";
+
+/// Documents the system handed the app that the window has not taken
+/// yet: the ones on the command line and, on macOS, the ones Finder
+/// asks for (which can arrive before the window is listening).
+struct Waiting(Mutex<Vec<String>>);
+
+impl Waiting {
+    fn at_launch() -> Self {
+        #[cfg(desktop)]
+        let files = open::launch_files(std::env::args_os().skip(1));
+        #[cfg(not(desktop))]
+        let files = Vec::new();
+        Self(Mutex::new(files))
+    }
+
+    fn take(&self) -> Vec<String> {
+        std::mem::take(&mut *self.0.lock().unwrap_or_else(|e| e.into_inner()))
+    }
+
+    #[cfg(target_os = "macos")]
+    fn add(&self, files: Vec<String>) {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).extend(files);
+    }
+}
 
 fn data_dir(app: &tauri::AppHandle, leaf: &str) -> AppResult<PathBuf> {
     Ok(app.path().app_data_dir()?.join(leaf))
@@ -91,18 +120,30 @@ async fn imports_prune(
     .await
 }
 
-/// Documents the app was started with (a double-clicked file, "Open
-/// with Paperwren"). Empty on mobile, where the system delivers
-/// files through intents instead.
+/// Documents the app was asked to open (a double-clicked file, "Open
+/// with Paperwren") since the window last took them: each is handed
+/// over once. Empty on mobile, where the system delivers files through
+/// intents instead.
 #[tauri::command]
-fn launch_files() -> Vec<String> {
-    #[cfg(desktop)]
-    {
-        open::launch_files(std::env::args_os().skip(1))
+fn launch_files(waiting: tauri::State<'_, Waiting>) -> Vec<String> {
+    waiting.take()
+}
+
+/// macOS asked the app to open documents: keep them for the window,
+/// tell it, and bring it forward.
+#[cfg(target_os = "macos")]
+fn opened(app: &tauri::AppHandle, urls: &[tauri::Url]) {
+    use tauri::Emitter;
+
+    let files = open::opened_files(urls);
+    if files.is_empty() {
+        return;
     }
-    #[cfg(not(desktop))]
-    {
-        Vec::new()
+    app.state::<Waiting>().add(files);
+    let _ = app.emit(OPEN_EVENT, ());
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.set_focus();
     }
 }
 
@@ -141,6 +182,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .manage(Waiting::at_launch())
         .invoke_handler(tauri::generate_handler![
             store_get,
             store_set,
@@ -152,6 +194,12 @@ pub fn run() {
             open_external,
             reveal_in_folder
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = &_event {
+                opened(_app, urls);
+            }
+        });
 }

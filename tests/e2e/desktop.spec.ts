@@ -294,6 +294,69 @@ test.describe("the desktop layout", () => {
 	});
 });
 
+/** The same layout as the Mac app has it: `&lights` for the system's
+ * window buttons over the left end of the bar, and the Mac's keys. */
+test.describe("the desktop layout on a Mac", () => {
+	test.use({ viewport: { width: 1280, height: 800 } });
+	const MAC = "?desktop&lights";
+	const left = async (page: Page, selector: string) =>
+		(await page.locator(selector).first().boundingBox())?.x ?? 0;
+
+	test("the bar leaves room for the window's buttons, and draws none", async ({
+		page,
+	}) => {
+		await boot(page, {}, MAC);
+		await expect(page.getByTestId("window-controls")).toHaveCount(0);
+		// Home: the mark starts clear of the three buttons.
+		expect(await left(page, '[data-testid="home"] header > *')).toBeGreaterThan(
+			80,
+		);
+		await expect(page.getByTestId("drop-tip")).toContainText("⌘O");
+
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		expect(
+			await left(page, '[data-testid="viewer"] header button'),
+		).toBeGreaterThan(76);
+		// Nothing is kept clear at the right, where Windows has its buttons.
+		const more = await page.getByTestId("file-more").boundingBox();
+		expect((more?.x ?? 0) + (more?.width ?? 0)).toBeGreaterThan(1260);
+	});
+
+	test("the keys are the Mac's", async ({ page }) => {
+		await boot(page, {}, MAC);
+		await page.getByTestId("open-settings").click();
+		const keys = page.getByTestId("shortcuts");
+		await expect(keys).toContainText("⌘O");
+		await expect(keys).toContainText("⌃⌘F");
+		await expect(keys).toContainText("⌘↑ · ⌘↓");
+		await expect(keys).not.toContainText("Ctrl");
+		await expect(keys).not.toContainText("F11");
+		await page.getByTestId("settings-back").click();
+
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		// ⌘↓ and ⌘↑: the end and the start of the document.
+		await page.keyboard.press("Meta+ArrowDown");
+		await expect.poll(() => scrollTop(page, "pdf-scroll")).toBeGreaterThan(500);
+		await page.keyboard.press("Meta+ArrowUp");
+		await expect.poll(() => scrollTop(page, "pdf-scroll")).toBe(0);
+		// ⌘F finds; ⌃⌘F is full screen and opens no search.
+		await page.keyboard.press("Control+Meta+f");
+		await expect(page.getByRole("search")).toHaveCount(0);
+		await page.keyboard.press("Meta+f");
+		await expect(page.getByRole("search")).toBeVisible();
+		await page.keyboard.press("Escape");
+		// ⌘W closes the document.
+		await page.keyboard.press("Meta+w");
+		await expect(page.getByTestId("viewer")).toHaveCount(0);
+	});
+});
+
 /** A plain PDF of `count` pages, each saying which it is: no fixture
  * is long enough to be asked "which pages?" before printing. */
 function longPdf(count: number): string {

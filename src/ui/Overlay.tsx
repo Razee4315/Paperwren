@@ -1,5 +1,6 @@
 import { isDesktop } from "@/lib/env";
 import { t } from "@/lib/i18n";
+import { keys } from "@/lib/keys";
 import { useBackClose } from "@/state/navigation";
 import { X } from "lucide-react";
 import {
@@ -338,7 +339,9 @@ export function SheetItem({
 				{children}
 				{hint && <span className={s.itemHint}>{hint}</span>}
 			</span>
-			{shortcut && isDesktop && <kbd className={s.itemKeys}>{shortcut}</kbd>}
+			{shortcut && isDesktop && (
+				<kbd className={s.itemKeys}>{keys(shortcut)}</kbd>
+			)}
 		</button>
 	);
 }

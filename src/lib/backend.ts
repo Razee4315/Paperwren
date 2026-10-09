@@ -87,9 +87,11 @@ interface Backend {
 	listFolder(folder: Folder): Promise<FolderFile[]>;
 	/** Stop holding access to a folder the user removed. */
 	forgetFolder(folder: Folder): void;
-	/** Files the app was started with (desktop: a double-clicked
-	 * document, "Open with Paperwren"). */
-	launchFiles(): Promise<OpenRequest[]>;
+	/** Files the system asks the app to open (desktop: a double-clicked
+	 * document, "Open with Paperwren"): the ones it was started with,
+	 * and on a Mac the ones that come while it runs. Returns an
+	 * unsubscribe. */
+	onOpenFiles(open: (requests: OpenRequest[]) => void): () => void;
 	/** The pictures in the folder a picture was opened from, itself
 	 * included, in name order. Empty where the folder cannot be read (a
 	 * phone is handed one file, not the folder around it). */
@@ -353,8 +355,8 @@ const browserBackend: Backend = {
 		if (folder.source.kind === "browser")
 			browserFolders.delete(folder.source.key);
 	},
-	async launchFiles() {
-		return [];
+	onOpenFiles() {
+		return () => {};
 	},
 	async picturesBeside() {
 		return [];
@@ -616,6 +618,9 @@ async function listDesktopFolder(root: string): Promise<FolderFile[]> {
 	return out;
 }
 
+/** The shell's word that files are waiting to be opened (lib.rs). */
+const OPEN_EVENT = "paperwren-open";
+
 /** The path or content:// URI native code can open. */
 function nativeTarget(file: FileRef): string {
 	const { reopen } = file;
@@ -758,15 +763,37 @@ const tauriBackend: Backend = {
 		if (folder.source.kind === "tree")
 			window.__paperwrenAndroidExtras?.releaseFolder(folder.source.uri);
 	},
-	async launchFiles() {
+	onOpenFiles(open) {
 		// Android delivers files through intents (see index.html).
-		if (window.__paperwrenAndroid) return [];
-		try {
-			const paths = await invoke<string[]>("launch_files");
-			return await Promise.all(paths.map(requestForPath));
-		} catch {
-			return [];
-		}
+		if (window.__paperwrenAndroid) return () => {};
+		// The shell hands each waiting file over once, so a file is never
+		// opened twice however often it is asked.
+		const take = () => {
+			invoke<string[]>("launch_files")
+				.then((paths) => Promise.all(paths.map(requestForPath)))
+				.then((requests) => {
+					if (requests.length) open(requests);
+				})
+				.catch(() => {});
+		};
+		take();
+		// macOS sends a running app the files to open, and the shell says
+		// when some are waiting. One may have come before this was
+		// listening, so they are asked for once more when it is.
+		let stop = () => {};
+		let cancelled = false;
+		import("@tauri-apps/api/event")
+			.then(({ listen }) => listen(OPEN_EVENT, take))
+			.then((unlisten) => {
+				if (cancelled) return unlisten();
+				stop = unlisten;
+				take();
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+			stop();
+		};
 	},
 	async picturesBeside(file) {
 		if (window.__paperwrenAndroid || file.reopen.kind !== "path") return [];

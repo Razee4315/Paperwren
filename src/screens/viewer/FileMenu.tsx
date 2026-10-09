@@ -3,6 +3,7 @@ import { isDesktop } from "@/lib/env";
 import { formatLabel, kindLabel, kindOf } from "@/lib/formats";
 import { inFullscreen, toggleFullscreen } from "@/lib/fullscreen";
 import { t } from "@/lib/i18n";
+import { FULLSCREEN_KEYS } from "@/lib/keys";
 import { printDocument } from "@/lib/print";
 import type { OpenRequest } from "@/lib/types";
 import { Button, Dialog, IconButton, Sheet, SheetItem, toast } from "@/ui";
@@ -225,7 +226,7 @@ export function FileMenu({
 						icon={
 							inFullscreen() ? <Minimize size={20} /> : <Maximize size={20} />
 						}
-						shortcut="F11"
+						shortcut={FULLSCREEN_KEYS}
 						onClick={() => {
 							setOpen(false);
 							toggleFullscreen();

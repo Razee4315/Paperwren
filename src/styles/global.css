@@ -38,12 +38,15 @@
 	--icon-btn: 44px;
 	/* Room the window's own buttons take at the right of the top bar. */
 	--win-controls: 0px;
+	/* And at its left, where a Mac keeps its three. */
+	--win-lights: 0px;
 }
 
 /* ---------- Desktop ----------
  * main.tsx sets these classes: `desktop` for the mouse-and-keyboard
- * layout, `frame` where the app draws the window's frame itself. A
- * phone has neither, so nothing here reaches it. */
+ * layout, `frame` where the app draws the window's frame itself,
+ * `lights` where the system's buttons sit over the app's bar (a Mac).
+ * A phone has none of them, so nothing here reaches it. */
 html.desktop {
 	--bar-h: 44px;
 	--icon-btn: 36px;
@@ -53,6 +56,13 @@ html.desktop {
 }
 html.frame {
 	--win-controls: 138px;
+}
+html.lights {
+	--win-lights: 76px;
+}
+/* A full-screen window has no buttons to leave room for. */
+html.lights[data-fullscreen] {
+	--win-lights: 0px;
 }
 /* Buttons and labels are not text to select; a document is (the
  * viewer turns selection back on for it). */

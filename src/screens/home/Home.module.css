@@ -17,7 +17,7 @@
 	gap: 12px;
 	padding: calc(10px + var(--safe-top))
 		calc(8px + var(--safe-right) + var(--win-controls)) 6px
-		calc(18px + var(--safe-left));
+		calc(18px + var(--safe-left) + var(--win-lights));
 	min-height: calc(64px + var(--safe-top));
 }
 /* "Open file" in the bar (desktop). */

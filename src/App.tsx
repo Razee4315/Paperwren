@@ -1,7 +1,8 @@
 import { backend, requestForManagedCopy } from "@/lib/backend";
-import { isDesktop, isTauri } from "@/lib/env";
+import { isDesktop, isMac, isTauri, sharesFrame } from "@/lib/env";
 import { toggleFullscreen, watchFullscreen } from "@/lib/fullscreen";
 import { language, subscribe, t } from "@/lib/i18n";
+import { isFullscreenKey } from "@/lib/keys";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { Home } from "@/screens/home/Home";
@@ -47,7 +48,7 @@ declare global {
 function Root() {
 	// Every screen is drawn from here, so a change of language redraws
 	// them all.
-	useSyncExternalStore(subscribe, language);
+	const lang = useSyncExternalStore(subscribe, language);
 	const { state, push, replace, back } = useNav();
 	const { entries, remove } = useRecents();
 	const nextKey = useRef(1);
@@ -123,63 +124,64 @@ function Root() {
 		return () => window.removeEventListener("paperwren-file", drain);
 	}, [open, finishWelcome]);
 
-	// Desktop: the document the app was started with (double-click,
-	// "Open with Paperwren") opens straight away.
-	useEffect(() => {
-		let alive = true;
-		backend.launchFiles().then((files) => {
-			if (!alive || !files.length) return;
+	// Desktop: files handed to the window open straight away, the first
+	// of them when there are several.
+	const openGiven = useCallback(
+		(requests: OpenRequest[]) => {
+			if (!requests.length) return;
 			finishWelcome();
-			open(files[0]);
-		});
-		return () => {
-			alive = false;
-		};
-	}, [open, finishWelcome]);
+			open(requests[0]);
+			if (requests.length > 1)
+				toast(t("Opened the first of {n} files", { n: requests.length }));
+		},
+		[open, finishWelcome],
+	);
 
-	// Desktop: drop a file anywhere on the window to open it.
+	// The document the app was started with (double-click, "Open with
+	// Paperwren"), and on a Mac one opened that way while it runs.
+	useEffect(() => backend.onOpenFiles(openGiven), [openGiven]);
+
+	// Drop a file anywhere on the window to open it.
 	const [dropping, setDropping] = useState(false);
 	useEffect(
-		() =>
-			backend.onFileDrop({
-				hover: setDropping,
-				drop: (requests) => {
-					if (!requests.length) return;
-					finishWelcome();
-					open(requests[0]);
-					if (requests.length > 1)
-						toast(t("Opened the first of {n} files", { n: requests.length }));
-				},
-			}),
-		[open, finishWelcome],
+		() => backend.onFileDrop({ hover: setDropping, drop: openGiven }),
+		[openGiven],
 	);
 
 	const entriesRef = useRef(entries);
 	entriesRef.current = entries;
 
 	// The keyboard, as a desktop reader has it: Ctrl+O opens a file,
-	// Ctrl+W closes what is open, Ctrl+F on Home goes to its search. In
-	// the app's own window the webview's reload and find-in-page keys
-	// would act on the app instead of the document, so they are not let
-	// through (a viewer's own Ctrl+F still opens its find bar).
+	// Ctrl+W closes what is open, Ctrl+F on Home goes to its search (⌘
+	// for Ctrl on a Mac). In the app's own window the webview's reload
+	// and find-in-page keys would act on the app instead of the document,
+	// so they are not let through (a viewer's own Ctrl+F still opens its
+	// find bar).
 	const deep = state.screens.length > 1;
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
 			const key = e.key.toLowerCase();
-			if (mod && !e.shiftKey && key === "o") {
+			if (isDesktop && isFullscreenKey(e)) {
+				e.preventDefault();
+				toggleFullscreen();
+			} else if (mod && !e.shiftKey && key === "o") {
 				e.preventDefault();
 				pick();
 			} else if (mod && !e.shiftKey && key === "w" && deep) {
 				e.preventDefault();
 				back();
-			} else if (e.altKey && !e.ctrlKey && e.key === "ArrowLeft" && deep) {
+			} else if (
+				e.altKey &&
+				!e.ctrlKey &&
+				e.key === "ArrowLeft" &&
+				deep &&
+				// On a Mac ⌥← in a field moves the caret a word back.
+				!(isMac && (e.target as Element | null)?.closest?.("input, textarea"))
+			) {
 				// Alt+Left goes back, as in a browser.
 				e.preventDefault();
 				back();
-			} else if (isDesktop && e.key === "F11") {
-				e.preventDefault();
-				toggleFullscreen();
 			} else if (isTauri && mod && ["=", "+", "-", "_", "0"].includes(e.key)) {
 				// The webview's own zoom would scale the whole app. Zoom
 				// belongs to the document: a viewer hears these keys itself
@@ -220,6 +222,33 @@ function Root() {
 	}, []);
 
 	useEffect(() => (isDesktop ? watchFullscreen() : undefined), []);
+
+	// A Mac's menu bar, in the app's language. Its commands press the
+	// keys above; Settings has no key of its own to press. Only a Mac
+	// loads the code for it.
+	const screensRef = useRef(state.screens);
+	screensRef.current = state.screens;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: built again when the language changes
+	useEffect(() => {
+		if (!isTauri || !sharesFrame) return;
+		import("@/lib/macMenu")
+			.then(({ installMenu }) =>
+				installMenu({
+					settings: () => {
+						if (!screensRef.current.some((s) => s.kind === "settings"))
+							push({ kind: "settings" });
+					},
+				}),
+			)
+			.catch(() => {});
+	}, [lang, push]);
+	const viewing = state.screens[state.screens.length - 1]?.kind === "viewer";
+	useEffect(() => {
+		if (!isTauri || !sharesFrame) return;
+		import("@/lib/macMenu")
+			.then(({ setMenuViewing }) => setMenuViewing(viewing))
+			.catch(() => {});
+	}, [viewing]);
 
 	// Android: the shell cannot translate, so a hand-off that fails there
 	// is said here.

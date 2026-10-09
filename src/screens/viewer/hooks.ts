@@ -60,7 +60,14 @@ const EASE = "cubic-bezier(0.2, 0, 0, 1)";
  * single digits. Capping keeps a notch to a gentle step. */
 const WHEEL_CAP = 26;
 
-type GestureKind = "pinch" | "wheel" | "glide";
+type GestureKind = "pinch" | "wheel" | "magnify" | "glide";
+
+/** WebKit's GestureEvent, which the DOM typings do not carry. */
+interface MagnifyEvent extends UIEvent {
+	scale: number;
+	clientX: number;
+	clientY: number;
+}
 
 interface Gesture {
 	kind: GestureKind;
@@ -82,7 +89,8 @@ interface Gesture {
 
 /**
  * Zoom for every viewer: two-finger pinch, Ctrl+wheel / trackpad
- * pinch, double-tap, Ctrl +/-/0 and the toolbar buttons.
+ * pinch (a Mac's webview reports that one as a gesture of its own),
+ * double-tap, Ctrl +/-/0 and the toolbar buttons.
  *
  * The point under the fingers (or cursor) stays put. While a gesture
  * is in flight the page is only scaled on the compositor, so it tracks
@@ -322,6 +330,20 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 			timer = window.setTimeout(finish, 180);
 		};
 
+		// --- a trackpad pinch on a Mac: WebKit sends it as gesture events
+		// that carry the scale since the fingers came down, not as a wheel ---
+		const onMagnify = (e: Event) => {
+			const { scale, clientX, clientY } = e as MagnifyEvent;
+			e.preventDefault();
+			if (e.type === "gesturestart") begin("magnify", clientX, clientY);
+			else if (g?.kind !== "magnify") return;
+			else if (e.type === "gesturechange") update(scale || 1, clientX, clientY);
+			else finish();
+		};
+
+		box.addEventListener("gesturestart", onMagnify);
+		box.addEventListener("gesturechange", onMagnify);
+		box.addEventListener("gestureend", onMagnify);
 		box.addEventListener("touchstart", onStart, { passive: false });
 		box.addEventListener("touchmove", onMove, { passive: false });
 		box.addEventListener("touchend", onEnd);
@@ -332,6 +354,9 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 			window.clearTimeout(tapTimer);
 			window.clearTimeout(hudTimer);
 			api.current = null;
+			box.removeEventListener("gesturestart", onMagnify);
+			box.removeEventListener("gesturechange", onMagnify);
+			box.removeEventListener("gestureend", onMagnify);
 			box.removeEventListener("touchstart", onStart);
 			box.removeEventListener("touchmove", onMove);
 			box.removeEventListener("touchend", onEnd);

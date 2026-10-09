@@ -13,6 +13,7 @@ const params =
 		: new URLSearchParams(window.location.search);
 const agent = typeof navigator === "undefined" ? "" : navigator.userAgent;
 const isPhoneAgent = /Android|iPhone|iPad/i.test(agent);
+const isMacAgent = /Macintosh|Mac OS X/i.test(agent) && !isPhoneAgent;
 
 /** Touch-first device (phones, tablets) or the ?touch dev override. */
 export const isTouch: boolean = (() => {
@@ -40,3 +41,16 @@ export const ownsFrame: boolean =
 	typeof window !== "undefined" &&
 	((isTauri && /Windows/i.test(agent) && !isPhoneAgent) ||
 		(isDesktop && params.has("frame")));
+
+/** The window keeps the system's three buttons, which sit over the left
+ * end of the app's bar (tauri.macos.conf.json), so the bar leaves room
+ * for them and is the title bar. ?lights shows that room in the dev
+ * server. */
+export const sharesFrame: boolean =
+	typeof window !== "undefined" &&
+	((isTauri && isMacAgent) || (isDesktop && params.has("lights")));
+
+/** A Mac: ⌘ where Windows has Ctrl, and the keys a Mac reader expects.
+ * ?frame, the Windows look, keeps the Windows keys on any machine. */
+export const isMac: boolean =
+	sharesFrame || (isMacAgent && !params.has("frame"));

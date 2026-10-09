@@ -34,6 +34,7 @@ Paperwren opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, CSV, Markdown a
 - [What it opens](#what-it-opens)
 - [Around the document](#around-the-document)
 - [On Windows](#on-windows)
+- [On a Mac](#on-a-mac)
 - [Zoom and keyboard](#zoom-and-keyboard)
 - [Look and feel](#look-and-feel)
 - [Privacy](#privacy)
@@ -49,6 +50,7 @@ Every release is on the [releases page](https://github.com/Razee4315/Paperwren/r
 | Platform | File | Notes |
 |---|---|---|
 | Windows 10 and 11, 64-bit | `Paperwren_<version>_x64-setup.exe` or `Paperwren_<version>_x64_en-US.msi` | Registers Paperwren for the document types it opens. Drop a file on the window, double-click one, or press Ctrl+O |
+| macOS on Apple silicon | [`Paperwren_1.1.0_aarch64.dmg`](https://github.com/Razee4315/Paperwren/releases/download/v1.1.0/Paperwren_1.1.0_aarch64.dmg) | Drag Paperwren into Applications. It is not notarized by Apple, so the first time macOS declines to open it: allow it in System Settings, under Privacy & Security, with Open Anyway. Built by hand, so it can be a version behind the others |
 | Android 8.0 and later | `Paperwren-v<version>-android.apk` | One universal APK. Open a file from any app with "Open with", share one into Paperwren, or pick one inside it |
 
 ## What it opens
@@ -91,6 +93,18 @@ The same web layer, laid out for a mouse and a keyboard:
 - **Full screen** for any document with F11; the bar returns while the pointer is at the top edge.
 - **The window opens where it was left**, as large as it was left. Each document opened from the file manager is a window of its own, and they share one list of recent files.
 - Type a page number straight into the bar; the zoom level opens a menu of sizes.
+
+## On a Mac
+
+The desktop layout again, with the Mac's own manners:
+
+- **The window keeps its three buttons**, over the left end of the bar, which is the title bar here too: drag it to move the window.
+- **A menu bar** in the app's language. Its commands are the ones the keys give: Open File, Close, Print, Find, the zoom, Full Screen, Settings.
+- **⌘ where Windows has Ctrl**, and the keys a Mac has in place of the ones its keyboard lacks: ⌃⌘F for full screen (which is the window's own, so the green button does the same), ⌘↑ and ⌘↓ for the start and the end of a document, ⌘G for the next match.
+- **A pinch on the trackpad** zooms the document, about the point under the cursor.
+- **Double-click a document in Finder**, or drop one on the Dock icon, and it opens in the window that is already there. Paperwren offers itself under "Open with" and takes no file type over: make it the default for one in Finder, under File, Get Info.
+
+The download is for Apple silicon; on an Intel Mac, build it from the source (see [Development](#development)).
 
 ## Zoom and keyboard
 
@@ -161,7 +175,15 @@ npm i --no-save @playwright/test && npx playwright install chromium
 npm run build && npx playwright test
 ```
 
-The browser shows the phone layout. Add `?desktop` to the address for the desktop one, and `?desktop&frame` to see the window buttons the app draws on Windows (`tests/e2e/desktop.spec.ts` covers both).
+The browser shows the phone layout. Add `?desktop` to the address for the desktop one, `?desktop&frame` to see the window buttons the app draws on Windows, and `?desktop&lights` for the room a Mac's bar leaves for the system's buttons, with the Mac's keys (`tests/e2e/desktop.spec.ts` covers them).
+
+The Mac app is built on a Mac, with Rust and the Xcode command line tools:
+
+```bash
+npx tauri build --bundles app   # src-tauri/target/release/bundle/macos/Paperwren.app
+```
+
+It is signed ad hoc, not by a developer account; copy it to `/Applications` to install it.
 
 Run all four checks (`lint`, `build`, `test`, `cargo test`) before pushing.
 
@@ -190,7 +212,7 @@ npm run build          # astro check + static build into website/dist
 
 ## Architecture
 
-One web layer runs everywhere; a thin Tauri 2 shell wraps it on Windows and Android.
+One web layer runs everywhere; a thin Tauri 2 shell wraps it on Windows, macOS and Android.
 
 ```
 src/
@@ -201,6 +223,7 @@ src/
     backend.ts    the one platform boundary (Tauri or browser)
     env.ts        which layout this is: phone, or desktop (?desktop in a browser)
     windowState.ts, fullscreen.ts   the desktop window: where it was left, F11
+    keys.ts, macMenu.ts   a Mac: shortcuts written with ⌘, and its menu bar
     i18n.ts       interface languages; locales/ holds the generated tables
     office/       legacy and ODF readers (.doc, .ppt, .odt, .odp, RTF),
                   and decryption of password-protected Office files
@@ -213,9 +236,10 @@ src/
   screens/        Home, Settings, viewer/ (one lazily loaded chunk per engine)
 src-tauri/
   src/            Rust core: store.rs (atomic JSON store), imports.rs (managed copies),
-                  open.rs (desktop hand-offs), error.rs
+                  open.rs (desktop hand-offs, the files Finder asks for), error.rs
   tauri.windows.conf.json   Windows only: no native frame, and the webview's
                   pinch reaches the app (the Android window is in tauri.android.conf.json)
+  tauri.macos.conf.json     macOS only: the system's window buttons over the app's bar
   android/        MainActivity.kt: Open with / Share ingestion, Back bridge, picker bridge,
                   share, print and folder hand-offs, the system bars (slide show, theme)
 scripts/          install-android.mjs (applies the activity + manifest), icon/signing helpers, fixtures
@@ -226,6 +250,17 @@ The product and design documentation is in [`docs/`](docs/README.md); `docs/13-r
 ## Builds and releases
 
 A push to `main` runs CI (lint, type check, unit tests, Rust tests) and the release pipeline, which bumps the patch version and publishes a Windows installer, an Android APK and a Play bundle. With the upload keystore in the repository's secrets the bundle is signed for Google Play; without it the build falls back to a debug key and is only good for testing. Pull requests run the browser tests as well and build a debug APK (`validate.yml`).
+
+The Mac app is not part of that pipeline. It is built on a Mac and added to a release by hand:
+
+```bash
+npx tauri build --bundles app
+mkdir -p dmg && cp -R src-tauri/target/release/bundle/macos/Paperwren.app dmg/ && ln -s /Applications dmg/Applications
+hdiutil create -volname Paperwren -srcfolder dmg -ov -format UDZO Paperwren_<version>_aarch64.dmg
+gh release upload v<version> Paperwren_<version>_aarch64.dmg
+```
+
+Then point the Mac row of the download table at the new file.
 
 ## License
 

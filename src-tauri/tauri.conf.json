@@ -51,6 +51,7 @@
         "name": "PDF document",
         "description": "PDF document",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "application/pdf"
       },
       {
@@ -62,6 +63,7 @@
         "name": "Word document",
         "description": "Word document",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
       },
       {
@@ -71,6 +73,7 @@
         "name": "Word 97-2003 document",
         "description": "Word 97-2003 document",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "application/msword"
       },
       {
@@ -83,6 +86,7 @@
         "name": "Excel workbook",
         "description": "Excel workbook",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       },
       {
@@ -92,6 +96,7 @@
         "name": "Excel 97-2003 workbook",
         "description": "Excel 97-2003 workbook",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "application/vnd.ms-excel"
       },
       {
@@ -102,6 +107,7 @@
         "name": "Comma-separated values",
         "description": "Comma-separated values",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "text/csv"
       },
       {
@@ -113,6 +119,7 @@
         "name": "PowerPoint presentation",
         "description": "PowerPoint presentation",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
       },
       {
@@ -123,6 +130,7 @@
         "name": "PowerPoint 97-2003 presentation",
         "description": "PowerPoint 97-2003 presentation",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "application/vnd.ms-powerpoint"
       },
       {
@@ -132,6 +140,7 @@
         "name": "OpenDocument text",
         "description": "OpenDocument text",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "application/vnd.oasis.opendocument.text"
       },
       {
@@ -141,6 +150,7 @@
         "name": "OpenDocument spreadsheet",
         "description": "OpenDocument spreadsheet",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "application/vnd.oasis.opendocument.spreadsheet"
       },
       {
@@ -150,6 +160,7 @@
         "name": "OpenDocument presentation",
         "description": "OpenDocument presentation",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "application/vnd.oasis.opendocument.presentation"
       },
       {
@@ -159,6 +170,7 @@
         "name": "Rich Text document",
         "description": "Rich Text document",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "application/rtf"
       },
       {
@@ -169,6 +181,7 @@
         "name": "Markdown document",
         "description": "Markdown document",
         "role": "Viewer",
+        "rank": "Alternate",
         "mimeType": "text/markdown"
       }
     ]
