@@ -128,57 +128,6 @@ jobs:
           releaseDraft: false
           prerelease: false
 
-  macos:
-    name: macOS disk image (universal)
-    needs: [check-and-bump, desktop]
-    if: needs.check-and-bump.outputs.should_release == 'true'
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      # macos-latest is an Apple silicon runner; the Intel half of the
-      # universal binary is cross-compiled, so one .dmg serves both.
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: ./src-tauri -> target
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Generate app icons
-        run: npx tauri icon assets/brand/app-icon.svg --output src-tauri/icons
-
-      # Signed ad hoc (bundle.macOS.signingIdentity is "-" in
-      # tauri.macos.conf.json), not notarized: the README tells users to
-      # allow it once with Open Anyway.
-      - name: Build universal app and disk image
-        run: npx tauri build --target universal-apple-darwin --bundles app,dmg
-
-      - name: Verify bundle (both architectures, ad hoc signature)
-        run: node scripts/verify-macos-bundle.mjs src-tauri/target/universal-apple-darwin/release/bundle
-
-      - name: Upload disk image to release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.check-and-bump.outputs.version }}
-          files: src-tauri/target/universal-apple-darwin/release/bundle/dmg/Paperwren_*_universal.dmg
-          fail_on_unmatched_files: true
-
   android:
     name: Android (Play AAB + APK)
     needs: [check-and-bump, desktop]
