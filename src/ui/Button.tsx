@@ -1,4 +1,5 @@
 import { isDesktop } from "@/lib/env";
+import { keys } from "@/lib/keys";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import s from "./Button.module.css";
 
@@ -49,7 +50,7 @@ export function IconButton({
 			type={type}
 			className={cls}
 			aria-label={label}
-			title={shortcut && isDesktop ? `${label} (${shortcut})` : label}
+			title={shortcut && isDesktop ? `${label} (${keys(shortcut)})` : label}
 			{...rest}
 		>
 			{children}

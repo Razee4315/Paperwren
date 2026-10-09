@@ -17,7 +17,7 @@
 	align-items: center;
 	gap: 4px;
 	padding: calc(8px + var(--safe-top)) calc(8px + var(--win-controls)) 4px
-		calc(4px + var(--safe-left));
+		calc(4px + var(--safe-left) + var(--win-lights));
 	min-height: calc(64px + var(--safe-top));
 }
 .title {

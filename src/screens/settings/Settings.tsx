@@ -1,6 +1,7 @@
 import { backend, formatBytes } from "@/lib/backend";
-import { isDesktop, isTauri, ownsFrame } from "@/lib/env";
+import { isDesktop, isMac, isTauri, ownsFrame, sharesFrame } from "@/lib/env";
 import { LANGUAGES, type LanguageSetting, msg, t, tn } from "@/lib/i18n";
+import { FULLSCREEN_KEYS, keys } from "@/lib/keys";
 import type { PdfZoom } from "@/lib/types";
 import { useNav } from "@/state/navigation";
 import { useRecents } from "@/state/recents";
@@ -64,17 +65,19 @@ const LICENSES: Array<[string, string]> = [
 	["Tauri", "MIT / Apache-2.0"],
 ];
 
-/** What the keyboard does, said once where a reader can find it. */
-const SHORTCUTS: Array<[string, string]> = [
+/** What the keyboard does, said once where a reader can find it. The
+ * keys are written the Windows way and shown as the machine has them
+ * (lib/keys.ts); a third entry is what a Mac presses instead. */
+const SHORTCUTS: Array<[keys: string, what: string, mac?: string]> = [
 	["Ctrl+O", msg("Open a file")],
 	["Ctrl+W", msg("Close the document")],
 	["Ctrl+F", msg("Find in the document")],
-	["F3 · Shift+F3", msg("Next and previous match")],
+	["F3 · Shift+F3", msg("Next and previous match"), "⌘G · ⇧⌘G"],
 	["Ctrl+P", msg("Print")],
 	["Ctrl + · Ctrl - · Ctrl 0", msg("Zoom in, zoom out, back to the fit")],
-	["F11", msg("Full screen")],
+	["F11", msg("Full screen"), FULLSCREEN_KEYS],
 	["Space · Page Up · Page Down", msg("Scroll a screen at a time")],
-	["Home · End", msg("The start and the end of the document")],
+	["Home · End", msg("The start and the end of the document"), "⌘↑ · ⌘↓"],
 	["← · →", msg("The previous and the next page or slide")],
 	["F5", msg("Start a slide show")],
 	["Ctrl+] · Ctrl+[", msg("Turn the pages of a PDF")],
@@ -363,21 +366,25 @@ export function SettingsScreen() {
 							<Group icon={<Keyboard size={15} />}>{t("Keyboard")}</Group>
 							<div className={s.card}>
 								<dl className={s.keys} data-testid="shortcuts">
-									{SHORTCUTS.map(([keys, what]) => (
-										<div key={keys}>
-											<dt dir="ltr">{keys}</dt>
+									{SHORTCUTS.map(([combo, what, mac]) => (
+										<div key={combo}>
+											<dt dir="ltr">{(isMac && mac) || keys(combo)}</dt>
 											<dd>{t(what)}</dd>
 										</div>
 									))}
 								</dl>
 							</div>
-							{isTauri && ownsFrame && (
+							{isTauri && (ownsFrame || sharesFrame) && (
 								<div className={s.card}>
 									<div className={s.prose}>
 										<p>
-											{t(
-												"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.",
-											)}
+											{sharesFrame
+												? t(
+														"To open documents with Paperwren by a double-click, select one in Finder, choose File, then Get Info, and pick Paperwren under Open with.",
+													)
+												: t(
+														"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.",
+													)}
 										</p>
 									</div>
 								</div>

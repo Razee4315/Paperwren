@@ -192,7 +192,7 @@ export function Shell({
 	useEffect(() => {
 		if (!active) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (e.defaultPrevented || modalOpen() || e.metaKey || e.altKey) return;
+			if (e.defaultPrevented || modalOpen() || e.altKey) return;
 			// Only when nothing else wants the keys: a field does, and so does
 			// the document once it has the keyboard (it scrolls on its own).
 			// A button in the bars that was just clicked does not.
@@ -204,10 +204,17 @@ export function Shell({
 			if (at && at !== document.body && !onBar) return;
 			const el = progressOf?.current ?? null;
 
-			if (e.ctrlKey) {
-				// Ctrl+Home and Ctrl+End: the first and the last page.
-				if (!el || (e.key !== "Home" && e.key !== "End")) return;
-				el.scrollTop = e.key === "Home" ? 0 : el.scrollHeight;
+			if (e.ctrlKey || e.metaKey) {
+				// Ctrl+Home and Ctrl+End: the first and the last page. A Mac's
+				// keyboard has neither key: there it is ⌘↑ and ⌘↓.
+				const end =
+					e.key === "End" || (e.metaKey && e.key === "ArrowDown")
+						? true
+						: e.key === "Home" || (e.metaKey && e.key === "ArrowUp")
+							? false
+							: null;
+				if (!el || end === null || (e.ctrlKey && e.metaKey)) return;
+				el.scrollTop = end ? el.scrollHeight : 0;
 				e.preventDefault();
 				return;
 			}
@@ -244,7 +251,8 @@ export function Shell({
 	useEffect(() => {
 		if (!active) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen()) return;
+			// ⌃⌘F is a Mac's full screen (App), not a ⌘F.
+			if (modalOpen() || (e.ctrlKey && e.metaKey)) return;
 			const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
 			const key = e.key.toLowerCase();
 			if (mod && key === "f") {
@@ -490,6 +498,7 @@ export function FindBar({
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			if (modalOpen() || e.defaultPrevented) return;
+			if (e.ctrlKey && e.metaKey) return;
 			const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
 			const key = e.key.toLowerCase();
 			if (e.key === "Escape") closeRef.current();

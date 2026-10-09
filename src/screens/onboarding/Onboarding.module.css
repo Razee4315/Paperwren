@@ -17,7 +17,8 @@
 	display: flex;
 	justify-content: flex-end;
 	min-height: 56px;
-	padding: 8px calc(12px + var(--win-controls)) 8px 12px;
+	padding: 8px calc(12px + var(--win-controls)) 8px
+		calc(12px + var(--win-lights));
 }
 .skip {
 	padding: 8px 14px;

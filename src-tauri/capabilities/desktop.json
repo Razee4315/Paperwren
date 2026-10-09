@@ -1,7 +1,7 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "desktop-capability",
-	"description": "Desktop windows. Paperwren is a viewer: the fs plugin gets read-only access so picked files can be read. No write, no network permissions. The broad read scope is load-bearing for one feature the dialog runtime scope cannot cover: reopening a recent from a PREVIOUS session resolves a plain path with no fresh user gesture. fs:default is already read-only, so the exposure is read-only by construction; desktop builds are internal (docs/12). Folder browsing adds read-dir and stat over the same read-only scope (list a folder the user chose, show sizes and dates). On Windows the app draws its own title bar (tauri.windows.conf.json turns the native frame off), so the window commands behind its buttons are allowed: minimise, maximise, close, drag, and restoring the size and place the window was left at.",
+	"description": "Desktop windows. Paperwren is a viewer: the fs plugin gets read-only access so picked files can be read. No write, no network permissions. The broad read scope is load-bearing for one feature the dialog runtime scope cannot cover: reopening a recent from a PREVIOUS session resolves a plain path with no fresh user gesture. fs:default is already read-only, so the exposure is read-only by construction; desktop builds are internal (docs/12). Folder browsing adds read-dir and stat over the same read-only scope (list a folder the user chose, show sizes and dates). On Windows the app draws its own title bar (tauri.windows.conf.json turns the native frame off), so the window commands behind its buttons are allowed: minimise, maximise, close, drag, and restoring the size and place the window was left at. On macOS the system's own window buttons stay, over the app's bar (tauri.macos.conf.json); full screen there is the window's, so setting it is allowed, and the menu bar is built by the web layer with the menu commands core:default already carries. macOS has no window.print() of its own in a webview: Tauri answers it through the print command, which only opens the system's print sheet for the page.",
 	"platforms": ["windows", "macOS", "linux"],
 	"windows": ["main"],
 	"permissions": [
@@ -14,6 +14,8 @@
 		"core:window:allow-start-dragging",
 		"core:window:allow-set-size",
 		"core:window:allow-set-position",
+		"core:window:allow-set-fullscreen",
+		"core:webview:allow-print",
 		"dialog:allow-open",
 		{
 			"identifier": "fs:default",

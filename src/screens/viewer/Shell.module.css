@@ -25,7 +25,7 @@
 	gap: 2px;
 	height: var(--bar-h);
 	padding: 0 calc(4px + var(--safe-right) + var(--win-controls)) 0
-		calc(4px + var(--safe-left));
+		calc(4px + var(--safe-left) + var(--win-lights));
 }
 /* The page counter and zoom control, in the bar on a desktop. */
 .tools {

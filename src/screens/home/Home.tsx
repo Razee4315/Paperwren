@@ -2,6 +2,7 @@ import { type FileRef, backend, formatBytes } from "@/lib/backend";
 import { isDesktop } from "@/lib/env";
 import { type FormatKind, kindOf } from "@/lib/formats";
 import { isolate, locale, msg, t } from "@/lib/i18n";
+import { keys } from "@/lib/keys";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
 import { MAX_FOLDERS, useFolders } from "@/state/folders";
@@ -258,7 +259,7 @@ export function Home({
 						type="button"
 						className={s.open}
 						onClick={onOpenFile}
-						title={`${t("Open file")} (Ctrl+O)`}
+						title={`${t("Open file")} (${keys("Ctrl+O")})`}
 						data-testid="open-file"
 					>
 						<Plus size={18} strokeWidth={2.5} />
@@ -355,7 +356,9 @@ export function Home({
 							</div>
 							{isDesktop && (
 								<p className={s.emptyBody} data-testid="drop-tip">
-									{t("Drop a file anywhere on this window, or press Ctrl+O.")}
+									{keys(
+										t("Drop a file anywhere on this window, or press Ctrl+O."),
+									)}
 								</p>
 							)}
 							<p className={s.privacy}>

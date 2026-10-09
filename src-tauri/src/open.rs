@@ -1,6 +1,7 @@
 //! Desktop hand-offs: files the app was launched with ("Open with
-//! Paperwren", a double-clicked document), and handing a document to
-//! the system's default app or file manager.
+//! Paperwren", a double-clicked document), files macOS asks a running
+//! app to open, and handing a document to the system's default app or
+//! file manager.
 //!
 //! These are the only commands that touch a path the user's document
 //! lives at. Each one validates that the path is an absolute path to
@@ -54,6 +55,21 @@ where
     args.into_iter()
         .filter_map(|arg| {
             let text = arg.as_ref().to_str()?.to_owned();
+            validated(&text).ok().map(|_| text)
+        })
+        .collect()
+}
+
+/// The documents among the URLs macOS asked the app to open. Finder
+/// does not put a double-clicked file on the command line: it sends
+/// the app an open event, at launch and while it is running.
+#[cfg(target_os = "macos")]
+pub fn opened_files(urls: &[tauri::Url]) -> Vec<String> {
+    urls.iter()
+        .filter(|url| url.scheme() == "file")
+        .filter_map(|url| url.to_file_path().ok())
+        .filter_map(|path| {
+            let text = path.to_str()?.to_owned();
             validated(&text).ok().map(|_| text)
         })
         .collect()
@@ -136,6 +152,25 @@ mod tests {
         // Only real documents among the launch arguments survive.
         let found = launch_files(["--flag", text, "relative.pdf"]);
         assert_eq!(found, vec![text.to_owned()]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn takes_only_documents_from_open_events() {
+        let dir = std::env::temp_dir().join(format!("paperwren-opened-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let file = dir.join("a report.txt");
+        std::fs::write(&file, b"hello").expect("write");
+        let url = |path: &Path| tauri::Url::from_file_path(path).expect("file url");
+        let urls = [
+            url(&file),
+            url(&dir.join("missing.pdf")),
+            url(&std::env::current_exe().expect("test binary path")),
+            tauri::Url::parse("https://example.com/remote.pdf").expect("url"),
+        ];
+        // The space in the name comes back out of the URL's %20.
+        assert_eq!(opened_files(&urls), vec![file.to_str().expect("utf-8").to_owned()]);
         std::fs::remove_dir_all(&dir).ok();
     }
 }

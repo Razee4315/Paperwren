@@ -1,0 +1,25 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"app": {
+		"windows": [
+			{
+				"label": "main",
+				"title": "Paperwren",
+				"width": 1080,
+				"height": 780,
+				"minWidth": 320,
+				"minHeight": 480,
+				"resizable": true,
+				"fullscreen": false,
+				"titleBarStyle": "Overlay",
+				"hiddenTitle": true,
+				"trafficLightPosition": { "x": 15, "y": 24 }
+			}
+		]
+	},
+	"bundle": {
+		"macOS": {
+			"signingIdentity": "-"
+		}
+	}
+}
