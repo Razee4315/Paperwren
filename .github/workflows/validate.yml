@@ -2,8 +2,9 @@ name: Validate
 
 # Non-release validation for working branches and PRs (audit
 # section 17.4): frontend lint/type/test, Rust checks, browser
-# integration tests, and an Android APK build uploaded as an
-# artifact. Never bumps versions, tags, or publishes releases.
+# integration tests, and an Android APK and a macOS disk image
+# uploaded as artifacts. Never bumps versions, tags, or publishes
+# releases.
 on:
   pull_request:
   workflow_dispatch:
@@ -106,6 +107,46 @@ jobs:
             test-results/
             playwright-report/
           if-no-files-found: ignore
+
+  # The same build as the release's macOS job, kept as an artifact: a
+  # disk image to try on a Mac before anything is published.
+  macos:
+    name: macOS disk image (universal)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Generate app icons
+        run: npx tauri icon assets/brand/app-icon.svg --output src-tauri/icons
+
+      - name: Build universal app and disk image
+        run: npx tauri build --target universal-apple-darwin --bundles app,dmg
+
+      - name: Verify bundle (both architectures, ad hoc signature)
+        run: node scripts/verify-macos-bundle.mjs src-tauri/target/universal-apple-darwin/release/bundle
+
+      - name: Upload disk image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Paperwren-macos-universal
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/Paperwren_*_universal.dmg
+          if-no-files-found: error
 
   android:
     name: Android APK (debug, arm64)
