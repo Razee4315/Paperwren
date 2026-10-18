@@ -1,15 +1,14 @@
-import { backend } from "@/lib/backend";
 import { t } from "@/lib/i18n";
 import {
 	type Signature,
-	inkBounds,
-	inkFromPaper,
+	inkFromPicture,
 	keepSignature,
 } from "@/lib/signatures";
 import { Button, Dialog, toast } from "@/ui";
 import { Check, ImageUp, Maximize, Minimize, Redo2, Undo2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import s from "./Tools.module.css";
+import { MAX_WIDTH, cut, hasInk, pickPicture, withPixels } from "./pictures";
 
 type Way = "draw" | "type" | "photo";
 
@@ -23,8 +22,6 @@ const HANDS = [
 const INKS = ["#111111", "#1a3c8c"];
 /** Pixels per CSS pixel the pad draws at, for a sharp signature. */
 const DENSITY = 2;
-/** The widest a kept signature is, in pixels. */
-const MAX_WIDTH = 1200;
 
 type Stroke = { points: Array<[number, number]>; width: number };
 type View = { scale: number; x: number; y: number };
@@ -64,39 +61,6 @@ function paint(
 		}
 		ctx.stroke();
 	}
-}
-
-/** What is drawn on `canvas`, cut to its ink, as a signature. */
-function cut(canvas: HTMLCanvasElement, initials: boolean): Signature | null {
-	const ctx = canvas.getContext("2d");
-	if (!ctx) return null;
-	const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-	const box = inkBounds(data, canvas.width, canvas.height, 8);
-	if (!box) return null;
-	const scale = Math.min(1, MAX_WIDTH / box.w);
-	const out = document.createElement("canvas");
-	out.width = Math.max(1, Math.round(box.w * scale));
-	out.height = Math.max(1, Math.round(box.h * scale));
-	out
-		.getContext("2d")
-		?.drawImage(
-			canvas,
-			box.x,
-			box.y,
-			box.w,
-			box.h,
-			0,
-			0,
-			out.width,
-			out.height,
-		);
-	return {
-		id: `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-		src: out.toDataURL("image/png"),
-		w: out.width,
-		h: out.height,
-		initials: initials || undefined,
-	};
 }
 
 /**
@@ -202,25 +166,22 @@ export function SignaturePad({
 	};
 
 	const fromPhoto = async () => {
-		const picked = await backend.pickFile().catch(() => null);
-		if (!picked) return;
+		let canvas: HTMLCanvasElement | null;
 		try {
-			const bytes = await backend.read(picked.reopen);
-			const bitmap = await createImageBitmap(new Blob([bytes]));
-			const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-			const canvas = document.createElement("canvas");
-			canvas.width = Math.round(bitmap.width * scale);
-			canvas.height = Math.round(bitmap.height * scale);
-			const ctx = canvas.getContext("2d");
-			if (!ctx) return;
-			ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-			const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-			inkFromPaper(image.data);
-			ctx.putImageData(image, 0, 0);
-			setPhoto(canvas);
+			canvas = await pickPicture();
 		} catch {
 			toast(t("That picture couldn't be read"));
+			return;
 		}
+		if (!canvas) return;
+		// A PNG with a clear background is used as it is; a photo of
+		// paper has its paper made clear.
+		withPixels(canvas, inkFromPicture);
+		if (!hasInk(canvas)) {
+			toast(t("No signature was found in that picture"));
+			return;
+		}
+		setPhoto(canvas);
 	};
 
 	/** The signature as made, drawn on a canvas of its own. */
@@ -271,8 +232,12 @@ export function SignaturePad({
 
 	const done = async () => {
 		const canvas = made();
-		const signature = canvas ? cut(canvas, initials) : null;
-		if (!signature) return;
+		const picture = canvas ? cut(canvas) : null;
+		if (!picture) {
+			toast(t("No signature was found in that picture"));
+			return;
+		}
+		const signature = { ...picture, initials: initials || undefined };
 		if (keep) await keepSignature(signature);
 		onDone(signature);
 	};
@@ -282,6 +247,7 @@ export function SignaturePad({
 	return (
 		<Dialog
 			open
+			wide
 			title={initials ? t("Your initials") : t("Your signature")}
 			onClose={fullScreen ? finishDrawing : onClose}
 			fullScreen={fullScreen}
@@ -311,12 +277,21 @@ export function SignaturePad({
 			}
 		>
 			{!fullScreen && (
-				<div className={s.ways} role="tablist">
+				<div
+					className={s.ways}
+					role="tablist"
+					style={
+						{
+							"--n": 3,
+							"--i": ["draw", "type", "photo"].indexOf(way),
+						} as CSSProperties
+					}
+				>
 					{(
 						[
 							["draw", t("Draw")],
 							["type", t("Type")],
-							["photo", t("Photo")],
+							["photo", t("Upload")],
 						] as const
 					).map(([value, label]) => (
 						<button
@@ -511,11 +486,12 @@ export function SignaturePad({
 							className={s.photoPreview}
 							src={photo.toDataURL("image/png")}
 							alt={t("Your signature")}
+							data-testid="signature-preview"
 						/>
 					) : (
 						<p className={s.hint}>
 							{t(
-								"Sign a white sheet of paper with a dark pen and take a photo of it. The paper is made clear.",
+								"Pick a PNG of your signature, or a photo of it signed on white paper. Paper is made clear.",
 							)}
 						</p>
 					)}
@@ -525,7 +501,7 @@ export function SignaturePad({
 						data-testid="signature-pick"
 					>
 						<ImageUp size={18} />{" "}
-						{photo ? t("Pick another") : t("Pick a photo")}
+						{photo ? t("Pick another") : t("Pick a picture")}
 					</Button>
 				</div>
 			)}

@@ -85,8 +85,12 @@ export interface DropHandlers {
 	drop(requests: OpenRequest[]): void;
 }
 
+/** What a signature or a stamp can be picked from. */
+const PICTURE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "bmp"];
+
 interface Backend {
-	pickFile(): Promise<OpenRequest | null>;
+	/** Ask for a document to open; with `pictures`, for a picture only. */
+	pickFile(options?: { pictures?: boolean }): Promise<OpenRequest | null>;
 	/** Files dragged onto the window (desktop). Returns an unsubscribe. */
 	onFileDrop(handlers: DropHandlers): () => void;
 	/** True where the user can pick a folder to browse. */
@@ -248,7 +252,7 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 const liveFiles = new Map<string, File>();
 const browserFolders = new Map<string, File[]>();
 
-function browserPick(): Promise<File | null> {
+function browserPick(extensions = PICKER_EXTENSIONS): Promise<File | null> {
 	const injected = window.__paperwrenTestFile;
 	if (injected) {
 		window.__paperwrenTestFile = undefined;
@@ -257,7 +261,7 @@ function browserPick(): Promise<File | null> {
 	return new Promise((resolve) => {
 		const input = document.createElement("input");
 		input.type = "file";
-		input.accept = PICKER_EXTENSIONS.map((e) => `.${e}`).join(",");
+		input.accept = extensions.map((e) => `.${e}`).join(",");
 		input.onchange = () => resolve(input.files?.[0] ?? null);
 		input.oncancel = () => resolve(null);
 		input.click();
@@ -333,8 +337,10 @@ const browserBackend: Backend = {
 	setTitle(title) {
 		document.title = title;
 	},
-	async pickFile() {
-		const file = await browserPick();
+	async pickFile(options) {
+		const file = await browserPick(
+			options?.pictures ? PICTURE_EXTENSIONS : undefined,
+		);
 		return file ? adoptBrowserFile(file) : null;
 	},
 	onFileDrop({ hover, drop }) {
@@ -728,12 +734,14 @@ const tauriBackend: Backend = {
 			.then(({ getCurrentWindow }) => getCurrentWindow().setTitle(title))
 			.catch(() => {});
 	},
-	async pickFile() {
+	async pickFile(options) {
 		const { open } = await import("@tauri-apps/plugin-dialog");
 		const picked = await open({
 			multiple: false,
-			title: t("Open a document"),
-			filters: [{ name: t("Documents"), extensions: PICKER_EXTENSIONS }],
+			title: options?.pictures ? t("Pick a picture") : t("Open a document"),
+			filters: options?.pictures
+				? [{ name: t("Pictures"), extensions: PICTURE_EXTENSIONS }]
+				: [{ name: t("Documents"), extensions: PICKER_EXTENSIONS }],
 		});
 		if (!picked || typeof picked !== "string") return null;
 		if (picked.startsWith("content://")) {

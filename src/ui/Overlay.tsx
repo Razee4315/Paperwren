@@ -358,6 +358,7 @@ export function Dialog({
 	art,
 	alert = false,
 	fullScreen = false,
+	wide = false,
 }: {
 	open: boolean;
 	title: string;
@@ -371,6 +372,8 @@ export function Dialog({
 	alert?: boolean;
 	/** Fill the available screen, with a flexible body between title and actions. */
 	fullScreen?: boolean;
+	/** Room for something to make (a signature, a stamp), not a question. */
+	wide?: boolean;
 }) {
 	const id = useId();
 	useBackClose(`dialog${id}`, open, onClose);
@@ -384,6 +387,7 @@ export function Dialog({
 			art={art}
 			alert={alert}
 			fullScreen={fullScreen}
+			wide={wide}
 		>
 			{children}
 		</DialogPanel>,
@@ -400,6 +404,7 @@ function DialogPanel({
 	art,
 	alert,
 	fullScreen,
+	wide,
 }: {
 	title: string;
 	children?: ReactNode;
@@ -409,6 +414,7 @@ function DialogPanel({
 	art?: ReactNode;
 	alert: boolean;
 	fullScreen: boolean;
+	wide: boolean;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
 	useModalFocus(ref, onClose);
@@ -417,7 +423,7 @@ function DialogPanel({
 			<div className={s.scrim} aria-hidden="true" />
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer shortcut; Escape and Back close it from the keyboard */}
 			<div
-				className={`${s.dialogWrap} ${fullScreen ? s.fullScreen : ""}`}
+				className={`${s.dialogWrap} ${fullScreen ? s.fullScreen : ""} ${wide ? s.wide : ""}`}
 				onClick={onClose}
 			>
 				{/* biome-ignore lint/a11y/useKeyWithClickEvents: only stops the click reaching the backdrop */}

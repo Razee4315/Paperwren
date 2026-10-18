@@ -158,6 +158,22 @@
 	gap: 8px;
 }
 
+/* A dialog to make something in (a signature, a stamp): room for it. */
+.wide .dialog {
+	max-width: 600px;
+	padding: 26px 28px 20px;
+	animation: pw-pop var(--t-slow) var(--ease);
+	box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+}
+@media (max-width: 560px) {
+	.wide {
+		padding: 12px;
+	}
+	.wide .dialog {
+		padding: 20px 16px 14px;
+	}
+}
+
 .fullScreen {
 	padding: 0;
 }

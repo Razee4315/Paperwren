@@ -1,3 +1,5 @@
+@import "@/styles/motion.css";
+
 /* ---------- Fill & sign: a full-screen editor ---------- */
 .fill {
 	position: fixed;
@@ -72,6 +74,17 @@
 	color: var(--text-2);
 	font-size: 13px;
 	font-weight: 650;
+	transition: background-color var(--t-med) var(--ease), color var(--t-med)
+		var(--ease), transform var(--t-fast) var(--ease);
+}
+.tool:active {
+	transform: scale(0.96);
+}
+.tool svg {
+	transition: transform var(--t-med) var(--ease);
+}
+.tool[aria-pressed="true"] svg {
+	transform: scale(1.12);
 }
 .tool:hover {
 	background: var(--surface-2);
@@ -322,6 +335,10 @@
 	cursor: grab;
 	touch-action: none;
 	user-select: none;
+	animation: pw-settle var(--t-slow) var(--ease);
+}
+.item:active {
+	cursor: grabbing;
 }
 .item[data-selected] {
 	outline: 1.5px dashed var(--accent);
@@ -383,25 +400,45 @@
 }
 
 /* ---------- The signature pad ---------- */
+/* Tabs whose highlight slides to the one chosen (--n tabs, --i chosen). */
 .ways {
+	position: relative;
 	display: flex;
 	gap: 4px;
-	padding: 3px;
-	margin-bottom: 12px;
+	padding: 4px;
+	margin-bottom: 14px;
 	border-radius: var(--r-m);
 	background: var(--surface-2);
 }
+.ways::before {
+	content: "";
+	position: absolute;
+	top: 4px;
+	bottom: 4px;
+	left: 4px;
+	width: calc((100% - 8px - (var(--n, 3) - 1) * 4px) / var(--n, 3));
+	border-radius: var(--r-s);
+	background: var(--surface);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+	transform: translateX(calc(var(--i, 0) * (100% + 4px)));
+	transition: transform var(--t-slow) var(--ease);
+}
+:global([dir="rtl"]) .ways::before {
+	left: auto;
+	right: 4px;
+	transform: translateX(calc(var(--i, 0) * (-100% - 4px)));
+}
 .way {
+	position: relative;
 	flex: 1;
-	height: 34px;
+	height: 38px;
 	border-radius: var(--r-s);
 	color: var(--text-2);
 	font-weight: 650;
+	transition: color var(--t-med) var(--ease);
 }
 .way[aria-selected="true"] {
-	background: var(--surface);
 	color: var(--text);
-	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 .padBox {
 	display: flex;
@@ -447,7 +484,7 @@
 .pad {
 	display: block;
 	width: 100%;
-	aspect-ratio: 3 / 1.2;
+	aspect-ratio: 3 / 1.25;
 	border: 1px solid var(--line-strong);
 	border-radius: var(--r-m);
 	background: #fff;
@@ -484,6 +521,11 @@
 	padding: 0;
 	border: 1px solid var(--line-strong);
 	border-radius: 50%;
+	transition: border-color var(--t-med) var(--ease), background-color
+		var(--t-med) var(--ease), transform var(--t-fast) var(--ease);
+}
+.inkDot:active {
+	transform: scale(0.9);
 }
 .inkDot > span {
 	display: grid;
@@ -565,16 +607,21 @@
 	border-color: var(--accent);
 }
 .hand {
-	min-height: 64px;
-	padding: 6px 14px;
+	min-height: 72px;
+	padding: 6px 16px;
 	overflow: hidden;
 	border: 1px solid var(--line);
 	border-radius: var(--r-m);
 	background: #fff;
-	font-size: 34px;
+	font-size: 38px;
 	text-align: start;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	transition: border-color var(--t-med) var(--ease), box-shadow var(--t-med)
+		var(--ease), transform var(--t-fast) var(--ease);
+}
+.hand:active {
+	transform: scale(0.99);
 }
 .hand[aria-pressed="true"] {
 	border-color: var(--accent);
@@ -588,9 +635,10 @@
 }
 .photoPreview {
 	max-width: 100%;
-	max-height: 160px;
+	max-height: 220px;
 	border-radius: var(--r-m);
 	background: repeating-conic-gradient(#eee 0 25%, #fff 0 50%) 0 0 / 16px 16px;
+	animation: pw-settle var(--t-slow) var(--ease);
 }
 .hint {
 	margin: 0 0 4px;
@@ -621,11 +669,16 @@
 }
 .keptPick {
 	flex: 1;
-	height: 72px;
-	padding: 6px;
+	height: 84px;
+	padding: 8px;
 	border: 1px solid var(--line);
 	border-radius: var(--r-m);
 	background: #fff;
+	transition: border-color var(--t-med) var(--ease), box-shadow var(--t-med)
+		var(--ease), transform var(--t-fast) var(--ease);
+}
+.keptPick:active {
+	transform: scale(0.98);
 }
 .keptPick img {
 	width: 100%;
@@ -634,6 +687,120 @@
 }
 .keptPick:hover {
 	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ---------- Stamps ---------- */
+.stampStage {
+	display: grid;
+	place-items: center;
+	grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+	height: 200px;
+	overflow: hidden;
+	margin-bottom: 14px;
+	padding: 16px;
+	border: 1px solid var(--line);
+	border-radius: var(--r-l, 16px);
+	background: #fff;
+}
+.stampStage[data-empty] {
+	border-style: dashed;
+	background: var(--surface-2);
+}
+.stampStage .hint {
+	max-width: 36ch;
+	margin: 0;
+}
+.stampPreview {
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	object-fit: contain;
+	animation: pw-settle var(--t-slow) var(--ease);
+}
+.stampMake {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	text-align: start;
+}
+.presets {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.preset {
+	min-height: 36px;
+	padding: 0 14px;
+	border: 1px solid var(--line-strong);
+	border-radius: 999px;
+	color: var(--text-2);
+	font-size: 12px;
+	font-weight: 750;
+	letter-spacing: 0.04em;
+	transition: background-color var(--t-med) var(--ease), border-color
+		var(--t-med) var(--ease), color var(--t-med) var(--ease), transform
+		var(--t-fast) var(--ease);
+}
+.preset:hover {
+	border-color: var(--accent);
+	color: var(--text);
+}
+.preset:active {
+	transform: scale(0.95);
+}
+.preset[aria-pressed="true"] {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+.stampOptions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+.shapes {
+	display: flex;
+	gap: 8px;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+.shape {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 44px;
+	padding: 0 14px;
+	border: 1px solid var(--line);
+	border-radius: var(--r-m);
+	color: var(--text-2);
+	font-weight: 650;
+	transition: border-color var(--t-med) var(--ease), background-color
+		var(--t-med) var(--ease), color var(--t-med) var(--ease), transform
+		var(--t-fast) var(--ease);
+}
+.shape:active {
+	transform: scale(0.96);
+}
+.shape[aria-pressed="true"] {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+.shapeMark {
+	width: 18px;
+	height: 14px;
+	border: 2px solid currentColor;
+	border-radius: 3px;
+}
+.shapeMark[data-shape="round"] {
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
 }
 
 /* ---------- The tools screen ---------- */

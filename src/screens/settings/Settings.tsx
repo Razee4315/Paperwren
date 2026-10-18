@@ -9,7 +9,12 @@ import {
 } from "@/lib/env";
 import { LANGUAGES, type LanguageSetting, msg, t, tn } from "@/lib/i18n";
 import { FULLSCREEN_KEYS, keys } from "@/lib/keys";
-import { SIGNATURES_KEY, loadSignatures } from "@/lib/signatures";
+import {
+	SIGNATURES_KEY,
+	STAMPS_KEY,
+	loadSignatures,
+	loadStamps,
+} from "@/lib/signatures";
 import type { PageColor, PdfFlow, PdfZoom, ReadingFont } from "@/lib/types";
 import {
 	clearBookmarks,
@@ -183,8 +188,10 @@ export function SettingsScreen() {
 	const [confirmCopies, setConfirmCopies] = useState(false);
 	const bookmarkCount = useBookmarkCount();
 	const [signatureCount, setSignatureCount] = useState(0);
+	const [stampCount, setStampCount] = useState(0);
 	useEffect(() => {
 		loadSignatures().then((list) => setSignatureCount(list.length));
+		loadStamps().then((list) => setStampCount(list.length));
 	}, []);
 	const [showLicenses, setShowLicenses] = useState(false);
 
@@ -477,6 +484,30 @@ export function SettingsScreen() {
 										"{n} signatures and initials, kept only on this device",
 									)}
 								</span>
+							</span>
+						</button>
+						<button
+							type="button"
+							className={s.action}
+							disabled={stampCount === 0}
+							onClick={async () => {
+								const kept = await loadStamps();
+								await backend.storeSet(STAMPS_KEY, []).catch(() => {});
+								setStampCount(0);
+								toast(t("Stamps forgotten"), {
+									label: t("Undo"),
+									run: () =>
+										backend
+											.storeSet(STAMPS_KEY, kept)
+											.then(() => setStampCount(kept.length))
+											.catch(() => {}),
+								});
+							}}
+							data-testid="clear-stamps"
+						>
+							<span className={s.actionText}>
+								{t("Forget kept stamps")}
+								<span className={s.hint}>{t("Kept only on this device")}</span>
 							</span>
 						</button>
 						<button

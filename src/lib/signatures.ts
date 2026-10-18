@@ -18,10 +18,12 @@ export interface Signature {
 }
 
 export const SIGNATURES_KEY = "signatures_v1";
+/** Stamps are kept the same way, apart from signatures. */
+export const STAMPS_KEY = "stamps_v1";
 /** How many are kept: the newest first. */
 export const MAX_SIGNATURES = 6;
 /** Larger ones are not kept (a photo that was never trimmed). */
-const MAX_SRC = 400_000;
+export const MAX_SRC = 400_000;
 
 export function normalizeSignatures(raw: unknown): Signature[] {
 	if (!Array.isArray(raw)) return [];
@@ -42,28 +44,33 @@ export function normalizeSignatures(raw: unknown): Signature[] {
 		.slice(0, MAX_SIGNATURES);
 }
 
-export async function loadSignatures(): Promise<Signature[]> {
-	return normalizeSignatures(
-		await backend.storeGet(SIGNATURES_KEY).catch(() => null),
-	);
+async function loadKept(key: string): Promise<Signature[]> {
+	return normalizeSignatures(await backend.storeGet(key).catch(() => null));
 }
 
-export async function keepSignature(
-	signature: Signature,
-): Promise<Signature[]> {
+async function keep(key: string, picture: Signature): Promise<Signature[]> {
 	const list = [
-		signature,
-		...(await loadSignatures()).filter((s) => s.src !== signature.src),
+		picture,
+		...(await loadKept(key)).filter((s) => s.src !== picture.src),
 	].slice(0, MAX_SIGNATURES);
-	await backend.storeSet(SIGNATURES_KEY, list).catch(() => {});
+	await backend.storeSet(key, list).catch(() => {});
 	return list;
 }
 
-export async function forgetSignature(id: string): Promise<Signature[]> {
-	const list = (await loadSignatures()).filter((s) => s.id !== id);
-	await backend.storeSet(SIGNATURES_KEY, list).catch(() => {});
+async function forget(key: string, id: string): Promise<Signature[]> {
+	const list = (await loadKept(key)).filter((s) => s.id !== id);
+	await backend.storeSet(key, list).catch(() => {});
 	return list;
 }
+
+export const loadSignatures = () => loadKept(SIGNATURES_KEY);
+export const keepSignature = (signature: Signature) =>
+	keep(SIGNATURES_KEY, signature);
+export const forgetSignature = (id: string) => forget(SIGNATURES_KEY, id);
+
+export const loadStamps = () => loadKept(STAMPS_KEY);
+export const keepStamp = (stamp: Signature) => keep(STAMPS_KEY, stamp);
+export const forgetStamp = (id: string) => forget(STAMPS_KEY, id);
 
 /** The smallest box around what is drawn (alpha above a trace), with
  * a little room, or null when nothing is. */
@@ -96,19 +103,33 @@ export function inkBounds(
 	};
 }
 
+/** The share of a picture that is see-through: a PNG made with a clear
+ * background has much of it, a photo has none. */
+export function clearShare(data: Uint8ClampedArray): number {
+	let clear = 0;
+	for (let i = 3; i < data.length; i += 4) if (data[i] < 250) clear++;
+	return data.length ? clear / (data.length / 4) : 0;
+}
+
 /**
  * A photo of a signature on paper, made into ink on nothing: the paper
  * (light, low in colour) turns clear, the ink keeps its colour and
  * grows more solid the darker it is. Works in place on RGBA pixels.
+ * A picture with no light paper in it is left as it is.
  */
 export function inkFromPaper(data: Uint8ClampedArray): void {
-	// The paper's brightness: the brightest tenth of the picture.
+	// The paper's brightness: the brightest tenth of what is solid. Clear
+	// pixels read as black, so they would pass for dark paper.
 	const levels = new Uint32Array(256);
-	for (let i = 0; i < data.length; i += 4)
+	let solidCount = 0;
+	for (let i = 0; i < data.length; i += 4) {
+		if (data[i + 3] < 250) continue;
 		levels[Math.round((data[i] + data[i + 1] + data[i + 2]) / 3)]++;
+		solidCount++;
+	}
 	let seen = 0;
 	let paper = 255;
-	const top = data.length / 4 / 10;
+	const top = solidCount / 10;
 	for (let v = 255; v >= 0; v--) {
 		seen += levels[v];
 		if (seen >= top) {
@@ -116,6 +137,7 @@ export function inkFromPaper(data: Uint8ClampedArray): void {
 			break;
 		}
 	}
+	if (!solidCount || paper < 96) return;
 	const clear = paper * 0.86;
 	const solid = paper * 0.45;
 	for (let i = 0; i < data.length; i += 4) {
@@ -123,6 +145,16 @@ export function inkFromPaper(data: Uint8ClampedArray): void {
 		const ink = v >= clear ? 0 : v <= solid ? 1 : (clear - v) / (clear - solid);
 		data[i + 3] = Math.round(data[i + 3] * ink);
 	}
+}
+
+/**
+ * A picture of a signature or a stamp, made ready to place: one already
+ * on a clear background (a PNG made for it) is kept as it is; a photo or
+ * a scan has its paper made clear.
+ */
+export function inkFromPicture(data: Uint8ClampedArray): void {
+	if (clearShare(data) >= 0.01) return;
+	inkFromPaper(data);
 }
 
 /** The bytes of a PNG data URL. */

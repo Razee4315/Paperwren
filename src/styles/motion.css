@@ -34,3 +34,18 @@
 		transform: translateY(100%);
 	}
 }
+/* Something placed or made appearing: it settles into place. */
+@keyframes pw-settle {
+	from {
+		opacity: 0;
+		transform: scale(1.06);
+	}
+}
+/* A dialog to make something in rises a little further than a question.
+ * No scale: a pad inside measures itself as it opens. */
+@keyframes pw-pop {
+	from {
+		opacity: 0;
+		transform: translateY(14px);
+	}
+}

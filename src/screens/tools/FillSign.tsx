@@ -11,7 +11,9 @@ import {
 import {
 	type Signature,
 	forgetSignature,
+	forgetStamp,
 	loadSignatures,
+	loadStamps,
 	pngBytes,
 } from "@/lib/signatures";
 import { useBackClose } from "@/state/navigation";
@@ -34,6 +36,7 @@ import {
 	PenLine,
 	Plus,
 	Signature as SignatureIcon,
+	Stamp,
 	Trash2,
 	Type,
 	X,
@@ -50,9 +53,12 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { SignaturePad } from "./SignaturePad";
+import { StampPad } from "./StampPad";
 import s from "./Tools.module.css";
 
-type Tool = "sign" | "initials" | "text" | "date" | "check" | "cross";
+type Tool = "sign" | "initials" | "stamp" | "text" | "date" | "check" | "cross";
+/** What is put on a page as a picture the reader made or picked. */
+type Kept = "sign" | "initials" | "stamp";
 
 /** A box on a page as shown: fractions of its width and height. */
 interface Box {
@@ -79,7 +85,7 @@ interface Field extends Box {
 interface Item extends Box {
 	id: string;
 	kind: Tool;
-	/** A signature's picture. */
+	/** A signature's or a stamp's picture. */
 	src?: string;
 	text?: string;
 }
@@ -254,9 +260,12 @@ export function FillSign({
 	const [selected, setSelected] = useState<string | null>(null);
 	const [editing, setEditing] = useState<string | null>(null);
 	const [signatures, setSignatures] = useState<Signature[]>([]);
-	const [chooser, setChooser] = useState<"sign" | "initials" | null>(null);
+	const [stamps, setStamps] = useState<Signature[]>([]);
+	const [chooser, setChooser] = useState<Kept | null>(null);
 	const [padFor, setPadFor] = useState<"sign" | "initials" | null>(null);
+	const [stampPad, setStampPad] = useState(false);
 	const [chosen, setChosen] = useState<Signature | null>(null);
+	const [chosenStamp, setChosenStamp] = useState<Signature | null>(null);
 	// A signature field tapped: the signature chosen next goes into it.
 	const target = useRef<Field | null>(null);
 	const [leaving, setLeaving] = useState(false);
@@ -283,6 +292,7 @@ export function FillSign({
 			if (alive) setSizes(out);
 		})().catch(() => {});
 		loadSignatures().then((list) => alive && setSignatures(list));
+		loadStamps().then((list) => alive && setStamps(list));
 		return () => {
 			alive = false;
 		};
@@ -366,6 +376,10 @@ export function FillSign({
 			setTool(null);
 			return;
 		}
+		// A signature or a stamp is made or chosen first; the tool in hand
+		// is put down meanwhile.
+		if (next === "sign" || next === "initials" || next === "stamp")
+			setTool(null);
 		if (next === "sign" || next === "initials") {
 			const kept = signatures.filter(
 				(sig) => !!sig.initials === (next === "initials"),
@@ -374,7 +388,18 @@ export function FillSign({
 			else setPadFor(next);
 			return;
 		}
+		if (next === "stamp") {
+			if (stamps.length) setChooser("stamp");
+			else setStampPad(true);
+			return;
+		}
 		setTool(next);
+	};
+	const stampWith = (stamp: Signature) => {
+		setChosenStamp(stamp);
+		setChooser(null);
+		setStampPad(false);
+		setTool("stamp");
 	};
 	const signWith = (signature: Signature, kind: "sign" | "initials") => {
 		setChosen(signature);
@@ -432,6 +457,13 @@ export function FillSign({
 			src = chosen.src;
 			w = tool === "sign" ? 0.3 : 0.12;
 			h = (w * pw) / (chosen.w / chosen.h) / ph;
+		} else if (tool === "stamp") {
+			if (!chosenStamp) return;
+			src = chosenStamp.src;
+			// About 5 cm across on A4; a tall stamp no taller than that.
+			const ratio = chosenStamp.w / chosenStamp.h;
+			w = Math.min(0.26, (0.2 * ph * ratio) / pw);
+			h = (w * pw) / ratio / ph;
 		} else if (tool === "text" || tool === "date") {
 			text =
 				tool === "date"
@@ -455,8 +487,10 @@ export function FillSign({
 		setItems((list) => [...list, item]);
 		setSelected(item.id);
 		if (tool === "text") setEditing(item.id);
-		// Signing again is one more tap; the other tools are one at a time.
-		if (tool !== "sign" && tool !== "initials") setTool(null);
+		// Signing or stamping again is one more tap; the other tools are one
+		// at a time.
+		if (tool !== "sign" && tool !== "initials" && tool !== "stamp")
+			setTool(null);
 	};
 
 	const save = async () => {
@@ -528,12 +562,14 @@ export function FillSign({
 	};
 
 	const shownKind = chooser ?? padFor;
-	const keptForChooser = signatures.filter(
-		(sig) => !!sig.initials === (chooser === "initials"),
-	);
+	const keptForChooser =
+		chooser === "stamp"
+			? stamps
+			: signatures.filter((sig) => !!sig.initials === (chooser === "initials"));
 	const tools: Array<[Tool, string, JSX.Element]> = [
 		["sign", t("Signature"), <PenLine key="s" size={20} />],
 		["initials", t("Initials"), <SignatureIcon key="i" size={20} />],
+		["stamp", t("Stamp"), <Stamp key="st" size={20} />],
 		["text", t("Text"), <Type key="t" size={20} />],
 		["date", t("Date"), <CalendarDays key="d" size={20} />],
 		["check", t("Tick"), <Check key="c" size={20} />],
@@ -720,7 +756,11 @@ export function FillSign({
 				<Sheet
 					open
 					title={
-						chooser === "initials" ? t("Your initials") : t("Your signature")
+						chooser === "stamp"
+							? t("Your stamp")
+							: chooser === "initials"
+								? t("Your initials")
+								: t("Your signature")
 					}
 					onClose={() => {
 						target.current = null;
@@ -733,14 +773,31 @@ export function FillSign({
 							<button
 								type="button"
 								className={s.keptPick}
-								onClick={() => signWith(sig, chooser)}
-								data-testid="signature-kept"
+								onClick={() =>
+									chooser === "stamp" ? stampWith(sig) : signWith(sig, chooser)
+								}
+								data-testid={
+									chooser === "stamp" ? "stamp-kept" : "signature-kept"
+								}
 							>
-								<img src={sig.src} alt={t("Your signature")} />
+								<img
+									src={sig.src}
+									alt={chooser === "stamp" ? t("Stamp") : t("Your signature")}
+								/>
 							</button>
 							<IconButton
-								label={t("Forget this signature")}
+								label={
+									chooser === "stamp"
+										? t("Forget this stamp")
+										: t("Forget this signature")
+								}
 								onClick={async () => {
+									if (chooser === "stamp") {
+										const list = await forgetStamp(sig.id);
+										setStamps(list);
+										if (!list.length) setChooser(null);
+										return;
+									}
 									const list = await forgetSignature(sig.id);
 									setSignatures(list);
 									if (
@@ -757,12 +814,17 @@ export function FillSign({
 						icon={<Plus size={20} />}
 						onClick={() => {
 							// The field waits for the new signature.
-							setPadFor(chooser);
+							if (chooser === "stamp") setStampPad(true);
+							else setPadFor(chooser);
 							setChooser(null);
 						}}
-						testId="signature-new"
+						testId={chooser === "stamp" ? "stamp-new" : "signature-new"}
 					>
-						{chooser === "initials" ? t("New initials") : t("New signature")}
+						{chooser === "stamp"
+							? t("New stamp")
+							: chooser === "initials"
+								? t("New initials")
+								: t("New signature")}
 					</SheetItem>
 				</Sheet>
 			)}
@@ -779,6 +841,18 @@ export function FillSign({
 							...list.filter((x) => x.src !== sig.src),
 						]);
 						signWith(sig, padFor);
+					}}
+				/>
+			)}
+			{stampPad && (
+				<StampPad
+					onClose={() => setStampPad(false)}
+					onDone={(stamp) => {
+						setStamps((list) => [
+							stamp,
+							...list.filter((x) => x.src !== stamp.src),
+						]);
+						stampWith(stamp);
 					}}
 				/>
 			)}
@@ -1157,7 +1231,11 @@ function PlacedItem({
 			data-testid="fill-item"
 		>
 			{item.src ? (
-				<img src={item.src} alt={t("Your signature")} draggable={false} />
+				<img
+					src={item.src}
+					alt={item.kind === "stamp" ? t("Stamp") : t("Your signature")}
+					draggable={false}
+				/>
 			) : item.kind === "check" || item.kind === "cross" ? (
 				item.kind === "check" ? (
 					<Check width="100%" height="100%" strokeWidth={3} color={INK} />

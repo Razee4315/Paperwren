@@ -12,7 +12,11 @@
 	white-space: nowrap;
 	user-select: none;
 	transition: background-color var(--t-fast) var(--ease), opacity var(--t-fast)
-		var(--ease);
+		var(--ease), transform var(--t-fast) var(--ease);
+}
+/* A press is felt: the button gives a little under the finger. */
+.button:active:not(:disabled) {
+	transform: scale(0.97);
 }
 .button:disabled {
 	opacity: 0.45;
@@ -60,7 +64,10 @@
 	border-radius: 999px;
 	color: var(--text-2);
 	transition: background-color var(--t-fast) var(--ease), color var(--t-fast)
-		var(--ease);
+		var(--ease), transform var(--t-fast) var(--ease);
+}
+.icon:active:not(:disabled) {
+	transform: scale(0.92);
 }
 .icon:hover:not(:disabled) {
 	background: var(--surface-2);
