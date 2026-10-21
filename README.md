@@ -19,7 +19,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Razee4315/Paperwren/releases/latest"><img src="https://img.shields.io/github/v/release/Razee4315/Paperwren?label=release&color=2b6e66" alt="Latest release" /></a>
+  <a href="https://github.com/Razee4315/Paperwren/releases/latest"><img src="https://img.shields.io/github/v/release/Razee4315/Paperwren?label=download&color=2b6e66" alt="Latest release" /></a>
+  <a href="https://github.com/Razee4315/Paperwren/releases"><img src="https://img.shields.io/github/downloads/Razee4315/Paperwren/total?color=2b6e66" alt="Downloads" /></a>
   <a href="https://github.com/Razee4315/Paperwren/actions/workflows/ci.yml"><img src="https://github.com/Razee4315/Paperwren/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2b6e66" alt="MIT license" /></a>
 </p>
