@@ -979,7 +979,11 @@ export function FindBar({
 			: "";
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: <search> is not yet in the React DOM typings
-		<div className={s.find} role="search">
+		<div
+			className={s.find}
+			role="search"
+			data-empty={state.query ? undefined : ""}
+		>
 			<input
 				ref={input}
 				type="search"
@@ -1027,6 +1031,7 @@ export function FindBar({
 			)}
 			<IconButton
 				label={t("Previous match")}
+				className={s.findStep}
 				shortcut="Shift+F3"
 				disabled={!state.total}
 				onClick={() => onStep(-1)}
@@ -1035,6 +1040,7 @@ export function FindBar({
 			</IconButton>
 			<IconButton
 				label={t("Next match")}
+				className={s.findStep}
 				shortcut="F3"
 				disabled={!state.total}
 				onClick={() => onStep(1)}

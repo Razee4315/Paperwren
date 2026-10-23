@@ -295,6 +295,21 @@
 	font-size: 13px;
 	color: var(--text-3);
 	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+/* Nothing to count yet: the room goes to the box, which on a phone is
+ * otherwise too narrow to show its own placeholder. */
+.findCount:empty {
+	min-width: 0;
+}
+/* A phone's bar is tight: the count takes only what it needs, and the
+ * steps between matches wait until there is something to look for. */
+:global(html:not(.desktop)) .findCount {
+	min-width: 0;
+	padding-inline: 4px;
+}
+:global(html:not(.desktop)) .find[data-empty] .findStep {
+	display: none;
 }
 /* A switch in the find bar: match case, whole words. */
 .findOption {
