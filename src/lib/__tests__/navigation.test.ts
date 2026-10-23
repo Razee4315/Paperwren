@@ -23,7 +23,11 @@ describe("navReducer", () => {
 		});
 		s = navReducer(s, {
 			type: "push",
-			screen: { kind: "viewer", request: req, key: 2 },
+			screen: {
+				kind: "viewer",
+				request: { ...req, id: "f2", reopen: { kind: "path", path: "/b.pdf" } },
+				key: 2,
+			},
 		});
 		expect(s.screens).toHaveLength(3);
 		s = navReducer(s, { type: "pop" });
@@ -40,6 +44,33 @@ describe("navReducer", () => {
 		expect(
 			navReducer(once, { type: "push", screen: { kind: "settings" } }),
 		).toBe(once);
+	});
+
+	it("opens a screen once when it is tapped twice", () => {
+		const viewer = navReducer(initialNav, {
+			type: "push",
+			screen: { kind: "viewer", request: req, key: 1 },
+		});
+		expect(
+			navReducer(viewer, {
+				type: "push",
+				screen: { kind: "viewer", request: req, key: 2 },
+			}),
+		).toBe(viewer);
+		const tools = navReducer(initialNav, {
+			type: "push",
+			screen: { kind: "tools" },
+		});
+		expect(navReducer(tools, { type: "push", screen: { kind: "tools" } })).toBe(
+			tools,
+		);
+		// A different tool, or the same one with a file, is a new screen.
+		expect(
+			navReducer(tools, {
+				type: "push",
+				screen: { kind: "tools", tool: "sign", file: req },
+			}).screens,
+		).toHaveLength(3);
 	});
 
 	it("tracks overlays without duplicates", () => {

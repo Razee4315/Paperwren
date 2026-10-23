@@ -39,13 +39,12 @@ export type NavAction =
 
 export function navReducer(state: NavState, action: NavAction): NavState {
 	switch (action.type) {
-		case "push": {
-			const top = state.screens[state.screens.length - 1];
-			// Settings is a singleton: opening it twice would stack copies.
-			if (action.screen.kind === "settings" && top.kind === "settings")
-				return state;
-			return { ...state, screens: [...state.screens, action.screen] };
-		}
+		case "push":
+			// A second tap before the first screen has slid in would stack a
+			// copy of it, and Back would have to be pressed twice.
+			return sameScreen(state.screens[state.screens.length - 1], action.screen)
+				? state
+				: { ...state, screens: [...state.screens, action.screen] };
 		case "pop":
 			return state.screens.length > 1
 				? { ...state, screens: state.screens.slice(0, -1) }
@@ -77,6 +76,17 @@ export function navReducer(state: NavState, action: NavAction): NavState {
 				overlays: state.overlays.filter((o) => o !== action.id),
 			};
 	}
+}
+
+/** The same screen, showing the same thing (a viewer's key is only
+ * which time it was opened). */
+function sameScreen(a: Screen, b: Screen): boolean {
+	if (a.kind !== b.kind) return false;
+	if (a.kind === "viewer" && b.kind === "viewer")
+		return a.request.id === b.request.id;
+	if (a.kind === "tools" && b.kind === "tools")
+		return a.tool === b.tool && a.file?.id === b.file?.id;
+	return true;
 }
 
 /** Whether Back has something to do inside the app. */
