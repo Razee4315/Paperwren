@@ -84,6 +84,16 @@ describe("friendlyName", () => {
 		expect(isOpaqueName("msf:1234")).toBe(true);
 		expect(isOpaqueName("document%3A5521")).toBe(true);
 		expect(isOpaqueName("Tax return 2026.pdf")).toBe(false);
+		expect(isOpaqueName("image%3A88")).toBe(true);
+	});
+
+	it("keeps a real name in any script", () => {
+		expect(isOpaqueName("договор.pdf")).toBe(false);
+		expect(isOpaqueName("报告.docx")).toBe(false);
+		expect(isOpaqueName("表.xlsx")).toBe(false);
+		expect(isOpaqueName("عقد 2026.pdf")).toBe(false);
+		expect(isOpaqueName("Relatório.pdf")).toBe(false);
+		expect(friendlyName("договор", "pdf")).toBe("договор.pdf");
 		expect(friendlyName("msf:1234", "pdf")).toBe("PDF document.pdf");
 		expect(friendlyName("1234", "xlsx")).toBe("Spreadsheet.xlsx");
 		expect(friendlyName("Budget", "xlsx")).toBe("Budget.xlsx");

@@ -279,11 +279,13 @@ const FRIENDLY: Record<FormatKind, string> = {
 };
 
 /** True for names that are really provider ids ("1234",
- * "msf:1234", "document:5521", "image%3A88"): no letters-only word. */
+ * "msf:1234", "document:5521", "image%3A88"): no word in any script
+ * ("договор", "报告" and "عقد" are words; one Chinese or Japanese
+ * character can be one too). */
 export function isOpaqueName(name: string): boolean {
 	const stem = name.replace(/\.[a-z0-9]{1,5}$/i, "");
 	if (!stem.trim()) return true;
-	return !/[a-z]{2,}/i.test(
+	return !/\p{L}{2,}|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(
 		stem.replace(/^(msf|document|raw|primary|image|video|audio)(%3a|:)/i, ""),
 	);
 }
