@@ -5,7 +5,7 @@ reportlab (for the locked PDF) and msoffcrypto-tool (for the locked Office
 files).
 Usage: python3 scripts/make-rich-fixtures.py
 Writes fixtures/viewer-regressions/{styled.xlsx,charts.pptx,rtl.pptx,grid.xlsx,
-effects.pptx,locked.pdf,locked-agile.xlsx,locked-standard.docx}.
+effects.pptx,locked.pdf,locked-agile.xlsx,locked-standard.docx,lists.docx}.
 """
 import os
 
@@ -391,6 +391,102 @@ def make_cjk_pdf(path):
     page.save()
 
 
+def make_lists_docx(path):
+    """Numbered lists the way Word stores them: a list with a nested
+    level, a second list that restarts at 1, a bulleted list, and a list
+    that carries on across a page break. Written by hand (python-docx
+    cannot make numbering parts)."""
+    import zipfile
+
+    w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+
+    def p(text, num=None, level=0):
+        pr = (
+            f'<w:pPr><w:numPr><w:ilvl w:val="{level}"/><w:numId w:val="{num}"/>'
+            "</w:numPr></w:pPr>"
+            if num
+            else ""
+        )
+        return f"<w:p>{pr}<w:r><w:t>{text}</w:t></w:r></w:p>"
+
+    page_break = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
+    body = (
+        p("Intro paragraph that can be selected to test highlight contrast.")
+        + p("First", 1) + p("Second", 1) + p("Sub a", 1, 1) + p("Sub b", 1, 1)
+        + p("Third", 1) + p("Break")
+        + p("Restart one", 2) + p("Restart two", 2) + p("Bullets")
+        + p("Bullet one", 3) + p("Bullet two", 3) + p("Across a page")
+        + p("Before the break one", 4) + p("Before the break two", 4)
+        + page_break
+        + p("After the break three", 4) + p("After the break four", 4)
+    )
+    sect = (
+        '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" '
+        'w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>'
+    )
+    document = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f"<w:document {w}><w:body>{body}{sect}</w:body></w:document>"
+    )
+
+    def level(i, fmt, text, indent):
+        return (
+            f'<w:lvl w:ilvl="{i}"><w:start w:val="1"/><w:numFmt w:val="{fmt}"/>'
+            f'<w:lvlText w:val="{text}"/><w:pPr><w:ind w:left="{indent}" '
+            'w:hanging="360"/></w:pPr></w:lvl>'
+        )
+
+    numbering = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:numbering {w}><w:abstractNum w:abstractNumId="0">'
+        '<w:multiLevelType w:val="multilevel"/>'
+        + level(0, "decimal", "%1.", 720)
+        + level(1, "lowerLetter", "%2.", 1440)
+        + '</w:abstractNum><w:abstractNum w:abstractNumId="1">'
+        '<w:multiLevelType w:val="hybridMultilevel"/>'
+        + level(0, "bullet", "•", 720)
+        + '</w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>'
+        '<w:num w:numId="2"><w:abstractNumId w:val="0"/><w:lvlOverride '
+        'w:ilvl="0"><w:startOverride w:val="1"/></w:lvlOverride></w:num>'
+        '<w:num w:numId="3"><w:abstractNumId w:val="1"/></w:num>'
+        '<w:num w:numId="4"><w:abstractNumId w:val="0"/><w:lvlOverride '
+        'w:ilvl="0"><w:startOverride w:val="1"/></w:lvlOverride></w:num>'
+        "</w:numbering>"
+    )
+    pkg = "http://schemas.openxmlformats.org/package/2006/"
+    office = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/"
+    word = "application/vnd.openxmlformats-officedocument.wordprocessingml."
+    types = (
+        f'<?xml version="1.0"?><Types xmlns="{pkg}content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-'
+        'package.relationships+xml"/><Default Extension="xml" '
+        'ContentType="application/xml"/><Override PartName="/word/document.xml" '
+        f'ContentType="{word}document.main+xml"/><Override '
+        f'PartName="/word/numbering.xml" ContentType="{word}numbering+xml"/>'
+        "</Types>"
+    )
+    rels = (
+        f'<?xml version="1.0"?><Relationships xmlns="{pkg}relationships">'
+        f'<Relationship Id="rId1" Type="{office}officeDocument" '
+        'Target="word/document.xml"/></Relationships>'
+    )
+    doc_rels = (
+        f'<?xml version="1.0"?><Relationships xmlns="{pkg}relationships">'
+        f'<Relationship Id="rId1" Type="{office}numbering" '
+        'Target="numbering.xml"/></Relationships>'
+    )
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, text in (
+            ("[Content_Types].xml", types),
+            ("_rels/.rels", rels),
+            ("word/document.xml", document),
+            ("word/numbering.xml", numbering),
+            ("word/_rels/document.xml.rels", doc_rels),
+        ):
+            # A fixed date keeps the bytes the same on every run.
+            z.writestr(zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0)), text)
+
+
 FIXTURES = os.path.join(os.path.dirname(__file__), "..", "fixtures")
 PASSWORD = "wren"
 
@@ -487,7 +583,8 @@ if __name__ == "__main__":
     make_picture(os.path.join(FIXTURES, "sample.png"))
     make_locked_agile(os.path.join(OUT, "locked-agile.xlsx"))
     make_locked_standard(os.path.join(OUT, "locked-standard.docx"))
+    make_lists_docx(os.path.join(OUT, "lists.docx"))
     print(
         "wrote styled.xlsx, charts.pptx, rtl.pptx, grid.xlsx, effects.pptx, "
-        "locked.pdf, cjk.pdf, locked-agile.xlsx, locked-standard.docx"
+        "locked.pdf, cjk.pdf, locked-agile.xlsx, locked-standard.docx, lists.docx"
     )

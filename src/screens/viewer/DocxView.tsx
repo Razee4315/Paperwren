@@ -30,6 +30,7 @@ import {
 	percentPresets,
 	shellStyles,
 } from "./Shell";
+import { seedListCounters } from "./docxLists";
 import { type Heading, HeadingList, readHeadings } from "./headings";
 import {
 	useOfficeDetails,
@@ -123,6 +124,7 @@ export default function DocxView({
 				const count = staging.querySelectorAll("section.docx").length;
 				if (!count) throw new Error("empty");
 				host.current.replaceChildren(...staging.childNodes);
+				seedListCounters(host.current);
 				sheets.current = [
 					...host.current.querySelectorAll<HTMLElement>("section.docx"),
 				];

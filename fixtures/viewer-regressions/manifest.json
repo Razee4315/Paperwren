@@ -43,5 +43,8 @@
 	},
 	"locked-standard.docx": {
 		"tests": "sample.docx protected with the password \"wren\" the Office 2007 way (standard encryption: AES-128-ECB, SHA-1, 50,000 rounds). Assembled by the generator from the specification and read back with msoffcrypto-tool as a check; not saved by Office. Regenerate with scripts/make-rich-fixtures.py"
+	},
+	"lists.docx": {
+		"tests": "Word numbering drawn with CSS counters: a three-item list with a nested lettered level, a second list that restarts at 1, a bulleted list, and a list that carries on across a page break (3, 4 on page two). Each page is laid out on its own (content-visibility), so its counters must be seeded. Regenerate with scripts/make-rich-fixtures.py"
 	}
 }
