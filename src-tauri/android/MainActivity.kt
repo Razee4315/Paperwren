@@ -588,8 +588,15 @@ class MainActivity : TauriActivity() {
     }
   }
 
+  /** The most an "Open with" / pick copy may hold. The sharing app
+   * can report any size (or none) and stream forever, and the copy is
+   * written whole before the reader can ask about a large file, so the
+   * copy itself is bounded here. Matches the imports store's cap. */
+  private val MAX_INGEST_BYTES = 250L * 1024 * 1024
+
   /** Copy a content:// stream into imports/<hash>/<name>. Runs on the
-   * ingest executor only. Throws when the stream can't be read. */
+   * ingest executor only. Throws when the stream can't be read (or
+   * turns out to be more than MAX_INGEST_BYTES). */
   private fun copyIn(uri: Uri, mime: String?): Delivery {
     val type = mime ?: try { contentResolver.getType(uri) } catch (e: Exception) { null }
     val displayName = withExtension(queryDisplayName(uri), type)
@@ -599,7 +606,17 @@ class MainActivity : TauriActivity() {
     try {
       val input = contentResolver.openInputStream(uri) ?: throw IllegalStateException("no stream")
       DigestInputStream(input, digest).use { stream ->
-        tmp.outputStream().use { out -> stream.copyTo(out, 64 * 1024) }
+        tmp.outputStream().use { out ->
+          val buffer = ByteArray(64 * 1024)
+          var total = 0L
+          while (true) {
+            val read = stream.read(buffer)
+            if (read < 0) break
+            total += read
+            if (total > MAX_INGEST_BYTES) throw IllegalStateException("file is too large to keep")
+            out.write(buffer, 0, read)
+          }
+        }
       }
       if (tmp.length() == 0L) throw IllegalStateException("empty file")
       val hash = digest.digest().joinToString("") { "%02x".format(it) }.take(16)
@@ -1064,12 +1081,18 @@ class MainActivity : TauriActivity() {
     return url
   }
 
+  /** The page the app itself serves. The host is compared whole: a
+   * prefix ("http://localhost") would also take a page at
+   * "http://localhost.attacker.tld", and the JS bridges answer
+   * whoever this says yes to. */
   private fun isAppOrigin(url: String?): Boolean {
     if (url == null) return false
-    return url.startsWith("http://tauri.localhost") ||
-      url.startsWith("https://tauri.localhost") ||
-      url.startsWith("http://localhost") ||
-      url.startsWith("http://127.0.0.1")
+    val host = try {
+      Uri.parse(url).host?.lowercase(Locale.ROOT)
+    } catch (e: Exception) {
+      null
+    }
+    return host == "tauri.localhost" || host == "localhost" || host == "127.0.0.1"
   }
 
   private fun findWebView(): WebView? {
