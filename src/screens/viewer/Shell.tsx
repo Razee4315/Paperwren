@@ -978,9 +978,9 @@ export function FindBar({
 				: t("No results")
 			: "";
 	return (
-		// biome-ignore lint/a11y/useSemanticElements: <search> is not yet in the React DOM typings
 		<div
 			className={s.find}
+			// biome-ignore lint/a11y/useSemanticElements: <search> is not yet in the React DOM typings
 			role="search"
 			data-empty={state.query ? undefined : ""}
 		>
