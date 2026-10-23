@@ -7,6 +7,9 @@
 	z-index: 55;
 	display: grid;
 	grid-template-areas: "title" "tools" "hint" "pages" "actions";
+	/* The screen's width, not the widest content's: a long file name
+	 * must be cut short, not stretch the editor past the screen. */
+	grid-template-columns: minmax(0, 1fr);
 	grid-template-rows: auto auto auto minmax(0, 1fr) auto;
 	background: var(--canvas);
 	color: var(--text);

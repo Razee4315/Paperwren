@@ -861,6 +861,30 @@ test.describe("PDF tools", () => {
 	});
 });
 
+test("a long file name does not stretch fill & sign past a narrow phone", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+	await boot(page);
+	await openFixture(
+		page,
+		"features/form.pdf",
+		"Документы_для_подписи_заявление_на_получение_пособия_2026_окончательная_версия.pdf",
+	);
+	await expect(page.getByTestId("pdf-page")).toHaveText("1 / 2", {
+		timeout: 20_000,
+	});
+	await page.getByTestId("file-more").click();
+	await page.getByTestId("pdf-fill-sign").click();
+	const editor = page.getByTestId("fill-sign");
+	await expect(editor.getByTestId("fill-field")).toHaveCount(5);
+	expect(
+		await editor.evaluate((el) => el.scrollWidth - el.clientWidth),
+	).toBeLessThanOrEqual(0);
+	const save = await page.getByTestId("fill-save").boundingBox();
+	expect((save?.x ?? 999) + (save?.width ?? 0)).toBeLessThanOrEqual(360);
+});
+
 test("fill & sign starts from the tools too", async ({ page }) => {
 	await boot(page);
 	await openTool(page, "sign");
