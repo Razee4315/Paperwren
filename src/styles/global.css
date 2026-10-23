@@ -101,7 +101,7 @@ html.desktop body {
 
 	--text: #23221f;
 	--text-2: #5b5952;
-	--text-3: #8a877f;
+	--text-3: #696760;
 
 	--accent: #2b6e66;
 	--accent-hover: #225a53;
@@ -113,7 +113,7 @@ html.desktop body {
 	--brand-belly: #8fbcb3;
 
 	--danger: #c2412d;
-	--success: #2f8a5b;
+	--success: #28754d;
 	--highlight: rgba(240, 196, 64, 0.5);
 	--highlight-active: rgba(224, 122, 79, 0.55);
 
@@ -138,10 +138,10 @@ html.desktop body {
 	--line-strong: #c6b396;
 
 	--text: #3a2e22;
-	--text-2: #6a5a47;
-	--text-3: #968470;
+	--text-2: #56483a;
+	--text-3: #695c4d;
 
-	--accent: #a4502e;
+	--accent: #94482a;
 	--accent-hover: #8a4226;
 	--accent-soft: #eed8c6;
 	--on-accent: #fff8ef;
@@ -151,7 +151,7 @@ html.desktop body {
 	--brand-belly: #dca283;
 
 	--danger: #b23b27;
-	--success: #4f7f3a;
+	--success: #416830;
 	--highlight: rgba(226, 170, 60, 0.45);
 	--highlight-active: rgba(196, 96, 50, 0.5);
 
@@ -177,7 +177,7 @@ html.desktop body {
 
 	--text: #e6e2da;
 	--text-2: #aaa69e;
-	--text-3: #7b7872;
+	--text-3: #95938d;
 
 	--accent: #7cc2b4;
 	--accent-hover: #98d2c6;
