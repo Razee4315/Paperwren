@@ -159,6 +159,30 @@ test.describe("PDF pages and links", () => {
 		);
 	});
 
+	test("a page laid sideways sits in the middle of a phone's screen", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 412, height: 892 });
+		await boot(page);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("pdf-across").click();
+		await expect(page.getByTestId("pdf-scale")).toHaveText("Whole page");
+		// A whole portrait page is as wide as the phone and shorter than it.
+		const middles = () =>
+			page.getByTestId("pdf-scroll").evaluate((el) => {
+				const box = el.getBoundingClientRect();
+				const sheet = el.querySelector(".page")?.getBoundingClientRect();
+				return sheet
+					? Math.abs(sheet.top + sheet.bottom - box.top - box.bottom) / 2
+					: 999;
+			});
+		await expect.poll(middles).toBeLessThan(3);
+	});
+
 	test("Back retraces a link inside a PDF before it closes the document", async ({
 		page,
 	}) => {

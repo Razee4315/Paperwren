@@ -29,11 +29,30 @@
 .container[data-one] {
 	touch-action: pan-y;
 }
+/* A page in a row sits in the middle of the screen, not at its top: a
+ * whole portrait page on a phone is as wide as the screen and leaves a
+ * band of canvas below it. The row grows with a taller page, so its top
+ * can still be scrolled to. Auto margins centre a row narrower than the
+ * screen and give way when it is wider. */
 .container[data-flow="across"] :global(.pdfViewer) {
+	display: flex;
+	align-items: center;
+	min-height: 100%;
 	padding: 0;
+}
+.container[data-flow="across"] :global(.pdfViewer > *) {
+	flex: none;
 }
 .container[data-flow="across"] :global(.pdfViewer.removePageBorders .page) {
 	margin: 0 3px;
+}
+.container[data-flow="across"]
+	:global(.pdfViewer.removePageBorders > :first-child) {
+	margin-inline-start: auto;
+}
+.container[data-flow="across"]
+	:global(.pdfViewer.removePageBorders > :last-child) {
+	margin-inline-end: auto;
 }
 /* "Back to page 3", after a link was followed. */
 .trail {
