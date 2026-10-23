@@ -756,6 +756,11 @@ ROWS = [
     ("{n} KB", "{n} KB", "{n} ك.ب", "{n} KB", "{n} KB", "{n} KB", "{n} Ko", "{n} КБ", "{n} KB"),
     ("{n} MB", "{n} MB", "{n} م.ب", "{n} MB", "{n} MB", "{n} MB", "{n} Mo", "{n} МБ", "{n} MB"),
     ("{n} GB", "{n} GB", "{n} ج.ب", "{n} GB", "{n} GB", "{n} GB", "{n} Go", "{n} ГБ", "{n} GB"),
+    # ---- pictures of pages ----
+    ("Save page as picture", "صفحہ تصویر کے طور پر محفوظ کریں", "حفظ الصفحة كصورة", "将页面保存为图片", "पृष्ठ को चित्र के रूप में सहेजें", "Guardar página como imagen", "Enregistrer la page en image", "Сохранить страницу как изображение", "Salvar página como imagem"),
+    ("Save this picture", "یہ تصویر محفوظ کریں", "حفظ هذه الصورة", "保存这张图片", "यह चित्र सहेजें", "Guardar esta imagen", "Enregistrer cette image", "Сохранить это изображение", "Salvar esta imagem"),
+    ("Page {n}, as a picture of its own", "صفحہ {n}، الگ تصویر کے طور پر", "الصفحة {n} كصورة مستقلة", "第 {n} 页，单独保存为图片", "पृष्ठ {n}, अलग चित्र के रूप में", "La página {n}, como imagen aparte", "La page {n}, en image à part", "Страница {n} отдельным изображением", "A página {n}, como uma imagem à parte"),
+    ("Couldn't save the picture", "تصویر محفوظ نہیں ہو سکی", "تعذّر حفظ الصورة", "无法保存图片", "चित्र सहेजा नहीं जा सका", "No se pudo guardar la imagen", "Impossible d’enregistrer l’image", "Не удалось сохранить изображение", "Não foi possível salvar a imagem"),
     # ---- tabs ----
     ("Open documents", "کھلی دستاویزات", "المستندات المفتوحة", "打开的文档", "खुले दस्तावेज़", "Documentos abiertos", "Documents ouverts", "Открытые документы", "Documentos abertos"),
     ("Close {name}", "{name} بند کریں", "إغلاق {name}", "关闭 {name}", "{name} बंद करें", "Cerrar {name}", "Fermer {name}", "Закрыть {name}", "Fechar {name}"),

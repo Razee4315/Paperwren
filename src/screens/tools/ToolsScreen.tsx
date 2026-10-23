@@ -1,5 +1,6 @@
 import { copyName, splitName } from "@/lib/fileName";
 import { msg, t, tn } from "@/lib/i18n";
+import { drawPage } from "@/lib/pagePicture";
 import {
 	type NumberSpot,
 	type PagePick,
@@ -861,22 +862,11 @@ function PicturesTool({ file, onOpen }: ToolProps) {
 						const [stem] = splitName(picked.name);
 						const shots: Record<string, Uint8Array> = {};
 						for (const page of list) {
-							const proxy = await doc.getPage(page + 1);
-							const viewport = proxy.getViewport({ scale: 150 / 72 });
-							const canvas = document.createElement("canvas");
-							canvas.width = Math.ceil(viewport.width);
-							canvas.height = Math.ceil(viewport.height);
-							const ctx = canvas.getContext("2d");
-							if (!ctx) throw new Error("no canvas");
-							ctx.fillStyle = "#fff";
-							ctx.fillRect(0, 0, canvas.width, canvas.height);
-							await proxy.render({ canvasContext: ctx, viewport }).promise;
-							const blob = await new Promise<Blob | null>((done) =>
-								canvas.toBlob(done, "image/jpeg", 0.9),
-							);
-							if (!blob) throw new Error("no picture");
-							shots[`${stem} - ${t("page {n}", { n: page + 1 })}.jpg`] =
-								new Uint8Array(await blob.arrayBuffer());
+							const { bytes } = await drawPage(await doc.getPage(page + 1), {
+								dpi: 150,
+								type: "image/jpeg",
+							});
+							shots[`${stem} - ${t("page {n}", { n: page + 1 })}.jpg`] = bytes;
 						}
 						const names = Object.keys(shots);
 						if (names.length === 1)
