@@ -217,7 +217,7 @@ export function FolderList({
 			{files.length >= FOLDER_LIMITS.files && (
 				<p className={s.limit}>
 					{t("Showing the first {n} documents.", {
-						n: FOLDER_LIMITS.files.toLocaleString(),
+						n: FOLDER_LIMITS.files,
 					})}
 				</p>
 			)}

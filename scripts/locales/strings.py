@@ -751,6 +751,11 @@ ROWS = [
         {"one": "{n} изображение", "few": "{n} изображения", "many": "{n} изображений", "other": "{n} изображения"},
         {"one": "{n} imagem", "other": "{n} imagens"},
     ),
+    # ---- file sizes ----
+    ("{n} B", "{n} بائٹ", "{n} بايت", "{n} B", "{n} B", "{n} B", "{n} o", "{n} Б", "{n} B"),
+    ("{n} KB", "{n} KB", "{n} ك.ب", "{n} KB", "{n} KB", "{n} KB", "{n} Ko", "{n} КБ", "{n} KB"),
+    ("{n} MB", "{n} MB", "{n} م.ب", "{n} MB", "{n} MB", "{n} MB", "{n} Mo", "{n} МБ", "{n} MB"),
+    ("{n} GB", "{n} GB", "{n} ج.ب", "{n} GB", "{n} GB", "{n} GB", "{n} Go", "{n} ГБ", "{n} GB"),
     # ---- tabs ----
     ("Open documents", "کھلی دستاویزات", "المستندات المفتوحة", "打开的文档", "खुले दस्तावेज़", "Documentos abiertos", "Documents ouverts", "Открытые документы", "Documentos abertos"),
     ("Close {name}", "{name} بند کریں", "إغلاق {name}", "关闭 {name}", "{name} बंद करें", "Cerrar {name}", "Fermer {name}", "Закрыть {name}", "Fechar {name}"),

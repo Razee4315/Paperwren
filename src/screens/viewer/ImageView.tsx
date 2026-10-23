@@ -1,7 +1,7 @@
 import { backend } from "@/lib/backend";
 import { isDesktop } from "@/lib/env";
 import { exifDate, readExif } from "@/lib/exif";
-import { locale, t, tn } from "@/lib/i18n";
+import { formatNumber, locale, t, tn } from "@/lib/i18n";
 import { type Pictures, readPictures, systemDecode } from "@/lib/pictures";
 import { idForReopen } from "@/lib/recents";
 import { picturesAround } from "@/lib/siblings";
@@ -505,7 +505,7 @@ export default function ImageView({
 							/>
 						) : (
 							<span className={shellStyles.meta} data-testid="image-size">
-								{size.w.toLocaleString()} × {size.h.toLocaleString()}
+								{formatNumber(size.w)} × {formatNumber(size.h)}
 							</span>
 						)}
 						<ZoomControl

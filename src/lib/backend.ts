@@ -16,7 +16,7 @@ import {
 	formatFromName,
 	mimeOf,
 } from "./formats";
-import { t } from "./i18n";
+import { formatNumber, msg, t } from "./i18n";
 import { idForReopen, managedRelPath } from "./recents";
 import { createSerializedWriter } from "./serializedWriter";
 import type { OpenRequest, Reopen } from "./types";
@@ -1135,10 +1135,18 @@ export function requestForManagedCopy(
 
 export { managedRelPath };
 
+/** A file's size in the reader's language: "1.5 MB", "1,5 МБ", "1,5 Mo". */
 export function formatBytes(bytes: number): string {
-	if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-	if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-	return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+	const size = (value: number, digits: number, unit: string) =>
+		t(unit, {
+			n: formatNumber(value, {
+				minimumFractionDigits: digits,
+				maximumFractionDigits: digits,
+			}),
+		});
+	if (!Number.isFinite(bytes) || bytes <= 0) return size(0, 0, msg("{n} B"));
+	if (bytes < 1024) return size(bytes, 0, msg("{n} B"));
+	if (bytes < 1024 ** 2) return size(bytes / 1024, 0, msg("{n} KB"));
+	if (bytes < 1024 ** 3) return size(bytes / 1024 ** 2, 1, msg("{n} MB"));
+	return size(bytes / 1024 ** 3, 2, msg("{n} GB"));
 }

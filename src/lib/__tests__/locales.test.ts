@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { formatBytes } from "../backend";
 import {
 	LANGUAGES,
 	type Table,
@@ -125,6 +126,20 @@ describe("t and tn", () => {
 		expect(tn(21, "{n} page", "{n} pages")).toBe("21 страница");
 		setLanguage("pt");
 		expect(tn(2, "{n} page", "{n} pages")).toBe("2 páginas");
+	});
+
+	it("writes sizes and counts the reader's way", () => {
+		expect(formatBytes(730)).toBe("730 B");
+		expect(formatBytes(1_572_864)).toBe("1.5 MB");
+		expect(tn(1500, "{n} page", "{n} pages")).toBe("1,500 pages");
+		setLanguage("ru");
+		expect(formatBytes(1_572_864)).toBe("1,5 МБ");
+		expect(tn(1500, "{n} page", "{n} pages")).toBe("1 500 страниц");
+		setLanguage("fr");
+		expect(formatBytes(2048)).toBe("2 Ko");
+		setLanguage("ar");
+		// Latin digits, as everywhere else in the app.
+		expect(formatBytes(1_572_864)).toBe("⁨1.5⁩ م.ب");
 	});
 
 	it("turns the page around for Arabic and Urdu only", () => {

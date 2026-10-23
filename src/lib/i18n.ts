@@ -145,11 +145,30 @@ type Vars = Record<string, string | number>;
 export const isolate = (text: string | number): string =>
 	RTL.includes(current) ? `\u2068${text}\u2069` : String(text);
 
+const formats = new Map<string, Intl.NumberFormat>();
+
+/** A number the way the reader writes it ("1 234,5" in Russian, "1,234.5"
+ * in English), in the Latin digits the rest of the app uses. */
+export function formatNumber(
+	value: number,
+	options: Intl.NumberFormatOptions = {},
+): string {
+	const id = `${current}|${JSON.stringify(options)}`;
+	let format = formats.get(id);
+	if (!format) {
+		format = new Intl.NumberFormat(`${current}-u-nu-latn`, options);
+		formats.set(id, format);
+	}
+	return format.format(value);
+}
+
 const fill = (text: string, vars?: Vars) =>
 	vars
-		? text.replace(/\{(\w+)\}/g, (whole, name) =>
-				name in vars ? isolate(vars[name]) : whole,
-			)
+		? text.replace(/\{(\w+)\}/g, (whole, name) => {
+				if (!(name in vars)) return whole;
+				const value = vars[name];
+				return isolate(typeof value === "number" ? formatNumber(value) : value);
+			})
 		: text;
 
 /** `text` in the interface language; `{name}` takes `vars.name`. */

@@ -488,8 +488,8 @@ export function printSheet(
 		sheet.rows > rows
 			? t("{name} (first {shown} of {total} rows)", {
 					name: sheet.name,
-					shown: rows.toLocaleString(),
-					total: sheet.rows.toLocaleString(),
+					shown: rows,
+					total: sheet.rows,
 				})
 			: sheet.name;
 	wrap.prepend(title);

@@ -699,6 +699,10 @@ export const zh: Table = {
 	"This device can't draw HEIC pictures. Open it in another app from the menu.":
 		"此设备无法显示 HEIC 图片。请从菜单中用其他应用打开。",
 	"{n} pictures": "{n} 张图片",
+	"{n} B": "{n} B",
+	"{n} KB": "{n} KB",
+	"{n} MB": "{n} MB",
+	"{n} GB": "{n} GB",
 	"Open documents": "打开的文档",
 	"Close {name}": "关闭 {name}",
 	"Open another file": "打开其他文件",

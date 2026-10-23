@@ -992,11 +992,11 @@ export default function SheetView({
 	const limited = [
 		sheet?.limit?.rows !== undefined &&
 			t("Only the first {n} rows are shown.", {
-				n: sheet.limit.rows.toLocaleString(),
+				n: sheet.limit.rows,
 			}),
 		sheet?.limit?.columns !== undefined &&
 			t("Only the first {n} columns are shown.", {
-				n: sheet.limit.columns.toLocaleString(),
+				n: sheet.limit.columns,
 			}),
 	]
 		.filter(Boolean)
@@ -1026,8 +1026,8 @@ export default function SheetView({
 								}),
 							how.filter?.text.trim() &&
 								t("Showing {shown} of {total} rows", {
-									shown: (sheet.cells.size ? sheet.rows : 0).toLocaleString(),
-									total: parsed[index].rows.toLocaleString(),
+									shown: sheet.cells.size ? sheet.rows : 0,
+									total: parsed[index].rows,
 								}),
 						]
 							.filter(Boolean)
@@ -1132,8 +1132,8 @@ export default function SheetView({
 					<span className={s.size}>
 						{sheet
 							? t("{rows} rows · {cols} columns", {
-									rows: sheet.rows.toLocaleString(),
-									cols: sheet.cols.toLocaleString(),
+									rows: sheet.rows,
+									cols: sheet.cols,
 								})
 							: ""}
 					</span>
