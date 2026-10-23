@@ -22,7 +22,7 @@
     "@tauri-apps/plugin-dialog": "^2.7.3",
     "@tauri-apps/plugin-fs": "^2.5.2",
     "docx-preview": "^0.4.0",
-    "dompurify": "^3.4.14",
+    "dompurify": "^3.4.17",
     "fflate": "^0.8.3",
     "highlight.js": "^11.11.1",
     "katex": "^0.19.0",
@@ -34,7 +34,7 @@
     "scanic": "1.7.1",
     "scanic-ml": "0.2.0",
     "utif2": "^4.1.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
