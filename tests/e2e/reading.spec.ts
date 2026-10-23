@@ -449,6 +449,69 @@ test("crop margins fills the screen with text, cuts nothing and is remembered", 
 	);
 });
 
+test.describe("pages turned sideways", () => {
+	test("a book turns page by page, and opens again on its page", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openFixture(page, "features/book.epub");
+		const scroller = page.getByTestId("epub-scroll");
+		await expect(scroller).toBeVisible({ timeout: 20_000 });
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("pages-sideways").click();
+		await expect(scroller).toHaveAttribute("data-flow", "across");
+		const count = page.getByTestId("paged-count");
+		await expect(count).toHaveText(/^1 of \d+$/);
+		// Each page is exactly one screen wide, and the keys turn them.
+		const size = await scroller.evaluate((el) => [
+			el.scrollWidth,
+			el.clientWidth,
+		]);
+		expect(size[0] % size[1]).toBe(0);
+		await page.keyboard.press("ArrowRight");
+		await expect(count).toHaveText(/^2 of /);
+		await page.keyboard.press("PageDown");
+		await expect(count).toHaveText(/^3 of /);
+		await page.keyboard.press("ArrowLeft");
+		await expect(count).toHaveText(/^2 of /);
+		// The place is kept: back to the shelf and in again.
+		await page.waitForTimeout(700);
+		await page.getByTestId("viewer-back").click();
+		await page.getByText("book.epub").first().click();
+		await expect(page.getByTestId("paged-count")).toHaveText(/^2 of /, {
+			timeout: 20_000,
+		});
+	});
+
+	test("one choice turns every flowing document sideways", async ({ page }) => {
+		await boot(page, { settings_v2: { pdfFlow: "across" } });
+		await openFixture(page, "features/notes.md");
+		await expect(page.getByTestId("text-scroll")).toHaveAttribute(
+			"data-flow",
+			"across",
+			{ timeout: 20_000 },
+		);
+		await page.getByTestId("viewer-back").click();
+		await openFixture(page, "report.docx");
+		await expect(page.getByTestId("doc-scroll")).toBeVisible({
+			timeout: 20_000,
+		});
+		// A Word document's own pages scroll; its reading view turns.
+		await expect(page.getByTestId("doc-scroll")).not.toHaveAttribute(
+			"data-flow",
+			"across",
+		);
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("doc-reading").click();
+		await expect(page.getByTestId("doc-scroll")).toHaveAttribute(
+			"data-flow",
+			"across",
+			{ timeout: 20_000 },
+		);
+		await expect(page.getByTestId("paged-count")).toHaveText(/^1 of [2-9]/);
+	});
+});
+
 test.describe("bookmarks", () => {
 	test("are added, named, gone back to, kept and deleted", async ({ page }) => {
 		await boot(page);

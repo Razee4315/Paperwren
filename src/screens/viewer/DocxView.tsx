@@ -40,6 +40,13 @@ import {
 	useZoom,
 	useZoomLevel,
 } from "./hooks";
+import {
+	PageCount,
+	SidewaysItem,
+	jumpTo,
+	usePaged,
+	useSideways,
+} from "./paged";
 import { domSpeech } from "./speechSources";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
@@ -171,6 +178,17 @@ export default function DocxView({
 		return () => ro.disconnect();
 	}, [status, reading]);
 
+	// Reading view can be turned page by page, as a book is.
+	const [sideways] = useSideways();
+	const turning = usePaged({
+		scroller,
+		paper: () =>
+			host.current?.querySelector<HTMLElement>(".docx-wrapper") ?? null,
+		on: sideways && reading && status === "ready",
+		zoom,
+		relayout: `${status}|${comments}`,
+	});
+
 	const scale = fit * zoom;
 	const { zoomBy, zoomTo } = useZoom({
 		scroller,
@@ -234,18 +252,18 @@ export default function DocxView({
 	const goToHeading = (heading: Heading) => {
 		const el = scroller.current;
 		if (!el || !heading.el.isConnected) return;
-		el.scrollTop +=
-			heading.el.getBoundingClientRect().top -
-			el.getBoundingClientRect().top -
-			12;
+		jumpTo(el, heading.el);
 	};
 
 	const paged = !reading && pageCount > 0;
-	// A tap on a side turns a page of paper, or scrolls the flowing text.
-	const tapTurn = useTapToTurn(
-		scroller,
-		paged ? (dir) => goTo(page + dir) : undefined,
-	);
+	// A tap on a side turns a page of paper, a page of the flowing text
+	// when it is turned sideways, or scrolls it.
+	const step = paged
+		? (dir: 1 | -1) => goTo(page + dir)
+		: turning.pages
+			? turning.turn
+			: undefined;
+	const tapTurn = useTapToTurn(scroller, step);
 	const side = useMemo<SideTab[]>(
 		() =>
 			status === "ready"
@@ -260,10 +278,7 @@ export default function DocxView({
 									onPick={(h) => {
 										const el = scroller.current;
 										if (!el || !h.el.isConnected) return;
-										el.scrollTop +=
-											h.el.getBoundingClientRect().top -
-											el.getBoundingClientRect().top -
-											12;
+										jumpTo(el, h.el);
 									}}
 									compact
 								/>
@@ -287,7 +302,8 @@ export default function DocxView({
 			bookmarks={status === "ready" ? marks : undefined}
 			details={details}
 			speech={status === "ready" ? speech : undefined}
-			onStep={paged ? (dir) => goTo(page + dir) : undefined}
+			onStep={step}
+			turnPages={!!turning.pages}
 			chromeHidden={chromeHidden && !find.open}
 			onFind={status === "ready" ? find.start : undefined}
 			menu={
@@ -306,6 +322,11 @@ export default function DocxView({
 								>
 									{t("Reading view")}
 								</SheetItem>
+								<SidewaysItem
+									close={close}
+									disabled={!reading}
+									hint={reading ? undefined : t("Turn on Reading view first")}
+								/>
 								{!isDesktop && (
 									<SheetItem
 										icon={<ListTree size={20} />}
@@ -406,6 +427,8 @@ export default function DocxView({
 								onGo={goTo}
 								testId="doc"
 							/>
+						) : turning.pages ? (
+							<PageCount paged={turning} />
 						) : (
 							<span className={shellStyles.meta}>{t("Reading view")}</span>
 						)}

@@ -650,7 +650,7 @@ ROWS = [
     ("Scroll pages sideways", "صفحات کو افقی طور پر سکرول کریں", "تمرير الصفحات أفقيًا", "横向滚动页面", "पृष्ठों को बगल में स्क्रॉल करें", "Desplazar las páginas en horizontal", "Faire défiler les pages horizontalement", "Прокручивать страницы по горизонтали", "Rolar as páginas na horizontal"),
     ("First page on its own", "پہلا صفحہ الگ", "الصفحة الأولى بمفردها", "首页单独显示", "पहला पृष्ठ अलग", "Primera página sola", "Première page seule", "Первая страница отдельно", "Primeira página sozinha"),
     ("Back to page {n}", "صفحہ {n} پر واپس", "العودة إلى الصفحة {n}", "返回第 {n} 页", "पृष्ठ {n} पर वापस", "Volver a la página {n}", "Revenir à la page {n}", "Назад к странице {n}", "Voltar à página {n}"),
-    ("PDF pages scroll", "PDF صفحات کی سکرولنگ", "تمرير صفحات PDF", "PDF 页面滚动方向", "PDF पृष्ठ स्क्रॉल", "Desplazamiento de las páginas PDF", "Défilement des pages PDF", "Прокрутка страниц PDF", "Rolagem das páginas do PDF"),
+    ("Pages scroll", "صفحات کی سکرولنگ", "تمرير الصفحات", "页面滚动方向", "पृष्ठ स्क्रॉल", "Desplazamiento de las páginas", "Défilement des pages", "Прокрутка страниц", "Rolagem das páginas"),
     ("Down", "نیچے", "للأسفل", "向下", "नीचे", "Hacia abajo", "Vers le bas", "Вниз", "Para baixo"),
     ("Sideways", "افقی", "أفقيًا", "横向", "बगल में", "En horizontal", "Horizontal", "По горизонтали", "Na horizontal"),
     # ---- PDF: comments, attachments, layers, details ----
@@ -756,6 +756,10 @@ ROWS = [
     ("{n} KB", "{n} KB", "{n} ك.ب", "{n} KB", "{n} KB", "{n} KB", "{n} Ko", "{n} КБ", "{n} KB"),
     ("{n} MB", "{n} MB", "{n} م.ب", "{n} MB", "{n} MB", "{n} MB", "{n} Mo", "{n} МБ", "{n} MB"),
     ("{n} GB", "{n} GB", "{n} ج.ب", "{n} GB", "{n} GB", "{n} GB", "{n} Go", "{n} ГБ", "{n} GB"),
+    # ---- pages turned sideways ----
+    ("A tree scrolls down", "درخت نیچے کی طرف سکرول ہوتا ہے", "الشجرة تُمرَّر إلى الأسفل", "树状视图只能向下滚动", "ट्री नीचे की ओर स्क्रॉल होता है", "Un árbol se desplaza hacia abajo", "Une arborescence défile vers le bas", "Дерево прокручивается вниз", "Uma árvore rola para baixo"),
+    ("Show the whole file first", "پہلے پوری فائل دکھائیں", "اعرض الملف كاملًا أولًا", "请先显示整个文件", "पहले पूरी फ़ाइल दिखाएँ", "Muestra primero el archivo completo", "Affichez d’abord tout le fichier", "Сначала покажите весь файл", "Mostre o arquivo inteiro primeiro"),
+    ("Turn on Reading view first", "پہلے ریڈنگ ویو آن کریں", "شغّل عرض القراءة أولًا", "请先打开阅读视图", "पहले रीडिंग व्यू चालू करें", "Activa primero la vista de lectura", "Activez d’abord le mode lecture", "Сначала включите режим чтения", "Ative primeiro o modo de leitura"),
     # ---- pictures of pages ----
     ("Save page as picture", "صفحہ تصویر کے طور پر محفوظ کریں", "حفظ الصفحة كصورة", "将页面保存为图片", "पृष्ठ को चित्र के रूप में सहेजें", "Guardar página como imagen", "Enregistrer la page en image", "Сохранить страницу как изображение", "Salvar página como imagem"),
     ("Save this picture", "یہ تصویر محفوظ کریں", "حفظ هذه الصورة", "保存这张图片", "यह चित्र सहेजें", "Guardar esta imagen", "Enregistrer cette image", "Сохранить это изображение", "Salvar esta imagem"),

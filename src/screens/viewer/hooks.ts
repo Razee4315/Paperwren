@@ -13,6 +13,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import type { BookmarkSource } from "./Shell";
+import { goToRatio, isPaged, readRatio } from "./paged";
 
 export interface ZoomOptions {
 	/** The scrolling viewport. */
@@ -438,9 +439,7 @@ export function useScrollMemory(
 		if (!ready || !el || restored.current) return;
 		restored.current = true;
 		if (remember && position?.kind === "scroll") {
-			requestAnimationFrame(() => {
-				el.scrollTop = position.ratio * (el.scrollHeight - el.clientHeight);
-			});
+			requestAnimationFrame(() => goToRatio(el, position.ratio));
 		}
 	}, [ready, scroller, position, remember]);
 
@@ -449,10 +448,9 @@ export function useScrollMemory(
 		if (!ready || !el || !remember) return;
 		let timer = 0;
 		const save = () => {
-			const range = el.scrollHeight - el.clientHeight;
 			onPositionRef.current({
 				kind: "scroll",
-				ratio: range > 0 ? el.scrollTop / range : 0,
+				ratio: readRatio(el),
 				zoom: zoomRef.current,
 			});
 		};
@@ -519,8 +517,7 @@ export function useScrollBookmarks(
 			here: () => {
 				const el = scroller.current;
 				if (!el) return null;
-				const range = el.scrollHeight - el.clientHeight;
-				const ratio = range > 0 ? Math.min(1, el.scrollTop / range) : 0;
+				const ratio = readRatio(el);
 				const words = content.current ? wordsAtTop(el, content.current) : "";
 				return {
 					label: words || t("{n}% through", { n: Math.round(ratio * 100) }),
@@ -530,7 +527,7 @@ export function useScrollBookmarks(
 			go: (position) => {
 				const el = scroller.current;
 				if (!el || position.kind !== "scroll") return;
-				el.scrollTop = position.ratio * (el.scrollHeight - el.clientHeight);
+				goToRatio(el, position.ratio);
 			},
 		}),
 		[scroller, content],
@@ -562,6 +559,12 @@ export function useTapToTurn(
 			const dir = at < 0.25 ? -1 : at > 0.75 ? 1 : 0;
 			if (!dir) return false;
 			if (step.current) step.current(dir);
+			else if (isPaged(el))
+				el.scrollTo({
+					left:
+						(Math.round(el.scrollLeft / el.clientWidth) + dir) * el.clientWidth,
+					behavior: "smooth",
+				});
 			else el.scrollTop += dir * el.clientHeight * 0.9;
 			return true;
 		},
