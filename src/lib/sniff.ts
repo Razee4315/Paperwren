@@ -5,8 +5,8 @@
  * so Home's first paint does not carry the unzip code.
  */
 
-import { unzipSync } from "fflate";
 import { type FileFormat, formatFromName } from "./formats";
+import { guardedUnzip } from "./safeZip";
 
 /** ISO media brands of pictures (the box after "ftyp"). */
 const AVIF = ["avif", "avis"];
@@ -172,7 +172,7 @@ const COMIC_NOTES = /(^|\/)(comicinfo\.xml|[^/]*\.(txt|nfo|sfv|url|md))$/i;
 function zipFamily(bytes: Uint8Array): FileFormat {
 	try {
 		const names: string[] = [];
-		const entries = unzipSync(bytes, {
+		const entries = guardedUnzip(bytes, {
 			filter: (f) => {
 				names.push(f.name);
 				return f.name === "[Content_Types].xml" || f.name === "mimetype";

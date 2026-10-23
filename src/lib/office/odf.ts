@@ -17,7 +17,6 @@
  * Uses DOMParser, so this runs on the main thread.
  */
 
-import { unzipSync } from "fflate";
 import { startsRtl } from "../bidi";
 import type {
 	GeomPath,
@@ -28,6 +27,7 @@ import type {
 	TextBody,
 } from "../pptx/parse";
 import { kids } from "../pptx/xml";
+import { guardedUnzip } from "../safeZip";
 import { listMarker } from "./doc";
 import {
 	type RichBlock,
@@ -85,7 +85,7 @@ interface Package {
 }
 
 function open(bytes: Uint8Array): Package {
-	const files = unzipSync(bytes, {
+	const files = guardedUnzip(bytes, {
 		filter: (f) =>
 			f.name === "content.xml" ||
 			f.name === "styles.xml" ||
