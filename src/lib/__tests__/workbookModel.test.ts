@@ -240,6 +240,51 @@ describe("workbook meaning (audit XLS-04)", () => {
 		expect(result.sheets[0].rowPrefix).toEqual([0, wrapped, wrapped + 30]);
 	});
 
+	it("wraps merged text across the merged width, and its rows share the height", () => {
+		const wb = XLSX.utils.book_new();
+		const ws = XLSX.utils.aoa_to_sheet([
+			[
+				"Wrapped text across three merged columns that needs a second line",
+				null,
+				null,
+			],
+			[null, null, null],
+			["Wrapped text in one merged column, over two rows, that is long", null],
+			[null, null],
+		]);
+		ws["!cols"] = [{ wpx: 120 }, { wpx: 120 }, { wpx: 120 }];
+		ws["!merges"] = [
+			{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+			{ s: { r: 2, c: 0 }, e: { r: 3, c: 0 } },
+		];
+		XLSX.utils.book_append_sheet(wb, ws, "S1");
+		const stubbed = { ...XLSX, read: () => wb } as typeof XLSX;
+		const result = parseWorkbook(stubbed, new ArrayBuffer(0), {
+			styles: [{ wrap: true }],
+			sheets: new Map([
+				[
+					"S1",
+					new Map([
+						["A1", 0],
+						["A3", 0],
+					]),
+				],
+			]),
+			freeze: new Map(),
+			gridless: new Set(),
+			anchors: new Map(),
+			media: [],
+			accents: [],
+		});
+		if (!result.ok) throw new Error("parse failed");
+		const [first, , third, fourth] = result.sheets[0].rowHeights;
+		// Two lines across 360px, not the six one column would take.
+		expect(first).toBe(2 * 18 + 10);
+		// Four lines in 120px; the first row keeps its height, the last grows.
+		expect(third).toBe(30);
+		expect(third + fourth).toBe(5 * 18 + 10);
+	});
+
 	it("labels a formula without a cached result instead of undefined", () => {
 		const wb = XLSX.utils.book_new();
 		const ws: XLSX.WorkSheet = {};

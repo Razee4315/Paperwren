@@ -47,6 +47,7 @@ import {
 	useState,
 } from "react";
 import { flushSync } from "react-dom";
+import "@/styles/office-fonts.css";
 import s from "./Sheet.module.css";
 import {
 	FindBar,
@@ -829,13 +830,30 @@ export default function SheetView({
 				if (ghosts && !(spilled && colX[ac] + w > frozenW)) continue;
 				const top = sheet.rowPrefix[ar];
 				const hh = m ? sheet.rowPrefix[m.r1 + 1] - top : sheet.rowHeights[ar];
+				// Merged text the file does not wrap is wrapped to show more of
+				// it, but only when every line fits: a line cut in half by the
+				// cell's top and bottom reads worse than one whole line.
+				let oneLine = false;
+				if (m && value && look?.whiteSpace !== "pre-wrap") {
+					const size = Number(look?.fontSize ?? 13);
+					const lines = Math.ceil(
+						textWidth(
+							value,
+							look?.fontWeight === 700,
+							String(look?.fontFamily ?? FACE),
+							size,
+						) / Math.max(1, w - 12),
+					);
+					oneLine =
+						lines > 1 && lines * (look?.fontSize ? size * 1.2 : 18) > hh;
+				}
 				out.push(
 					<div
 						key={k}
 						data-r={ghosts ? undefined : ar}
 						data-c={ghosts ? undefined : ac}
 						aria-hidden={ghosts || undefined}
-						className={`${s.cell} ${m ? s.merged : numeric ? s.num : ""} ${spilled ? s.spill : ""} ${look?.whiteSpace === "pre-wrap" ? s.wrap : ""} ${ghosts ? s.ghost : ""} ${look?.["--ink" as keyof typeof look] ? s.ink : ""} ${cell?.link ? s.linked : ""} ${cell?.note ? s.noted : ""}`}
+						className={`${s.cell} ${m ? s.merged : numeric ? s.num : ""} ${oneLine ? s.oneLine : ""} ${spilled ? s.spill : ""} ${look?.whiteSpace === "pre-wrap" ? s.wrap : ""} ${ghosts ? s.ghost : ""} ${look?.["--ink" as keyof typeof look] ? s.ink : ""} ${cell?.link ? s.linked : ""} ${cell?.note ? s.noted : ""}`}
 						style={{
 							left: shift + colX[ac],
 							top,

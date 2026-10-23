@@ -695,19 +695,28 @@ export function parseWorkbook(
 			}
 		}
 		// Wrapped text in a row the file gave no height (it was left to
-		// fit itself): tall enough for its lines.
+		// fit itself): tall enough for its lines. Merged text wraps across
+		// the whole merged width and its rows share the height; the last
+		// one grows.
 		if (styles) {
+			const anchors = new Map(mergeRanges.map((m) => [m.r0 * 1024 + m.c0, m]));
 			let grew = false;
 			for (const [r, c, cell] of sample) {
 				if (cell.style === undefined || !styles[cell.style]?.wrap) continue;
-				if (hasHeight(rawRows[rowOrigins[r]]) || !cell.value) continue;
-				const room = Math.max(24, widths[c] - 14);
+				const merge = anchors.get(r * 1024 + c);
+				const last = merge?.r1 ?? r;
+				if (hasHeight(rawRows[rowOrigins[last]]) || !cell.value) continue;
+				let width = 0;
+				for (let k = c; k <= (merge?.c1 ?? c); k++) width += widths[k];
+				const room = Math.max(24, width - 14);
 				let lines = 0;
 				for (const line of cell.value.split("\n"))
 					lines += Math.max(1, Math.ceil(textPx(line) / room));
 				const needed = Math.min(MAX_ROW_HEIGHT, lines * LINE_PX + 10);
-				if (needed > rowHeights[r]) {
-					rowHeights[r] = needed;
+				let have = 0;
+				for (let k = r; k <= last; k++) have += rowHeights[k];
+				if (needed > have) {
+					rowHeights[last] += needed - have;
 					grew = true;
 				}
 			}

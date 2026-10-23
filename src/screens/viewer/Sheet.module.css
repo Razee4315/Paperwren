@@ -161,6 +161,11 @@
 	text-align: center;
 	z-index: 1;
 }
+/* Merged text too long to wrap into its cell keeps to one line, centred
+ * and cut at both sides, as Excel shows it. */
+.merged.oneLine {
+	white-space: nowrap;
+}
 /* Text running over the empty cells beside it: it covers their grid
  * lines, as a spreadsheet does, and ends without one of its own. */
 .spill {
