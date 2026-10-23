@@ -269,6 +269,18 @@ const ALIGN: Record<string, RichPara["align"]> = {
 	justify: "justify",
 };
 
+/** A list style's definition of `level` (0-based). */
+const levelStyle = (styles: Styles, listStyle: string | null, level: number) =>
+	kids(styles.get("list", listStyle)).find(
+		(e) => Number(e.getAttribute("text:level")) === level + 1,
+	);
+
+/** The number a list level counts from (1 unless the style says). */
+const levelStart = (styles: Styles, listStyle: string | null, level: number) =>
+	Number(
+		levelStyle(styles, listStyle, level)?.getAttribute("text:start-value") ?? 1,
+	) || 1;
+
 /** A list style's marker for `level` (0-based) and item number. */
 function markerFor(
 	styles: Styles,
@@ -276,10 +288,7 @@ function markerFor(
 	level: number,
 	n: number,
 ): string {
-	const style = styles.get("list", listStyle);
-	const def = kids(style).find(
-		(e) => Number(e.getAttribute("text:level")) === level + 1,
-	);
+	const def = levelStyle(styles, listStyle, level);
 	if (def?.localName === "list-level-style-number") {
 		const format = def.getAttribute("style:num-format") ?? "1";
 		const nfc = { "1": 0, I: 1, i: 2, A: 3, a: 4 }[format];
@@ -429,15 +438,31 @@ export function parseOdt(bytes: Uint8Array): RichDoc {
 		counts: number[];
 	}
 
+	// Where each list left off, for a later list that carries on from it:
+	// the last one in each style, and the ones with an id.
+	const lastInStyle = new Map<string | null, number[]>();
+	const listById = new Map<string, number[]>();
+
 	/** A <text:list>: items in order, nested lists one level deeper. */
 	const listOf = (el: Element, out: RichBlock[], parent?: ListState) => {
+		const style = el.getAttribute("text:style-name") ?? parent?.style ?? null;
+		const carriesOn = parent
+			? undefined
+			: el.hasAttribute("text:continue-list")
+				? listById.get(el.getAttribute("text:continue-list") ?? "")
+				: el.getAttribute("text:continue-numbering") === "true"
+					? lastInStyle.get(style)
+					: undefined;
 		const state: ListState = {
-			style: el.getAttribute("text:style-name") ?? parent?.style ?? null,
+			style,
 			level: parent ? parent.level + 1 : 0,
-			counts: parent?.counts ?? [],
+			counts: parent?.counts ?? carriesOn ?? [],
 		};
-		if (!parent && el.getAttribute("text:continue-numbering") !== "true")
-			state.counts[0] = 0;
+		if (!parent) {
+			lastInStyle.set(style, state.counts);
+			const id = el.getAttribute("xml:id");
+			if (id) listById.set(id, state.counts);
+		}
 		for (const item of kids(el)) {
 			if (item.localName !== "list-item" && item.localName !== "list-header")
 				continue;
@@ -447,7 +472,12 @@ export function parseOdt(bytes: Uint8Array): RichDoc {
 				if (child.localName === "list") listOf(child, out, state);
 				else if (child.localName === "p" || child.localName === "h") {
 					if (first) {
-						state.counts[state.level] = (state.counts[state.level] ?? 0) + 1;
+						const at = item.getAttribute("text:start-value");
+						const n = at
+							? Number(at)
+							: (state.counts[state.level] ??
+									levelStart(styles, state.style, state.level) - 1) + 1;
+						state.counts[state.level] = n;
 						state.counts.length = state.level + 1;
 					}
 					out.push(

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import type { SlideElement } from "../pptx/parse";
@@ -265,6 +266,47 @@ describe("OpenDocument text (.odt)", () => {
 			[1, ">>1<<"],
 			[2, ">>1<<"],
 			[2, ">>2<<"],
+		]);
+	});
+
+	it("counts lists on, restarts them and starts them where asked", () => {
+		const item = (text: string, attrs = "") =>
+			`<text:list-item${attrs}><text:p>${text}</text:p></text:list-item>`;
+		const list = (items: string, attrs = "") =>
+			`<text:list text:style-name="L1"${attrs}>${items}</text:list>`;
+		const content = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:xml="http://www.w3.org/XML/1998/namespace">
+<office:automatic-styles><text:list-style style:name="L1">
+<text:list-level-style-number text:level="1" style:num-format="1"/>
+<text:list-level-style-number text:level="2" style:num-format="a" text:start-value="3"/>
+</text:list-style></office:automatic-styles><office:body><office:text>
+${list(`${item("One")}<text:list-item><text:p>Two</text:p>${list(item("Sub c") + item("Sub d"))}</text:list-item>${item("Three")}`, ' xml:id="first"')}
+<text:p>Break</text:p>${list(item("Again one"))}
+<text:p>Break</text:p>${list(item("Again two"), ' text:continue-numbering="true"')}
+${list(item("Four"), ' text:continue-list="first"')}
+${list(item("Five", ' text:start-value="5"') + item("Six"))}
+</office:text></office:body></office:document-content>`;
+		const doc = parseOdt(
+			zipSync({
+				mimetype: strToU8("application/vnd.oasis.opendocument.text"),
+				"content.xml": strToU8(content),
+			}),
+		);
+		expect(
+			paras(doc.blocks)
+				.filter((p) => p.list)
+				.map((p) => `${p.list?.marker} ${textOf(p)}`),
+		).toEqual([
+			"1. One",
+			"2. Two",
+			"c. Sub c",
+			"d. Sub d",
+			"3. Three",
+			"1. Again one",
+			"2. Again two",
+			"4. Four",
+			"5. Five",
+			"6. Six",
 		]);
 	});
 
