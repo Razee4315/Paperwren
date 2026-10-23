@@ -34,6 +34,13 @@ import {
 	useZoom,
 	useZoomLevel,
 } from "./hooks";
+import {
+	PageCount,
+	SidewaysItem,
+	jumpTo,
+	usePaged,
+	useSideways,
+} from "./paged";
 import { runWorker } from "./runWorker";
 import { domSpeech } from "./speechSources";
 import type { ViewerProps } from "./types";
@@ -97,7 +104,6 @@ export default function ReflowView(props: ViewerProps) {
 	const [headings, setHeadings] = useState<Heading[]>([]);
 	const [outlineOpen, setOutlineOpen] = useState(false);
 	const find = useDomFind(content, scroller);
-	const tapTurn = useTapToTurn(scroller);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: extract once per document
 	useEffect(() => {
@@ -113,6 +119,20 @@ export default function ReflowView(props: ViewerProps) {
 	}, [props.data]);
 
 	const doc = result?.ok ? result.doc : null;
+	const [sideways] = useSideways();
+	const paged = usePaged({
+		scroller,
+		// A document's paper; a deck's slides together.
+		paper: () =>
+			doc?.kind === "slides"
+				? content.current
+				: (content.current?.firstElementChild as HTMLElement | null),
+		on: sideways && !!doc,
+		zoom,
+		relayout: doc,
+	});
+	const turnPage = paged.pages ? paged.turn : undefined;
+	const tapTurn = useTapToTurn(scroller, turnPage);
 	// The headings, read from the document once it is on the page.
 	useEffect(() => {
 		setHeadings(doc && content.current ? readHeadings(content.current) : []);
@@ -138,10 +158,7 @@ export default function ReflowView(props: ViewerProps) {
 	const goToHeading = (heading: Heading) => {
 		const el = scroller.current;
 		if (!el || !heading.el.isConnected) return;
-		el.scrollTop +=
-			heading.el.getBoundingClientRect().top -
-			el.getBoundingClientRect().top -
-			12;
+		jumpTo(el, heading.el);
 	};
 	const pick = useRef(goToHeading);
 	pick.current = goToHeading;
@@ -194,19 +211,26 @@ export default function ReflowView(props: ViewerProps) {
 			speech={doc ? speech : undefined}
 			chromeHidden={chromeHidden && !find.open}
 			onFind={doc ? find.start : undefined}
+			onStep={turnPage}
+			turnPages={!!turnPage}
 			menu={
-				doc && !isDesktop && headings.length
+				doc
 					? (close) => (
-							<SheetItem
-								icon={<ListTree size={20} />}
-								onClick={() => {
-									close();
-									setOutlineOpen(true);
-								}}
-								testId="doc-contents"
-							>
-								{t("Contents")}
-							</SheetItem>
+							<>
+								{!isDesktop && headings.length > 0 && (
+									<SheetItem
+										icon={<ListTree size={20} />}
+										onClick={() => {
+											close();
+											setOutlineOpen(true);
+										}}
+										testId="doc-contents"
+									>
+										{t("Contents")}
+									</SheetItem>
+								)}
+								<SidewaysItem close={close} />
+							</>
 						)
 					: undefined
 			}
@@ -221,8 +245,12 @@ export default function ReflowView(props: ViewerProps) {
 			pager={
 				doc ? (
 					<>
-						{!isDesktop && (
-							<span className={shellStyles.meta}>{t("Text size")}</span>
+						{paged.pages ? (
+							<PageCount paged={paged} />
+						) : (
+							!isDesktop && (
+								<span className={shellStyles.meta}>{t("Text size")}</span>
+							)
 						)}
 						<ZoomControl
 							label={`${Math.round(zoom * 100)}%`}

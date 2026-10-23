@@ -7,6 +7,7 @@
 import { pieces, runningText } from "@/lib/speech";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { RefObject } from "react";
+import { isPaged, reveal } from "./paged";
 
 export interface SpeechPiece {
 	text: string;
@@ -45,6 +46,10 @@ function mark(range: Range, scroller: HTMLElement | null) {
 	if (!scroller) return;
 	const rect = range.getBoundingClientRect();
 	const view = scroller.getBoundingClientRect();
+	if (isPaged(scroller)) {
+		if (rect.height) reveal(scroller, rect);
+		return;
+	}
 	if (
 		rect.height &&
 		(rect.top < view.top + 24 || rect.bottom > view.bottom - 64)

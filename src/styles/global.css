@@ -478,3 +478,94 @@ html[data-reading-font]
 	:not(pre, pre *, code, kbd, samp, .katex, .katex *) {
 	font-family: var(--reading-face) !important;
 }
+
+/* ---------- Pages turned sideways (screens/viewer/paged.ts) ----------
+ * A flowing document laid out in columns as tall as the screen; a swipe
+ * comes to rest at the start of a page (the marks). */
+.pw-paged {
+	overflow-x: auto !important;
+	overflow-y: hidden !important;
+	scroll-snap-type: x mandatory;
+	overscroll-behavior: contain;
+	scrollbar-width: none;
+}
+.pw-paged::-webkit-scrollbar {
+	display: none;
+}
+.pw-page-marks {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 0;
+	height: 0;
+	pointer-events: none;
+}
+.pw-page-marks > span {
+	position: absolute;
+	top: 0;
+	width: 1px;
+	height: 1px;
+	scroll-snap-align: start;
+	scroll-snap-stop: always;
+}
+/* The page is the screen: no card, no shadow; its own top and bottom
+ * margins. The sides and the size are set by paged.ts. */
+.pw-paged-paper {
+	box-shadow: none !important;
+	border-radius: 0 !important;
+	padding-top: 28px !important;
+	padding-bottom: 40px !important;
+	overflow: hidden;
+	overflow-wrap: break-word;
+}
+.pw-paged-paper :is(img, svg, video, canvas) {
+	max-width: 100%;
+	max-height: calc(var(--page-h) - 96px);
+	width: auto;
+	height: auto;
+	object-fit: contain;
+	break-inside: avoid;
+}
+.pw-paged-paper :is(h1, h2, h3, h4, h5, h6) {
+	break-after: avoid;
+}
+.pw-paged-paper :is(figure, table, blockquote) {
+	break-inside: avoid;
+}
+/* Long lines wrap: nothing scrolls sideways inside a page. */
+pre.pw-paged-paper,
+.pw-paged-paper pre {
+	white-space: pre-wrap;
+}
+/* A Word document's reading view, turned sideways: its wrapper is the
+ * paper (one colour under every page, the gaps between them too), so the
+ * page colour moves from each section onto it. */
+.pw-paged .docx-wrapper.pw-paged-paper {
+	display: block !important;
+	padding: 28px var(--page-side) 40px !important;
+	background: #fff !important;
+}
+.pw-paged .docx-wrapper.pw-paged-paper > section.docx {
+	/* Contained or flexed, a section would not break across pages. */
+	display: block !important;
+	content-visibility: visible !important;
+	overflow: visible !important;
+	column-count: auto !important;
+	width: auto !important;
+	max-width: none !important;
+	min-height: 0 !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	filter: none !important;
+}
+.pw-paged .docx-wrapper.pw-paged-paper > section.docx > article {
+	width: auto !important;
+}
+[data-page-color="sepia"] .pw-paged .docx-wrapper.pw-paged-paper {
+	filter: url("#pw-sepia");
+}
+[data-page-color="dark"] .pw-paged .docx-wrapper.pw-paged-paper {
+	filter: invert(0.9) hue-rotate(180deg);
+}
