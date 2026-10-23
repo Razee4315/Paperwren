@@ -15,10 +15,12 @@ import { ar } from "../locales/ar";
 import { es } from "../locales/es";
 import { fr } from "../locales/fr";
 import { hi } from "../locales/hi";
+import { pt } from "../locales/pt";
+import { ru } from "../locales/ru";
 import { ur } from "../locales/ur";
 import { zh } from "../locales/zh";
 
-const TABLES: Record<string, Table> = { ar, es, fr, hi, ur, zh };
+const TABLES: Record<string, Table> = { ar, es, fr, hi, pt, ru, ur, zh };
 const STRING = String.raw`"((?:[^"\\]|\\.)*)"`;
 
 /** Every interface string in the source: what `t`, `tn` and `msg`
@@ -116,6 +118,13 @@ describe("t and tn", () => {
 		expect(tn(40, "{n} page", "{n} pages")).toBe("\u206840\u2069 صفحة");
 		setLanguage("fr");
 		expect(tn(1, "{n} page", "{n} pages")).toBe("1 page");
+		setLanguage("ru");
+		expect(tn(1, "{n} page", "{n} pages")).toBe("1 страница");
+		expect(tn(3, "{n} page", "{n} pages")).toBe("3 страницы");
+		expect(tn(5, "{n} page", "{n} pages")).toBe("5 страниц");
+		expect(tn(21, "{n} page", "{n} pages")).toBe("21 страница");
+		setLanguage("pt");
+		expect(tn(2, "{n} page", "{n} pages")).toBe("2 páginas");
 	});
 
 	it("turns the page around for Arabic and Urdu only", () => {
@@ -132,6 +141,8 @@ describe("t and tn", () => {
 		expect(resolveLanguage("system", ["de-DE", "fr-CA", "en"])).toBe("fr");
 		expect(resolveLanguage("system", ["zh-Hans-CN"])).toBe("zh");
 		expect(resolveLanguage("system", ["ja"])).toBe("en");
+		expect(resolveLanguage("system", ["pt-BR"])).toBe("pt");
+		expect(resolveLanguage("system", ["ru-RU"])).toBe("ru");
 		expect(resolveLanguage("ur", ["en-US"])).toBe("ur");
 	});
 });

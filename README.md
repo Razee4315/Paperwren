@@ -91,7 +91,7 @@ The bytes decide the format, not the file name: content URIs without extensions 
 - **Find** can match case and whole words.
 - **Recents** can be sorted by last opened, name or size; removing one, clearing them or turning them off can be undone for a few seconds. A file reopens at the page and zoom it was left at.
 - **Keep the screen on** while a document is open (off by default; no permission needed).
-- **Languages**: English, 中文, हिन्दी, Español, Français, العربية and اردو, following the phone or chosen in Settings. Arabic and Urdu mirror the app; documents keep their own direction. See "Translations" below.
+- **Languages**: English, 中文, हिन्दी, Español, Français, Português (Brasil), Русский, العربية and اردو, following the phone or chosen in Settings. Arabic and Urdu mirror the app; documents keep their own direction. See "Translations" below.
 
 ## Tools
 
@@ -239,7 +239,7 @@ Run all four checks (`lint`, `build`, `test`, `cargo test`) before pushing.
 
 Interface text is written in English in the code (`t("Open file")`) and looked up by that text. The translations live in one table, `scripts/locales/strings.py`, one row per string with every language side by side; `python3 scripts/make-locales.py` writes `src/lib/locales/*.ts` from it. A unit test fails if a string in the code is missing from any language, or if a table has a string the code no longer uses.
 
-The Urdu, Arabic, Chinese, Hindi, Spanish and French texts were written without a native reviewer. Corrections are welcome: edit the row in `strings.py` and regenerate.
+The Urdu, Arabic, Chinese, Hindi, Spanish, French, Russian and Portuguese (Brazilian) texts were written without a native reviewer. Corrections are welcome: edit the row in `strings.py` and regenerate.
 
 ### Website
 

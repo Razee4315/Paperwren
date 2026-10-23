@@ -11,7 +11,16 @@
  * shown as they are, in their own direction.
  */
 
-export type Language = "en" | "zh" | "hi" | "es" | "fr" | "ar" | "ur";
+export type Language =
+	| "en"
+	| "zh"
+	| "hi"
+	| "es"
+	| "fr"
+	| "pt"
+	| "ru"
+	| "ar"
+	| "ur";
 export type LanguageSetting = "system" | Language;
 
 type Category = "zero" | "one" | "two" | "few" | "many" | "other";
@@ -28,17 +37,21 @@ export const LANGUAGES: Array<[Language, string]> = [
 	["hi", "हिन्दी"],
 	["es", "Español"],
 	["fr", "Français"],
+	["pt", "Português"],
+	["ru", "Русский"],
 	["ar", "العربية"],
 	["ur", "اردو"],
 ];
 
 /** Each language's table is its own chunk: a start in English (or in
- * any one language) never pays for the other six. */
+ * any one language) never pays for the others. */
 const LOADERS: Record<Exclude<Language, "en">, () => Promise<Table>> = {
 	zh: () => import("./locales/zh").then((m) => m.zh),
 	hi: () => import("./locales/hi").then((m) => m.hi),
 	es: () => import("./locales/es").then((m) => m.es),
 	fr: () => import("./locales/fr").then((m) => m.fr),
+	pt: () => import("./locales/pt").then((m) => m.pt),
+	ru: () => import("./locales/ru").then((m) => m.ru),
 	ar: () => import("./locales/ar").then((m) => m.ar),
 	ur: () => import("./locales/ur").then((m) => m.ur),
 };
