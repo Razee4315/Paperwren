@@ -30,6 +30,11 @@
 	color: #000;
 	line-height: 1.2;
 }
+/* Selected text on a slide, whatever its own colours (Doc.module.css). */
+.slide ::selection {
+	background: #b3d4fc;
+	color: #111;
+}
 .el {
 	position: absolute;
 }

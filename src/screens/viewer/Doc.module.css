@@ -73,6 +73,19 @@
 	contain-intrinsic-size: auto 816px auto 1056px;
 }
 
+/* Selected text on paper. The app's own selection colour is made for its
+ * surfaces and can all but vanish on a white page (dark teal under black
+ * text in the dark theme), so paper has its own: light blue under
+ * near-black text, 12:1. Sepia and dark pages are drawn through a filter
+ * (global.css) that turns the selection with the page. */
+.docx :global(.docx-wrapper > section.docx) ::selection,
+.paper ::selection,
+.paper::selection,
+.slideText ::selection {
+	background: #b3d4fc;
+	color: #111;
+}
+
 @media print {
 	/* One document page per sheet of paper, edge to edge. */
 	.docx :global(.docx-wrapper > section.docx) {
