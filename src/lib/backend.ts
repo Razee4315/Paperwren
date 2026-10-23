@@ -962,7 +962,7 @@ const tauriBackend: Backend = {
 			if (!bridge?.saveBegin || !bridge.saveChunk || !bridge.saveFinish)
 				throw new OpenError("unsupported");
 			const { saveBegin, saveChunk, saveFinish } = bridge;
-			const answer = await androidCall<string>("__paperwrenSaved", (token) => {
+			const answer = await androidCall<unknown>("__paperwrenSaved", (token) => {
 				if (!saveBegin.call(bridge, token)) return false;
 				for (let at = 0; at < bytes.length; at += SAVE_PIECE)
 					if (
@@ -977,7 +977,7 @@ const tauriBackend: Backend = {
 			});
 			if (answer === "cancel") return null;
 			if (answer === null) throw new OpenError("unreadable");
-			return { name: answer || name };
+			return androidSaved(answer, name);
 		}
 		const path = await invoke<string | null>("save_as", bytes, {
 			headers: { "x-name": encodeURIComponent(name) },
@@ -1097,6 +1097,24 @@ export const backend: Backend = {
 		else saveCopy(shared);
 	},
 };
+
+/** Where Android's "save as" put a copy: its name and the document's
+ * address, so it can be opened from the message and again from Recent
+ * files (the app keeps the right to read it). A bare name, or an
+ * answer with no address, can only be named. */
+export function androidSaved(answer: unknown, offered: string): SavedFile {
+	if (answer && typeof answer === "object") {
+		const { name, uri } = answer as { name?: unknown; uri?: unknown };
+		return {
+			name: typeof name === "string" && name ? name : offered,
+			reopen:
+				typeof uri === "string" && uri.startsWith("content://")
+					? { kind: "uri", uri }
+					: undefined,
+		};
+	}
+	return { name: typeof answer === "string" && answer ? answer : offered };
+}
 
 /** Open a copy the reader just saved, where the platform said it is. */
 export function requestForSaved(

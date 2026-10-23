@@ -162,7 +162,19 @@ class MainActivity : TauriActivity() {
           contentResolver.openOutputStream(uri, "wt")?.use { out ->
             file.inputStream().use { it.copyTo(out) }
           } ?: throw IllegalStateException("no stream")
-          JSONObject.quote(queryDisplayName(uri))
+          try {
+            // Open the copy from the message, and from Recent files after
+            // the app restarts.
+            contentResolver.takePersistableUriPermission(
+              uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+          } catch (e: Exception) {
+            // Readable until the app closes, then named only.
+          }
+          JSONObject()
+            .put("name", queryDisplayName(uri))
+            .put("uri", uri.toString())
+            .toString()
         } catch (e: Exception) {
           "null"
         } finally {
@@ -964,7 +976,7 @@ class MainActivity : TauriActivity() {
     }
 
     /** Ask where the copy goes, offering `name`. Answers through
-     * window.__paperwrenSaved(token, savedName | "cancel" | null). */
+     * window.__paperwrenSaved(token, {name, uri} | "cancel" | null). */
     @JavascriptInterface
     fun saveFinish(token: String, name: String, mime: String): Boolean {
       if (!fromApp()) return false

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { androidSaved, requestForSaved } from "../backend";
 import {
 	cleanPosition,
 	idForReopen,
@@ -69,6 +70,44 @@ describe("recordOpen", () => {
 		const { list, evicted } = recordOpen(start, entry(4), 1000, 2);
 		expect(list.map((e) => e.name)).toEqual(["f1.pdf", "f4.pdf", "f3.pdf"]);
 		expect(evicted.map((e) => e.name)).toEqual(["f2.pdf"]);
+	});
+});
+
+describe("a copy a tool saved (#19)", () => {
+	it("opens from where Android saved it, and goes into Recent files", () => {
+		const saved = androidSaved(
+			{ name: "Scan 1.pdf", uri: "content://docs/document/7" },
+			"Scan.pdf",
+		);
+		expect(saved).toEqual({
+			name: "Scan 1.pdf",
+			reopen: { kind: "uri", uri: "content://docs/document/7" },
+		});
+		const request = requestForSaved(saved, 1234);
+		if (!request) throw new Error("no way to open the saved copy");
+		const { list } = recordOpen(
+			[],
+			{ ...request, format: "pdf", size: request.size },
+			100,
+			50,
+		);
+		expect(list).toHaveLength(1);
+		expect(list[0]).toMatchObject({
+			id: idForReopen({ kind: "uri", uri: "content://docs/document/7" }),
+			name: "Scan 1.pdf",
+			reopen: { kind: "uri", uri: "content://docs/document/7" },
+		});
+	});
+
+	it("can only be named when the platform gives no address", () => {
+		expect(androidSaved("Scan 1.pdf", "Scan.pdf")).toEqual({
+			name: "Scan 1.pdf",
+		});
+		expect(androidSaved({ name: "", uri: "file:///x" }, "Scan.pdf")).toEqual({
+			name: "Scan.pdf",
+			reopen: undefined,
+		});
+		expect(requestForSaved({ name: "Scan.pdf" }, 10)).toBeNull();
 	});
 });
 
