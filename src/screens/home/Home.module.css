@@ -360,6 +360,60 @@
 	min-width: 0;
 	flex: 1;
 }
+/* A sub-folder in a browsed folder: a folder where a file's page is. */
+.folderIcon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 46px;
+	flex-shrink: 0;
+	color: var(--accent);
+}
+.folderIcon svg {
+	fill: var(--accent-soft);
+}
+.rowArrow {
+	flex-shrink: 0;
+	margin-inline-end: 8px;
+	color: var(--text-3);
+}
+/* Where in the browsed folder the list is: each step back up is a tap. */
+.crumbs {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	overflow: hidden;
+	text-transform: none;
+	letter-spacing: 0;
+}
+.crumb {
+	min-width: 0;
+	max-width: 14em;
+	padding: 6px;
+	border-radius: var(--r-s);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--accent);
+}
+.crumb:first-child {
+	padding-inline-start: 0;
+}
+.crumb:hover:not(:disabled) {
+	background: var(--surface-2);
+}
+/* The folder on show: named, not a link; never the one cut short. */
+.crumb[aria-current] {
+	flex-shrink: 0;
+	color: var(--text);
+	cursor: default;
+}
+.crumbArrow {
+	flex-shrink: 0;
+	color: var(--text-3);
+}
 .name {
 	display: block;
 	font-weight: 700;

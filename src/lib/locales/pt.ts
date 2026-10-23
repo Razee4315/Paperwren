@@ -765,6 +765,13 @@ export const pt: Table = {
 	"{n} KB": "{n} KB",
 	"{n} MB": "{n} MB",
 	"{n} GB": "{n} GB",
+	"Folder path": "Caminho da pasta",
+	"Show all files": "Mostrar todos os arquivos",
+	"Show folders": "Mostrar pastas",
+	"{n} documents": {
+		one: "{n} documento",
+		other: "{n} documentos",
+	},
 	"A tree scrolls down": "Uma árvore rola para baixo",
 	"Show the whole file first": "Mostre o arquivo inteiro primeiro",
 	"Turn on Reading view first": "Ative primeiro o modo de leitura",

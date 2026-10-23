@@ -750,6 +750,13 @@ export const ur: Table = {
 	"{n} KB": "{n} KB",
 	"{n} MB": "{n} MB",
 	"{n} GB": "{n} GB",
+	"Folder path": "فولڈر کا راستہ",
+	"Show all files": "تمام فائلیں دکھائیں",
+	"Show folders": "فولڈر دکھائیں",
+	"{n} documents": {
+		one: "{n} دستاویز",
+		other: "{n} دستاویزات",
+	},
 	"A tree scrolls down": "درخت نیچے کی طرف سکرول ہوتا ہے",
 	"Show the whole file first": "پہلے پوری فائل دکھائیں",
 	"Turn on Reading view first": "پہلے ریڈنگ ویو آن کریں",

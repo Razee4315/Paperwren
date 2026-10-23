@@ -770,6 +770,13 @@ export const fr: Table = {
 	"{n} KB": "{n} Ko",
 	"{n} MB": "{n} Mo",
 	"{n} GB": "{n} Go",
+	"Folder path": "Chemin du dossier",
+	"Show all files": "Afficher tous les fichiers",
+	"Show folders": "Afficher les dossiers",
+	"{n} documents": {
+		one: "{n} document",
+		other: "{n} documents",
+	},
 	"A tree scrolls down": "Une arborescence défile vers le bas",
 	"Show the whole file first": "Affichez d’abord tout le fichier",
 	"Turn on Reading view first": "Activez d’abord le mode lecture",

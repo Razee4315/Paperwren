@@ -181,7 +181,28 @@ test("a folder's documents are listed, searched and opened", async ({
 	await expect(place).toHaveText("Reports");
 	await expect(place).toHaveAttribute("aria-pressed", "true");
 	const files = page.getByTestId("folder-file");
-	// The zip is not a document: left out. Subfolders are looked into.
+	const folders = page.getByTestId("folder-subfolder");
+	// The zip is not a document: left out. A subfolder opens as a folder.
+	await expect(files).toHaveCount(2);
+	await expect(folders).toHaveCount(1);
+	await expect(folders).toContainText("2026");
+	await expect(folders).toContainText("1 document");
+	await folders.click();
+	await expect(page.getByTestId("folder-crumb")).toHaveText([
+		"Reports",
+		"2026",
+	]);
+	await expect(files).toHaveCount(1);
+	await expect(files).toContainText("notes.txt");
+	// Back goes up a folder before it leaves the list.
+	await page.goBack();
+	await expect(page.getByTestId("folder-crumb")).toHaveText(["Reports"]);
+	await expect(page.getByTestId("place-folder")).toHaveAttribute(
+		"aria-pressed",
+		"true",
+	);
+	// Every document at once, with the folder each one is in.
+	await page.getByTestId("folder-view").click();
 	await expect(files).toHaveCount(3);
 	await expect(files.filter({ hasText: "notes.txt" })).toContainText("2026");
 

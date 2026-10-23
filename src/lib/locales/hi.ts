@@ -741,6 +741,13 @@ export const hi: Table = {
 	"{n} KB": "{n} KB",
 	"{n} MB": "{n} MB",
 	"{n} GB": "{n} GB",
+	"Folder path": "फ़ोल्डर का पथ",
+	"Show all files": "सभी फ़ाइलें दिखाएँ",
+	"Show folders": "फ़ोल्डर दिखाएँ",
+	"{n} documents": {
+		one: "{n} दस्तावेज़",
+		other: "{n} दस्तावेज़",
+	},
 	"A tree scrolls down": "ट्री नीचे की ओर स्क्रॉल होता है",
 	"Show the whole file first": "पहले पूरी फ़ाइल दिखाएँ",
 	"Turn on Reading view first": "पहले रीडिंग व्यू चालू करें",

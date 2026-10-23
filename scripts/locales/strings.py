@@ -756,6 +756,11 @@ ROWS = [
     ("{n} KB", "{n} KB", "{n} ك.ب", "{n} KB", "{n} KB", "{n} KB", "{n} Ko", "{n} КБ", "{n} KB"),
     ("{n} MB", "{n} MB", "{n} م.ب", "{n} MB", "{n} MB", "{n} MB", "{n} Mo", "{n} МБ", "{n} MB"),
     ("{n} GB", "{n} GB", "{n} ج.ب", "{n} GB", "{n} GB", "{n} GB", "{n} Go", "{n} ГБ", "{n} GB"),
+    # ---- folders inside a browsed folder ----
+    ("Folder path", "فولڈر کا راستہ", "مسار المجلد", "文件夹路径", "फ़ोल्डर का पथ", "Ruta de la carpeta", "Chemin du dossier", "Путь к папке", "Caminho da pasta"),
+    ("Show all files", "تمام فائلیں دکھائیں", "عرض كل الملفات", "显示所有文件", "सभी फ़ाइलें दिखाएँ", "Mostrar todos los archivos", "Afficher tous les fichiers", "Показать все файлы", "Mostrar todos os arquivos"),
+    ("Show folders", "فولڈر دکھائیں", "عرض المجلدات", "显示文件夹", "फ़ोल्डर दिखाएँ", "Mostrar carpetas", "Afficher les dossiers", "Показать папки", "Mostrar pastas"),
+    ("{n} documents", {"one": "{n} دستاویز", "other": "{n} دستاویزات"}, {"one": "مستند واحد", "two": "مستندان", "few": "{n} مستندات", "many": "{n} مستندًا", "other": "{n} مستند"}, "{n} 个文档", {"one": "{n} दस्तावेज़", "other": "{n} दस्तावेज़"}, {"one": "{n} documento", "other": "{n} documentos"}, {"one": "{n} document", "other": "{n} documents"}, {"one": "{n} документ", "few": "{n} документа", "many": "{n} документов", "other": "{n} документа"}, {"one": "{n} documento", "other": "{n} documentos"}),
     # ---- pages turned sideways ----
     ("A tree scrolls down", "درخت نیچے کی طرف سکرول ہوتا ہے", "الشجرة تُمرَّر إلى الأسفل", "树状视图只能向下滚动", "ट्री नीचे की ओर स्क्रॉल होता है", "Un árbol se desplaza hacia abajo", "Une arborescence défile vers le bas", "Дерево прокручивается вниз", "Uma árvore rola para baixo"),
     ("Show the whole file first", "پہلے پوری فائل دکھائیں", "اعرض الملف كاملًا أولًا", "请先显示整个文件", "पहले पूरी फ़ाइल दिखाएँ", "Muestra primero el archivo completo", "Affichez d’abord tout le fichier", "Сначала покажите весь файл", "Mostre o arquivo inteiro primeiro"),
