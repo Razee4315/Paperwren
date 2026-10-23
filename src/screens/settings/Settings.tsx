@@ -297,7 +297,7 @@ export function SettingsScreen() {
 							testId="pdf-zoom"
 						/>
 						<Segmented<PdfFlow>
-							label={t("PDF pages scroll")}
+							label={t("Pages scroll")}
 							value={settings.pdfFlow}
 							onChange={(v) => update("pdfFlow", v)}
 							options={[

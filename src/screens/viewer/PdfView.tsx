@@ -24,6 +24,7 @@ import {
 	BookOpenText,
 	Crop,
 	GalleryHorizontal,
+	ImageDown,
 	Layers as LayersIcon,
 	LayoutGrid,
 	ListTree,
@@ -50,6 +51,7 @@ import type {
 	PDFViewer,
 } from "pdfjs-dist/web/pdf_viewer.mjs";
 import "pdfjs-dist/web/pdf_viewer.css";
+import { drawPage } from "@/lib/pagePicture";
 import { FillSign } from "@/screens/tools/FillSign";
 import { announceSaved } from "@/screens/tools/saved";
 import {
@@ -92,6 +94,7 @@ import {
 import { useZoom } from "./hooks";
 import { canCrop, cropPages, whole } from "./pdfCrop";
 import { type Box, findPictures, placePictures } from "./pdfPictures";
+import { pageFileName, savePicture } from "./savePicture";
 import { pdfSpeech } from "./speechSources";
 import type { ViewerProps } from "./types";
 
@@ -1004,6 +1007,27 @@ export default function PdfView({
 		measureFit();
 	}, [page, scale, measureFit]);
 
+	// --- save the page on show as a picture of its own ---
+	const savingPage = useRef(false);
+	const savePage = async () => {
+		if (!doc || savingPage.current) return;
+		savingPage.current = true;
+		const n = page;
+		await savePicture(async () => {
+			const proxy = await doc.getPage(n);
+			const picture = await drawPage(proxy, {
+				dpi: 200,
+				type: "image/png",
+				// Turned as it is on screen; the whole page, cropped or not.
+				rotation:
+					(proxy.rotate + (pdfViewer.current?.pagesRotation ?? 0)) % 360,
+				viewportOf: (params) => whole(proxy, () => proxy.getViewport(params)),
+			});
+			return { ...picture, name: pageFileName(name, n, picture.type) };
+		}, file?.openOver);
+		savingPage.current = false;
+	};
+
 	const pdfMenu = (close: () => void) => (
 		<>
 			<SheetItem
@@ -1035,6 +1059,17 @@ export default function PdfView({
 					{t("More PDF tools")}
 				</SheetItem>
 			)}
+			<SheetItem
+				icon={<ImageDown size={20} />}
+				hint={t("Page {n}, as a picture of its own", { n: page })}
+				onClick={() => {
+					close();
+					void savePage();
+				}}
+				testId="pdf-save-page"
+			>
+				{t("Save page as picture")}
+			</SheetItem>
 			{!isDesktop && (
 				<>
 					<SheetItem

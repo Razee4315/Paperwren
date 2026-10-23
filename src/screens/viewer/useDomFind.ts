@@ -7,6 +7,7 @@ import {
 	useState,
 } from "react";
 import type { FindState } from "./Shell";
+import { isPaged, reveal } from "./paged";
 
 const MAX_MATCHES = 2000;
 
@@ -155,11 +156,14 @@ export function useDomFind(
 			if (r && box) {
 				const rect = r.getBoundingClientRect();
 				const view = box.getBoundingClientRect();
-				if (rect.top < view.top + 40 || rect.bottom > view.bottom - 40) {
-					box.scrollTop += rect.top - view.top - view.height / 3;
-				}
-				if (rect.left < view.left || rect.right > view.right) {
-					box.scrollLeft += rect.left - view.left - view.width / 3;
+				if (isPaged(box)) reveal(box, rect);
+				else {
+					if (rect.top < view.top + 40 || rect.bottom > view.bottom - 40) {
+						box.scrollTop += rect.top - view.top - view.height / 3;
+					}
+					if (rect.left < view.left || rect.right > view.right) {
+						box.scrollLeft += rect.left - view.left - view.width / 3;
+					}
 				}
 			}
 		},
