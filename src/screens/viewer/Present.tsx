@@ -220,10 +220,14 @@ export function Present({
 	useEffect(() => holdScreen(), []);
 
 	const hide = useRef(0);
+	const bar = useRef<HTMLDivElement>(null);
 	const wake = useCallback(() => {
 		setControls(true);
 		window.clearTimeout(hide.current);
-		hide.current = window.setTimeout(() => setControls(false), CONTROLS_MS);
+		hide.current = window.setTimeout(() => {
+			// A control the keyboard is on stays in sight.
+			if (!bar.current?.contains(document.activeElement)) setControls(false);
+		}, CONTROLS_MS);
 	}, []);
 	useEffect(() => {
 		wake();
@@ -255,6 +259,18 @@ export function Present({
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			if (e.ctrlKey || e.metaKey || e.altKey) return;
+			// Enter and Space press the show's own buttons; Tab brings them back.
+			const control = (e.target as HTMLElement | null)?.closest?.(
+				"button, a[href], input, select, textarea",
+			);
+			if (control && (e.key === " " || e.key === "Enter")) {
+				wake();
+				return;
+			}
+			if (e.key === "Tab") {
+				wake();
+				return;
+			}
 			if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key))
 				step(1);
 			else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key))
@@ -272,7 +288,7 @@ export function Present({
 		};
 		window.addEventListener("keydown", onKey, true);
 		return () => window.removeEventListener("keydown", onKey, true);
-	}, [step, beyond, close, total]);
+	}, [step, beyond, close, total, wake]);
 
 	// The wheel turns slides, a notch at a time.
 	const wheeled = useRef(0);
@@ -453,7 +469,12 @@ export function Present({
 					{note || t("No notes for this slide")}
 				</div>
 			)}
-			<div className={s.presentBar} data-on={controls ? "" : undefined}>
+			<div
+				ref={bar}
+				className={s.presentBar}
+				data-on={controls ? "" : undefined}
+				onFocus={wake}
+			>
 				<IconButton
 					label={t("Previous slide")}
 					disabled={first}

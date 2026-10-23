@@ -197,6 +197,29 @@ test.describe("the desktop layout", () => {
 		await expect(page.getByTestId("slide-page-field")).toHaveValue("2");
 	});
 
+	test("a slide show's buttons answer to the keyboard", async ({ page }) => {
+		await boot(page, {}, DESKTOP);
+		await openFixture(page, "viewer-regressions/effects.pptx");
+		await expect(page.getByTestId("slide-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("slides-present").click();
+		const counter = page.getByTestId("present-counter");
+		await expect(counter).toHaveText("1 / 3");
+		// Enter on a button presses it; it does not turn the slide.
+		await page.getByTestId("present-presenter").focus();
+		await page.keyboard.press("Enter");
+		await expect(page.getByTestId("presenter")).toBeVisible();
+		await expect(counter).toHaveText("1 / 3");
+		// The bar stays while the keyboard is on it.
+		await page.waitForTimeout(3200);
+		await expect(page.getByTestId("present-presenter")).toBeVisible();
+		// Space on the slide itself still goes on.
+		await page.getByTestId("present").focus();
+		await page.keyboard.press("Space");
+		await expect(counter).toHaveText("2 / 3");
+	});
+
 	test("presenter view and the laser pointer", async ({ page }) => {
 		await boot(page, {}, DESKTOP);
 		await openFixture(page, "sample.pptx");
