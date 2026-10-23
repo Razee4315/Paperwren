@@ -756,6 +756,11 @@ ROWS = [
     ("{n} KB", "{n} KB", "{n} ك.ب", "{n} KB", "{n} KB", "{n} KB", "{n} Ko", "{n} КБ", "{n} KB"),
     ("{n} MB", "{n} MB", "{n} م.ب", "{n} MB", "{n} MB", "{n} MB", "{n} Mo", "{n} МБ", "{n} MB"),
     ("{n} GB", "{n} GB", "{n} ج.ب", "{n} GB", "{n} GB", "{n} GB", "{n} Go", "{n} ГБ", "{n} GB"),
+    # ---- folders inside a browsed folder ----
+    ("Folder path", "فولڈر کا راستہ", "مسار المجلد", "文件夹路径", "फ़ोल्डर का पथ", "Ruta de la carpeta", "Chemin du dossier", "Путь к папке", "Caminho da pasta"),
+    ("Show all files", "تمام فائلیں دکھائیں", "عرض كل الملفات", "显示所有文件", "सभी फ़ाइलें दिखाएँ", "Mostrar todos los archivos", "Afficher tous les fichiers", "Показать все файлы", "Mostrar todos os arquivos"),
+    ("Show folders", "فولڈر دکھائیں", "عرض المجلدات", "显示文件夹", "फ़ोल्डर दिखाएँ", "Mostrar carpetas", "Afficher les dossiers", "Показать папки", "Mostrar pastas"),
+    ("{n} documents", {"one": "{n} دستاویز", "other": "{n} دستاویزات"}, {"one": "مستند واحد", "two": "مستندان", "few": "{n} مستندات", "many": "{n} مستندًا", "other": "{n} مستند"}, "{n} 个文档", {"one": "{n} दस्तावेज़", "other": "{n} दस्तावेज़"}, {"one": "{n} documento", "other": "{n} documentos"}, {"one": "{n} document", "other": "{n} documents"}, {"one": "{n} документ", "few": "{n} документа", "many": "{n} документов", "other": "{n} документа"}, {"one": "{n} documento", "other": "{n} documentos"}),
     # ---- tabs ----
     ("Open documents", "کھلی دستاویزات", "المستندات المفتوحة", "打开的文档", "खुले दस्तावेज़", "Documentos abiertos", "Documents ouverts", "Открытые документы", "Documentos abertos"),
     ("Close {name}", "{name} بند کریں", "إغلاق {name}", "关闭 {name}", "{name} बंद करें", "Cerrar {name}", "Fermer {name}", "Закрыть {name}", "Fechar {name}"),

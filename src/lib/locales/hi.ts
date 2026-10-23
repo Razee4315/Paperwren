@@ -741,6 +741,13 @@ export const hi: Table = {
 	"{n} KB": "{n} KB",
 	"{n} MB": "{n} MB",
 	"{n} GB": "{n} GB",
+	"Folder path": "फ़ोल्डर का पथ",
+	"Show all files": "सभी फ़ाइलें दिखाएँ",
+	"Show folders": "फ़ोल्डर दिखाएँ",
+	"{n} documents": {
+		one: "{n} दस्तावेज़",
+		other: "{n} दस्तावेज़",
+	},
 	"Open documents": "खुले दस्तावेज़",
 	"Close {name}": "{name} बंद करें",
 	"Open another file": "दूसरी फ़ाइल खोलें",

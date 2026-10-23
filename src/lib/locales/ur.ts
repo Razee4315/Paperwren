@@ -750,6 +750,13 @@ export const ur: Table = {
 	"{n} KB": "{n} KB",
 	"{n} MB": "{n} MB",
 	"{n} GB": "{n} GB",
+	"Folder path": "فولڈر کا راستہ",
+	"Show all files": "تمام فائلیں دکھائیں",
+	"Show folders": "فولڈر دکھائیں",
+	"{n} documents": {
+		one: "{n} دستاویز",
+		other: "{n} دستاویزات",
+	},
 	"Open documents": "کھلی دستاویزات",
 	"Close {name}": "{name} بند کریں",
 	"Open another file": "دوسری فائل کھولیں",

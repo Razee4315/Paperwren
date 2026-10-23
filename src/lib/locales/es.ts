@@ -762,6 +762,13 @@ export const es: Table = {
 	"{n} KB": "{n} KB",
 	"{n} MB": "{n} MB",
 	"{n} GB": "{n} GB",
+	"Folder path": "Ruta de la carpeta",
+	"Show all files": "Mostrar todos los archivos",
+	"Show folders": "Mostrar carpetas",
+	"{n} documents": {
+		one: "{n} documento",
+		other: "{n} documentos",
+	},
 	"Open documents": "Documentos abiertos",
 	"Close {name}": "Cerrar {name}",
 	"Open another file": "Abrir otro archivo",

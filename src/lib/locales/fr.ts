@@ -770,6 +770,13 @@ export const fr: Table = {
 	"{n} KB": "{n} Ko",
 	"{n} MB": "{n} Mo",
 	"{n} GB": "{n} Go",
+	"Folder path": "Chemin du dossier",
+	"Show all files": "Afficher tous les fichiers",
+	"Show folders": "Afficher les dossiers",
+	"{n} documents": {
+		one: "{n} document",
+		other: "{n} documents",
+	},
 	"Open documents": "Documents ouverts",
 	"Close {name}": "Fermer {name}",
 	"Open another file": "Ouvrir un autre fichier",
