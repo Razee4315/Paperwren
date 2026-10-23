@@ -760,6 +760,11 @@ ROWS = [
     ("A tree scrolls down", "درخت نیچے کی طرف سکرول ہوتا ہے", "الشجرة تُمرَّر إلى الأسفل", "树状视图只能向下滚动", "ट्री नीचे की ओर स्क्रॉल होता है", "Un árbol se desplaza hacia abajo", "Une arborescence défile vers le bas", "Дерево прокручивается вниз", "Uma árvore rola para baixo"),
     ("Show the whole file first", "پہلے پوری فائل دکھائیں", "اعرض الملف كاملًا أولًا", "请先显示整个文件", "पहले पूरी फ़ाइल दिखाएँ", "Muestra primero el archivo completo", "Affichez d’abord tout le fichier", "Сначала покажите весь файл", "Mostre o arquivo inteiro primeiro"),
     ("Turn on Reading view first", "پہلے ریڈنگ ویو آن کریں", "شغّل عرض القراءة أولًا", "请先打开阅读视图", "पहले रीडिंग व्यू चालू करें", "Activa primero la vista de lectura", "Activez d’abord le mode lecture", "Сначала включите режим чтения", "Ative primeiro o modo de leitura"),
+    # ---- pictures of pages ----
+    ("Save page as picture", "صفحہ تصویر کے طور پر محفوظ کریں", "حفظ الصفحة كصورة", "将页面保存为图片", "पृष्ठ को चित्र के रूप में सहेजें", "Guardar página como imagen", "Enregistrer la page en image", "Сохранить страницу как изображение", "Salvar página como imagem"),
+    ("Save this picture", "یہ تصویر محفوظ کریں", "حفظ هذه الصورة", "保存这张图片", "यह चित्र सहेजें", "Guardar esta imagen", "Enregistrer cette image", "Сохранить это изображение", "Salvar esta imagem"),
+    ("Page {n}, as a picture of its own", "صفحہ {n}، الگ تصویر کے طور پر", "الصفحة {n} كصورة مستقلة", "第 {n} 页，单独保存为图片", "पृष्ठ {n}, अलग चित्र के रूप में", "La página {n}, como imagen aparte", "La page {n}, en image à part", "Страница {n} отдельным изображением", "A página {n}, como uma imagem à parte"),
+    ("Couldn't save the picture", "تصویر محفوظ نہیں ہو سکی", "تعذّر حفظ الصورة", "无法保存图片", "चित्र सहेजा नहीं जा सका", "No se pudo guardar la imagen", "Impossible d’enregistrer l’image", "Не удалось сохранить изображение", "Não foi possível salvar a imagem"),
     # ---- tabs ----
     ("Open documents", "کھلی دستاویزات", "المستندات المفتوحة", "打开的文档", "खुले दस्तावेज़", "Documentos abiertos", "Documents ouverts", "Открытые документы", "Documentos abertos"),
     ("Close {name}", "{name} بند کریں", "إغلاق {name}", "关闭 {name}", "{name} बंद करें", "Cerrar {name}", "Fermer {name}", "Закрыть {name}", "Fechar {name}"),
