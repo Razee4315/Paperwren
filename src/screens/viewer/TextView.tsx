@@ -48,6 +48,13 @@ import {
 	useZoom,
 	useZoomLevel,
 } from "./hooks";
+import {
+	PageCount,
+	SidewaysItem,
+	jumpTo,
+	usePaged,
+	useSideways,
+} from "./paged";
 import { domSpeech } from "./speechSources";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
@@ -110,7 +117,6 @@ export default function TextView({
 	const [outlineOpen, setOutlineOpen] = useState(false);
 	const [headings, setHeadings] = useState<Heading[]>([]);
 	const find = useDomFind(content, scroller);
-	const tapTurn = useTapToTurn(scroller);
 	// Find looks through what is on the page: put all of it there first.
 	const startFind = (query?: string) => {
 		setAll(true);
@@ -167,6 +173,19 @@ export default function TextView({
 		highlightBlocks(root);
 		drawMaths(root).catch(() => {});
 	}, [html]);
+	// Pages turned sideways: text that flows, all of it on the page (a
+	// tree folds and unfolds, and scrolls down).
+	const [sideways] = useSideways();
+	const canTurn = !treeShown && all;
+	const paged = usePaged({
+		scroller,
+		paper: () => content.current?.firstElementChild as HTMLElement | null,
+		on: sideways && canTurn,
+		zoom,
+		relayout: `${html?.length}|${code?.length}|${lines?.length}|${shown.length}|${settings.wrapText}|${source}`,
+	});
+	const turnPage = paged.pages ? paged.turn : undefined;
+	const tapTurn = useTapToTurn(scroller, turnPage);
 	const canNumber = useMemo(() => {
 		let count = 1;
 		for (let i = text.indexOf("\n"); i !== -1; i = text.indexOf("\n", i + 1))
@@ -193,10 +212,7 @@ export default function TextView({
 	const goToHeading = (heading: Heading) => {
 		const el = scroller.current;
 		if (!el || !heading.el.isConnected) return;
-		el.scrollTop +=
-			heading.el.getBoundingClientRect().top -
-			el.getBoundingClientRect().top -
-			12;
+		jumpTo(el, heading.el);
 	};
 	const pick = useRef(goToHeading);
 	pick.current = goToHeading;
@@ -239,8 +255,21 @@ export default function TextView({
 			speech={speech}
 			chromeHidden={chromeHidden && !find.open}
 			onFind={startFind}
+			onStep={turnPage}
+			turnPages={!!turnPage}
 			menu={(close) => (
 				<>
+					<SidewaysItem
+						close={close}
+						disabled={!canTurn}
+						hint={
+							treeShown
+								? t("A tree scrolls down")
+								: !all
+									? t("Show the whole file first")
+									: undefined
+						}
+					/>
 					{html !== null && !isDesktop && headings.length > 0 && (
 						<SheetItem
 							icon={<ListTree size={20} />}
@@ -362,8 +391,12 @@ export default function TextView({
 			pager={
 				<>
 					{/* The bar of a desktop has no room to spare for a label. */}
-					{!isDesktop && (
-						<span className={shellStyles.meta}>{t("Text size")}</span>
+					{paged.pages ? (
+						<PageCount paged={paged} />
+					) : (
+						!isDesktop && (
+							<span className={shellStyles.meta}>{t("Text size")}</span>
+						)
 					)}
 					<ZoomControl
 						label={`${Math.round(zoom * 100)}%`}

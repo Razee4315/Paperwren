@@ -13,6 +13,7 @@ import {
 	ChevronRight,
 	FlipHorizontal2,
 	FlipVertical2,
+	ImageDown,
 	RotateCcw,
 	RotateCw,
 	ScanLine,
@@ -36,6 +37,7 @@ import {
 	shellStyles,
 } from "./Shell";
 import { useZoom, useZoomLevel } from "./hooks";
+import { pageFileName, savePicture } from "./savePicture";
 import type { ViewerProps } from "./types";
 
 const ZOOM_LEVELS = [25, 50, 100, 200, 400];
@@ -413,6 +415,38 @@ export default function ImageView({
 								>
 									{t("Mirror top to bottom")}
 								</SheetItem>
+								{several && pictures && (
+									<SheetItem
+										icon={<ImageDown size={20} />}
+										hint={t("Page {n}, as a picture of its own", {
+											n: shown + 1,
+										})}
+										onClick={() => {
+											close();
+											const n = shown;
+											const showing = picture.current;
+											void savePicture(async () => {
+												// As it is shown: turned or mirrored, it is drawn
+												// again; otherwise its own bytes, untouched.
+												let blob = await pictures.page(n);
+												if ((turn || flipX || flipY) && showing) {
+													const made = await posed(showing, pose);
+													blob = await (await fetch(made)).blob();
+													if (made !== showing.src) URL.revokeObjectURL(made);
+												}
+												const type = blob.type || "image/png";
+												return {
+													bytes: new Uint8Array(await blob.arrayBuffer()),
+													type,
+													name: pageFileName(name, n + 1, type),
+												};
+											}, context?.openOver);
+										}}
+										testId="image-save-page"
+									>
+										{t("Save this picture")}
+									</SheetItem>
+								)}
 								{!several && context?.openTools && (
 									<SheetItem
 										icon={<ScanLine size={20} />}

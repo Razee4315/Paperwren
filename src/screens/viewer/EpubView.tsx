@@ -29,6 +29,13 @@ import {
 	useZoom,
 	useZoomLevel,
 } from "./hooks";
+import {
+	PageCount,
+	SidewaysItem,
+	jumpTo,
+	usePaged,
+	useSideways,
+} from "./paged";
 import { domSpeech } from "./speechSources";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
@@ -108,7 +115,6 @@ export default function EpubView(props: ViewerProps) {
 	const [chromeHidden, setChromeHidden] = useState(false);
 	const [tocOpen, setTocOpen] = useState(false);
 	const find = useDomFind(content, scroller);
-	const tapTurn = useTapToTurn(scroller);
 
 	useEffect(() => {
 		let alive = true;
@@ -118,6 +124,16 @@ export default function EpubView(props: ViewerProps) {
 		};
 	}, [data]);
 	const book = result?.ok ? result.book : null;
+	const [sideways] = useSideways();
+	const paged = usePaged({
+		scroller,
+		paper: () => content.current,
+		on: sideways && !!book,
+		zoom,
+		relayout: book,
+	});
+	const turnPage = paged.pages ? paged.turn : undefined;
+	const tapTurn = useTapToTurn(scroller, turnPage);
 
 	// The pictures, from the book's own files; let go when it closes.
 	useEffect(() => {
@@ -165,8 +181,7 @@ export default function EpubView(props: ViewerProps) {
 		const el = scroller.current;
 		const target = document.getElementById(entry.target);
 		if (!el || !target) return;
-		el.scrollTop +=
-			target.getBoundingClientRect().top - el.getBoundingClientRect().top - 12;
+		jumpTo(el, target);
 	};
 	const pick = useRef(goTo);
 	pick.current = goTo;
@@ -223,19 +238,26 @@ export default function EpubView(props: ViewerProps) {
 			details={details}
 			chromeHidden={chromeHidden && !find.open}
 			onFind={book ? find.start : undefined}
+			onStep={turnPage}
+			turnPages={!!turnPage}
 			menu={
-				book && !isDesktop && book.toc.length
+				book
 					? (close) => (
-							<SheetItem
-								icon={<ListTree size={20} />}
-								onClick={() => {
-									close();
-									setTocOpen(true);
-								}}
-								testId="epub-contents"
-							>
-								{t("Contents")}
-							</SheetItem>
+							<>
+								{!isDesktop && book.toc.length > 0 && (
+									<SheetItem
+										icon={<ListTree size={20} />}
+										onClick={() => {
+											close();
+											setTocOpen(true);
+										}}
+										testId="epub-contents"
+									>
+										{t("Contents")}
+									</SheetItem>
+								)}
+								<SidewaysItem close={close} />
+							</>
 						)
 					: undefined
 			}
@@ -250,8 +272,12 @@ export default function EpubView(props: ViewerProps) {
 			pager={
 				book ? (
 					<>
-						{!isDesktop && (
-							<span className={shellStyles.meta}>{t("Text size")}</span>
+						{paged.pages ? (
+							<PageCount paged={paged} />
+						) : (
+							!isDesktop && (
+								<span className={shellStyles.meta}>{t("Text size")}</span>
+							)
 						)}
 						<ZoomControl
 							label={`${Math.round(zoom * 100)}%`}

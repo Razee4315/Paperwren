@@ -28,6 +28,19 @@
 .reflow > .pages {
 	width: 100%;
 }
+/* Pages turned sideways (paged.tsx): the page is the screen. */
+.scroller:global(.pw-paged) .pages {
+	padding: 0;
+}
+/* The format note would push the first page down past the screen. */
+.scroller:global(.pw-paged) .banner {
+	display: none;
+}
+/* A deck's slides, page by page, on the canvas: each one whole. */
+.scroller:global(.pw-paged) .slideText {
+	break-inside: avoid;
+	max-height: calc(var(--page-h) - 120px);
+}
 
 /* docx-preview output: paper stays white in every theme. */
 .docx :global(.docx-wrapper) {

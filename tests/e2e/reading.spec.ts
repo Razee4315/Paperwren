@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { type Page, expect, test } from "@playwright/test";
 import { boot, openFixture } from "./helpers";
 
@@ -201,6 +202,54 @@ test.describe("PDF pages and links", () => {
 	});
 });
 
+/** The file a "save as picture" hands over, and its size in pixels. */
+async function savedPicture(page: Page, item: string) {
+	const download = page.waitForEvent("download");
+	await page.getByTestId("file-more").click();
+	await page.getByTestId(item).click();
+	const file = await download;
+	const bytes = readFileSync((await file.path()) ?? "");
+	return { name: file.suggestedFilename(), bytes };
+}
+
+test.describe("a page as a picture", () => {
+	test("a PDF page is saved as a PNG, turned as it is shown", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openFixture(page, "features/pictures.pdf");
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+		const first = await savedPicture(page, "pdf-save-page");
+		expect(first.name).toBe("pictures - page 1.png");
+		// A PNG, portrait: its width and height are in the header.
+		expect(first.bytes.subarray(1, 4).toString()).toBe("PNG");
+		expect(first.bytes.readUInt32BE(16)).toBeLessThan(
+			first.bytes.readUInt32BE(20),
+		);
+		await expect(page.getByRole("status")).toContainText(
+			"Saved as pictures - page 1.png",
+		);
+		await page.keyboard.press("Control+]");
+		const turned = await savedPicture(page, "pdf-save-page");
+		expect(turned.bytes.readUInt32BE(16)).toBeGreaterThan(
+			turned.bytes.readUInt32BE(20),
+		);
+	});
+
+	test("a comic's page is saved as it is stored", async ({ page }) => {
+		await boot(page);
+		await openFixture(page, "features/comic.cbz");
+		await expect(page.locator("img").first()).toBeVisible({ timeout: 20_000 });
+		const saved = await savedPicture(page, "image-save-page");
+		expect(saved.name).toBe("comic - page 1.jpg");
+		// JPEG bytes, as they were in the archive.
+		expect(saved.bytes[0]).toBe(0xff);
+		expect(saved.bytes[1]).toBe(0xd8);
+	});
+});
+
 test.describe("PDF pages on a desktop", () => {
 	test.use({ viewport: { width: 1280, height: 800 } });
 
@@ -398,6 +447,69 @@ test("crop margins fills the screen with text, cuts nothing and is remembered", 
 		"aria-pressed",
 		"true",
 	);
+});
+
+test.describe("pages turned sideways", () => {
+	test("a book turns page by page, and opens again on its page", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openFixture(page, "features/book.epub");
+		const scroller = page.getByTestId("epub-scroll");
+		await expect(scroller).toBeVisible({ timeout: 20_000 });
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("pages-sideways").click();
+		await expect(scroller).toHaveAttribute("data-flow", "across");
+		const count = page.getByTestId("paged-count");
+		await expect(count).toHaveText(/^1 of \d+$/);
+		// Each page is exactly one screen wide, and the keys turn them.
+		const size = await scroller.evaluate((el) => [
+			el.scrollWidth,
+			el.clientWidth,
+		]);
+		expect(size[0] % size[1]).toBe(0);
+		await page.keyboard.press("ArrowRight");
+		await expect(count).toHaveText(/^2 of /);
+		await page.keyboard.press("PageDown");
+		await expect(count).toHaveText(/^3 of /);
+		await page.keyboard.press("ArrowLeft");
+		await expect(count).toHaveText(/^2 of /);
+		// The place is kept: back to the shelf and in again.
+		await page.waitForTimeout(700);
+		await page.getByTestId("viewer-back").click();
+		await page.getByText("book.epub").first().click();
+		await expect(page.getByTestId("paged-count")).toHaveText(/^2 of /, {
+			timeout: 20_000,
+		});
+	});
+
+	test("one choice turns every flowing document sideways", async ({ page }) => {
+		await boot(page, { settings_v2: { pdfFlow: "across" } });
+		await openFixture(page, "features/notes.md");
+		await expect(page.getByTestId("text-scroll")).toHaveAttribute(
+			"data-flow",
+			"across",
+			{ timeout: 20_000 },
+		);
+		await page.getByTestId("viewer-back").click();
+		await openFixture(page, "report.docx");
+		await expect(page.getByTestId("doc-scroll")).toBeVisible({
+			timeout: 20_000,
+		});
+		// A Word document's own pages scroll; its reading view turns.
+		await expect(page.getByTestId("doc-scroll")).not.toHaveAttribute(
+			"data-flow",
+			"across",
+		);
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("doc-reading").click();
+		await expect(page.getByTestId("doc-scroll")).toHaveAttribute(
+			"data-flow",
+			"across",
+			{ timeout: 20_000 },
+		);
+		await expect(page.getByTestId("paged-count")).toHaveText(/^1 of [2-9]/);
+	});
 });
 
 test.describe("bookmarks", () => {
