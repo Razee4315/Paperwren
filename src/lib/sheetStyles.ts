@@ -11,7 +11,7 @@
  * the grid falls back to the app's neutral look.
  */
 
-import { unzipSync } from "fflate";
+import { guardedUnzip } from "./safeZip";
 
 export interface CellStyle {
 	font?: string;
@@ -655,7 +655,7 @@ export function readXlsxStyles(bytes: Uint8Array): WorkbookStyles | null {
 		const decode = (b: Uint8Array) => text.decode(b);
 		// Everything small first: styles, workbook, relationships, and
 		// the drawing and chart parts (never the sheets' cell data).
-		const meta = unzipSync(bytes, {
+		const meta = guardedUnzip(bytes, {
 			filter: (f) =>
 				f.name === "xl/styles.xml" ||
 				f.name === "xl/workbook.xml" ||
@@ -682,7 +682,7 @@ export function readXlsxStyles(bytes: Uint8Array): WorkbookStyles | null {
 			if (name !== undefined && part) parts.set(part, decodeXml(name));
 		}
 
-		const sheetFiles = unzipSync(bytes, {
+		const sheetFiles = guardedUnzip(bytes, {
 			filter: (f) => parts.has(f.name) && f.originalSize <= MAX_SHEET_XML,
 		});
 		const sheets = new Map<string, Map<string, number>>();
@@ -768,7 +768,7 @@ export function readXlsxStyles(bytes: Uint8Array): WorkbookStyles | null {
 		if (mediaPaths.length) {
 			const wanted = new Set(mediaPaths);
 			let budget = MAX_MEDIA_BYTES;
-			const files = unzipSync(bytes, {
+			const files = guardedUnzip(bytes, {
 				filter: (f) => {
 					if (!wanted.has(f.name) || f.originalSize > budget) return false;
 					budget -= f.originalSize;

@@ -5,8 +5,8 @@
  * OpenDocument's meta.xml), for Details.
  */
 
-import { unzipSync } from "fflate";
 import type { FileFormat } from "./formats";
+import { guardedUnzip } from "./safeZip";
 
 export interface OfficeMeta {
 	title?: string;
@@ -59,7 +59,7 @@ export function readOfficeMeta(
 	if (!ZIPPED.includes(format)) return {};
 	let parts: Record<string, Uint8Array>;
 	try {
-		parts = unzipSync(new Uint8Array(data), {
+		parts = guardedUnzip(new Uint8Array(data), {
 			filter: (f) => PARTS.includes(f.name),
 		});
 	} catch {

@@ -11,7 +11,7 @@
  */
 
 import DOMPurify from "dompurify";
-import { unzipSync } from "fflate";
+import { guardedUnzip } from "./safeZip";
 
 export interface TocEntry {
 	label: string;
@@ -122,7 +122,7 @@ function chapterDocument(source: string): Document {
 export function parseEpub(bytes: Uint8Array): EpubBook {
 	let entries: Record<string, Uint8Array>;
 	try {
-		entries = unzipSync(bytes);
+		entries = guardedUnzip(bytes);
 	} catch {
 		throw new EpubError("corrupt");
 	}
