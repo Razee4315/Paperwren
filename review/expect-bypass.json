@@ -1,0 +1,10 @@
+{
+	"BYPASS: stored entries sharing one payload multiply memory past the claimed budget": "passed",
+	"BYPASS: the budget is only enforced after the memory is spent": "passed",
+	"BYPASS: a ZIP64 record smuggles in more entries than maxEntries": "passed",
+	"BYPASS: a ZIP64 entry count keeps the tab busy (measured, extrapolated)": "passed",
+	"charges stored entries what they really cost": "passed",
+	"refuses a ZIP64 record before walking it": "passed",
+	"REGRESSION: honest parts that compress past 200x are silently dropped": "passed",
+	"keeps honest parts that compress past 200x": "passed"
+}

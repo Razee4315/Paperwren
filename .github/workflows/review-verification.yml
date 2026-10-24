@@ -1,0 +1,208 @@
+name: Review verification (security audit)
+
+# Throwaway evidence for the independent review of PR #34
+# (security/audit-hardening). Runs only on the review branch, never
+# publishes, holds no secrets. Steps that are EXPECTED to fail capture
+# the exit code on purpose and hand the verdict to an explicit check
+# (review/expect-results.mjs or a test of the exit code), so a green job
+# means "the expectation held", never "the failure was ignored".
+on:
+  push:
+    branches:
+      - review/security-audit-verification
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proof-trivial:
+    name: "3a: branch safeZip tests on current main (must fail: no ../safeZip)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check out current main and drop in only the branch's test file
+        run: |
+          set -eo pipefail
+          git checkout --detach origin/main
+          git log --oneline -1
+          test ! -e src/lib/safeZip.ts && echo "main has no src/lib/safeZip.ts"
+          git show origin/security/audit-hardening:src/lib/__tests__/safeZip.test.ts > src/lib/__tests__/safeZip.test.ts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run it and require the import failure
+        run: |
+          set +e
+          npx vitest run src/lib/__tests__/safeZip.test.ts > out.txt 2>&1
+          code=$?
+          cat out.txt
+          echo "vitest exit code: $code"
+          test "$code" -ne 0 && grep -q "safeZip" out.txt
+
+  proof-unguarded:
+    name: "3b: the same tests against plain fflate unzipSync (bomb tests must fail)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Generate the unguarded copy (only the import line differs)
+        run: |
+          set -eo pipefail
+          mkdir -p review/generated
+          sed 's#"../safeZip"#"../unguardedZip"#' src/lib/__tests__/safeZip.test.ts > review/generated/safeZip.unguarded.test.ts
+          sed 's#"../safeZip"#"../safeZip.fixed"#' src/lib/__tests__/safeZip.test.ts > review/generated/safeZip.fixed.test.ts
+          diff src/lib/__tests__/safeZip.test.ts review/generated/safeZip.unguarded.test.ts || true
+      - name: Without the guard (expected per review/expect-unguarded.json)
+        run: |
+          set +e
+          npx vitest run --config review/vitest.config.ts review/generated/safeZip.unguarded.test.ts --reporter=json --outputFile=unguarded.json > /dev/null 2>&1
+          echo "vitest exit code: $? (non-zero expected)"
+          node review/expect-results.mjs unguarded.json review/expect-unguarded.json
+      - name: With the branch guard (all must pass)
+        run: |
+          set +e
+          npx vitest run src/lib/__tests__/safeZip.test.ts --reporter=json --outputFile=guarded.json > /dev/null 2>&1
+          echo "vitest exit code: $?"
+          node review/expect-results.mjs guarded.json review/expect-all-pass.json
+      - name: With the review's suggested fix (all must still pass)
+        run: |
+          set +e
+          npx vitest run --config review/vitest.config.ts review/generated/safeZip.fixed.test.ts --reporter=json --outputFile=fixed.json > /dev/null 2>&1
+          echo "vitest exit code: $?"
+          node review/expect-results.mjs fixed.json review/expect-all-pass.json
+
+  mutants:
+    name: "3c: mutation check of src/lib/safeZip.ts against its own tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Remove one guard at a time; report KILLED (a test failed) or SURVIVED
+        run: |
+          set -u
+          cp src/lib/safeZip.ts /tmp/safeZip.orig.ts
+          for m in ratio budget scan entrycap postcheck; do
+            cp /tmp/safeZip.orig.ts src/lib/safeZip.ts
+            case $m in
+              ratio)     sed -i 's#file.originalSize / file.size > limits.maxRatio#false#' src/lib/safeZip.ts ;;
+              budget)    sed -i 's#if (file.originalSize > budget) return false;##' src/lib/safeZip.ts ;;
+              scan)      sed -i 's#^\tscanCentralDirectory(bytes, limits);$##' src/lib/safeZip.ts ;;
+              entrycap)  sed -i 's#if (file.originalSize > limits.maxEntryBytes) return false;##' src/lib/safeZip.ts ;;
+              postcheck) sed -i 's#if (actual > limits.maxBytes)#if (false)#' src/lib/safeZip.ts ;;
+            esac
+            if cmp -s /tmp/safeZip.orig.ts src/lib/safeZip.ts; then echo "mutant $m did not apply"; exit 1; fi
+            if npx vitest run src/lib/__tests__/safeZip.test.ts > /tmp/$m.txt 2>&1; then
+              echo "SURVIVED $m" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "KILLED   $m by:" | tee -a "$GITHUB_STEP_SUMMARY"
+              grep -E "^ *(×|✗|FAIL)" /tmp/$m.txt | head -5
+            fi
+          done
+          cp /tmp/safeZip.orig.ts src/lib/safeZip.ts
+
+  bypass:
+    name: "Review: safeZip bypasses and the suggested fix"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run review/bypass.test.ts (expected per review/expect-bypass.json)
+        run: |
+          set +e
+          npx vitest run --config review/vitest.config.ts review/bypass.test.ts --reporter=default --reporter=json --outputFile=bypass.json
+          echo "vitest exit code: $?"
+          node review/expect-results.mjs bypass.json review/expect-bypass.json
+
+  merge-state:
+    name: "Merge state: ci.yml frontend steps on main + audit branch"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test exactly the merge (drop the review's own files)
+        run: rm -rf review .github/workflows/review-verification.yml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+      - run: node scripts/install-android.mjs check
+      - name: Full dependency audit, dev included (informational)
+        run: |
+          npm audit || echo "::warning::npm audit (dev included) reported advisories, see log"
+
+  test-counts:
+    name: "4: vitest counts at ${{ matrix.ref }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ref:
+          - d7fbf12
+          - origin/security/audit-hardening
+          - origin/main
+          - merge
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check out the ref
+        run: |
+          set -eo pipefail
+          if [ "${{ matrix.ref }}" != "merge" ]; then git checkout --detach "${{ matrix.ref }}"; fi
+          rm -rf review
+          git log --oneline -1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Count
+        run: |
+          set +e
+          npx vitest run --reporter=json --outputFile=counts.json > /dev/null 2>&1
+          echo "vitest exit code: $?"
+          node -e 'const r=require("./counts.json");const line=`${process.argv[1]}: files ${r.numTotalTestSuites}, tests ${r.numTotalTests}, passed ${r.numPassedTests}, failed ${r.numFailedTests}, skipped ${r.numPendingTests}, todo ${r.numTodoTests}`;console.log(line);require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY,line+"\n")' "${{ matrix.ref }}"
+
+  rust:
+    name: "Merge state: cargo test and cargo-audit"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test --all-targets
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - name: cargo audit (informational; findings are read from the log)
+        run: |
+          cargo audit --file src-tauri/Cargo.lock || echo "::warning::cargo audit reported advisories, see log"

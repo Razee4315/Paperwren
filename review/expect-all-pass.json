@@ -1,0 +1,9 @@
+{
+	"reads what a caller's own filter asks for": "passed",
+	"unpacks a big, honest archive whole": "passed",
+	"refuses an archive with more entries than allowed": "passed",
+	"refuses an entry that claims to be enormous, before inflating": "passed",
+	"skips an entry whose claimed expansion defies belief": "passed",
+	"stops when the entries it wanted already fill the budget": "passed",
+	"never decodes past what an entry claims to be": "passed"
+}
