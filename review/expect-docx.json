@@ -1,0 +1,5 @@
+{
+	"FINDING: an altChunk becomes an unsandboxed same-origin iframe with the attacker's HTML": "passed",
+	"FINDING: a font name breaks out of the generated stylesheet into a page-wide rule": "passed",
+	"control: renderAltChunks: false drops the iframe": "passed"
+}

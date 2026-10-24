@@ -130,6 +130,13 @@ jobs:
           echo "vitest exit code: $?"
           node review/expect-results.mjs bypass.json review/expect-bypass.json
 
+      - name: Run review/docx-inject.test.ts (expected per review/expect-docx.json)
+        run: |
+          set +e
+          npx vitest run --config review/vitest.config.ts review/docx-inject.test.ts --reporter=default --reporter=json --outputFile=docx.json
+          echo "vitest exit code: $?"
+          node review/expect-results.mjs docx.json review/expect-docx.json
+
   merge-state:
     name: "Merge state: ci.yml frontend steps on main + audit branch"
     runs-on: ubuntu-latest
