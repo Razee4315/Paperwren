@@ -5,8 +5,8 @@
  * unpacked into memory whole.
  */
 
-import { unzipSync } from "fflate";
 import type { FileFormat } from "./formats";
+import { guardedUnzip } from "./safeZip";
 import { COMIC_PAGE, isJunk, sniffImageType } from "./sniff";
 
 export interface Pictures {
@@ -31,7 +31,7 @@ export function comicPages(names: string[]): string[] {
 }
 
 function comic(bytes: Uint8Array): Pictures {
-	const entries = unzipSync(bytes, {
+	const entries = guardedUnzip(bytes, {
 		filter: (f) => COMIC_PAGE.test(f.name) && !isJunk(f.name),
 	});
 	const names = comicPages(Object.keys(entries));

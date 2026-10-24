@@ -14,9 +14,9 @@
  * for text. Coordinates are converted from EMU to CSS px at 96 dpi.
  */
 
-import { unzipSync } from "fflate";
 import { hasRtl, startsRtl } from "../bidi";
 import { msg } from "../i18n";
+import { guardedUnzip } from "../safeZip";
 import { bulletGlyph } from "./bullets";
 import { type Chart, readChart } from "./chart";
 import { path, attrOf, kid, kids, relId, xmlBool } from "./xml";
@@ -566,7 +566,7 @@ class Pkg {
 	/** Inflate every referenced picture once and mint blob URLs. */
 	loadMedia() {
 		if (this.mediaWanted.size === 0) return;
-		const found = unzipSync(this.bytes, {
+		const found = guardedUnzip(this.bytes, {
 			filter: (f) => this.mediaWanted.has(f.name),
 		});
 		for (const [name, data] of Object.entries(found)) {
@@ -1544,7 +1544,7 @@ export async function parsePptxAsync(
  * slide. */
 function* readDeck(bytes: Uint8Array): Generator<undefined, Presentation> {
 	yield;
-	const files = unzipSync(bytes, {
+	const files = guardedUnzip(bytes, {
 		filter: (f) => f.name.endsWith(".xml") || f.name.endsWith(".rels"),
 	});
 	yield;
