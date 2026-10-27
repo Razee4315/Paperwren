@@ -1,0 +1,14 @@
+# Kotlin added inside wry's RustWebViewClient when the Android app is
+# built (wry's build script pastes WRY_<CLASS>_CLASS_EXTENSION into the
+# class). wry does not answer onRenderProcessGone, so when the WebView's
+# renderer crashes or the system takes it back for memory, Android
+# closes the whole app without a word. MainActivity.onRendererGone
+# restarts the app instead. Desktop builds ignore this variable.
+[env]
+WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION = '''
+    override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+        val activity = view.context as? app.paperwren.docs.MainActivity
+            ?: return super.onRenderProcessGone(view, detail)
+        return activity.onRendererGone(view, detail.didCrash())
+    }
+'''

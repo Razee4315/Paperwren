@@ -5,11 +5,11 @@ import Doc from "../layouts/Doc.astro";
 
 <Doc
 	title="Privacy policy"
-	description="Paperwren's privacy policy. The app collects nothing, has no analytics or ads, and never connects to the internet. Here is what stays on your device and how to clear it."
+	description="Paperwren's privacy policy. The app collects nothing and has no analytics or ads. The Android app never connects to the internet; on a computer, only an update check you allow does. Here is what stays on your device and how to clear it."
 	label="Privacy policy"
 	heading="Paperwren collects <em>nothing.</em>"
 	path="/privacy/"
-	updated="17 October 2026"
+	updated="27 October 2026"
 >
 	<p class="lead">
 		Paperwren is a document viewer with a few PDF tools. This policy is short because Paperwren
@@ -20,7 +20,21 @@ import Doc from "../layouts/Doc.astro";
 	<p>
 		Nothing. Paperwren does not collect, transmit, sell or share any personal
 		data. It has no analytics, no advertising, no trackers and no crash
-		reporting, and it does not connect to the internet.
+		reporting. The Android app does not connect to the internet at all; on
+		Windows and macOS the only connection is the update check below, and only
+		if you allow it.
+	</p>
+
+	<h2>Update checks on Windows and macOS</h2>
+	<p>
+		The first time it runs on a computer, Paperwren asks whether to check for
+		updates. If you agree, each time it starts it downloads a small file
+		listing the latest version from GitHub, where Paperwren is published. If
+		there is a newer version, it asks before downloading and installing it.
+		The request carries nothing about you or your files; like any download,
+		GitHub sees your IP address and may keep standard server logs. You can
+		turn this off, or check by hand, in Settings under Updates. The Android
+		app never checks: it updates through the store or the APK you install.
 	</p>
 
 	<h2>What stays on your device</h2>
@@ -69,7 +83,7 @@ import Doc from "../layouts/Doc.astro";
 	<h2>Files you open</h2>
 	<p>
 		Documents are read and displayed on your device only. Paperwren never
-		uploads them, because it never talks to any server.
+		uploads them or sends anything about them anywhere.
 	</p>
 
 	<h2>Deleting your data</h2>

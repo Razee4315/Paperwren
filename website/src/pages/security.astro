@@ -9,7 +9,7 @@ const points = [
 	},
 	{
 		h: "No way to reach the network",
-		p: "Besides having no internet permission, the app's content security policy only allows connections to itself. There is no analytics, ads, crash or update SDK among its dependencies: just document engines (pdf.js, docx-preview, SheetJS) and small helpers.",
+		p: "Besides having no internet permission, the app's content security policy only allows connections to itself. There is no analytics, ads or crash SDK among its dependencies: just document engines (pdf.js, docx-preview, SheetJS) and small helpers. On Windows and macOS, Tauri's updater checks GitHub for a new version only if you allow it, and installs only an update signed with the key built into the app.",
 	},
 	{
 		h: "Files are read, never changed",

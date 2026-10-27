@@ -780,6 +780,31 @@ export const es: Table = {
 	"Close {name}": "Cerrar {name}",
 	"Open another file": "Abrir otro archivo",
 	"The next and the previous tab": "La pestaña siguiente y la anterior",
+	Updates: "Actualizaciones",
+	"Check for updates automatically?":
+		"¿Buscar actualizaciones automáticamente?",
+	"When it starts, Paperwren can ask GitHub whether a new version is out. Nothing about you or your files is sent. You can change this in Settings.":
+		"Al iniciarse, Paperwren puede preguntar a GitHub si hay una versión nueva. No se envía nada sobre ti ni sobre tus archivos. Puedes cambiarlo en Ajustes.",
+	"No thanks": "No, gracias",
+	"Check automatically": "Buscar automáticamente",
+	"Paperwren {version} is available": "Paperwren {version} está disponible",
+	"Install and restart": "Instalar y reiniciar",
+	"Downloading the update": "Descargando la actualización",
+	"Downloading the update: {percent}%":
+		"Descargando la actualización: {percent} %",
+	"A new version of Paperwren is ready to install.":
+		"Hay una versión nueva de Paperwren lista para instalar.",
+	"Couldn't install the update": "No se pudo instalar la actualización",
+	"Check for updates automatically": "Buscar actualizaciones automáticamente",
+	"When it starts, Paperwren asks GitHub for a new version.":
+		"Al iniciarse, Paperwren pregunta a GitHub si hay una versión nueva.",
+	"Check for updates": "Buscar actualizaciones",
+	"Checking for updates": "Buscando actualizaciones",
+	"You have the latest version": "Tienes la versión más reciente",
+	"Couldn't check for updates": "No se pudieron buscar actualizaciones",
+	"Paperwren goes online only to check for updates, and only if you allow it. It has no ads, no accounts and no analytics, and it asks for no permissions.":
+		"Paperwren solo se conecta para buscar actualizaciones, y solo si lo permites. No tiene anuncios, cuentas ni analíticas, y no pide permisos.",
+	"Paperwren had to restart": "Paperwren tuvo que reiniciarse",
 	"Get started": "Empezar",
 	"Your original files stay unchanged.":
 		"Tus archivos originales no se modifican.",

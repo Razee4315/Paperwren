@@ -107,7 +107,12 @@ export interface Settings {
 	dim: number;
 	/** How fast a document scrolls by itself, in screen pixels a second. */
 	scrollSpeed: number;
+	/** A computer: check for a new version when the app starts ("auto"),
+	 * never ("off"), or ask the reader first ("ask", until answered). */
+	updates: UpdateChecks;
 }
+
+export type UpdateChecks = "ask" | "auto" | "off";
 
 export const DEFAULT_SETTINGS: Settings = {
 	theme: "system",
@@ -131,6 +136,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	autoHideBars: false,
 	dim: 0,
 	scrollSpeed: 40,
+	updates: "ask",
 };
 
 export const STORAGE_KEYS = {

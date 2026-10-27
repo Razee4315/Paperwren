@@ -788,6 +788,32 @@ export const fr: Table = {
 	"Close {name}": "Fermer {name}",
 	"Open another file": "Ouvrir un autre fichier",
 	"The next and the previous tab": "L'onglet suivant et le précédent",
+	Updates: "Mises à jour",
+	"Check for updates automatically?":
+		"Rechercher les mises à jour automatiquement ?",
+	"When it starts, Paperwren can ask GitHub whether a new version is out. Nothing about you or your files is sent. You can change this in Settings.":
+		"Au démarrage, Paperwren peut demander à GitHub si une nouvelle version est sortie. Rien ne concernant vous ou vos fichiers n'est envoyé. Vous pouvez changer cela dans Réglages.",
+	"No thanks": "Non merci",
+	"Check automatically": "Rechercher automatiquement",
+	"Paperwren {version} is available": "Paperwren {version} est disponible",
+	"Install and restart": "Installer et redémarrer",
+	"Downloading the update": "Téléchargement de la mise à jour",
+	"Downloading the update: {percent}%":
+		"Téléchargement de la mise à jour : {percent} %",
+	"A new version of Paperwren is ready to install.":
+		"Une nouvelle version de Paperwren est prête à être installée.",
+	"Couldn't install the update": "Impossible d'installer la mise à jour",
+	"Check for updates automatically":
+		"Rechercher les mises à jour automatiquement",
+	"When it starts, Paperwren asks GitHub for a new version.":
+		"Au démarrage, Paperwren demande à GitHub s'il existe une nouvelle version.",
+	"Check for updates": "Rechercher des mises à jour",
+	"Checking for updates": "Recherche de mises à jour",
+	"You have the latest version": "Vous avez la dernière version",
+	"Couldn't check for updates": "Impossible de rechercher des mises à jour",
+	"Paperwren goes online only to check for updates, and only if you allow it. It has no ads, no accounts and no analytics, and it asks for no permissions.":
+		"Paperwren ne se connecte que pour rechercher des mises à jour, et seulement si vous l'autorisez. Pas de publicité, pas de compte, pas d'analyse, et aucune autorisation demandée.",
+	"Paperwren had to restart": "Paperwren a dû redémarrer",
 	"Get started": "Commencer",
 	"Your original files stay unchanged.":
 		"Vos fichiers d’origine restent inchangés.",

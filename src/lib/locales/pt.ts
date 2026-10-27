@@ -783,6 +783,29 @@ export const pt: Table = {
 	"Close {name}": "Fechar {name}",
 	"Open another file": "Abrir outro arquivo",
 	"The next and the previous tab": "A guia seguinte e a anterior",
+	Updates: "Atualizações",
+	"Check for updates automatically?": "Verificar atualizações automaticamente?",
+	"When it starts, Paperwren can ask GitHub whether a new version is out. Nothing about you or your files is sent. You can change this in Settings.":
+		"Ao iniciar, o Paperwren pode perguntar ao GitHub se há uma versão nova. Nada sobre você ou seus arquivos é enviado. Você pode mudar isso em Configurações.",
+	"No thanks": "Não, obrigado",
+	"Check automatically": "Verificar automaticamente",
+	"Paperwren {version} is available": "Paperwren {version} está disponível",
+	"Install and restart": "Instalar e reiniciar",
+	"Downloading the update": "Baixando a atualização",
+	"Downloading the update: {percent}%": "Baixando a atualização: {percent}%",
+	"A new version of Paperwren is ready to install.":
+		"Uma nova versão do Paperwren está pronta para instalar.",
+	"Couldn't install the update": "Não foi possível instalar a atualização",
+	"Check for updates automatically": "Verificar atualizações automaticamente",
+	"When it starts, Paperwren asks GitHub for a new version.":
+		"Ao iniciar, o Paperwren pergunta ao GitHub se há uma versão nova.",
+	"Check for updates": "Verificar atualizações",
+	"Checking for updates": "Verificando atualizações",
+	"You have the latest version": "Você tem a versão mais recente",
+	"Couldn't check for updates": "Não foi possível verificar atualizações",
+	"Paperwren goes online only to check for updates, and only if you allow it. It has no ads, no accounts and no analytics, and it asks for no permissions.":
+		"O Paperwren só se conecta para verificar atualizações, e apenas se você permitir. Não tem anúncios, contas nem análises, e não pede permissões.",
+	"Paperwren had to restart": "O Paperwren precisou reiniciar",
 	"Get started": "Começar",
 	"Your original files stay unchanged.":
 		"Seus arquivos originais não são alterados.",

@@ -32,6 +32,17 @@
       ]
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc2RUJEMTNFMkE1RDVFMzgKUldRNFhsMHFQdEhyZHVIL3hiUm5pWXpPQ3pWZ1NnY05HVDlqQUVIaWwwL09TamVOdEVvZlR6My8K",
+      "endpoints": [
+        "https://github.com/Razee4315/Paperwren/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

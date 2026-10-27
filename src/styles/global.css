@@ -27,10 +27,21 @@
 	--t-med: 180ms;
 	--t-slow: 240ms;
 
-	--safe-top: env(safe-area-inset-top, 0px);
-	--safe-bottom: env(safe-area-inset-bottom, 0px);
-	--safe-left: env(safe-area-inset-left, 0px);
-	--safe-right: env(safe-area-inset-right, 0px);
+	/* The Android shell sets --native-inset-*: many WebViews report no
+	   safe area for the status and navigation bars the app draws under. */
+	--safe-top: max(env(safe-area-inset-top, 0px), var(--native-inset-top, 0px));
+	--safe-bottom: max(
+		env(safe-area-inset-bottom, 0px),
+		var(--native-inset-bottom, 0px)
+	);
+	--safe-left: max(
+		env(safe-area-inset-left, 0px),
+		var(--native-inset-left, 0px)
+	);
+	--safe-right: max(
+		env(safe-area-inset-right, 0px),
+		var(--native-inset-right, 0px)
+	);
 
 	--bar-h: 56px;
 	--content-max: 720px;

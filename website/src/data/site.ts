@@ -2,7 +2,7 @@ export const SITE = {
 	name: "Paperwren",
 	tagline: "Open anything. Instantly.",
 	description:
-		"Paperwren is a free document viewer for Android and Windows. Open PDF, Word, Excel, PowerPoint and EPUB files, fill in and sign PDFs, and merge or split them, with no account, no ads, no internet access and no permissions.",
+		"Paperwren is a free document viewer for Android, Windows and macOS. Open PDF, Word, Excel, PowerPoint and EPUB files, fill in and sign PDFs, and merge or split them, with no account, no ads and no permissions, all offline.",
 	repo: "https://github.com/Razee4315/Paperwren",
 	releases: "https://github.com/Razee4315/Paperwren/releases/latest",
 	issues: "https://github.com/Razee4315/Paperwren/issues",

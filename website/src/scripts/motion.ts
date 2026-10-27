@@ -1,5 +1,5 @@
 /**
- * All scroll and load motion (docs/14-website.md, "Motion inventory").
+ * All scroll and load motion.
  * Nothing here runs with prefers-reduced-motion: the markup and CSS
  * already render every element in its final state.
  */

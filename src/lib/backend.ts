@@ -176,6 +176,10 @@ declare global {
 			/** Tell the system which way the app's bars are coloured, so
 			 * the clock and battery are drawn to be read on them. */
 			systemBars?(dark: boolean): void;
+			/** The room the system bars take, as JSON {top, right, bottom,
+			 * left} in CSS pixels, or "null"; changes come through
+			 * window.__paperwrenInsets. Added after 1.4.1. */
+			insets?(): string;
 			pickFolder(token: string): boolean;
 			/** Read `text` aloud with the system's text-to-speech, in an
 			 * on-device voice for `lang`; the outcome comes back through
@@ -222,6 +226,8 @@ declare global {
 		/** MainActivity: a volume key was pressed (1 down, -1 up) while
 		 * they turn pages. */
 		__paperwrenVolumeKey?: (dir: number) => void;
+		/** The system bars' room changed (see extras.insets). */
+		__paperwrenInsets?: (insets: unknown) => void;
 		/** MainActivity's answer to importPicked. */
 		__paperwrenImported?: (token: string, copy: ManagedCopy | null) => void;
 		/** Test hook: the next pick returns this file. */

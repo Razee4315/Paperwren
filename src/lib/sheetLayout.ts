@@ -1,5 +1,5 @@
 /**
- * Pure grid math for the XLSX viewer (docs/14 audit XLS-01/02):
+ * Pure grid math for the XLSX viewer:
  * column letters, prefix offsets, and the visible window calculation
  * that keeps 100k-row sheets smooth.
  *

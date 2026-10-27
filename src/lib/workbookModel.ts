@@ -1,7 +1,7 @@
 /**
- * Workbook parsing and normalization (docs/14 audit XLS-04 item 1,
- * XLS-05): a typed module that receives the SheetJS API directly —
- * no window globals — and bounds every loop so a hostile or huge
+ * Workbook parsing and normalization: a typed module that receives
+ * the SheetJS API directly — no window globals — and bounds every
+ * loop so a hostile or huge
  * workbook can never hang the parser.
  *
  * The renderer ships this module inside a worker; the UI thread only
