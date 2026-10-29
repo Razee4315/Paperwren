@@ -34,6 +34,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.core.content.IntentCompat
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -69,7 +70,9 @@ import java.util.concurrent.TimeUnit
  *    on while reading, and browse a folder the user picked. None of
  *    these needs a manifest permission: sharing goes through a
  *    FileProvider grant, folders through the Storage Access Framework.
- * 5. The system bars. A slide show hides them and turns the screen
+ * 5. The system bars. The app draws under them, and many WebViews
+ *    report no safe area for them, so their real sizes are handed to
+ *    the page here. A slide show hides them and turns the screen
  *    sideways (the WebView turns down a page's own request for full
  *    screen, so the page asks here instead), and the status-bar icons
  *    follow the app's theme rather than the phone's.
@@ -82,6 +85,8 @@ import java.util.concurrent.TimeUnit
  *    chooser handing the job to the camera app (no permission), which
  *    leaves the photo in the app's own Pictures folder. They are only
  *    needed while the page reads them, so each start clears them out.
+ * 9. A page whose renderer died (crashed, or taken back for memory):
+ *    the app starts afresh instead of vanishing.
  *
  * This file is copied verbatim over the generated activity by
  * scripts/install-android.mjs. Keep it self-contained.
@@ -199,6 +204,7 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
     addJsBridge(webView)
+    watchInsets(webView)
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -207,6 +213,74 @@ class MainActivity : TauriActivity() {
     installBackBridge()
     handleIntent(intent)
     clearCameraPhotos()
+    sayIfRestarted()
+  }
+
+  // ---------- A WebView renderer that died ----------
+
+  /** Called by the WebView client (its onRenderProcessGone is added at
+   * build time, see .cargo/config.toml) when the page's
+   * renderer process crashed or the system took it back for memory.
+   * Left unanswered, Android closes the whole app without a word. The
+   * dead WebView can never draw again and the Rust side is tied to it,
+   * so the app starts afresh. A second time within a minute it closes
+   * with a message instead, so a page that dies on every start cannot
+   * go round and round. */
+  fun onRendererGone(view: WebView, crashed: Boolean): Boolean {
+    android.util.Log.w(
+      "Paperwren", "WebView renderer gone (" + (if (crashed) "crashed" else "killed") + ")"
+    )
+    (view.parent as? android.view.ViewGroup)?.removeView(view)
+    view.destroy()
+    val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+    val now = System.currentTimeMillis()
+    val again = now - prefs.getLong(RESTARTED_AT, 0L) < RESTART_WINDOW_MS
+    prefs.edit()
+      .putLong(RESTARTED_AT, now)
+      .putBoolean(RESTART_PENDING, !again)
+      .commit()
+    if (again) {
+      Toast.makeText(this, "Paperwren stopped. Please open it again.", Toast.LENGTH_LONG).show()
+      main.postDelayed({
+        finishAndRemoveTask()
+        android.os.Process.killProcess(android.os.Process.myPid())
+      }, 2500)
+      return true
+    }
+    val start = packageManager.getLaunchIntentForPackage(packageName)
+    if (start != null) {
+      start.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+      startActivity(start)
+    }
+    finishAffinity()
+    android.os.Process.killProcess(android.os.Process.myPid())
+    return true
+  }
+
+  /** After a restart for a dead renderer, say so once the page can
+   * (it holds the translations); a page that never gets there leaves
+   * it to a plain toast. Main thread. */
+  private fun sayIfRestarted(attempt: Int = 0) {
+    val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+    if (attempt == 0) {
+      if (!prefs.getBoolean(RESTART_PENDING, false)) return
+      prefs.edit().putBoolean(RESTART_PENDING, false).apply()
+    }
+    val fallback = "Paperwren had to restart."
+    if (attempt > 60) {
+      Toast.makeText(this, fallback, Toast.LENGTH_LONG).show()
+      return
+    }
+    val webView = findWebView()
+    if (webView == null || !isAppOrigin(webView.url)) {
+      main.postDelayed({ sayIfRestarted(attempt + 1) }, 250)
+      return
+    }
+    webView.evaluateJavascript(
+      "(window.__paperwrenNativeError && window.__paperwrenNativeError(\"restarted\")) ? 'ok' : 'wait'"
+    ) { result ->
+      if (result != "\"ok\"") main.postDelayed({ sayIfRestarted(attempt + 1) }, 250)
+    }
   }
 
   /** Photos the camera app wrote for an earlier scan ("JPEG_<time>_….jpg",
@@ -376,6 +450,39 @@ class MainActivity : TauriActivity() {
       bars.show(WindowInsetsCompat.Type.systemBars())
       requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
     }
+  }
+
+  /** The room the system bars and a camera cutout take at each edge, in
+   * CSS pixels, as JSON. The page reads it through the bridge when it
+   * starts and hears every change through window.__paperwrenInsets. */
+  @Volatile private var insetsJson = "null"
+
+  private fun insetsOf(insets: WindowInsetsCompat): String {
+    val edges = insets.getInsets(
+      WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+    )
+    val density = resources.displayMetrics.density
+    return JSONObject()
+      .put("top", edges.top / density)
+      .put("right", edges.right / density)
+      .put("bottom", edges.bottom / density)
+      .put("left", edges.left / density)
+      .toString()
+  }
+
+  /** Follow the bars as they come and go: rotation, a slide show
+   * hiding them, gesture or button navigation. The WebView still gets
+   * the insets after us, for its own safe area. */
+  private fun watchInsets(webView: WebView) {
+    ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
+      val json = insetsOf(insets)
+      if (json != insetsJson) {
+        insetsJson = json
+        callWeb("__paperwrenInsets", json)
+      }
+      ViewCompat.onApplyWindowInsets(view, insets)
+    }
+    ViewCompat.requestApplyInsets(webView)
   }
 
   /** Say that something failed. The page holds the translations, so it
@@ -963,6 +1070,27 @@ class MainActivity : TauriActivity() {
       }
     }
 
+    /** The bars' room now, as window.__paperwrenInsets is told it:
+     * {top, right, bottom, left} in CSS pixels, or null. */
+    @JavascriptInterface
+    fun insets(): String {
+      if (!fromApp()) return "null"
+      if (insetsJson != "null") return insetsJson
+      // Asked before the first insets reached the WebView: read the
+      // window's own, on the UI thread.
+      val latch = CountDownLatch(1)
+      var json = "null"
+      main.post {
+        try {
+          ViewCompat.getRootWindowInsets(webView)?.let { json = insetsOf(it) }
+        } finally {
+          latch.countDown()
+        }
+      }
+      latch.await(500, TimeUnit.MILLISECONDS)
+      return json
+    }
+
     /** Start a copy to save; its bytes follow through saveChunk. */
     @JavascriptInterface
     fun saveBegin(token: String): Boolean {
@@ -1109,6 +1237,13 @@ class MainActivity : TauriActivity() {
     return null
   }
 }
+
+/** Where a restart for a dead renderer is remembered, and how close a
+ * second one must come to close the app instead. */
+private const val PREFS = "paperwren"
+private const val RESTARTED_AT = "rendererRestartedAt"
+private const val RESTART_PENDING = "rendererRestartPending"
+private const val RESTART_WINDOW_MS = 60_000L
 
 /** Bounds for a folder scan. */
 private const val MAX_FOLDER_FILES = 2000

@@ -6,6 +6,7 @@ import { isFullscreenKey } from "@/lib/keys";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { type Tab, TabStrip } from "@/screens/TabStrip";
+import { UpdateHost } from "@/screens/Updates";
 import { Home } from "@/screens/home/Home";
 import { SettingsScreen } from "@/screens/settings/Settings";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
@@ -396,7 +397,9 @@ function Root() {
 						? t("No other app can open this file")
 						: code === "print"
 							? t("Couldn't start printing")
-							: t("Couldn't open that file"),
+							: code === "restarted"
+								? t("Paperwren had to restart")
+								: t("Couldn't open that file"),
 			);
 			return true;
 		};
@@ -581,6 +584,7 @@ function Root() {
 			</Sheet>
 			<LinkGuard />
 			<ToastHost />
+			<UpdateHost paused={welcome !== false} />
 			<WindowControls />
 		</>
 	);

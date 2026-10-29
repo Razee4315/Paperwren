@@ -9,6 +9,7 @@ import {
 	type ResolvedTheme,
 	type Settings,
 	type ThemeSetting,
+	type UpdateChecks,
 } from "./types";
 
 export const THEMES: ThemeSetting[] = ["system", "light", "sepia", "dark"];
@@ -47,6 +48,7 @@ export function resolvePageColor(
 	return theme === "dark" ? "dark" : theme === "sepia" ? "sepia" : "original";
 }
 const LIMITS = [20, 50, 100, 500];
+const UPDATE_CHECKS: UpdateChecks[] = ["ask", "auto", "off"];
 
 /** Validate stored settings field by field; unknown values fall back
  * to defaults instead of reaching the UI. */
@@ -99,6 +101,7 @@ export function normalizeSettings(value: unknown): Settings {
 			SCROLL_SPEEDS[1],
 			DEFAULT_SETTINGS.scrollSpeed,
 		),
+		updates: pick(raw.updates, UPDATE_CHECKS, DEFAULT_SETTINGS.updates),
 	};
 }
 

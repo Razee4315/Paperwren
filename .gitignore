@@ -21,3 +21,15 @@ launch-film/out/
 # Play Store graphics (kept local, not in git)
 store/
 scripts/make-store-graphics.mjs
+
+# Promotion material (kept local, not in git)
+promo/
+
+# Issue triage notes and agent hand-off prompt (kept local, not in git)
+ISSUE-TRIAGE.md
+
+# Instructions for AI assistants (kept local, not in git)
+CLAUDE.md
+
+# Python bytecode
+__pycache__/

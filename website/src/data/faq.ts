@@ -5,7 +5,7 @@ export const FAQ = [
 	},
 	{
 		q: "Does it need an internet connection?",
-		a: "No. Paperwren never connects to the internet. The Android app does not even request the internet permission, so it works the same on a plane as it does at home.",
+		a: "No. Everything works offline. The Android app does not even request the internet permission, so it works the same on a plane as it does at home. On Windows and macOS, Paperwren can check GitHub for a new version when it starts, but only if you allow it.",
 	},
 	{
 		q: "Which files can it open?",
@@ -17,7 +17,7 @@ export const FAQ = [
 	},
 	{
 		q: "Is my signature stored anywhere?",
-		a: "Only on your device, and only if you ask Paperwren to keep it for next time. It is never uploaded, because Paperwren never connects to the internet. You can forget a kept signature whenever you sign.",
+		a: "Only on your device, and only if you ask Paperwren to keep it for next time. It is never uploaded: Paperwren sends nothing about you or your files anywhere. You can forget a kept signature whenever you sign.",
 	},
 	{
 		q: "Where are my files stored?",

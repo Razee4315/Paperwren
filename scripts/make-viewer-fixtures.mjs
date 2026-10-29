@@ -1,6 +1,6 @@
 /**
  * Generates the viewer-regression fixture corpus
- * (docs/14 audit section 9) under fixtures/viewer-regressions/.
+ * under fixtures/viewer-regressions/.
  * These fixtures are dedicated to automated regression tests and are
  * regenerated on demand; never put user documents here.
  * Run: node scripts/make-viewer-fixtures.mjs
@@ -100,7 +100,7 @@ function makeNarrowDocx() {
 }
 
 // ---------- DOCX: three pages via explicit page breaks (A4) ----------
-// docs/15 #4 acceptance: on a narrow phone the zoom controls stay
+// On a narrow phone the zoom controls stay
 // reachable, zoomed content stays pannable, and the LAST page is
 // still reachable. Word's own multi-page documents reach the viewer
 // as page breaks (w:br type=page) inside one body sectPr, and
@@ -216,7 +216,7 @@ const manifest = {
 	},
 	"multipage.docx": {
 		tests:
-			"docs/15 #4 DOCX zoom reachable at 320px: zoom in/out/fit-width, pannable zoomed content, last page reachable",
+			"DOCX zoom reachable at 320px: zoom in/out/fit-width, pannable zoomed content, last page reachable",
 	},
 	"wide-fit.pdf": {
 		tests:

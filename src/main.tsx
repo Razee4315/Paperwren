@@ -5,8 +5,10 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { isDesktop, isTouch, ownsFrame, sharesFrame } from "./lib/env";
 import { language, loadLanguage } from "./lib/i18n";
+import { followNativeInsets } from "./lib/insets";
 import { restoreWindow } from "./lib/windowState";
 
+followNativeInsets();
 document.documentElement.classList.toggle("touch", isTouch);
 document.documentElement.classList.toggle("desktop", isDesktop);
 document.documentElement.classList.toggle("frame", ownsFrame);

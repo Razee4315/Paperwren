@@ -797,6 +797,29 @@ export const ru: Table = {
 	"Close {name}": "Закрыть {name}",
 	"Open another file": "Открыть другой файл",
 	"The next and the previous tab": "Следующая и предыдущая вкладка",
+	Updates: "Обновления",
+	"Check for updates automatically?": "Проверять обновления автоматически?",
+	"When it starts, Paperwren can ask GitHub whether a new version is out. Nothing about you or your files is sent. You can change this in Settings.":
+		"При запуске Paperwren может спросить у GitHub, вышла ли новая версия. Ничего о вас или ваших файлах не отправляется. Это можно изменить в настройках.",
+	"No thanks": "Нет, спасибо",
+	"Check automatically": "Проверять автоматически",
+	"Paperwren {version} is available": "Доступна версия Paperwren {version}",
+	"Install and restart": "Установить и перезапустить",
+	"Downloading the update": "Загрузка обновления",
+	"Downloading the update: {percent}%": "Загрузка обновления: {percent}%",
+	"A new version of Paperwren is ready to install.":
+		"Новая версия Paperwren готова к установке.",
+	"Couldn't install the update": "Не удалось установить обновление",
+	"Check for updates automatically": "Проверять обновления автоматически",
+	"When it starts, Paperwren asks GitHub for a new version.":
+		"При запуске Paperwren спрашивает у GitHub о новой версии.",
+	"Check for updates": "Проверить обновления",
+	"Checking for updates": "Проверка обновлений",
+	"You have the latest version": "У вас последняя версия",
+	"Couldn't check for updates": "Не удалось проверить обновления",
+	"Paperwren goes online only to check for updates, and only if you allow it. It has no ads, no accounts and no analytics, and it asks for no permissions.":
+		"Paperwren выходит в сеть только для проверки обновлений и только с вашего разрешения. Нет рекламы, учётных записей и аналитики, и приложение не запрашивает разрешений.",
+	"Paperwren had to restart": "Paperwren пришлось перезапустить",
 	"Get started": "Начать",
 	"Your original files stay unchanged.":
 		"Ваши исходные файлы остаются без изменений.",

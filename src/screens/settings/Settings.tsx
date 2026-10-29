@@ -16,6 +16,7 @@ import {
 	loadStamps,
 } from "@/lib/signatures";
 import type { PageColor, PdfFlow, PdfZoom, ReadingFont } from "@/lib/types";
+import { canUpdate, checkForUpdate, useUpdateState } from "@/lib/updates";
 import {
 	clearBookmarks,
 	restoreBookmarks,
@@ -37,6 +38,7 @@ import {
 	Keyboard,
 	Languages,
 	Palette,
+	RefreshCw,
 	ShieldCheck,
 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
@@ -194,6 +196,7 @@ export function SettingsScreen() {
 		loadStamps().then((list) => setStampCount(list.length));
 	}, []);
 	const [showLicenses, setShowLicenses] = useState(false);
+	const updateStatus = useUpdateState();
 
 	useEffect(() => {
 		backend
@@ -563,13 +566,54 @@ export function SettingsScreen() {
 						</>
 					)}
 
+					{canUpdate && (
+						<>
+							<Group icon={<RefreshCw size={15} />}>{t("Updates")}</Group>
+							<div className={s.card}>
+								<Switch
+									label={t("Check for updates automatically")}
+									hint={t(
+										"When it starts, Paperwren asks GitHub for a new version.",
+									)}
+									checked={settings.updates === "auto"}
+									onChange={(v) => update("updates", v ? "auto" : "off")}
+									testId="updates-auto"
+								/>
+								<button
+									type="button"
+									className={s.action}
+									onClick={() => checkForUpdate(false)}
+									disabled={updateStatus.phase === "checking"}
+									data-testid="updates-check"
+								>
+									<span className={s.actionText}>
+										{t("Check for updates")}
+										<span className={s.hint} aria-live="polite">
+											{updateStatus.phase === "checking"
+												? t("Checking for updates")
+												: updateStatus.phase === "latest"
+													? t("You have the latest version")
+													: updateStatus.phase === "failed"
+														? t("Couldn't check for updates")
+														: `v${VERSION}`}
+										</span>
+									</span>
+								</button>
+							</div>
+						</>
+					)}
+
 					<Group icon={<ShieldCheck size={15} />}>{t("Privacy")}</Group>
 					<div className={s.card}>
 						<div className={s.prose}>
 							<p>
-								{t(
-									"Paperwren never connects to the internet. It has no ads, no accounts and no analytics, and it asks for no permissions.",
-								)}
+								{canUpdate
+									? t(
+											"Paperwren goes online only to check for updates, and only if you allow it. It has no ads, no accounts and no analytics, and it asks for no permissions.",
+										)
+									: t(
+											"Paperwren never connects to the internet. It has no ads, no accounts and no analytics, and it asks for no permissions.",
+										)}
 							</p>
 							<p>
 								{t(

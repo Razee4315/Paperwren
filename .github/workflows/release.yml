@@ -114,19 +114,104 @@ jobs:
       - name: Generate app icons
         run: npx tauri icon assets/brand/app-icon.svg --output src-tauri/icons
 
+      # The updater's feed: installers signed with the key in the
+      # TAURI_SIGNING_PRIVATE_KEY secret (and its password secret), whose
+      # public half is in tauri.conf.json. Without the key the release still
+      # ships, but installed copies are not offered it.
+      - name: Sign updates when the key is set
+        id: updater
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo 'args=--config {"bundle":{"createUpdaterArtifacts":true}}' >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No TAURI_SIGNING_PRIVATE_KEY secret: this release carries no update for installed copies."
+          fi
+
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tauriScript: npx tauri
+          args: ${{ steps.updater.outputs.args }}
           tagName: v__VERSION__
           releaseCommitish: ${{ needs.check-and-bump.outputs.commit }}
           releaseName: Paperwren v__VERSION__
           releaseBody: |
             Paperwren v__VERSION__. Open anything. Instantly.
 
-            Downloads for Windows are attached below. See the README for what Paperwren is and is not.
+            Downloads for Windows, macOS and Android are attached below. See the README for what Paperwren is and is not.
+          releaseDraft: false
+          prerelease: false
+
+  # After the Windows job, which creates the release: each job adds its
+  # platforms to the release's latest.json, so they must not race.
+  macos:
+    name: macOS app (universal)
+    needs: [check-and-bump, desktop]
+    if: needs.check-and-bump.outputs.should_release == 'true'
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-and-bump.outputs.commit }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Generate app icons
+        run: npx tauri icon assets/brand/app-icon.svg --output src-tauri/icons
+
+      # The updater's feed: installers signed with the key in the
+      # TAURI_SIGNING_PRIVATE_KEY secret (and its password secret), whose
+      # public half is in tauri.conf.json. Without the key the release still
+      # ships, but installed copies are not offered it.
+      - name: Sign updates when the key is set
+        id: updater
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo 'args=--config {"bundle":{"createUpdaterArtifacts":true}}' >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No TAURI_SIGNING_PRIVATE_KEY secret: this release carries no update for installed copies."
+          fi
+
+      - name: Build and add to the release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tauriScript: npx tauri
+          args: --target universal-apple-darwin ${{ steps.updater.outputs.args }}
+          tagName: v__VERSION__
+          releaseCommitish: ${{ needs.check-and-bump.outputs.commit }}
+          releaseName: Paperwren v__VERSION__
           releaseDraft: false
           prerelease: false
 
@@ -136,7 +221,7 @@ jobs:
     if: needs.check-and-bump.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     env:
-      # Play upload key (see docs/12 section 7). Without these secrets the
+      # Play upload key. Without these secrets the
       # build falls back to the debug key and every artifact is named
       # "testkey": fine for sideloading, rejected by Play.
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -241,6 +326,16 @@ jobs:
 
       - name: Build release AAB and APK (arm64, armv7, x86_64)
         run: npx tauri android build --aab --apk --target aarch64 --target armv7 --target x86_64
+
+      # .cargo/config.toml adds it to wry's WebView client; without
+      # it a dead renderer closes the app without a word.
+      - name: Check the WebView client answers a dead renderer
+        shell: bash
+        run: |
+          grep -rqs "override fun onRenderProcessGone" src-tauri/gen/android || {
+            echo "::error::RustWebViewClient has no onRenderProcessGone (see .cargo/config.toml)"
+            exit 1
+          }
 
       - name: Collect bundles
         id: collect

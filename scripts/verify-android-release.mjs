@@ -8,7 +8,7 @@
  * 2. Every 64-bit .so is 16 KB page aligned (Play requirement for
  *    apps targeting Android 15+): each PT_LOAD segment must have
  *    p_align >= 16384.
- * 3. The APK's manifest requests no permissions (docs/11 section 2),
+ * 3. The APK's manifest requests no permissions,
  *    targets API >= 36, and has a version code (read with aapt2 when
  *    the build tools are available).
  *
@@ -29,7 +29,7 @@ const REQUIRED_ABIS = ["arm64-v8a", "armeabi-v7a", "x86_64"];
 const MIN_TARGET_SDK = 36;
 const PAGE = 16384;
 // The only uses-permission entry allowed: AndroidX defines and uses
-// it to protect its own receivers; it grants nothing (docs/11).
+// it to protect its own receivers; it grants nothing.
 const ALLOWED_PERMISSIONS = [
 	"app.paperwren.docs.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
 ];

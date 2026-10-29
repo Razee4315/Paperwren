@@ -7,15 +7,14 @@
 <p align="center"><strong>Open anything. Instantly.</strong></p>
 
 <p align="center">
-  A small, fast document viewer for Android and Windows.<br />
-  No ads, no accounts, no network, no permissions.
+  A small, fast document viewer for Android, Windows and macOS.<br />
+  No ads, no accounts, no permissions. Offline, but for an update check you allow.
 </p>
 
 <p align="center">
   <a href="https://github.com/Razee4315/Paperwren/releases/latest">Download</a> ·
   <a href="https://razee4315.github.io/Paperwren/">Website</a> ·
-  <a href="https://razee4315.github.io/Paperwren/privacy">Privacy</a> ·
-  <a href="docs/README.md">Design docs</a>
+  <a href="https://razee4315.github.io/Paperwren/privacy">Privacy</a>
 </p>
 
 <p align="center">
@@ -27,7 +26,7 @@
 
 ![PDF, Word, Excel and PowerPoint files open in Paperwren](docs/screenshots/viewers.png)
 
-Paperwren opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, Markdown and plain-text files, source code, comic books and pictures. It also fills in and signs PDFs, and merges, splits and organizes them, each tool saving a new copy. Everything happens on the device: it never touches the network and the Android app requests zero permissions.
+Paperwren opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, Markdown and plain-text files, source code, comic books and pictures. It also fills in and signs PDFs, and merges, splits and organizes them, each tool saving a new copy. Everything happens on the device. The Android app never touches the network and requests zero permissions; on Windows and macOS the only thing Paperwren ever fetches is a new version of itself, and only if you allow it.
 
 ## Contents
 
@@ -52,7 +51,7 @@ Every release is on the [releases page](https://github.com/Razee4315/Paperwren/r
 | Platform | File | Notes |
 |---|---|---|
 | Windows 10 and 11, 64-bit | `Paperwren_<version>_x64-setup.exe` or `Paperwren_<version>_x64_en-US.msi` | Registers Paperwren for the document types it opens. Drop a file on the window, double-click one, or press Ctrl+O |
-| macOS on Apple silicon | [`Paperwren_1.1.0_aarch64.dmg`](https://github.com/Razee4315/Paperwren/releases/download/v1.1.0/Paperwren_1.1.0_aarch64.dmg) | Drag Paperwren into Applications. It is not notarized by Apple, so the first time macOS declines to open it: allow it in System Settings, under Privacy & Security, with Open Anyway. Built by hand, so it can be a version behind the others |
+| macOS, Apple silicon and Intel | `Paperwren_<version>_universal.dmg` | Drag Paperwren into Applications. It is not notarized by Apple, so the first time macOS declines to open it: allow it in System Settings, under Privacy & Security, with Open Anyway |
 | Android 8.0 and later | `Paperwren-v<version>-android.apk` | One universal APK. Open a file from any app with "Open with", share one into Paperwren, or pick one inside it |
 
 ## What it opens
@@ -190,7 +189,8 @@ The same app on Windows (an older build; the window now has one bar):
 
 ## Privacy
 
-- No network access and no analytics. The release APK requests zero Android permissions, and the release pipeline fails if one appears.
+- No analytics. The Android app has no network access: the release APK requests zero Android permissions, and the release pipeline fails if one appears.
+- On Windows and macOS, Paperwren asks once whether to check for updates. If you agree, it asks GitHub for the release feed when it starts and offers a new version; nothing about you or your files is sent. Updates are signed, and one whose signature does not match the key built into the app is refused. Turn it off, or check by hand, in Settings under Updates.
 - Recents and settings live in app-private storage. On Android, files opened from the picker or shared into the app are kept as private copies (deduplicated by content hash, capped at 250 MB) so recents still reopen after the app is closed; they can be deleted in Settings.
 - Passwords (PDF and Office) are used once, in memory, and never stored.
 - A signature, initials or stamp you ask to keep are stored as pictures in app-private storage, and can be forgotten whenever you sign or in Settings.
@@ -243,7 +243,7 @@ The Urdu, Arabic, Chinese, Hindi, Spanish, French, Russian and Portuguese (Brazi
 
 ### Website
 
-The marketing site (home, comparisons, privacy policy, security) lives in `website/`, built with Astro. See `docs/14-website.md` for the design direction and where the comparison data comes from.
+The marketing site (home, comparisons, privacy policy, security) lives in `website/`, built with Astro.
 
 ```bash
 cd website
@@ -290,8 +290,6 @@ src-tauri/
 scripts/          install-android.mjs (applies the activity + manifest), icon/signing helpers, fixtures
 ```
 
-The product and design documentation is in [`docs/`](docs/README.md); `docs/13-redesign.md` is the audit that led to this structure.
-
 ## Builds and releases
 
 A push to `main` runs CI (lint, type check, unit tests, Rust tests). It does **not** bump the version, create a tag or publish a release.
@@ -304,18 +302,9 @@ For an installable test build, open [Actions → Test builds](https://github.com
 
 Test builds keep the current version and never publish a release or upload to Google Play. The same workflow also runs on pull requests. From the CLI: `gh workflow run validate.yml --ref main`.
 
-Only run [Actions → Release](https://github.com/Razee4315/Paperwren/actions/workflows/release.yml) when a new version is wanted. Select `main` and **Run workflow**, or use `gh workflow run release.yml --ref main`. If the current version is already tagged and there are new commits, it bumps the patch version, then publishes Windows installers, an Android APK and a Play bundle. Other branches cannot release. With the upload keystore in the repository's secrets the bundle is signed for Google Play; without it the build falls back to a debug key and is only good for testing.
+Only run [Actions → Release](https://github.com/Razee4315/Paperwren/actions/workflows/release.yml) when a new version is wanted. Select `main` and **Run workflow**, or use `gh workflow run release.yml --ref main`. If the current version is already tagged and there are new commits, it bumps the patch version, then publishes Windows installers, a universal macOS app and disk image, an Android APK and a Play bundle. Other branches cannot release. With the upload keystore in the repository's secrets the bundle is signed for Google Play; without it the build falls back to a debug key and is only good for testing.
 
-The Mac app is not part of that pipeline. It is built on a Mac and added to a release by hand:
-
-```bash
-npx tauri build --bundles app
-mkdir -p dmg && cp -R src-tauri/target/release/bundle/macos/Paperwren.app dmg/ && ln -s /Applications dmg/Applications
-hdiutil create -volname Paperwren -srcfolder dmg -ov -format UDZO Paperwren_<version>_aarch64.dmg
-gh release upload v<version> Paperwren_<version>_aarch64.dmg
-```
-
-Then point the Mac row of the download table at the new file.
+Installed copies on Windows and macOS update from that release. The pipeline signs their updates with the key in the `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` secrets; its public half is `plugins.updater.pubkey` in `tauri.conf.json`, and the release's `latest.json` is the feed. Without the key secret a release still ships, with a warning, but installed copies are not offered it. Keep the private key safe: an update signed with any other key is refused, so losing it means installed copies can no longer update.
 
 ## License
 

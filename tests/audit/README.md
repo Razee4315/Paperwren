@@ -44,8 +44,6 @@ window.__paperwrenTestFile = new File(
 
 The app now preserves `9007199254740993`. Do not use JavaScript to construct the numeric object first—the raw string is necessary to preserve the input value.
 
-Audit report: [rendering-fidelity-audit-2026-10-16.md](../../docs/rendering-fidelity-audit-2026-10-16.md).
-
 ## Browser regression checks without a local build
 
 ```powershell

@@ -1,5 +1,5 @@
 /**
- * Generates the starter test fixtures (docs/12 section 3 corpus):
+ * Generates the starter test fixtures:
  * a 3-page PDF, a small XLSX workbook, a CSV, and a text file.
  * Run: node scripts/make-fixtures.mjs
  */
@@ -183,7 +183,7 @@ writeFileSync(
 	"name,role,city\nAisha,student,Dhaka\nRavi,engineer,Pune\nMaya,owner,Lima\n",
 );
 
-// ---------- Hostile fixtures (docs/12 section 3) ----------
+// ---------- Hostile fixtures ----------
 
 // Legacy Office files are OLE compound documents; the magic bytes
 // are enough to exercise the honest-dialog path.
