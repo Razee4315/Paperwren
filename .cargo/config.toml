@@ -4,6 +4,8 @@
 # renderer crashes or the system takes it back for memory, Android
 # closes the whole app without a word. MainActivity.onRendererGone
 # restarts the app instead. Desktop builds ignore this variable.
+# It lives at the repo root because Gradle runs `npm run tauri`, so Cargo
+# starts here and never reads a config inside src-tauri.
 [env]
 WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION = '''
     override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {

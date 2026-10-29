@@ -327,13 +327,13 @@ jobs:
       - name: Build release AAB and APK (arm64, armv7, x86_64)
         run: npx tauri android build --aab --apk --target aarch64 --target armv7 --target x86_64
 
-      # src-tauri/.cargo/config.toml adds it to wry's WebView client; without
+      # .cargo/config.toml adds it to wry's WebView client; without
       # it a dead renderer closes the app without a word.
       - name: Check the WebView client answers a dead renderer
         shell: bash
         run: |
           grep -rqs "override fun onRenderProcessGone" src-tauri/gen/android || {
-            echo "::error::RustWebViewClient has no onRenderProcessGone (see src-tauri/.cargo/config.toml)"
+            echo "::error::RustWebViewClient has no onRenderProcessGone (see .cargo/config.toml)"
             exit 1
           }
 

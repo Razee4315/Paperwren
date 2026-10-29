@@ -219,7 +219,7 @@ class MainActivity : TauriActivity() {
   // ---------- A WebView renderer that died ----------
 
   /** Called by the WebView client (its onRenderProcessGone is added at
-   * build time, see src-tauri/.cargo/config.toml) when the page's
+   * build time, see .cargo/config.toml) when the page's
    * renderer process crashed or the system took it back for memory.
    * Left unanswered, Android closes the whole app without a word. The
    * dead WebView can never draw again and the Rust side is tied to it,
