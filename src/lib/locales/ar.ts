@@ -951,4 +951,89 @@ export const ar: Table = {
 		"اختر المظهر الذي يعجبك. أدر الصفحة إن كانت على جانبها.",
 	"This photo couldn't be opened.": "تعذّر فتح هذه الصورة.",
 	"Something went wrong with this photo.": "حدث خطأ ما في هذه الصورة.",
+	"Mark up": "ضع علامات",
+	"Write on a PDF, highlight words, add notes":
+		"اكتب على ملف PDF، وميّز الكلمات، وأضف ملاحظات",
+	"Choose a PDF, write on it or highlight its words, then save a copy.":
+		"اختر ملف PDF، واكتب عليه أو ميّز كلماته، ثم احفظ نسخة.",
+	"Write on it, highlight words, add notes":
+		"اكتب عليه، وميّز الكلمات، وأضف ملاحظات",
+	"marked up": "معلَّم",
+	"There's no text to mark here. Use the pen or marker instead.":
+		"لا يوجد نص لوضع علامة عليه هنا. استخدم القلم أو الماركر بدلًا من ذلك.",
+	Move: "تحريك",
+	Pen: "قلم",
+	Marker: "ماركر",
+	"Highlight text": "تمييز النص",
+	"Strike out": "شطب",
+	Eraser: "ممحاة",
+	"Add a note": "أضف ملاحظة",
+	Colour: "اللون",
+	"Colour {n}": "اللون {n}",
+	Thickness: "السُّمك",
+	"Scroll and zoom the pages. Tap a note to read or change it.":
+		"مرّر الصفحات وكبّرها. انقر على ملاحظة لقراءتها أو تغييرها.",
+	"Write with a finger, stylus or mouse. Two fingers scroll.":
+		"اكتب بإصبعك أو بالقلم الرقمي أو بالفأرة. التمرير بإصبعين.",
+	"Colour over anything on the page. Two fingers scroll.":
+		"لوّن فوق أي شيء في الصفحة. التمرير بإصبعين.",
+	"Drag across the words to highlight them.": "اسحب فوق الكلمات لتمييزها.",
+	"Drag across the words to underline them.": "اسحب فوق الكلمات لتسطيرها.",
+	"Drag across the words to strike them out.": "اسحب فوق الكلمات لشطبها.",
+	"Tap the page where the note belongs.":
+		"انقر على الصفحة حيث تريد وضع الملاحظة.",
+	"Tap or drag over a mark to remove it.": "انقر أو اسحب فوق علامة لإزالتها.",
+	Notes: "الملاحظات",
+	"Couldn't open this note": "تعذّر فتح هذه الملاحظة",
+	"This isn't a Paperwren notes backup":
+		"هذه ليست نسخة احتياطية لملاحظات Paperwren",
+	"Couldn't read this file": "تعذّرت قراءة هذا الملف",
+	"Search your notes": "ابحث في ملاحظاتك",
+	"Nothing here yet": "لا شيء هنا بعد",
+	"Type or write by hand. Notes stay on this device and save themselves.":
+		"اكتب بلوحة المفاتيح أو بخط اليد. تبقى الملاحظات على هذا الجهاز وتُحفظ تلقائيًا.",
+	"No notes match your search": "لا توجد ملاحظات تطابق بحثك",
+	"New note": "ملاحظة جديدة",
+	"Notes go with the app if it is removed. Keep this file somewhere safe.":
+		"تُحذف الملاحظات مع التطبيق إذا أُزيل. احتفظ بهذا الملف في مكان آمن.",
+	"Back up all notes": "نسخ كل الملاحظات احتياطيًا",
+	"Bring back from a backup": "استعادة من نسخة احتياطية",
+	"Choose a file": "اختر ملفًا",
+	"The notes in the file are added to these. Where a note is in both, the one changed last is kept.":
+		"تُضاف الملاحظات الموجودة في الملف إلى هذه الملاحظات. وإذا وُجدت ملاحظة في الاثنين، يُحتفظ بالنسخة الأحدث تعديلًا.",
+	"Couldn't save this note": "تعذّر حفظ هذه الملاحظة",
+	"Add a drawing": "أضف رسمًا",
+	"Write by hand": "اكتب بخط اليد",
+	"Start writing": "ابدأ الكتابة",
+	"Save as PDF": "حفظ كملف PDF",
+	"Delete this note?": "حذف هذه الملاحظة؟",
+	"A deleted note can't be brought back.": "لا يمكن استرجاع الملاحظة المحذوفة.",
+	"{n} notes brought back": {
+		zero: "لم تُستعد أي ملاحظة",
+		one: "استُعيدت ملاحظة واحدة",
+		two: "استُعيدت ملاحظتان",
+		few: "استُعيدت {n} ملاحظات",
+		many: "استُعيدت {n} ملاحظةً",
+		other: "استُعيدت {n} ملاحظة",
+	},
+	"Compress PDF": "ضغط ملف PDF",
+	"A smaller copy, easier to send": "نسخة أصغر، أسهل في الإرسال",
+	"Choose a PDF and how small to make it. Its pictures are stored again at a lower quality.":
+		"اختر ملف PDF وحدّد مدى تصغيره. تُحفظ صوره من جديد بجودة أقل.",
+	"How small": "مدى التصغير",
+	"Best quality": "أفضل جودة",
+	Balanced: "متوازن",
+	"Smallest file": "أصغر ملف",
+	Compress: "ضغط",
+	"This PDF is already about as small as it can be, so no copy was made.":
+		"هذا الملف صغير بالفعل بقدر الإمكان، لذا لم تُنشأ نسخة.",
+	"{was} down to {now}, {n}% smaller": "من {was} إلى {now}، أصغر بنسبة {n}%",
+	compressed: "مضغوط",
+	"PDF to text": "PDF إلى نص",
+	"The words of a PDF as a text file": "كلمات ملف PDF كملف نصي",
+	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
+		"اختر ملف PDF لحفظ كلماته كملف نصي. المسح الضوئي صورة، لذا لا يحتوي على كلمات.",
+	"This PDF has no text in it. A scan is only pictures of pages.":
+		"لا يحتوي هذا الملف على نص. المسح الضوئي مجرد صور للصفحات.",
+	"Save as text": "حفظ كنص",
 };

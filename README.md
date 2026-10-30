@@ -26,7 +26,7 @@
 
 ![PDF, Word, Excel and PowerPoint files open in Paperwren](docs/screenshots/viewers.png)
 
-Paperwren opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, Markdown and plain-text files, source code, comic books and pictures. It also fills in and signs PDFs, and merges, splits and organizes them, each tool saving a new copy. Everything happens on the device. The Android app never touches the network and requests zero permissions; on Windows and macOS the only thing Paperwren ever fetches is a new version of itself, and only if you allow it.
+Paperwren opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, Markdown and plain-text files, source code, comic books and pictures. It also fills in, signs and marks up PDFs, compresses, merges, splits and organizes them, each tool saving a new copy, and it keeps notes you type or write by hand. Everything happens on the device. The Android app never touches the network and requests zero permissions; on Windows and macOS the only thing Paperwren ever fetches is a new version of itself, and only if you allow it.
 
 ## Contents
 
@@ -34,6 +34,7 @@ Paperwren opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, Mark
 - [What it opens](#what-it-opens)
 - [Around the document](#around-the-document)
 - [Tools](#tools)
+- [Notes](#notes)
 - [On Windows](#on-windows)
 - [On a Mac](#on-a-mac)
 - [Zoom and keyboard](#zoom-and-keyboard)
@@ -94,12 +95,15 @@ The bytes decide the format, not the file name: content URIs without extensions 
 
 ## Tools
 
-The PDF jobs people otherwise upload to a website for, on the device. Open them from **Tools** on Home, from a PDF's menu (**Fill & sign**, **More PDF tools**), or from a photo's (**Scan this photo**). Each tool saves a new file where you choose, in the system's own save screen; the files you started with are not changed.
+The PDF jobs people otherwise upload to a website for, on the device. Open them from **Tools** on Home, from a PDF's menu (**Fill & sign**, **Mark up**, **More PDF tools**), or from a photo's (**Scan this photo**). Each tool saves a new file where you choose, in the system's own save screen; the files you started with are not changed.
 
 | Tool | What it does |
 |---|---|
 | Scan a document | Paper to a PDF. Take a photo with the phone's camera, or choose photos already taken (several at once). The page's edges are found by themselves and can be dragged into place, with a magnifier beside the finger; the page is straightened, then given a look: clean (the paper made evenly white, shadows and colour casts taken out), the original, grey, or black & white, and turned if need be. Pages are reordered, changed or removed, then saved together, as scanned or on A4 or Letter. A small "Scanned with Paperwren" line at the foot of each page goes with one switch, and stays off |
 | Fill & sign | The form's own fields can be typed into, ticked and chosen. Anywhere on a page you can put a signature or initials, a stamp, a line of text, the date, a tick or a cross, and move, resize or remove them; a signature field in the form is a "Sign here" box. A signature is drawn with a finger, pen or mouse, typed in a handwriting face, or uploaded: a PNG with a clear background is used as it is, a photo of one on paper has its paper made clear. A stamp is made from words (APPROVED, PAID or your own) in red, blue, green or black, square or round, with the date if wanted, or uploaded as a PNG or a scan. Signatures and stamps can be kept on the device for next time. The copy keeps the fields as fields, or makes them part of the page. Marks stay upright on pages the file turns, and text in a script the standard PDF fonts lack is drawn as a picture. A PDF whose author forbids changes says so instead |
+| Mark up | Write and draw on the pages with a finger, stylus or mouse, in a colour and thickness you choose. A felt marker colours over anything; **Highlight text**, **Underline** and **Strike out** follow the words as you drag across them. Notes sit where you tap. An eraser, undo and redo. One finger writes and two scroll and zoom; once a stylus touches the page, a finger only scrolls. The marks are saved as the PDF's own annotations, so other apps can show, list, change or remove them. A PDF whose author forbids changes says so instead |
+| Compress PDF | A smaller copy: its pictures stored again at the quality you choose, and only where that saves something. Text stays text, and what a JPEG would change (masks, CMYK and palette pictures) is left alone. If a file cannot get smaller, no copy is made and the app says so |
+| PDF to text | The words of a PDF as a `.txt` file. A scan has none: it is pictures of pages |
 | Merge PDFs | Several PDFs as one, in the order you set |
 | Organize pages | Turn, move or take out pages, picked from thumbnails |
 | Split or extract pages | Pages typed as "1-3, 5" as a new PDF, or every page as its own PDF in a ZIP |
@@ -113,6 +117,10 @@ Any file can also be **renamed**, from its menu or a recent's: the extension sta
 The tools are built on [pdf-lib](https://github.com/cantoo-scribe/pdf-lib) (the maintained fork), loaded only when one runs.
 
 The scanner finds the page with two finders that run on the device: a small neural network, [DocCornerNet](https://github.com/mapo80/DocCornerNet-CoordClass) (1.9 MB, on a trimmed ONNX Runtime, from [scanic-ml](https://www.npmjs.com/package/scanic-ml)), which finds a page against a busy desk or one as pale as the table, and [scanic](https://github.com/marquaye/scanic)'s edge tracer, the more exact of the two when the page stands out. Both ship with the app; nothing is fetched. "Take a photo" hands the job to the phone's own camera app, so Paperwren asks for no camera permission.
+
+## Notes
+
+**Notes** on Home keeps what you write, on this device: typed text and sheets of handwriting in one note, in any language, saved as you go and found by searching their words. A note can be saved as a PDF (drawn as pictures of its pages, so every script comes out as written, but the words cannot be selected). Notes go with the app if it is removed, so **Back up all notes** saves them all to one file, and **Bring back from a backup** adds them back, keeping whichever copy of a note was changed last. This answers [issue #40](https://github.com/Razee4315/Paperwren/issues/40).
 
 ## On Windows
 
@@ -195,6 +203,7 @@ The same app on Windows (an older build; the window now has one bar):
 - Passwords (PDF and Office) are used once, in memory, and never stored.
 - A signature, initials or stamp you ask to keep are stored as pictures in app-private storage, and can be forgotten whenever you sign or in Settings.
 - Scanning asks for no camera permission: the phone's camera app takes the photo. The photos are worked on in memory; the copy the camera app writes into the app's own folder is deleted the next time the app starts.
+- Notes are stored in app-private storage and go nowhere unless you save one as a PDF or back them up, which writes a file where you pick it.
 - The app never changes a file it opened. It writes only a copy a tool made, where you pick it in the system's save screen, and a file you rename. On a desktop both are done by the Rust side (`src-tauri/src/save.rs`), which checks the name: the web layer's file access stays read-only.
 
 The full policy is at [razee4315.github.io/Paperwren/privacy](https://razee4315.github.io/Paperwren/privacy).

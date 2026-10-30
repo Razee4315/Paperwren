@@ -24,6 +24,7 @@ import {
 	BookOpenText,
 	Crop,
 	GalleryHorizontal,
+	Highlighter,
 	ImageDown,
 	Layers as LayersIcon,
 	LayoutGrid,
@@ -53,6 +54,7 @@ import type {
 import "pdfjs-dist/web/pdf_viewer.css";
 import { drawPage } from "@/lib/pagePicture";
 import { FillSign } from "@/screens/tools/FillSign";
+import { MarkUp } from "@/screens/tools/MarkUp";
 import { announceSaved } from "@/screens/tools/saved";
 import {
 	useCallback,
@@ -250,6 +252,7 @@ export default function PdfView({
 	// filling in its form.
 	const [rights, setRights] = useState({ mark: true, fill: true });
 	const [filling, setFilling] = useState(false);
+	const [marking, setMarking] = useState(false);
 	// The password the reader opened it with, held for saving copies.
 	const passwordRef = useRef<string | undefined>(undefined);
 	const layerConfig = useRef<LayerConfig | null>(null);
@@ -1046,6 +1049,22 @@ export default function PdfView({
 			>
 				{t("Fill & sign")}
 			</SheetItem>
+			<SheetItem
+				icon={<Highlighter size={20} />}
+				disabled={!rights.mark}
+				hint={
+					rights.mark
+						? t("Write on it, highlight words, add notes")
+						: t("Its author doesn't allow changes")
+				}
+				onClick={() => {
+					close();
+					setMarking(true);
+				}}
+				testId="pdf-mark-up"
+			>
+				{t("Mark up")}
+			</SheetItem>
 			{file?.openTools && (
 				<SheetItem
 					icon={<Wrench size={20} />}
@@ -1605,6 +1624,16 @@ export default function PdfView({
 				>
 					{t("The file is damaged or isn't a valid PDF.")}
 				</StateView>
+			)}
+
+			{marking && doc && (
+				<MarkUp
+					doc={doc}
+					name={name}
+					password={passwordRef.current}
+					onClose={() => setMarking(false)}
+					onSaved={(saved) => announceSaved(saved, file?.openOver)}
+				/>
 			)}
 
 			{filling && doc && (

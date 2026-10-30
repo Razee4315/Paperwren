@@ -1,0 +1,221 @@
+.screen {
+	position: fixed;
+	inset: var(--tab-strip, 0px) 0 0;
+	z-index: 20;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	background: var(--page-bg, var(--canvas));
+	animation: pw-screen-side var(--t-med) var(--ease);
+}
+.bar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-height: calc(64px + var(--safe-top, 0px));
+	padding: calc(8px + var(--safe-top, 0px)) calc(8px + var(--bar-controls, 0px))
+		4px calc(4px + var(--safe-left, 0px) + var(--bar-lights, 0px));
+}
+.title {
+	flex: 1;
+	margin: 0;
+	font-size: 22px;
+	font-weight: 800;
+}
+.scroll {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+.column {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-width: 720px;
+	margin: 0 auto;
+	padding: 8px calc(16px + var(--safe-right, 0px))
+		calc(96px + var(--safe-bottom, 0px)) calc(16px + var(--safe-left, 0px));
+}
+.search {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+	padding: 0 12px;
+	min-height: 44px;
+	border: 1px solid var(--line);
+	border-radius: var(--r-m);
+	background: var(--surface);
+	color: var(--text-2);
+}
+.search input {
+	flex: 1;
+	min-width: 0;
+	border: 0;
+	outline: 0;
+	background: none;
+	color: var(--text);
+	font: inherit;
+}
+.empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding: 48px 16px;
+	text-align: center;
+	color: var(--text-2);
+}
+.empty h2 {
+	margin: 8px 0 0;
+	font-size: 18px;
+	color: var(--text);
+}
+.empty p {
+	margin: 0;
+	max-width: 320px;
+	line-height: 1.5;
+}
+.none {
+	margin: 24px 0;
+	text-align: center;
+	color: var(--text-2);
+}
+.row {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	width: 100%;
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: var(--r-m);
+	background: var(--surface);
+	text-align: start;
+}
+.row:hover {
+	background: var(--surface-2);
+	border-color: var(--accent);
+}
+.row strong,
+.snippet {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.snippet {
+	font-size: 14px;
+	color: var(--text-2);
+}
+.when {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var(--text-2);
+}
+.add {
+	position: absolute;
+	inset-inline-end: calc(20px + var(--safe-right, 0px));
+	bottom: calc(20px + var(--safe-bottom, 0px));
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 18px;
+	border-radius: var(--r-m);
+	background: var(--accent);
+	color: var(--on-accent, #fff);
+	font-weight: 750;
+}
+.noteTitle {
+	flex: 1;
+	min-width: 0;
+	padding: 8px;
+	border: 0;
+	outline: 0;
+	background: none;
+	color: var(--text);
+	font: inherit;
+	font-size: 20px;
+	font-weight: 800;
+}
+.tools {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px calc(12px + var(--safe-right, 0px)) 6px
+		calc(12px + var(--safe-left, 0px));
+	overflow-x: auto;
+	flex-shrink: 0;
+	border-bottom: 1px solid var(--line);
+	scrollbar-width: none;
+}
+.tool {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 40px;
+	height: 40px;
+	border-radius: var(--r-m);
+	color: var(--text-2);
+}
+.tool[aria-pressed="true"] {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+.dot {
+	display: block;
+	border-radius: 50%;
+	background: currentColor;
+}
+.swatch {
+	flex-shrink: 0;
+	width: 28px;
+	height: 28px;
+	border: 2px solid var(--surface);
+	border-radius: 50%;
+	outline: 1px solid var(--line);
+}
+.swatch[aria-pressed="true"] {
+	outline: 2px solid var(--accent);
+}
+.page {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-width: 720px;
+	min-height: 100%;
+	margin: 0 auto;
+	padding: 16px calc(16px + var(--safe-right, 0px))
+		calc(32px + var(--safe-bottom, 0px)) calc(16px + var(--safe-left, 0px));
+}
+.text {
+	width: 100%;
+	min-height: 48px;
+	padding: 4px;
+	border: 0;
+	outline: 0;
+	resize: none;
+	overflow: hidden;
+	background: none;
+	color: var(--text);
+	font: inherit;
+	font-size: 16px;
+	line-height: 1.6;
+}
+/* Ink is the colour it was written in, so its paper stays white. */
+.sketch {
+	display: block;
+	width: 100%;
+	height: auto;
+	flex-shrink: 0;
+	border: 1px solid var(--line);
+	border-radius: var(--r-m);
+	background: #fff;
+	touch-action: pan-y;
+}
+.sketch[data-drawing] {
+	cursor: crosshair;
+	touch-action: none;
+}

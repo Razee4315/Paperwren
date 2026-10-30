@@ -10,6 +10,8 @@ import type {
 	PDFDocument as Doc,
 	PDFFont,
 	PDFPage,
+	PDFRef,
+	PDFRawStream as RawStream,
 	SecurityOptions,
 } from "@cantoo/pdf-lib";
 
@@ -58,7 +60,7 @@ export class ToolError extends Error {
 	}
 }
 
-async function open(bytes: Uint8Array, password?: string): Promise<Doc> {
+export async function open(bytes: Uint8Array, password?: string): Promise<Doc> {
 	const { PDFDocument } = await lib();
 	try {
 		return await PDFDocument.load(bytes, {
@@ -74,7 +76,7 @@ async function open(bytes: Uint8Array, password?: string): Promise<Doc> {
 
 /** The page's box as shown (pdf.js shows the crop box), and the turn
  * the file gives it, in degrees clockwise. */
-function shownBox(page: PDFPage) {
+export function shownBox(page: PDFPage) {
 	const box = page.getCropBox();
 	const turn = (((page.getRotation().angle % 360) + 360) % 360) as
 		| 0
@@ -518,6 +520,161 @@ export async function addWatermark(
 		});
 	}
 	return doc.save();
+}
+
+/** A picture inside a PDF, for making smaller: JPEG as it is stored, or
+ * raw 8-bit samples. */
+export interface StoredPicture {
+	bytes: Uint8Array;
+	raw: boolean;
+	width: number;
+	height: number;
+	/** Grey or colour. */
+	channels: 1 | 3;
+}
+
+/** A picture stored again as a colour JPEG, or null to keep it. */
+export type Recode = (
+	picture: StoredPicture,
+) => Promise<{ bytes: Uint8Array; width: number; height: number } | null>;
+
+/** How many colour channels a picture's colour space has: 1 or 3, or
+ * null for what a canvas would get wrong (CMYK, palettes, patterns). */
+function channelsOf(doc: Doc, space: unknown, names: Names): 1 | 3 | null {
+	const { PDFArray, PDFDict, PDFName, PDFNumber, PDFRawStream } = names;
+	const value = doc.context.lookup(space as never);
+	if (value instanceof PDFName) {
+		if (value === PDFName.of("DeviceRGB")) return 3;
+		if (value === PDFName.of("DeviceGray")) return 1;
+		return null;
+	}
+	if (!(value instanceof PDFArray) || value.size() < 2) return null;
+	if (value.get(0) !== PDFName.of("ICCBased")) return null;
+	const profile = doc.context.lookup(value.get(1));
+	const dict =
+		profile instanceof PDFRawStream
+			? profile.dict
+			: profile instanceof PDFDict
+				? profile
+				: null;
+	const count = dict?.get(PDFName.of("N"));
+	if (!(count instanceof PDFNumber)) return null;
+	const n = count.asNumber();
+	return n === 1 || n === 3 ? n : null;
+}
+
+type Names = Awaited<ReturnType<typeof lib>>;
+
+/** The stream filters pdf-lib can undo for a picture. */
+const UNPACKED = [
+	"/FlateDecode",
+	"/LZWDecode",
+	"/ASCII85Decode",
+	"/ASCIIHexDecode",
+	"/RunLengthDecode",
+];
+
+/**
+ * A smaller copy: its pictures stored again, each only if that saves
+ * something, and the file's structure packed. Masks, CMYK and palette
+ * pictures, and anything else a JPEG would change, stay as they are.
+ */
+export async function compressPdf(
+	bytes: Uint8Array,
+	recode: Recode,
+	{ password }: { password?: string } = {},
+): Promise<Uint8Array> {
+	const names = await lib();
+	const { PDFArray, PDFName, PDFNumber, PDFRawStream, decodePDFRawStream } =
+		names;
+	const doc = await open(bytes, password);
+	const { context } = doc;
+	const key = (name: string) => PDFName.of(name);
+	const images = context
+		.enumerateIndirectObjects()
+		.filter(
+			(entry): entry is [PDFRef, RawStream] =>
+				entry[1] instanceof PDFRawStream &&
+				entry[1].dict.get(key("Subtype")) === key("Image"),
+		);
+	// A soft mask is a picture too, and must keep every grey it has.
+	const masks = new Set(
+		images
+			.map(([, image]) => image.dict.get(key("SMask")))
+			.filter((mask) => mask !== undefined),
+	);
+	for (const [ref, image] of images) {
+		const { dict } = image;
+		if (
+			masks.has(ref) ||
+			dict.has(key("ImageMask")) ||
+			dict.has(key("Decode")) ||
+			dict.has(key("DecodeParms")) ||
+			dict.lookup(key("Mask")) instanceof PDFArray
+		)
+			continue;
+		const filter = dict.lookup(key("Filter"));
+		const filters =
+			filter instanceof PDFArray
+				? filter.asArray()
+				: filter instanceof PDFName
+					? [filter]
+					: [];
+		const jpeg = filters[filters.length - 1] === key("DCTDecode");
+		// What wraps a JPEG, or holds a raw picture: both unpacked below.
+		const wraps = jpeg ? filters.slice(0, -1) : filters;
+		if (
+			(!jpeg && !filters.length) ||
+			wraps.some((name) => !UNPACKED.includes(String(name)))
+		)
+			continue;
+		const channels = channelsOf(doc, dict.get(key("ColorSpace")), names);
+		const width = dict.lookup(key("Width"));
+		const height = dict.lookup(key("Height"));
+		const bits = dict.lookup(key("BitsPerComponent"));
+		if (
+			!channels ||
+			!(width instanceof PDFNumber) ||
+			!(height instanceof PDFNumber) ||
+			(bits instanceof PDFNumber && bits.asNumber() !== 8)
+		)
+			continue;
+		let samples: Uint8Array;
+		try {
+			const unwrapped = dict.clone(context);
+			unwrapped.delete(key("Filter"));
+			if (wraps.length)
+				unwrapped.set(key("Filter"), context.obj(wraps as never));
+			// Through the stream's own decryption, for a locked file.
+			samples = decodePDFRawStream(
+				PDFRawStream.of(unwrapped, image.contents, image.transform),
+			).decode();
+		} catch {
+			continue;
+		}
+		if (
+			!jpeg &&
+			samples.length < width.asNumber() * height.asNumber() * channels
+		)
+			continue;
+		const made = await recode({
+			bytes: samples,
+			raw: !jpeg,
+			width: width.asNumber(),
+			height: height.asNumber(),
+			channels,
+		}).catch(() => null);
+		// Not worth a generation of JPEG loss for less than a tenth.
+		if (!made || made.bytes.length > image.contents.length * 0.9) continue;
+		const next = dict.clone(context);
+		next.set(key("Filter"), key("DCTDecode"));
+		next.set(key("ColorSpace"), key("DeviceRGB"));
+		next.set(key("BitsPerComponent"), PDFNumber.of(8));
+		next.set(key("Width"), PDFNumber.of(made.width));
+		next.set(key("Height"), PDFNumber.of(made.height));
+		context.assign(ref, PDFRawStream.of(next, made.bytes));
+	}
+	return doc.save({ useObjectStreams: true, updateFieldAppearances: false });
 }
 
 /** A copy that asks for a password to open. */

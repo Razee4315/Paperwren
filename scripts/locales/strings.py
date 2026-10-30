@@ -804,3 +804,7 @@ ROWS += TOOL_UX_ROWS
 # The scanner.
 from scan_ux import ROWS as SCAN_UX_ROWS
 ROWS += SCAN_UX_ROWS
+
+# Mark up, notes, compress and PDF to text.
+from markup_ux import ROWS as MARKUP_UX_ROWS
+ROWS += MARKUP_UX_ROWS

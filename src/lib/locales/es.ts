@@ -942,4 +942,91 @@ export const es: Table = {
 		"Elige el aspecto que prefieras. Gira la página si está de lado.",
 	"This photo couldn't be opened.": "No se pudo abrir esta foto.",
 	"Something went wrong with this photo.": "Algo ha fallado con esta foto.",
+	"Mark up": "Marcar",
+	"Write on a PDF, highlight words, add notes":
+		"Escribe en un PDF, resalta palabras y añade notas",
+	"Choose a PDF, write on it or highlight its words, then save a copy.":
+		"Elige un PDF, escribe en él o resalta sus palabras y guarda una copia.",
+	"Write on it, highlight words, add notes":
+		"Escribe en él, resalta palabras y añade notas",
+	"marked up": "marcado",
+	"There's no text to mark here. Use the pen or marker instead.":
+		"Aquí no hay texto que marcar. Usa el lápiz o el marcador.",
+	Move: "Mover",
+	Pen: "Lápiz",
+	Marker: "Marcador",
+	"Highlight text": "Resaltar texto",
+	"Strike out": "Tachar",
+	Eraser: "Borrador",
+	"Add a note": "Añadir una nota",
+	Colour: "Color",
+	"Colour {n}": "Color {n}",
+	Thickness: "Grosor",
+	"Scroll and zoom the pages. Tap a note to read or change it.":
+		"Desplaza las páginas y haz zoom. Toca una nota para leerla o cambiarla.",
+	"Write with a finger, stylus or mouse. Two fingers scroll.":
+		"Escribe con el dedo, un lápiz óptico o el ratón. Dos dedos para desplazar.",
+	"Colour over anything on the page. Two fingers scroll.":
+		"Pinta sobre cualquier parte de la página. Dos dedos para desplazar.",
+	"Drag across the words to highlight them.":
+		"Arrastra sobre las palabras para resaltarlas.",
+	"Drag across the words to underline them.":
+		"Arrastra sobre las palabras para subrayarlas.",
+	"Drag across the words to strike them out.":
+		"Arrastra sobre las palabras para tacharlas.",
+	"Tap the page where the note belongs.":
+		"Toca la página donde quieras poner la nota.",
+	"Tap or drag over a mark to remove it.":
+		"Toca o arrastra sobre una marca para quitarla.",
+	Notes: "Notas",
+	"Couldn't open this note": "No se pudo abrir esta nota",
+	"This isn't a Paperwren notes backup":
+		"Esto no es una copia de seguridad de notas de Paperwren",
+	"Couldn't read this file": "No se pudo leer este archivo",
+	"Search your notes": "Busca en tus notas",
+	"Nothing here yet": "Aún no hay nada aquí",
+	"Type or write by hand. Notes stay on this device and save themselves.":
+		"Escribe con el teclado o a mano. Las notas se quedan en este dispositivo y se guardan solas.",
+	"No notes match your search": "Ninguna nota coincide con tu búsqueda",
+	"New note": "Nueva nota",
+	"Notes go with the app if it is removed. Keep this file somewhere safe.":
+		"Las notas se borran junto con la app si la desinstalas. Guarda este archivo en un lugar seguro.",
+	"Back up all notes": "Copia de seguridad de todas las notas",
+	"Bring back from a backup": "Restaurar desde una copia de seguridad",
+	"Choose a file": "Elegir un archivo",
+	"The notes in the file are added to these. Where a note is in both, the one changed last is kept.":
+		"Las notas del archivo se añaden a estas. Si una nota está en ambos, se conserva la que se cambió por última vez.",
+	"Couldn't save this note": "No se pudo guardar esta nota",
+	"Add a drawing": "Añadir un dibujo",
+	"Write by hand": "Escribir a mano",
+	"Start writing": "Empezar a escribir",
+	"Save as PDF": "Guardar como PDF",
+	"Delete this note?": "¿Eliminar esta nota?",
+	"A deleted note can't be brought back.":
+		"Una nota eliminada no se puede recuperar.",
+	"{n} notes brought back": {
+		one: "{n} nota restaurada",
+		other: "{n} notas restauradas",
+	},
+	"Compress PDF": "Comprimir PDF",
+	"A smaller copy, easier to send": "Una copia más pequeña, fácil de enviar",
+	"Choose a PDF and how small to make it. Its pictures are stored again at a lower quality.":
+		"Elige un PDF y cuánto quieres reducirlo. Sus imágenes se vuelven a guardar con menor calidad.",
+	"How small": "Cuánto reducir",
+	"Best quality": "Mejor calidad",
+	Balanced: "Equilibrado",
+	"Smallest file": "Archivo más pequeño",
+	Compress: "Comprimir",
+	"This PDF is already about as small as it can be, so no copy was made.":
+		"Este PDF ya es casi tan pequeño como puede ser, así que no se hizo ninguna copia.",
+	"{was} down to {now}, {n}% smaller": "De {was} a {now}, un {n} % menos",
+	compressed: "comprimido",
+	"PDF to text": "PDF a texto",
+	"The words of a PDF as a text file":
+		"Las palabras de un PDF como archivo de texto",
+	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
+		"Elige un PDF para guardar sus palabras como archivo de texto. Un escaneo es una imagen, así que no tiene texto.",
+	"This PDF has no text in it. A scan is only pictures of pages.":
+		"Este PDF no tiene texto. Un escaneo son solo imágenes de las páginas.",
+	"Save as text": "Guardar como texto",
 };

@@ -1,12 +1,20 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
-import { PDFDocument, StandardFonts, degrees } from "@cantoo/pdf-lib";
+import {
+	PDFDocument,
+	PDFName,
+	PDFNumber,
+	type PDFRawStream,
+	StandardFonts,
+	degrees,
+} from "@cantoo/pdf-lib";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { describe, expect, it } from "vitest";
 import {
 	addPageNumbers,
 	addWatermark,
 	buildPdf,
+	compressPdf,
 	fillAndSign,
 	imagesToPdf,
 	pageCount,
@@ -282,5 +290,109 @@ describe("passwords", () => {
 			"Page 2",
 		]);
 		await expect(unlock(locked, "nope")).rejects.toThrow();
+	});
+});
+
+describe("compressPdf", () => {
+	/** A PDF holding one picture, stored the way `store` says. */
+	async function withPicture(
+		size: number,
+		dict: Record<string, unknown>,
+		bytes: Uint8Array,
+	) {
+		const doc = await PDFDocument.create();
+		doc.addPage([100, 100]);
+		const ref = doc.context.register(
+			doc.context.stream(bytes, {
+				Type: "XObject",
+				Subtype: "Image",
+				Width: size,
+				Height: size,
+				BitsPerComponent: 8,
+				ColorSpace: "DeviceRGB",
+				...dict,
+			} as never),
+		);
+		return { bytes: await doc.save(), ref };
+	}
+
+	const shrink = async () => ({
+		bytes: new Uint8Array(50).fill(7),
+		width: 10,
+		height: 10,
+	});
+
+	it("stores a JPEG again when that saves something", async () => {
+		const jpeg = new Uint8Array(5000).fill(1);
+		const { bytes, ref } = await withPicture(
+			100,
+			{ Filter: "DCTDecode" },
+			jpeg,
+		);
+		const seen: boolean[] = [];
+		const out = await compressPdf(bytes, async (picture) => {
+			seen.push(picture.raw);
+			expect(picture.bytes).toEqual(jpeg);
+			return shrink();
+		});
+		expect(seen).toEqual([false]);
+		expect(out.length).toBeLessThan(bytes.length);
+		const doc = await PDFDocument.load(out);
+		const image = doc.context.lookup(ref) as PDFRawStream;
+		expect(image.dict.lookup(PDFName.of("Width"))).toEqual(PDFNumber.of(10));
+		expect(image.dict.get(PDFName.of("Filter"))).toBe(PDFName.of("DCTDecode"));
+	});
+
+	it("reads a JPEG wrapped in another filter", async () => {
+		// "Hell" in ASCII85: what reaches the recoder is what it wrapped.
+		const wrapped = new TextEncoder().encode("87cUR~>");
+		const { bytes } = await withPicture(
+			100,
+			{ Filter: ["ASCII85Decode", "DCTDecode"] },
+			wrapped,
+		);
+		const seen: string[] = [];
+		await compressPdf(bytes, async (picture) => {
+			seen.push(new TextDecoder().decode(picture.bytes));
+			return null;
+		});
+		expect(seen).toEqual(["Hell"]);
+	});
+
+	it("keeps a picture when the new one is hardly smaller", async () => {
+		const jpeg = new Uint8Array(100).fill(1);
+		const { bytes, ref } = await withPicture(
+			100,
+			{ Filter: "DCTDecode" },
+			jpeg,
+		);
+		const out = await compressPdf(bytes, async () => ({
+			bytes: new Uint8Array(95),
+			width: 10,
+			height: 10,
+		}));
+		const doc = await PDFDocument.load(out);
+		const image = doc.context.lookup(ref) as PDFRawStream;
+		expect(image.dict.lookup(PDFName.of("Width"))).toEqual(PDFNumber.of(100));
+	});
+
+	it("leaves alone what a JPEG would change", async () => {
+		const jpeg = new Uint8Array(5000).fill(1);
+		const cases: Array<Record<string, unknown>> = [
+			{ Filter: "DCTDecode", ColorSpace: "DeviceCMYK" },
+			{ Filter: "DCTDecode", ImageMask: true },
+			{ Filter: "DCTDecode", Decode: [1, 0, 1, 0, 1, 0] },
+			{ Filter: "DCTDecode", Mask: [0, 0, 0, 0, 0, 0] },
+			{ Filter: "JBIG2Decode" },
+		];
+		for (const dict of cases) {
+			const { bytes } = await withPicture(100, dict, jpeg);
+			const seen: unknown[] = [];
+			await compressPdf(bytes, async (picture) => {
+				seen.push(picture);
+				return null;
+			});
+			expect(seen).toEqual([]);
+		}
 	});
 });

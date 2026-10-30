@@ -13,6 +13,7 @@ import type { OpenRequest } from "./types";
 export type Screen =
 	| { kind: "home" }
 	| { kind: "settings" }
+	| { kind: "notes" }
 	/** The tools, or one of them with a file already in it. */
 	| { kind: "tools"; tool?: string; file?: OpenRequest }
 	| { kind: "viewer"; request: OpenRequest; key: number };
