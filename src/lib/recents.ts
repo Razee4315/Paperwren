@@ -60,6 +60,9 @@ export function cleanPosition(value: unknown): Position | undefined {
 				...(p.spread === true ? { spread: true } : {}),
 				...(p.spread === true && p.cover === true ? { cover: true } : {}),
 				...(p.crop === true ? { crop: true } : {}),
+				...(Number.isInteger(p.pages) && (p.pages as number) > 0
+					? { pages: p.pages as number }
+					: {}),
 			};
 		case "scroll":
 			return {

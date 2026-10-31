@@ -70,7 +70,8 @@ function Growing(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
 		el.style.height = "auto";
 		el.style.height = `${el.scrollHeight + 2}px`;
 	}, [props.value]);
-	return <textarea ref={field} dir="auto" {...props} />;
+	// A list to read: opening it does not call up a phone's keyboard.
+	return <textarea ref={field} dir="auto" data-no-focus="" {...props} />;
 }
 
 function MarkCard({

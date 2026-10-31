@@ -79,7 +79,7 @@
 .scanOffer {
 	position: absolute;
 	z-index: 5;
-	top: 12px;
+	bottom: 16px;
 	left: 50%;
 	transform: translateX(-50%);
 	display: flex;
@@ -244,6 +244,23 @@ button.extra[aria-pressed="false"] {
 	animation: none;
 	overflow-x: auto;
 	scrollbar-width: none;
+}
+/* Five colours and five tools, on the narrowest phone. */
+.floatBar[data-docked] .barSwatches {
+	gap: 4px;
+	padding: 0 3px;
+}
+.floatBar[data-docked] .barSwatch {
+	width: 24px;
+	height: 24px;
+}
+.floatBar[data-docked] .barLine {
+	margin: 0 2px;
+}
+.floatBar[data-docked] > button {
+	flex: none;
+	width: 36px;
+	min-width: 36px;
 }
 .barSwatches {
 	display: flex;
@@ -413,4 +430,55 @@ button.extra[aria-pressed="false"] {
 	font-size: 12px;
 	line-height: 1.4;
 	color: var(--text-3);
+}
+
+/* Every result of a search, page by page. */
+.findList {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 2px;
+}
+.findSum,
+.findNone {
+	margin: 0;
+	padding: 6px 8px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-3);
+}
+.findHit {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	width: 100%;
+	padding: 8px;
+	border-radius: var(--r-s);
+	text-align: start;
+	font-size: 13px;
+	line-height: 1.4;
+	color: var(--text-2);
+}
+.findHit:hover {
+	background: var(--surface-2);
+}
+.findHit strong {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 12px;
+	color: var(--text);
+}
+.findHit small {
+	padding: 0 6px;
+	border-radius: 999px;
+	background: var(--surface-2);
+	font-size: 11px;
+	color: var(--text-3);
+}
+.findHit mark {
+	border-radius: 2px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-weight: 600;
 }

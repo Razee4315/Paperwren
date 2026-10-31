@@ -574,3 +574,37 @@
 	text-align: center;
 	color: var(--text-2);
 }
+
+/* A recent PDF's first page, in the space a file's badge takes. */
+.rowPicture {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 46px;
+	height: 46px;
+}
+.rowPicture img {
+	display: block;
+	max-width: 46px;
+	max-height: 46px;
+	border-radius: 3px;
+	background: #fff;
+	box-shadow: 0 0 0 1px var(--line-strong);
+}
+.sample {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 40px;
+	margin: 4px auto 0;
+	padding: 0 14px;
+	border-radius: 999px;
+	border: 1px solid var(--line-strong);
+	background: var(--surface);
+	color: var(--accent);
+	font-size: 14px;
+	font-weight: 600;
+}
+.sample:hover {
+	background: var(--surface-2);
+}

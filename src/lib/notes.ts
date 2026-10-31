@@ -7,6 +7,7 @@
  */
 
 import { backend } from "./backend";
+import { allMarks, restoreMarks } from "./docMarks";
 
 export interface NoteStroke {
 	/** Both as fractions of the sketch's width, so it can grow downward. */
@@ -201,7 +202,13 @@ export async function backupNotes(): Promise<Uint8Array> {
 		if (note) notes.push(note);
 	}
 	return new TextEncoder().encode(
-		JSON.stringify({ kind: BACKUP_KIND, version: 1, notes }),
+		JSON.stringify({
+			kind: BACKUP_KIND,
+			version: 2,
+			notes,
+			// What was marked on documents goes with them.
+			marks: await allMarks().catch(() => []),
+		}),
 	);
 }
 
@@ -209,7 +216,7 @@ export async function backupNotes(): Promise<Uint8Array> {
  * is here too keeps whichever copy was changed last. Null when the file
  * is not a backup; otherwise how many notes came in. */
 export async function restoreNotes(bytes: ArrayBuffer): Promise<number | null> {
-	let data: { kind?: unknown; notes?: unknown };
+	let data: { kind?: unknown; notes?: unknown; marks?: unknown };
 	try {
 		data = JSON.parse(new TextDecoder().decode(bytes));
 	} catch {
@@ -229,5 +236,6 @@ export async function restoreNotes(bytes: ArrayBuffer): Promise<number | null> {
 	// Saving puts a note on top; the list stays newest first.
 	const list = (await loadNotes()).sort((a, b) => b.updatedAt - a.updatedAt);
 	await backend.storeSet(NOTES_KEY, list);
+	if (Array.isArray(data.marks)) await restoreMarks(data.marks);
 	return added;
 }

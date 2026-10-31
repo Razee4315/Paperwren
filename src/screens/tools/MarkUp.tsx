@@ -6,7 +6,8 @@ import {
 	newMarkId,
 } from "@/lib/docMarks";
 import { copyName } from "@/lib/fileName";
-import { t } from "@/lib/i18n";
+import { msg, t } from "@/lib/i18n";
+import { UNITS, lengthOf, measureLabel, scaleFrom } from "@/lib/measure";
 import {
 	type PageTextItem,
 	type TextLine,
@@ -36,6 +37,7 @@ import {
 	PenLine,
 	Plus,
 	Redo2,
+	Ruler,
 	StickyNote,
 	Strikethrough,
 	Trash2,
@@ -60,7 +62,7 @@ import { FillPage } from "./FillSign";
 import s from "./Tools.module.css";
 import { curve, markHit, pushPoint } from "./ink";
 
-type Tool =
+export type MarkTool =
 	| "move"
 	| "pen"
 	| "marker"
@@ -69,13 +71,14 @@ type Tool =
 	| "strike"
 	| "note"
 	| "text"
+	| "measure"
 	| "erase";
 type Item = DocMark;
 /** What is being drawn or dragged, not yet part of the page. */
 type Live =
 	| { kind: "ink"; page: number; points: Array<[number, number]> }
 	| {
-			kind: "text";
+			kind: "text" | "line";
 			page: number;
 			from: [number, number];
 			to: [number, number];
@@ -90,8 +93,13 @@ type Writing = {
 	text: string;
 };
 
+export const SIGNED_WARNING = msg(
+	"This PDF has a digital signature. A changed copy won't keep it valid.",
+);
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
+/** Shorter than this on screen, a measuring line is a slip. */
+const MIN_LINE = 8;
 /** A new text box: how wide as a share of its page, and how large. */
 const TEXT_WIDTH = 0.4;
 const TEXT_SIZES = [10, 14, 20, 28];
@@ -109,6 +117,8 @@ export function MarkUp({
 	name,
 	password,
 	store,
+	start = "pen",
+	signed = false,
 	onClose,
 	onSaved,
 }: {
@@ -117,13 +127,17 @@ export function MarkUp({
 	password?: string;
 	/** The document's marks. */
 	store: MarkStore;
+	/** The tool in hand to begin with. */
+	start?: MarkTool;
+	/** The file has a digital signature, which a copy will not keep. */
+	signed?: boolean;
 	onClose: () => void;
 	onSaved?: (saved: SavedFile) => void;
 }) {
 	const items = store.list;
 	const marks = useRef(items);
 	marks.current = items;
-	const [tool, setTool] = useState<Tool>("pen");
+	const [tool, setTool] = useState<MarkTool>(start);
 	const [penColor, setPenColor] = useState(PEN_COLORS[0]);
 	const [markerColor, setMarkerColor] = useState(MARKER_COLORS[0]);
 	const [penWidth, setPenWidth] = useState(1.6);
@@ -138,6 +152,20 @@ export function MarkUp({
 	const [leaving, setLeaving] = useState(false);
 	const [saving, setSaving] = useState<"ask" | "busy" | null>(null);
 	const [textSize, setTextSize] = useState(TEXT_SIZES[1]);
+	// Measuring: a line or an area, the corners of an area so far, and a
+	// line drawn to set the scale by.
+	const [measuring, setMeasuring] = useState<"line" | "area">("line");
+	const [settingScale, setSettingScale] = useState(false);
+	const [corners, setCorners] = useState<{
+		page: number;
+		points: Array<[number, number]>;
+	} | null>(null);
+	const [askScale, setAskScale] = useState<{
+		page: number;
+		points: Array<[number, number]>;
+	} | null>(null);
+	const [scaleText, setScaleText] = useState("");
+	const [scaleUnit, setScaleUnit] = useState("m");
 	const scroller = useRef<HTMLDivElement>(null);
 	const editor = useRef<HTMLDivElement>(null);
 	const textOf = useRef(new Map<number, Promise<TextLine[]>>());
@@ -284,6 +312,16 @@ export function MarkUp({
 		}
 		if (tool === "pen" || tool === "marker") {
 			stroke.current = { kind: "ink", page, points: [at] };
+		} else if (tool === "measure" && measuring === "area" && !settingScale) {
+			// Corners are tapped one at a time, all on one page.
+			setCorners((was) =>
+				was?.page === page
+					? { page, points: [...was.points, at] }
+					: { page, points: [at] },
+			);
+			return;
+		} else if (tool === "measure") {
+			stroke.current = { kind: "line", page, from: at, to: at };
 		} else {
 			stroke.current = { kind: "text", page, from: at, to: at };
 			readLines(page).then((found) => {
@@ -325,10 +363,10 @@ export function MarkUp({
 			if (at) eraseAt(now.page, at[0], at[1]);
 			return;
 		}
-		if (now.kind === "text") {
+		if (now.kind === "text" || now.kind === "line") {
 			const at = place(e.nativeEvent, now.page);
 			if (at) now.to = at;
-		} else {
+		} else if (now.kind === "ink") {
 			// A stylus reports far more points than the screen shows.
 			const events = e.nativeEvent.getCoalescedEvents?.() ?? [];
 			for (const event of events.length ? events : [e.nativeEvent]) {
@@ -345,6 +383,29 @@ export function MarkUp({
 		stroke.current = null;
 		setLive(null);
 		if (!now || tool === "erase") return;
+		if (now.kind === "line") {
+			const [pw, ph] = sizes[now.page] ?? [600, 800];
+			const line = [now.from, now.to];
+			// A slip of the finger is not a line.
+			if (lengthOf(line, pw, ph) * (pageWidth / pw) < MIN_LINE) return;
+			if (settingScale) {
+				setScaleText("");
+				setAskScale({ page: now.page, points: line });
+				return;
+			}
+			change([
+				...items,
+				{
+					id: newMarkId(),
+					createdAt: Date.now(),
+					kind: "measure",
+					page: now.page,
+					points: line,
+					color: penColor,
+				},
+			]);
+			return;
+		}
 		if (now.kind === "ink") {
 			if (tool !== "pen" && tool !== "marker") return;
 			change([
@@ -428,6 +489,48 @@ export function MarkUp({
 		if (tool === "note" || tool === "text") setTool("move");
 	};
 
+	const finishArea = () => {
+		if (!corners || corners.points.length < 3) return;
+		change([
+			...items,
+			{
+				id: newMarkId(),
+				createdAt: Date.now(),
+				kind: "measure",
+				page: corners.page,
+				points: corners.points,
+				closed: true,
+				color: penColor,
+			},
+		]);
+		setCorners(null);
+	};
+
+	const keepScale = () => {
+		if (!askScale) return;
+		const [pw, ph] = sizes[askScale.page] ?? [600, 800];
+		const scale = scaleFrom(
+			askScale.points,
+			pw,
+			ph,
+			Number(scaleText.replace(",", ".")),
+			scaleUnit,
+		);
+		if (!scale) {
+			toast(t("Enter a length above zero."));
+			return;
+		}
+		store.setScales({ ...store.scales, [askScale.page]: scale });
+		setAskScale(null);
+		setSettingScale(false);
+	};
+
+	const labelFor = (item: Item) => {
+		if (item.kind !== "measure") return undefined;
+		const [pw, ph] = sizes[item.page] ?? [600, 800];
+		return measureLabel(item, pw, ph, store.scales[item.page]);
+	};
+
 	const save = async () => {
 		setSaving("busy");
 		try {
@@ -442,6 +545,7 @@ export function MarkUp({
 				password,
 				marks: items,
 				pictures,
+				labels: items.filter((i) => i.kind === "measure").map(labelFor),
 			});
 			const saved = await backend.saveFile(
 				copyName(name, t("marked up")),
@@ -465,7 +569,7 @@ export function MarkUp({
 		}
 	};
 
-	const tools: Array<[Tool, string, JSX.Element]> = [
+	const tools: Array<[MarkTool, string, JSX.Element]> = [
 		["move", t("Move"), <Hand key="m" size={20} />],
 		["pen", t("Pen"), <PenLine key="p" size={20} />],
 		["marker", t("Marker"), <Highlighter key="k" size={20} />],
@@ -474,6 +578,7 @@ export function MarkUp({
 		["strike", t("Strike out"), <Strikethrough key="s" size={20} />],
 		["note", t("Note"), <StickyNote key="n" size={20} />],
 		["text", t("Text"), <Type key="t" size={20} />],
+		["measure", t("Measure"), <Ruler key="r" size={20} />],
 		["erase", t("Eraser"), <Eraser key="e" size={20} />],
 	];
 
@@ -481,7 +586,8 @@ export function MarkUp({
 		tool === "pen" ||
 		tool === "underline" ||
 		tool === "strike" ||
-		tool === "text";
+		tool === "text" ||
+		tool === "measure";
 	const usesMarker = tool === "marker" || tool === "highlight";
 	const colors = usesPen ? PEN_COLORS : usesMarker ? MARKER_COLORS : null;
 	const color = usesPen ? penColor : markerColor;
@@ -506,6 +612,11 @@ export function MarkUp({
 		strike: t("Drag across the words to strike them out."),
 		note: t("Tap the page where the note belongs."),
 		text: t("Tap the page where the text goes."),
+		measure: settingScale
+			? t("Drag along something whose real length you know.")
+			: measuring === "area"
+				? t("Tap each corner, then choose Finish shape.")
+				: t("Drag from one end to the other to measure it."),
 		erase: t("Tap or drag over a mark to remove it."),
 	}[tool];
 
@@ -518,7 +629,8 @@ export function MarkUp({
 		<div
 			ref={editor}
 			tabIndex={-1}
-			className={s.fill}
+			className={`${s.fill} ${s.markFill}`}
+			data-can-mark=""
 			// biome-ignore lint/a11y/useSemanticElements: a full-screen surface, not a native dialog
 			role="dialog"
 			aria-modal="true"
@@ -626,13 +738,60 @@ export function MarkUp({
 						))}
 					</div>
 				)}
+				{tool === "measure" && (
+					<div className={s.measureRow}>
+						<div className={s.segment}>
+							<button
+								type="button"
+								aria-pressed={measuring === "line"}
+								onClick={() => {
+									setMeasuring("line");
+									setCorners(null);
+								}}
+								data-testid="measure-line"
+							>
+								{t("Length")}
+							</button>
+							<button
+								type="button"
+								aria-pressed={measuring === "area"}
+								onClick={() => {
+									setMeasuring("area");
+									setSettingScale(false);
+								}}
+								data-testid="measure-area"
+							>
+								{t("Area")}
+							</button>
+						</div>
+						{corners && (
+							<Button
+								variant="secondary"
+								disabled={corners.points.length < 3}
+								onClick={finishArea}
+								data-testid="measure-finish"
+							>
+								{t("Finish shape")}
+							</Button>
+						)}
+						<Button
+							variant="ghost"
+							onClick={() => {
+								setSettingScale((on) => !on);
+								setCorners(null);
+							}}
+							data-testid="measure-scale"
+						>
+							{settingScale ? t("Cancel") : t("Set the scale")}
+						</Button>
+					</div>
+				)}
 				{tool === "text" && (
-					<div className={s.ways}>
+					<div className={s.segment}>
 						{TEXT_SIZES.map((size, i) => (
 							<button
 								key={size}
 								type="button"
-								className={s.way}
 								aria-pressed={textSize === size}
 								aria-label={t("Size {n}", { n: i + 1 })}
 								onClick={() => setTextSize(size)}
@@ -691,6 +850,7 @@ export function MarkUp({
 							ph={ph}
 							items={byPage.get(page)}
 							canOpen={tool === "move"}
+							labelOf={labelFor}
 							onOpen={(note) =>
 								setWriting({
 									id: note.id,
@@ -702,6 +862,31 @@ export function MarkUp({
 								})
 							}
 						/>
+						{corners?.page === page && (
+							<svg
+								className={s.markOver}
+								viewBox={`0 0 ${pw} ${ph}`}
+								aria-hidden="true"
+							>
+								<polyline
+									points={corners.points
+										.map(([u, v]) => `${u * pw},${v * ph}`)
+										.join(" ")}
+									fill="none"
+									stroke={penColor}
+									strokeWidth={1.2}
+								/>
+								{corners.points.map(([u, v]) => (
+									<circle
+										key={`${u}-${v}`}
+										cx={u * pw}
+										cy={v * ph}
+										r={3}
+										fill={penColor}
+									/>
+								))}
+							</svg>
+						)}
 						{live?.page === page && (
 							<LiveMark
 								live={live}
@@ -770,6 +955,53 @@ export function MarkUp({
 					/>
 				</Dialog>
 			)}
+			{askScale && (
+				<Dialog
+					open
+					title={t("How long is that line?")}
+					onClose={() => setAskScale(null)}
+					testId="measure-ask"
+					actions={
+						<>
+							<Button variant="ghost" onClick={() => setAskScale(null)}>
+								{t("Cancel")}
+							</Button>
+							<Button onClick={keepScale} data-testid="measure-keep">
+								{t("Done")}
+							</Button>
+						</>
+					}
+				>
+					<div className={s.scaleFields}>
+						<input
+							className={s.field}
+							inputMode="decimal"
+							// biome-ignore lint/a11y/noAutofocus: the dialog exists to take this number
+							autoFocus
+							aria-label={t("Length")}
+							value={scaleText}
+							onChange={(e) => setScaleText(e.target.value)}
+							data-testid="measure-length"
+						/>
+						<select
+							className={s.field}
+							aria-label={t("Unit")}
+							value={scaleUnit}
+							onChange={(e) => setScaleUnit(e.target.value)}
+							data-testid="measure-unit"
+						>
+							{UNITS.map((unit) => (
+								<option key={unit} value={unit}>
+									{unit}
+								</option>
+							))}
+						</select>
+					</div>
+					<p className={s.hint}>
+						{t("Everything measured on this page will use this scale.")}
+					</p>
+				</Dialog>
+			)}
 			{saving && (
 				<Dialog
 					open
@@ -798,6 +1030,7 @@ export function MarkUp({
 					<p className={s.hint}>
 						{t("A new PDF is made; the file you opened stays as it was.")}
 					</p>
+					{signed && <p className={s.hint}>{t(SIGNED_WARNING)}</p>}
 				</Dialog>
 			)}
 			{leaving && (
@@ -840,6 +1073,7 @@ const Marks = memo(function Marks({
 	ph,
 	items = [],
 	canOpen,
+	labelOf,
 	onOpen,
 }: {
 	page: number;
@@ -847,6 +1081,7 @@ const Marks = memo(function Marks({
 	ph: number;
 	items?: Item[];
 	canOpen: boolean;
+	labelOf: (item: Item) => string | undefined;
 	onOpen: (note: NoteItem) => void;
 }) {
 	const under = items.filter(
@@ -934,7 +1169,13 @@ const Marks = memo(function Marks({
 							))}
 						</g>
 					) : (
-						<MarkShape key={item.id} item={item} pw={pw} ph={ph} />
+						<MarkShape
+							key={item.id}
+							item={item}
+							pw={pw}
+							ph={ph}
+							label={labelOf(item)}
+						/>
 					),
 				)}
 			</svg>
@@ -946,10 +1187,12 @@ function MarkShape({
 	item,
 	pw,
 	ph,
+	label,
 }: {
 	item: Item;
 	pw: number;
 	ph: number;
+	label?: string;
 }) {
 	if (item.kind === "ink")
 		return (
@@ -961,15 +1204,42 @@ function MarkShape({
 			/>
 		);
 	if (item.kind === "note" || item.kind === "text") return null;
-	if (item.kind === "measure")
-		return (
-			<polyline
-				points={item.points.map(([u, v]) => `${u * pw},${v * ph}`).join(" ")}
-				fill="none"
-				stroke={item.color}
-				strokeWidth={1.2}
-			/>
+	if (item.kind === "measure") {
+		const spots = item.points.map(([u, v]) => [u * pw, v * ph]);
+		const middle = spots.reduce(
+			(sum, [x, y]) => [sum[0] + x / spots.length, sum[1] + y / spots.length],
+			[0, 0],
 		);
+		const Shape = item.closed ? "polygon" : "polyline";
+		return (
+			<>
+				<Shape
+					points={spots.map(([x, y]) => `${x},${y}`).join(" ")}
+					fill={item.closed ? `${item.color}22` : "none"}
+					stroke={item.color}
+					strokeWidth={1.2}
+				/>
+				{spots.map(([x, y]) => (
+					<circle key={`${x}-${y}`} cx={x} cy={y} r={2.4} fill={item.color} />
+				))}
+				{label && (
+					<text
+						x={middle[0]}
+						y={middle[1] - 5}
+						textAnchor="middle"
+						fill={item.color}
+						stroke="#fff"
+						strokeWidth={3}
+						paintOrder="stroke"
+						style={{ font: `600 ${textFont(11)}` }}
+						data-testid="measure-label"
+					>
+						{label}
+					</text>
+				)}
+			</>
+		);
+	}
 	return (
 		<TextMark
 			kind={item.kind}
@@ -1047,6 +1317,23 @@ function LiveMark({
 	boxColor: string;
 }) {
 	const blended = marker || live.kind === "text";
+	if (live.kind === "line")
+		return (
+			<svg
+				className={s.markOver}
+				viewBox={`0 0 ${pw} ${ph}`}
+				aria-hidden="true"
+			>
+				<line
+					x1={live.from[0] * pw}
+					y1={live.from[1] * ph}
+					x2={live.to[0] * pw}
+					y2={live.to[1] * ph}
+					stroke={color}
+					strokeWidth={1.2}
+				/>
+			</svg>
+		);
 	return (
 		<svg
 			className={blended ? s.markUnder : s.markOver}

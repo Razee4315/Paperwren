@@ -3,6 +3,7 @@ import type { Bookmark as Mark } from "@/lib/bookmarks";
 import { isDesktop } from "@/lib/env";
 import type { FindOptions } from "@/lib/find";
 import type { FileFormat } from "@/lib/formats";
+import { inFullscreen, toggleFullscreen } from "@/lib/fullscreen";
 import { msg, t, uiDir } from "@/lib/i18n";
 import { idForReopen } from "@/lib/recents";
 import { MAX_DIM, PAGE_COLORS, resolvePageColor } from "@/lib/settings";
@@ -25,6 +26,7 @@ import {
 	BookmarkPlus,
 	ChevronDown,
 	ChevronUp,
+	ListChecks,
 	Minus,
 	PanelLeft,
 	Plus,
@@ -42,6 +44,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { ShortcutList } from "../settings/ShortcutList";
 import { FileMenu, ViewerFileContext } from "./FileMenu";
 import { ReadAloud } from "./ReadAloud";
 import { AutoScroll, DimSheet } from "./ReadingControls";
@@ -215,9 +218,18 @@ export interface SideTab {
  * reading, and only the tab on show is drawn. */
 function SidePanel({
 	tabs,
+	focus,
 	onClose,
-}: { tabs: SideTab[]; onClose: () => void }) {
-	const [id, setId] = useState(tabs[0]?.id);
+}: {
+	tabs: SideTab[];
+	/** A tab asked for: each new `at` brings it forward. */
+	focus?: { id: string; at: number };
+	onClose: () => void;
+}) {
+	const [id, setId] = useState(focus?.id ?? tabs[0]?.id);
+	useEffect(() => {
+		if (focus) setId(focus.id);
+	}, [focus]);
 	const tab = tabs.find((x) => x.id === id) ?? tabs[0];
 	if (!tab) return null;
 	const icons = tabs.length > 2 && tabs.every((x) => x.icon);
@@ -274,6 +286,7 @@ export function Shell({
 	turnPages = false,
 	onEdge,
 	side,
+	sideFocus,
 	paper = false,
 	bookmarks,
 	speech,
@@ -316,6 +329,8 @@ export function Shell({
 	onEdge?: (end: boolean) => void;
 	/** Lists for the panel beside the document (desktop). */
 	side?: SideTab[];
+	/** Open the panel at one of its lists. */
+	sideFocus?: { id: string; at: number };
 	/** The document is read on paper whose colour the reader picks. */
 	paper?: boolean;
 	/** Places in the document can be bookmarked and gone back to. */
@@ -325,6 +340,27 @@ export function Shell({
 }) {
 	const { settings, update } = useSettings();
 	const [colorOpen, setColorOpen] = useState(false);
+	const [keysOpen, setKeysOpen] = useState(false);
+	useEffect(() => {
+		if (sideFocus) update("sidePanel", true);
+	}, [sideFocus, update]);
+	// F for full screen and ? for the list of keys, on a keyboard.
+	useEffect(() => {
+		if (!active || !isDesktop) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (modalOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
+			const at = e.target as HTMLElement | null;
+			if (at?.closest?.("input, textarea, select, [contenteditable]")) return;
+			if (e.key === "?") setKeysOpen(true);
+			else if (e.code === "KeyF" && !e.shiftKey) {
+				if (!inFullscreen()) toast(t("Press Esc to leave full screen"));
+				toggleFullscreen();
+			} else return;
+			e.preventDefault();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [active]);
 	const paperColor = usePageColor();
 	const pageColor = paper ? paperColor : undefined;
 
@@ -754,7 +790,11 @@ export function Shell({
 			</header>
 			<div className={s.body}>
 				{sideOpen && (
-					<SidePanel tabs={tabs} onClose={() => update("sidePanel", false)} />
+					<SidePanel
+						tabs={tabs}
+						focus={sideFocus}
+						onClose={() => update("sidePanel", false)}
+					/>
 				)}
 				<div
 					ref={main}
@@ -789,6 +829,15 @@ export function Shell({
 			{paper && (
 				<PageColorSheet open={colorOpen} onClose={() => setColorOpen(false)} />
 			)}
+			<Sheet
+				open={keysOpen}
+				title={t("Keyboard")}
+				onClose={() => setKeysOpen(false)}
+				wide
+				testId="keys-sheet"
+			>
+				<ShortcutList />
+			</Sheet>
 			<DimSheet open={dimOpen} onClose={() => setDimOpen(false)} />
 			{fileId && (
 				<Sheet
@@ -929,6 +978,7 @@ export function FindBar({
 	onClose,
 	options,
 	onOptions,
+	onList,
 }: {
 	state: FindState;
 	onQuery: (q: string) => void;
@@ -937,6 +987,8 @@ export function FindBar({
 	/** Match case, whole words: offered when they can be changed. */
 	options?: FindOptions;
 	onOptions?: (options: FindOptions) => void;
+	/** Show every result together. */
+	onList?: () => void;
 }) {
 	const input = useRef<HTMLInputElement>(null);
 	useEffect(() => {
@@ -1028,6 +1080,17 @@ export function FindBar({
 						“ab”
 					</button>
 				</>
+			)}
+			{onList && (
+				<IconButton
+					label={t("All results")}
+					className={s.findStep}
+					disabled={!state.total}
+					onClick={onList}
+					data-testid="find-list"
+				>
+					<ListChecks size={18} />
+				</IconButton>
 			)}
 			<IconButton
 				label={t("Previous match")}

@@ -1600,3 +1600,101 @@
 	cursor: pointer;
 	pointer-events: auto;
 }
+
+/* A photo of a signature: the part kept, and how dark its ink reads. */
+.photoTrim {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	width: 100%;
+}
+.photoFrame {
+	position: relative;
+	width: 100%;
+	max-height: 220px;
+	margin: 0 auto;
+	overflow: hidden;
+	border-radius: var(--r-s);
+	touch-action: none;
+	cursor: crosshair;
+}
+.photoFrame img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: fill;
+	pointer-events: none;
+}
+.photoKeep {
+	position: absolute;
+	border: 2px solid var(--accent);
+	border-radius: 3px;
+	box-shadow: 0 0 0 999px rgb(0 0 0 / 0.42);
+	pointer-events: none;
+}
+.inkDepth {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	font-size: 12px;
+	color: var(--text-3);
+}
+.inkDepth input {
+	flex: 1;
+	min-width: 0;
+}
+
+/* Measuring: what to measure, and setting the scale. */
+.measureRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+/* A small choice inside the tool's own bar. */
+.segment {
+	display: inline-flex;
+	gap: 2px;
+	padding: 2px;
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.segment button {
+	min-height: 32px;
+	padding: 0 12px;
+	border-radius: 8px;
+	color: var(--accent);
+	font-size: 13px;
+	font-weight: 600;
+}
+.segment button[aria-pressed="true"] {
+	background: var(--surface);
+	box-shadow: var(--shadow-1, 0 1px 2px rgb(0 0 0 / 0.12));
+}
+.scaleFields {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 96px;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+/* Mark up has more tools than a title bar has room for: on any desktop
+ * window they keep a row of their own, in the middle. */
+@media (min-width: 700px) {
+	:global(html.desktop) .markFill {
+		grid-template-columns: minmax(160px, 1fr) auto;
+		grid-template-areas: "title actions" "tools tools" "hint hint" "pages pages";
+		grid-template-rows: 44px auto auto minmax(0, 1fr);
+	}
+	:global(html.desktop) .markFill .toolbar {
+		justify-content: safe center;
+		padding: 6px 12px;
+	}
+	:global(html.desktop) .markFill .fillActions {
+		gap: 8px;
+	}
+	:global(html.desktop) .markFill .fillActions > button {
+		margin-inline-start: 0;
+	}
+}

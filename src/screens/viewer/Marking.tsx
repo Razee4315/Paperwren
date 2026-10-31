@@ -10,6 +10,7 @@ import { useBackClose } from "@/state/navigation";
 import { Button, Dialog, IconButton, modalOpen, toast } from "@/ui";
 import {
 	Copy,
+	Expand,
 	Search,
 	StickyNote,
 	Strikethrough,
@@ -48,14 +49,14 @@ interface Selected {
 /** Said once, after the very first mark. */
 const TOLD_KEY = "paperwren.marks-told";
 
-function tellOnce(message: string) {
+function tellOnce(message: string, show: () => void) {
 	try {
 		if (localStorage.getItem(TOLD_KEY)) return;
 		localStorage.setItem(TOLD_KEY, "1");
 	} catch {
 		return;
 	}
-	toast(message);
+	toast(message, { label: t("Show"), run: show });
 }
 
 /** What is selected on the pages, once the pointer has let go of it. */
@@ -224,6 +225,11 @@ type NoteFor =
 	  }
 	| { kind: "mark"; mark: DocMark };
 
+/** A picture found on a page, ready to be opened. */
+export interface PictureSpot {
+	open: () => void;
+}
+
 /** What a tap on the pages can reach. */
 export interface MarkingHandle {
 	/** Whether a mark took the tap at this place. */
@@ -247,16 +253,34 @@ export const Marking = forwardRef<
 		active: boolean;
 		spotOf: (pageNumber: number) => PageSpot | null;
 		markAt: (x: number, y: number) => DocMark | null;
+		/** A picture under a point of the screen. */
+		pictureAt: (x: number, y: number) => Promise<PictureSpot | null>;
 		onFind: (text: string) => void;
+		/** Show the list of marks. */
+		onShowMarks: () => void;
 	}
 >(function Marking(
-	{ container, store, canMark, active, spotOf, markAt, onFind },
+	{
+		container,
+		store,
+		canMark,
+		active,
+		spotOf,
+		markAt,
+		pictureAt,
+		onFind,
+		onShowMarks,
+	},
 	ref,
 ) {
 	const selected = useSelected(container, active && !modalOpen());
 	const [color, setColor] = useState(MARKER_COLORS[0]);
 	const [menu, setMenu] = useState<{ id: string; at: Spot } | null>(null);
 	const [noteFor, setNoteFor] = useState<NoteFor | null>(null);
+	const [pictureBar, setPictureBar] = useState<{
+		spot: PictureSpot;
+		at: Spot;
+	} | null>(null);
 	const [draft, setDraft] = useState("");
 	const onMark = store.list.find((mark) => mark.id === menu?.id);
 	useBackClose("mark-menu", !!onMark, () => setMenu(null));
@@ -286,7 +310,7 @@ export const Marking = forwardRef<
 			})),
 		);
 		clear();
-		tellOnce(t("Kept on this device. Find it under Highlights."));
+		tellOnce(t("Kept on this device. Find it under Highlights."), onShowMarks);
 	};
 
 	const copy = async () => {
@@ -323,7 +347,10 @@ export const Marking = forwardRef<
 						...part,
 					})),
 				);
-				tellOnce(t("Kept on this device. Find it under Highlights."));
+				tellOnce(
+					t("Kept on this device. Find it under Highlights."),
+					onShowMarks,
+				);
 			},
 		});
 		clear();
@@ -361,17 +388,45 @@ export const Marking = forwardRef<
 		setNoteFor(null);
 	};
 
+	const offerPicture = (x: number, y: number) => {
+		pictureAt(x, y)
+			.then((spot) => {
+				if (spot)
+					setPictureBar({
+						spot,
+						at: { left: x, right: x, top: y, bottom: y },
+					});
+			})
+			.catch(() => {});
+	};
+	const offerRef = useRef(offerPicture);
+	offerRef.current = offerPicture;
+	useEffect(() => {
+		if (!container || isDesktop) return;
+		const onHold = (e: MouseEvent) => {
+			if (window.getSelection()?.toString()) return;
+			offerRef.current(e.clientX, e.clientY);
+		};
+		container.addEventListener("contextmenu", onHold);
+		return () => container.removeEventListener("contextmenu", onHold);
+	}, [container]);
+
 	const latest = useRef({ selected, mark, writeNote, color, menu, remove });
 	latest.current = { selected, mark, writeNote, color, menu, remove };
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: what it reaches for is held in refs and state setters
 	useImperativeHandle(
 		ref,
 		() => ({
 			tap: (x, y) => {
 				if (window.getSelection()?.toString()) return false;
+				setPictureBar(null);
 				const hit = markAt(x, y);
 				if (!hit) {
 					setMenu(null);
+					// A click on a picture. On a phone a tap is for the bars, and
+					// a long press offers it instead.
+					if (isDesktop) offerRef.current(x, y);
 					return false;
 				}
 				// A note on the page has only its words to show.
@@ -427,11 +482,14 @@ export const Marking = forwardRef<
 
 	// A bar left on a mark would point at the wrong place after a scroll.
 	useEffect(() => {
-		if (!container || !menu) return;
-		const close = () => setMenu(null);
+		if (!container || (!menu && !pictureBar)) return;
+		const close = () => {
+			setMenu(null);
+			setPictureBar(null);
+		};
 		container.addEventListener("scroll", close, { passive: true });
 		return () => container.removeEventListener("scroll", close);
-	}, [container, menu]);
+	}, [container, menu, pictureBar]);
 
 	const noteMark = noteFor?.kind === "mark" ? noteFor.mark : null;
 	const quote =
@@ -550,6 +608,26 @@ export const Marking = forwardRef<
 					>
 						<Trash2 size={18} />
 					</IconButton>
+				</FloatBar>
+			)}
+
+			{pictureBar && !noteFor && (
+				<FloatBar
+					anchor={pictureBar.at}
+					label={t("Picture")}
+					testId="picture-bar"
+				>
+					<Button
+						variant="ghost"
+						onClick={() => {
+							const { spot } = pictureBar;
+							setPictureBar(null);
+							spot.open();
+						}}
+						data-testid="picture-open"
+					>
+						<Expand size={16} /> {t("View picture")}
+					</Button>
 				</FloatBar>
 			)}
 

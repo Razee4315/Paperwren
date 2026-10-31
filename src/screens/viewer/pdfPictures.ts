@@ -6,6 +6,7 @@
  */
 
 import type { PDFPageProxy } from "pdfjs-dist";
+import { whole } from "./pdfCrop";
 
 /** A rectangle in the page's own space: [x0, y0, x1, y1]. */
 export type Box = [number, number, number, number];
@@ -141,6 +142,44 @@ export async function findPictures(
 ): Promise<Box[]> {
 	const list = await page.getOperatorList();
 	return picturesIn(list.fnArray, list.argsArray, ops, page.view as Box);
+}
+
+/** The longest side of a picture cut from a page. */
+const MOST_PIXELS = 2600;
+
+/** One picture of a page as a PNG, drawn at its own sharpness: only its
+ * part of the page is drawn, so a phone is not asked for a huge canvas. */
+export async function cutPicture(
+	page: PDFPageProxy,
+	box: Box,
+): Promise<Uint8Array> {
+	const rotation = page.rotate;
+	const base = whole(page, () => page.getViewport({ scale: 1, rotation }));
+	const [ax, ay, bx, by] = base.convertToViewportRectangle(box);
+	const [left, top] = [Math.min(ax, bx), Math.min(ay, by)];
+	const [width, height] = [Math.abs(bx - ax), Math.abs(by - ay)];
+	const scale = Math.max(1, Math.min(6, MOST_PIXELS / Math.max(width, height)));
+	const viewport = whole(page, () =>
+		page.getViewport({
+			scale,
+			rotation,
+			offsetX: -left * scale,
+			offsetY: -top * scale,
+		}),
+	);
+	const canvas = document.createElement("canvas");
+	canvas.width = Math.max(1, Math.ceil(width * scale));
+	canvas.height = Math.max(1, Math.ceil(height * scale));
+	const context = canvas.getContext("2d");
+	if (!context) throw new Error("no canvas");
+	await page.render({ canvasContext: context, viewport, intent: "print" })
+		.promise;
+	const blob = await new Promise<Blob | null>((done) =>
+		canvas.toBlob(done, "image/png"),
+	);
+	canvas.width = canvas.height = 0;
+	if (!blob) throw new Error("no picture");
+	return new Uint8Array(await blob.arrayBuffer());
 }
 
 const LAYER = "pw-pictures";

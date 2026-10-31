@@ -8,9 +8,18 @@ import { Button, Dialog, toast } from "@/ui";
 import { Check, ImageUp, Maximize, Minimize, Redo2, Undo2 } from "lucide-react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import s from "./Tools.module.css";
-import { MAX_WIDTH, cut, hasInk, pickPicture, withPixels } from "./pictures";
+import {
+	MAX_WIDTH,
+	copyCanvas,
+	cut,
+	hasInk,
+	pickPicture,
+	withPixels,
+} from "./pictures";
 
 type Way = "draw" | "type" | "photo";
+/** A part of a photo: left, top, right, bottom, as fractions of it. */
+type Trim = [number, number, number, number];
 
 /** Faces for a typed signature, as the system has them: no fonts are
  * downloaded. The last of each list is there everywhere. */
@@ -87,7 +96,27 @@ export function SignaturePad({
 	const [drawn, setDrawn] = useState(false);
 	const [canRedo, setCanRedo] = useState(false);
 	const [fullScreen, setFullScreen] = useState(false);
+	// The picture as it was picked, the part of it kept, how dark its ink
+	// reads, and what that makes.
+	const [raw, setRaw] = useState<HTMLCanvasElement | null>(null);
+	const [trim, setTrim] = useState<Trim | null>(null);
+	const [depth, setDepth] = useState(0);
 	const [photo, setPhoto] = useState<HTMLCanvasElement | null>(null);
+	useEffect(() => {
+		if (!raw) {
+			setPhoto(null);
+			return;
+		}
+		const [x0, y0, x1, y1] = trim ?? [0, 0, 1, 1];
+		const out = document.createElement("canvas");
+		out.width = Math.max(1, Math.round((x1 - x0) * raw.width));
+		out.height = Math.max(1, Math.round((y1 - y0) * raw.height));
+		out
+			.getContext("2d", { willReadFrequently: true })
+			?.drawImage(raw, -x0 * raw.width, -y0 * raw.height);
+		withPixels(out, (data) => inkFromPicture(data, depth));
+		setPhoto(hasInk(out) ? out : null);
+	}, [raw, trim, depth]);
 	const pad = useRef<HTMLCanvasElement>(null);
 	const strokes = useRef<Stroke[]>([]);
 	const undone = useRef<Stroke[]>([]);
@@ -176,12 +205,15 @@ export function SignaturePad({
 		if (!canvas) return;
 		// A PNG with a clear background is used as it is; a photo of
 		// paper has its paper made clear.
-		withPixels(canvas, inkFromPicture);
-		if (!hasInk(canvas)) {
+		const trial = copyCanvas(canvas);
+		withPixels(trial, inkFromPicture);
+		if (!hasInk(trial)) {
 			toast(t("No signature was found in that picture"));
 			return;
 		}
-		setPhoto(canvas);
+		setTrim(null);
+		setDepth(0);
+		setRaw(canvas);
 	};
 
 	/** The signature as made, drawn on a canvas of its own. */
@@ -481,14 +513,32 @@ export function SignaturePad({
 
 			{way === "photo" && (
 				<div className={s.photo}>
-					{photo ? (
+					{raw && <PhotoTrim source={raw} trim={trim} onTrim={setTrim} />}
+					{photo && (
 						<img
 							className={s.photoPreview}
 							src={photo.toDataURL("image/png")}
 							alt={t("Your signature")}
 							data-testid="signature-preview"
 						/>
-					) : (
+					)}
+					{raw && (
+						<label className={s.inkDepth}>
+							<span>{t("Lighter")}</span>
+							<input
+								type="range"
+								aria-label={t("How dark the ink reads")}
+								min={-1}
+								max={1}
+								step={0.1}
+								value={depth}
+								onChange={(e) => setDepth(Number(e.target.value))}
+								data-testid="signature-depth"
+							/>
+							<span>{t("Darker")}</span>
+						</label>
+					)}
+					{!raw && (
 						<p className={s.hint}>
 							{t(
 								"Pick a PNG of your signature, or a photo of it signed on white paper. Paper is made clear.",
@@ -501,7 +551,7 @@ export function SignaturePad({
 						data-testid="signature-pick"
 					>
 						<ImageUp size={18} />{" "}
-						{photo ? t("Pick another") : t("Pick a picture")}
+						{raw ? t("Pick another") : t("Pick a picture")}
 					</Button>
 				</div>
 			)}
@@ -517,6 +567,89 @@ export function SignaturePad({
 					{t("Keep it on this device for next time")}
 				</label>
 			)}
+			{!fullScreen && (
+				<p className={s.hint}>
+					{t(
+						"This adds a picture of your signature, not a digital certificate.",
+					)}
+				</p>
+			)}
 		</Dialog>
+	);
+}
+
+/**
+ * A photo to drag a box on, to leave out its edges and shadows. Places
+ * are fractions of the picture.
+ */
+function PhotoTrim({
+	source,
+	trim,
+	onTrim,
+}: {
+	source: HTMLCanvasElement;
+	trim: Trim | null;
+	onTrim: (trim: Trim | null) => void;
+}) {
+	const box = useRef<HTMLDivElement>(null);
+	const from = useRef<[number, number] | null>(null);
+	const [url] = useState(() => source.toDataURL("image/jpeg", 0.7));
+	const place = (e: React.PointerEvent): [number, number] => {
+		const r = box.current?.getBoundingClientRect();
+		if (!r) return [0, 0];
+		return [
+			Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+			Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)),
+		];
+	};
+	const [x0, y0, x1, y1] = trim ?? [0, 0, 1, 1];
+	return (
+		<div className={s.photoTrim}>
+			<div
+				ref={box}
+				className={s.photoFrame}
+				style={{ aspectRatio: `${source.width} / ${source.height}` }}
+				data-testid="signature-trim"
+				onPointerDown={(e) => {
+					e.preventDefault();
+					from.current = place(e);
+					e.currentTarget.setPointerCapture(e.pointerId);
+				}}
+				onPointerMove={(e) => {
+					const start = from.current;
+					if (!start) return;
+					const [x, y] = place(e);
+					const wide = Math.abs(x - start[0]) > 0.02;
+					const tall = Math.abs(y - start[1]) > 0.02;
+					if (wide && tall)
+						onTrim([
+							Math.min(x, start[0]),
+							Math.min(y, start[1]),
+							Math.max(x, start[0]),
+							Math.max(y, start[1]),
+						]);
+				}}
+				onPointerUp={() => {
+					from.current = null;
+				}}
+				onPointerCancel={() => {
+					from.current = null;
+				}}
+			>
+				<img src={url} alt="" draggable={false} />
+				<span
+					className={s.photoKeep}
+					style={{
+						left: `${x0 * 100}%`,
+						top: `${y0 * 100}%`,
+						width: `${(x1 - x0) * 100}%`,
+						height: `${(y1 - y0) * 100}%`,
+					}}
+				/>
+			</div>
+			<p className={s.hint}>
+				{t("Drag around your signature to leave out the rest.")}
+			</p>
+		</div>
 	);
 }

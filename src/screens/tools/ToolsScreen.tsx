@@ -10,6 +10,7 @@ import {
 	addWatermark,
 	buildPdf,
 	compressPdf,
+	digitallySigned,
 	imagesToPdf,
 	parsePages,
 	protect,
@@ -477,6 +478,7 @@ function SignTool({ file, onOpen }: ToolProps) {
 					name={picked.name}
 					password={picked.password}
 					canMark
+					signed={digitallySigned(picked.bytes)}
 					onClose={() => setOpen(false)}
 					onSaved={(saved) => announceSaved(saved, onOpen)}
 				/>
@@ -512,6 +514,7 @@ function MarkUpTool({ file, onOpen }: ToolProps) {
 					name={picked.name}
 					password={picked.password}
 					store={store}
+					signed={digitallySigned(picked.bytes)}
 					onClose={() => setOpen(false)}
 					onSaved={(saved) => announceSaved(saved, onOpen)}
 				/>

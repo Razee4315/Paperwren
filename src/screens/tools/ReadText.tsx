@@ -157,7 +157,6 @@ export function ReadText({
 			return { page, url, ratio };
 		});
 	};
-	// biome-ignore lint/correctness/useExhaustiveDependencies: let go of the last picture on leaving
 	useEffect(
 		() => () => {
 			setPicture((was) => {
@@ -170,6 +169,7 @@ export function ReadText({
 
 	// The page on show, drawn to look at. While reading, the picture
 	// being read is the one shown.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: showPicture only sets state
 	useEffect(() => {
 		if (working !== null || picture?.page === shown) return;
 		let live = true;
@@ -438,7 +438,6 @@ export function ReadText({
 								)}
 								{onShown?.lines.map((line, index) => (
 									// biome-ignore lint/a11y/useKeyWithClickEvents: the same lines are buttons in the text beside it
-									// biome-ignore lint/a11y/noStaticElementInteractions: as above
 									<div
 										key={`${index}-${line.y}`}
 										className={s.lineBox}
@@ -467,7 +466,6 @@ export function ReadText({
 						<div className={s.strip} data-testid="read-pages">
 							{Array.from({ length: source.pages }, (_, page) => (
 								<button
-									// biome-ignore lint/suspicious/noArrayIndexKey: pages keep their order
 									key={page}
 									type="button"
 									className={s.chip}
@@ -572,7 +570,6 @@ export function ReadText({
 											)}
 											{reads[page].lines.map((line, index) => (
 												// biome-ignore lint/a11y/useKeyWithClickEvents: selecting the words comes first; this only points at them on the page
-												// biome-ignore lint/a11y/noNoninteractiveElementInteractions: as above
 												<p
 													key={`${index}-${line.y}`}
 													className={s.line}
@@ -595,7 +592,6 @@ export function ReadText({
 												>
 													{line.words.map((word, i) => (
 														<span
-															// biome-ignore lint/suspicious/noArrayIndexKey: words keep their order
 															key={i}
 															className={
 																word.sure !== undefined && word.sure < DOUBTFUL

@@ -115,9 +115,11 @@ export function clearShare(data: Uint8ClampedArray): number {
  * A photo of a signature on paper, made into ink on nothing: the paper
  * (light, low in colour) turns clear, the ink keeps its colour and
  * grows more solid the darker it is. Works in place on RGBA pixels.
- * A picture with no light paper in it is left as it is.
+ * A picture with no light paper in it is left as it is. `depth` moves
+ * the line between paper and ink: above 0 more of the page counts as
+ * ink (a faint pen), below 0 less (a shadow on the paper).
  */
-export function inkFromPaper(data: Uint8ClampedArray): void {
+export function inkFromPaper(data: Uint8ClampedArray, depth = 0): void {
 	// The paper's brightness: the brightest tenth of what is solid. Clear
 	// pixels read as black, so they would pass for dark paper.
 	const levels = new Uint32Array(256);
@@ -138,8 +140,8 @@ export function inkFromPaper(data: Uint8ClampedArray): void {
 		}
 	}
 	if (!solidCount || paper < 96) return;
-	const clear = paper * 0.86;
-	const solid = paper * 0.45;
+	const clear = paper * (0.86 + depth * 0.12);
+	const solid = paper * (0.45 + depth * 0.25);
 	for (let i = 0; i < data.length; i += 4) {
 		const v = (data[i] + data[i + 1] + data[i + 2]) / 3;
 		const ink = v >= clear ? 0 : v <= solid ? 1 : (clear - v) / (clear - solid);
@@ -152,9 +154,9 @@ export function inkFromPaper(data: Uint8ClampedArray): void {
  * on a clear background (a PNG made for it) is kept as it is; a photo or
  * a scan has its paper made clear.
  */
-export function inkFromPicture(data: Uint8ClampedArray): void {
+export function inkFromPicture(data: Uint8ClampedArray, depth = 0): void {
 	if (clearShare(data) >= 0.01) return;
-	inkFromPaper(data);
+	inkFromPaper(data, depth);
 }
 
 /** The bytes of a PNG data URL. */

@@ -12,7 +12,7 @@ import { SettingsScreen } from "@/screens/settings/Settings";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
 import { NavigationProvider, useNav } from "@/state/navigation";
 import { RecentsProvider, useRecents } from "@/state/recents";
-import { SettingsProvider } from "@/state/settings";
+import { SettingsProvider, useSettings } from "@/state/settings";
 import {
 	DropHint,
 	LinkGuard,
@@ -67,7 +67,8 @@ function Root() {
 	// them all.
 	const lang = useSyncExternalStore(subscribe, language);
 	const { state, push, replace, back, close, reset } = useNav();
-	const { entries, remove } = useRecents();
+	const { entries, remove, ready: recentsReady } = useRecents();
+	const { settings, ready: settingsReady } = useSettings();
 	const nextKey = useRef(1);
 	const picking = useRef(false);
 	// null until storage answers; the welcome only shows on a first run.
@@ -215,6 +216,28 @@ function Root() {
 			}),
 		[open],
 	);
+
+	// Back to what was being read, if the reader asked for that and the
+	// app wasn't opened on a file of its own.
+	const resumed = useRef(false);
+	const openRecentRef = useRef(openRecent);
+	openRecentRef.current = openRecent;
+	const recentsRef = useRef(entries);
+	recentsRef.current = entries;
+	useEffect(() => {
+		if (resumed.current || !settingsReady || !recentsReady) return;
+		if (welcome !== false) return;
+		resumed.current = true;
+		if (!settings.reopenLast) return;
+		const timer = window.setTimeout(() => {
+			if (stateRef.current.screens.length) return;
+			const last = [...recentsRef.current]
+				.filter((entry) => !entry.unavailable)
+				.sort((a, b) => b.openedAt - a.openedAt)[0];
+			if (last) openRecentRef.current(last);
+		}, 400);
+		return () => window.clearTimeout(timer);
+	}, [settingsReady, recentsReady, welcome, settings.reopenLast]);
 
 	// Android "Open with": MainActivity copies the file into private
 	// storage and calls window.__paperwrenOpenFile (see index.html);

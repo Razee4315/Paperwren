@@ -53,6 +53,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { whole } from "../viewer/pdfCrop";
+import { SIGNED_WARNING } from "./MarkUp";
 import { SignaturePad } from "./SignaturePad";
 import { StampPad } from "./StampPad";
 import s from "./Tools.module.css";
@@ -243,6 +244,8 @@ export function FillSign({
 	name,
 	password,
 	canMark,
+	signed = false,
+	startPage = 0,
 	onClose,
 	onSaved,
 }: {
@@ -251,6 +254,10 @@ export function FillSign({
 	password?: string;
 	/** The file's author allows more than its form to be filled. */
 	canMark: boolean;
+	/** The file has a digital signature, which a copy will not keep. */
+	signed?: boolean;
+	/** The page to open at, from 0. */
+	startPage?: number;
 	onClose: () => void;
 	onSaved?: (saved: SavedFile) => void;
 }) {
@@ -299,6 +306,17 @@ export function FillSign({
 			alive = false;
 		};
 	}, [doc]);
+
+	// Opened from a page: that page, once the pages are laid out.
+	const placed = useRef(false);
+	useEffect(() => {
+		if (placed.current || !sizes.length || !width) return;
+		placed.current = true;
+		if (startPage > 0)
+			scroller.current
+				?.querySelector(`[data-page="${startPage}"]`)
+				?.scrollIntoView({ block: "start" });
+	}, [sizes, width, startPage]);
 
 	useLayoutEffect(() => {
 		const el = scroller.current;
@@ -886,6 +904,7 @@ export function FillSign({
 					<p className={s.hint}>
 						{t("A new PDF is made; the file you opened stays as it was.")}
 					</p>
+					{signed && <p className={s.hint}>{t(SIGNED_WARNING)}</p>}
 					{changedFields.length > 0 && (
 						<label className={s.keep}>
 							<input

@@ -63,6 +63,13 @@ export function toDrawn(map: PageMap, u: number, v: number): [number, number] {
 	return [a * x + c * y + e, b * x + d * y + f];
 }
 
+/** The words on a measurement, on a page of `pw` by `ph` points. */
+export type MarkLabel = (
+	mark: DocMark,
+	pw: number,
+	ph: number,
+) => string | undefined;
+
 const SVG = "http://www.w3.org/2000/svg";
 
 function el<K extends keyof SVGElementTagNameMap>(
@@ -96,7 +103,7 @@ function shapes(
 	mark: DocMark,
 	pw: number,
 	ph: number,
-	label: (mark: DocMark) => string | undefined,
+	label: MarkLabel,
 ): SVGElement[] {
 	if (mark.kind === "ink")
 		return [
@@ -163,7 +170,7 @@ function shapes(
 		const dots = mark.points.map(([u, v]) =>
 			el("circle", { cx: u * pw, cy: v * ph, r: 2.4, fill: mark.color }),
 		);
-		const text = label(mark);
+		const text = label(mark, pw, ph);
 		if (!text) return [line, ...dots];
 		const middle = mark.points.reduce(
 			(sum, [u, v]) => [
@@ -238,7 +245,7 @@ export function paintMarks(
 	{
 		pulse,
 		label = () => undefined,
-	}: { pulse?: string | null; label?: (mark: DocMark) => string | undefined },
+	}: { pulse?: string | null; label?: MarkLabel },
 ) {
 	for (const old of pageDiv.querySelectorAll(
 		`:scope > .${UNDER}, :scope > .${OVER}`,
@@ -278,7 +285,7 @@ export function drawMarks(
 	ctx: CanvasRenderingContext2D,
 	marks: DocMark[],
 	map: PageMap,
-	label: (mark: DocMark) => string | undefined = () => undefined,
+	label: MarkLabel = () => undefined,
 ) {
 	const { pw, ph } = map;
 	ctx.save();
@@ -335,7 +342,7 @@ export function drawMarks(
 			});
 			if (mark.closed) ctx.closePath();
 			ctx.stroke();
-			const text = label(mark);
+			const text = label(mark, pw, ph);
 			if (text) {
 				const [x, y] = mark.points.reduce(
 					(sum, [u, v]) => [

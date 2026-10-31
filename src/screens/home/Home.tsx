@@ -1,8 +1,15 @@
-import { type FileRef, backend, formatBytes } from "@/lib/backend";
+import {
+	type FileRef,
+	backend,
+	formatBytes,
+	requestForBytes,
+} from "@/lib/backend";
 import { isDesktop } from "@/lib/env";
 import { type FormatKind, kindOf } from "@/lib/formats";
 import { isolate, locale, msg, t } from "@/lib/i18n";
 import { keys } from "@/lib/keys";
+import { samplePdf } from "@/lib/sample";
+import { loadThumb } from "@/lib/thumbs";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
 import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
@@ -22,6 +29,7 @@ import {
 import {
 	ArrowRight,
 	ArrowUpDown,
+	BookOpen,
 	Check,
 	Combine,
 	Folder as FolderIcon,
@@ -41,7 +49,13 @@ import {
 	ShieldCheck,
 	Trash2,
 } from "lucide-react";
-import { type CSSProperties, useMemo, useState } from "react";
+import {
+	type CSSProperties,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { FolderList } from "./FolderList";
 import s from "./Home.module.css";
 import {
@@ -103,6 +117,37 @@ function greeting(hour = new Date().getHours()): string {
 	if (hour < 12) return t("Good morning");
 	if (hour < 18) return t("Good afternoon");
 	return t("Good evening");
+}
+
+/** The first page of a recent PDF, read once its row is on screen; a
+ * file's badge until then, and for every other kind of file. */
+function RowPicture({ entry }: { entry: RecentEntry }) {
+	const [url, setUrl] = useState<string | null>(null);
+	const box = useRef<HTMLSpanElement>(null);
+	useEffect(() => {
+		const el = box.current;
+		if (!el || entry.format !== "pdf") return;
+		let alive = true;
+		const seen = new IntersectionObserver(([spot]) => {
+			if (!spot.isIntersecting) return;
+			seen.disconnect();
+			loadThumb(entry.id).then((found) => alive && setUrl(found));
+		});
+		seen.observe(el);
+		return () => {
+			alive = false;
+			seen.disconnect();
+		};
+	}, [entry.id, entry.format]);
+	return (
+		<span ref={box} className={s.rowPicture}>
+			{url ? (
+				<img src={url} alt="" draggable={false} />
+			) : (
+				<FileBadge format={entry.format} size={46} />
+			)}
+		</span>
+	);
 }
 
 function meta(e: RecentEntry): string {
@@ -207,7 +252,13 @@ export function Home({
 	);
 
 	const row = (e: RecentEntry) => {
-		const ratio = e.position?.kind === "scroll" ? e.position.ratio : null;
+		const at = e.position;
+		const ratio =
+			at?.kind === "scroll"
+				? at.ratio
+				: at?.kind === "pdf" && at.pages && at.pages > 1
+					? (at.page - 1) / (at.pages - 1)
+					: null;
 		return (
 			<div
 				key={e.id}
@@ -223,7 +274,7 @@ export function Home({
 						setMenuFor(e);
 					}}
 				>
-					<FileBadge format={e.format} size={46} />
+					<RowPicture entry={e} />
 					<span className={s.rowText}>
 						<span className={s.name}>
 							{e.pinned && (
@@ -407,6 +458,22 @@ export function Home({
 									"Fast, private and offline. Everything you open shows up here.",
 								)}
 							</p>
+							<button
+								type="button"
+								className={s.sample}
+								onClick={() => {
+									samplePdf()
+										.then((bytes) =>
+											onOpenRequest(
+												requestForBytes("Welcome to Paperwren.pdf", bytes),
+											),
+										)
+										.catch(() => {});
+								}}
+								data-testid="open-sample"
+							>
+								<BookOpen size={16} /> {t("Try a sample document")}
+							</button>
 							<div className={s.formats}>
 								{SUPPORTED.map(([label, kind]) => (
 									<span

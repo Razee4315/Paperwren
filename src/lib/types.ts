@@ -38,6 +38,8 @@ export type Position =
 			cover?: boolean;
 			/** The white around what is printed is left out. */
 			crop?: boolean;
+			/** How many pages it has, to show how far through it this is. */
+			pages?: number;
 	  }
 	| { kind: "scroll"; ratio: number; zoom?: number }
 	| { kind: "sheet"; sheet: number; top: number; left: number; zoom?: number }
@@ -100,6 +102,8 @@ export interface Settings {
 	volumeKeys: boolean;
 	/** A tap on the left or right side of the screen turns the page. */
 	tapToTurn: boolean;
+	/** The app opens with the document last read. */
+	reopenLast: boolean;
 	/** Phones: the bars go while the reader scrolls on, and come back
 	 * when they scroll back. */
 	autoHideBars: boolean;
@@ -133,6 +137,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	speechRate: 1,
 	volumeKeys: false,
 	tapToTurn: false,
+	reopenLast: false,
 	autoHideBars: false,
 	dim: 0,
 	scrollSpeed: 40,
