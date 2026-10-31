@@ -311,6 +311,15 @@
 :global(html:not(.desktop)) .find[data-empty] .findStep {
 	display: none;
 }
+/* A phone has no room for one more button: the count is the way in. */
+:global(html:not(.desktop)) .findAll {
+	display: none;
+}
+button.findCount {
+	text-decoration: underline dotted;
+	text-underline-offset: 3px;
+	color: var(--accent);
+}
 /* A switch in the find bar: match case, whole words. */
 .findOption {
 	flex-shrink: 0;

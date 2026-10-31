@@ -82,8 +82,21 @@ export function markHit(
 ): boolean {
 	if (mark.kind === "ink")
 		return strokeDistance(mark.points, u, v, pw, ph) <= mark.width / 2 + reach;
+	if (mark.kind === "measure") {
+		const points = mark.closed ? [...mark.points, mark.points[0]] : mark.points;
+		return strokeDistance(points, u, v, pw, ph) <= 2 + reach;
+	}
 	if (mark.kind === "note")
 		return Math.hypot((u - mark.x) * pw, (v - mark.y) * ph) <= 12 + reach;
+	if (mark.kind === "text") {
+		const [x, y] = [reach / pw, reach / ph];
+		return (
+			u >= mark.x - x &&
+			u <= mark.x + mark.w + x &&
+			v >= mark.y - y &&
+			v <= mark.y + mark.h + y
+		);
+	}
 	const x = reach / pw;
 	const y = reach / ph;
 	return mark.boxes.some(

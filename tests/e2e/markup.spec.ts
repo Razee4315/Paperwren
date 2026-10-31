@@ -92,10 +92,46 @@ test.describe("mark up", () => {
 		await expect(strokes(page)).toHaveCount(0);
 	});
 
-	test("nothing marked leaves without asking", async ({ page }) => {
-		await openMarkUp(page);
-		await page.getByTestId("mark-close").click();
+	test("leaving asks nothing: the marks are kept", async ({ page }) => {
+		const sheet = await openMarkUp(page);
+		const box = await sheet.boundingBox();
+		if (!box) throw new Error("no page");
+		await page.mouse.move(box.x + 100, box.y + 200);
+		await page.mouse.down();
+		await page.mouse.move(box.x + 250, box.y + 200, { steps: 4 });
+		await page.mouse.up();
+		await page.getByTestId("mark-done").click();
 		await expect(page.getByTestId("mark-up")).toHaveCount(0);
+		await expect(page.locator(".pw-marks-over path")).toHaveCount(1);
+	});
+
+	test("a text box and a measurement end up in the saved copy", async ({
+		page,
+	}) => {
+		const sheet = await openMarkUp(page);
+		const box = await sheet.boundingBox();
+		if (!box) throw new Error("no page");
+		await page.getByTestId("mark-tool-text").click();
+		await page.mouse.click(box.x + 100, box.y + 300);
+		await page.getByTestId("mark-note-text").fill("In any language: اردو");
+		await page.getByTestId("mark-note-keep").click();
+		await expect(page.getByTestId("mark-text")).toHaveCount(1);
+
+		await page.getByTestId("mark-tool-measure").click();
+		await page.mouse.move(box.x + 100, box.y + 400);
+		await page.mouse.down();
+		await page.mouse.move(box.x + 300, box.y + 400, { steps: 4 });
+		await page.mouse.up();
+		await expect(page.getByTestId("measure-label")).toHaveCount(1);
+
+		await page.getByTestId("mark-save").click();
+		const download = page.waitForEvent("download");
+		await page.getByTestId("mark-save-go").click();
+		const saved = await download;
+		expect(await savedKinds(await saved.path())).toEqual([
+			"/FreeText",
+			"/Line",
+		]);
 	});
 
 	test.describe("on a touch screen", () => {
@@ -199,26 +235,6 @@ test.describe("notes", () => {
 });
 
 test.describe("more tools", () => {
-	test("PDF to text saves the words", async ({ page }) => {
-		await boot(page);
-		await page.getByTestId("open-tools").click();
-		await page.getByTestId("tool-text").click();
-		const b64 = readFileSync("fixtures/sample.pdf").toString("base64");
-		await page.evaluate((b64) => {
-			const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-			window.__paperwrenTestFile = new File([bytes], "sample.pdf");
-		}, b64);
-		await page.getByTestId("tool-add").click();
-		await expect(page.getByTestId("tool-go")).toBeEnabled();
-		const download = page.waitForEvent("download");
-		await page.getByTestId("tool-go").click();
-		const saved = await download;
-		expect(saved.suggestedFilename()).toBe("sample.txt");
-		expect(readFileSync(await saved.path(), "utf-8")).toContain(
-			"Paperwren test page 2 of 3",
-		);
-	});
-
 	test("Compress says when a file cannot get smaller", async ({ page }) => {
 		await boot(page);
 		await page.getByTestId("open-tools").click();

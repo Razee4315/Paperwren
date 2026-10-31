@@ -57,3 +57,23 @@ export const matches = (
 	query: string,
 	options: FindOptions = ANY_MATCH,
 ) => matchesIn(text, query, options, 1).length > 0;
+
+/** The words around a match, for a list of results. `at` is where the
+ * search engine says it is, for when its text and this one differ. */
+export function snippet(
+	text: string,
+	query: string,
+	at: number,
+	options: FindOptions = ANY_MATCH,
+	reach: [before: number, after: number] = [40, 80],
+): { before: string; match: string; after: string } {
+	const start = matchesIn(text, query, options, 1)[0] ?? at;
+	const end = start + query.length;
+	const from = Math.max(0, start - reach[0]);
+	const to = Math.min(text.length, end + reach[1]);
+	return {
+		before: `${from > 0 ? "…" : ""}${text.slice(from, start)}`,
+		match: text.slice(start, end),
+		after: `${text.slice(end, to)}${to < text.length ? "…" : ""}`,
+	};
+}

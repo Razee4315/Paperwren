@@ -468,10 +468,11 @@ function NoteEditor({
 						</IconButton>
 						<Button
 							variant="secondary"
+							className={s.done}
 							onClick={() => setDrawing(false)}
 							data-testid="note-draw-done"
 						>
-							<Check size={16} /> {t("Done")}
+							<Check size={16} /> <span>{t("Done")}</span>
 						</Button>
 					</>
 				) : (

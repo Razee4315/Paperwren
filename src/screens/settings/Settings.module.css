@@ -231,3 +231,26 @@
 	font-size: 14px;
 	text-align: end;
 }
+
+/* What's new, version by version. */
+.changes {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 4px 4px 12px;
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--text-2);
+}
+.changes h3 {
+	margin: 0 0 6px;
+	font-size: 15px;
+	color: var(--text);
+}
+.changes ul {
+	margin: 0;
+	padding-inline-start: 20px;
+}
+.changes li + li {
+	margin-top: 4px;
+}

@@ -166,6 +166,41 @@
 		padding: 14px;
 	}
 }
+/* On a phone the files are the point: the shortcuts stay in two short
+ * rows, so the first recent file is not pushed down the screen. */
+@media (max-width: 599px) {
+	.tools {
+		margin-bottom: 12px;
+	}
+	.toolGrid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 6px;
+	}
+	.toolShortcut {
+		flex-direction: column;
+		justify-content: center;
+		gap: 4px;
+		min-height: 66px;
+		padding: 7px 4px;
+		font-size: 11.5px;
+		line-height: 1.2;
+		text-align: center;
+		overflow-wrap: normal;
+	}
+	.toolIcon {
+		width: 28px;
+		height: 28px;
+		border-radius: 8px;
+	}
+	.toolIcon svg {
+		width: 17px;
+		height: 17px;
+	}
+	.column .section {
+		margin-top: 8px;
+		margin-bottom: 4px;
+	}
+}
 .search:focus-within {
 	border-color: var(--accent);
 	color: var(--accent);
@@ -538,4 +573,38 @@
 	padding: 40px 16px;
 	text-align: center;
 	color: var(--text-2);
+}
+
+/* A recent PDF's first page, in the space a file's badge takes. */
+.rowPicture {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 46px;
+	height: 46px;
+}
+.rowPicture img {
+	display: block;
+	max-width: 46px;
+	max-height: 46px;
+	border-radius: 3px;
+	background: #fff;
+	box-shadow: 0 0 0 1px var(--line-strong);
+}
+.sample {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 40px;
+	margin: 4px auto 0;
+	padding: 0 14px;
+	border-radius: 999px;
+	border: 1px solid var(--line-strong);
+	background: var(--surface);
+	color: var(--accent);
+	font-size: 14px;
+	font-weight: 600;
+}
+.sample:hover {
+	background: var(--surface-2);
 }

@@ -1,14 +1,8 @@
 import { backend, formatBytes } from "@/lib/backend";
-import {
-	isDesktop,
-	isMac,
-	isTauri,
-	isTouch,
-	ownsFrame,
-	sharesFrame,
-} from "@/lib/env";
-import { LANGUAGES, type LanguageSetting, msg, t, tn } from "@/lib/i18n";
-import { FULLSCREEN_KEYS, keys } from "@/lib/keys";
+import { clearAllMarks, loadMarkList, restoreMarks } from "@/lib/docMarks";
+import { isDesktop, isTauri, isTouch, ownsFrame, sharesFrame } from "@/lib/env";
+import { LANGUAGES, type LanguageSetting, t, tn } from "@/lib/i18n";
+import { clearReads, readCount } from "@/lib/ocrStore";
 import {
 	SIGNATURES_KEY,
 	STAMPS_KEY,
@@ -44,6 +38,8 @@ import {
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import s from "./Settings.module.css";
+import { ShortcutList } from "./ShortcutList";
+import { WhatsNew } from "./WhatsNew";
 
 const VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
 const CONTACT = "saqlainrazee@gmail.com";
@@ -97,28 +93,6 @@ const LICENSES: Array<[string, string]> = [
 /** What the keyboard does, said once where a reader can find it. The
  * keys are written the Windows way and shown as the machine has them
  * (lib/keys.ts); a third entry is what a Mac presses instead. */
-const SHORTCUTS: Array<[keys: string, what: string, mac?: string]> = [
-	["Ctrl+O", msg("Open a file")],
-	["Ctrl+W", msg("Close the document")],
-	["Ctrl+F", msg("Find in the document")],
-	["F3 · Shift+F3", msg("Next and previous match"), "⌘G · ⇧⌘G"],
-	["Ctrl+P", msg("Print")],
-	["Ctrl + · Ctrl - · Ctrl 0", msg("Zoom in, zoom out, back to the fit")],
-	["F11", msg("Full screen"), FULLSCREEN_KEYS],
-	["Space · Page Up · Page Down", msg("Scroll a screen at a time")],
-	["Home · End", msg("The start and the end of the document"), "⌘↑ · ⌘↓"],
-	["← · →", msg("The previous and the next page or slide")],
-	["F5", msg("Start a slide show")],
-	["P", msg("Presenter view, in a slide show")],
-	["L", msg("Laser pointer, in a slide show")],
-	["Ctrl+D", msg("Bookmark this place")],
-	["Ctrl+Shift+U", msg("Read aloud")],
-	["Ctrl+Tab · Ctrl+Shift+Tab", msg("The next and the previous tab")],
-	["Ctrl+] · Ctrl+[", msg("Turn the pages of a PDF")],
-	["Ctrl+Page Up · Ctrl+Page Down", msg("The previous and the next sheet")],
-	["Alt+←", msg("Back")],
-];
-
 function Segmented<T extends string | number>({
 	label,
 	value,
@@ -190,6 +164,13 @@ export function SettingsScreen() {
 	const [confirmCopies, setConfirmCopies] = useState(false);
 	const bookmarkCount = useBookmarkCount();
 	const [signatureCount, setSignatureCount] = useState(0);
+	const [markedCount, setMarkedCount] = useState(0);
+	const [newsOpen, setNewsOpen] = useState(false);
+	useEffect(() => {
+		Promise.all([loadMarkList(), readCount()]).then(([list, reads]) =>
+			setMarkedCount(Math.max(list.length, reads)),
+		);
+	}, []);
 	const [stampCount, setStampCount] = useState(0);
 	useEffect(() => {
 		loadSignatures().then((list) => setSignatureCount(list.length));
@@ -367,6 +348,13 @@ export function SettingsScreen() {
 							/>
 						)}
 						<Switch
+							label={t("Open the last document at start")}
+							hint={t("Go back to what you were reading when the app opens")}
+							checked={settings.reopenLast}
+							onChange={(v) => update("reopenLast", v)}
+							testId="reopen-last"
+						/>
+						<Switch
 							label={t("Keep the screen on")}
 							hint={t("While a document is open, the screen won't dim or lock")}
 							checked={settings.keepAwake}
@@ -462,6 +450,35 @@ export function SettingsScreen() {
 						<button
 							type="button"
 							className={s.action}
+							disabled={markedCount === 0}
+							onClick={async () => {
+								const previous = await clearAllMarks();
+								await clearReads();
+								setMarkedCount(0);
+								toast(t("Highlights deleted"), {
+									label: t("Undo"),
+									run: () =>
+										restoreMarks(previous).then((count) =>
+											setMarkedCount(count),
+										),
+								});
+							}}
+							data-testid="clear-marks"
+						>
+							<span className={s.actionText}>
+								{t("Delete highlights and notes on documents")}
+								<span className={s.hint}>
+									{tn(
+										markedCount,
+										"In {n} document, kept only on this device",
+										"In {n} documents, kept only on this device",
+									)}
+								</span>
+							</span>
+						</button>
+						<button
+							type="button"
+							className={s.action}
 							disabled={signatureCount === 0}
 							onClick={async () => {
 								const kept = await loadSignatures();
@@ -539,14 +556,7 @@ export function SettingsScreen() {
 						<>
 							<Group icon={<Keyboard size={15} />}>{t("Keyboard")}</Group>
 							<div className={s.card}>
-								<dl className={s.keys} data-testid="shortcuts">
-									{SHORTCUTS.map(([combo, what, mac]) => (
-										<div key={combo}>
-											<dt dir="ltr">{(isMac && mac) || keys(combo)}</dt>
-											<dd>{t(what)}</dd>
-										</div>
-									))}
-								</dl>
+								<ShortcutList />
 							</div>
 							{isTauri && (ownsFrame || sharesFrame) && (
 								<div className={s.card}>
@@ -617,7 +627,7 @@ export function SettingsScreen() {
 							</p>
 							<p>
 								{t(
-									"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.",
+									"Files are read on this device. The recent list, your highlights and notes, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.",
 								)}
 							</p>
 						</div>
@@ -646,6 +656,14 @@ export function SettingsScreen() {
 							<span className={s.actionText}>Paperwren</span>
 							<span className={s.version}>v{VERSION}</span>
 						</div>
+						<button
+							type="button"
+							className={s.action}
+							onClick={() => setNewsOpen(true)}
+							data-testid="whats-new-open"
+						>
+							<span className={s.actionText}>{t("What's new")}</span>
+						</button>
 						<button
 							type="button"
 							className={s.action}
@@ -704,6 +722,7 @@ export function SettingsScreen() {
 					"Files you open are kept as private copies so they can be reopened after the app is closed. Deleting them frees space; those recents will ask you to locate the file again.",
 				)}
 			</Dialog>
+			<WhatsNew open={newsOpen} onClose={() => setNewsOpen(false)} />
 		</div>
 	);
 }

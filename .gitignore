@@ -31,5 +31,8 @@ ISSUE-TRIAGE.md
 # Instructions for AI assistants (kept local, not in git)
 CLAUDE.md
 
+# Reader planning notes (kept local, not in git)
+READER-GAP-STUDY.md
+
 # Python bytecode
 __pycache__/

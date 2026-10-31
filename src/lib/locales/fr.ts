@@ -178,8 +178,6 @@ export const fr: Table = {
 	Privacy: "Confidentialité",
 	"Paperwren never connects to the internet. It has no ads, no accounts and no analytics, and it asks for no permissions.":
 		"Paperwren ne se connecte jamais à internet. Il n'a ni publicité, ni compte, ni statistiques, et ne demande aucune autorisation.",
-	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
-		"Les fichiers sont lus sur cet appareil. La liste des récents, vos réglages et les copies des fichiers ouverts restent dans le stockage privé de l'application et peuvent être supprimés ci-dessus. Les mots de passe sont utilisés une seule fois et jamais enregistrés.",
 	About: "À propos",
 	"Email address copied": "Adresse e-mail copiée",
 	Contact: "Contact",
@@ -974,8 +972,6 @@ export const fr: Table = {
 	Colour: "Couleur",
 	"Colour {n}": "Couleur {n}",
 	Thickness: "Épaisseur",
-	"Scroll and zoom the pages. Tap a note to read or change it.":
-		"Faites défiler et zoomez sur les pages. Touchez une note pour la lire ou la modifier.",
 	"Write with a finger, stylus or mouse. Two fingers scroll.":
 		"Écrivez avec un doigt, un stylet ou la souris. Deux doigts pour faire défiler.",
 	"Colour over anything on the page. Two fingers scroll.":
@@ -1034,27 +1030,143 @@ export const fr: Table = {
 		"Ce PDF est déjà à peu près aussi léger que possible, donc aucune copie n'a été faite.",
 	"{was} down to {now}, {n}% smaller": "De {was} à {now}, soit {n} % de moins",
 	compressed: "compressé",
-	"PDF to text": "PDF en texte",
-	"The words of a PDF as a text file":
-		"Les mots d'un PDF dans un fichier texte",
-	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
-		"Choisissez un PDF pour enregistrer ses mots dans un fichier texte. Un scan est une image : il n'en contient pas.",
-	"This PDF has no text in it. A scan is only pictures of pages.":
-		"Ce PDF ne contient aucun texte. Un scan n'est qu'un ensemble d'images de pages.",
 	"Save as text": "Enregistrer en texte",
-	"Make a scan searchable": "Rendre un scan consultable",
-	"A copy of a scan whose words you can search and select":
-		"Une copie du scan dont vous pouvez rechercher et sélectionner les mots",
-	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
-		"Choisissez un PDF scanné et sa langue. Ses pages restent identiques dans la copie.",
 	"Language of the document": "Langue du document",
-	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
-		"Chaque page prend plusieurs secondes, davantage sur un téléphone. Un texte imprimé net se lit le mieux : l'écriture manuscrite, les scans pâles et l'ourdou nastaliq peuvent comporter des erreurs.",
 	"Reading page {n} of {total}": "Lecture de la page {n} sur {total}",
-	"Make searchable": "Rendre consultable",
-	"This PDF already has words you can search, so no copy was made.":
-		"Ce PDF contient déjà des mots consultables : aucune copie n'a été créée.",
-	"No words were found on its pages, so no copy was made.":
-		"Aucun mot n'a été trouvé sur ses pages : aucune copie n'a été créée.",
 	searchable: "consultable",
+	"Nothing found yet.": "Rien trouvé pour le moment.",
+	"Showing the first {n} pages.": "Affichage des {n} premières pages.",
+	"Try a sample document": "Essayer un document d'exemple",
+	"Found on {n} pages": {
+		one: "Trouvé sur {n} page",
+		other: "Trouvé sur {n} pages",
+	},
+	"Copy the words in this picture": "Copier les mots de cette image",
+	Picture: "Image",
+	"View picture": "Voir l'image",
+	"Couldn't show this picture": "Impossible d'afficher cette image",
+	"This PDF has a digital signature. A changed copy won't keep it valid.":
+		"Ce PDF a une signature numérique. Une copie modifiée ne la gardera pas valide.",
+	"This page has a place to sign.": "Cette page a un emplacement pour signer.",
+	"This adds a picture of your signature, not a digital certificate.":
+		"Cela ajoute une image de votre signature, pas un certificat numérique.",
+	"Drag around your signature to leave out the rest.":
+		"Faites glisser autour de votre signature pour écarter le reste.",
+	Lighter: "Plus clair",
+	"How dark the ink reads": "Intensité de l'encre",
+	Darker: "Plus foncé",
+	"Enter a length above zero.": "Saisissez une longueur supérieure à zéro.",
+	Measure: "Mesurer",
+	"Scroll and zoom the pages. Tap a note or a text box to change it.":
+		"Faites défiler et zoomez sur les pages. Touchez une note ou une zone de texte pour la modifier.",
+	"Tap the page where the text goes.":
+		"Touchez la page à l'endroit où placer le texte.",
+	"Drag along something whose real length you know.":
+		"Faites glisser le long d'un élément dont vous connaissez la longueur réelle.",
+	"Tap each corner, then choose Finish shape.":
+		"Touchez chaque coin, puis choisissez « Terminer la forme ».",
+	"Drag from one end to the other to measure it.":
+		"Faites glisser d'un bout à l'autre pour le mesurer.",
+	Length: "Longueur",
+	Area: "Aire",
+	"Finish shape": "Terminer la forme",
+	"Set the scale": "Définir l'échelle",
+	"Size {n}": "Taille {n}",
+	"How long is that line?": "Quelle est la longueur de ce trait ?",
+	Unit: "Unité",
+	"Everything measured on this page will use this scale.":
+		"Tout ce qui sera mesuré sur cette page utilisera cette échelle.",
+	Show: "Afficher",
+	"Couldn't mark that selection": "Impossible de marquer cette sélection",
+	"Kept on this device. Find it under Highlights.":
+		"Conservé sur cet appareil. Retrouvez-le dans « Surlignages ».",
+	"Mark removed": "Marque retirée",
+	Mark: "Marque",
+	"Edit note": "Modifier la note",
+	notes: "notes",
+	"Notes about this document": "Notes sur ce document",
+	"Select words on a page, then pick a colour. What you mark shows up here and stays with this PDF.":
+		"Sélectionnez des mots sur une page, puis choisissez une couleur. Ce que vous marquez apparaît ici et reste avec ce PDF.",
+	"Save as a file": "Enregistrer en fichier",
+	"Save a copy with them": "Enregistrer une copie avec elles",
+	"Kept on this device. The PDF itself is not changed.":
+		"Conservé sur cet appareil. Le PDF lui-même n'est pas modifié.",
+	"This PDF has a password, so nothing is kept. Save a copy to keep your marks.":
+		"Ce PDF a un mot de passe, donc rien n'est conservé. Enregistrez une copie pour garder vos marques.",
+	"p. {n}": "p. {n}",
+	"Everything you marked, in one list":
+		"Tout ce que vous avez marqué, dans une seule liste",
+	"Highlights and notes": "Surlignages et notes",
+	"A new PDF other apps can show them in":
+		"Un nouveau PDF où d'autres applications pourront les afficher",
+	"Save a copy with my marks": "Enregistrer une copie avec mes marques",
+	"All results": "Tous les résultats",
+	Highlights: "Surlignages",
+	"Highlights deleted": "Surlignages supprimés",
+	"Delete highlights and notes on documents":
+		"Supprimer les surlignages et les notes des documents",
+	"Plus {n} drawings on the pages": {
+		one: "Plus {n} dessin sur les pages",
+		other: "Plus {n} dessins sur les pages",
+	},
+	"In {n} documents, kept only on this device": {
+		one: "Dans {n} document, conservés uniquement sur cet appareil",
+		other: "Dans {n} documents, conservés uniquement sur cet appareil",
+	},
+	"Copy its words, even from a scan": "Copier ses mots, même d'un scan",
+	"This page is a scan.": "Cette page est un scan.",
+	"Read its text": "Lire son texte",
+	"Couldn't read this page": "Impossible de lire cette page",
+	"Added to Notes": "Ajouté aux Notes",
+	"Getting ready…": "Préparation…",
+	"No words were found": "Aucun mot trouvé",
+	"Read text": "Lire le texte",
+	"Get the words from these pages": "Récupérer les mots de ces pages",
+	"You'll see each page being read, and its text will appear here to copy. Nothing leaves this device.":
+		"Vous verrez chaque page se lire, et son texte apparaîtra ici pour être copié. Rien ne quitte cet appareil.",
+	"Only page {n}": "Seulement la page {n}",
+	"Clear print reads best. Handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"Un texte imprimé net se lit le mieux. L'écriture manuscrite, les scans pâles et l'ourdou nastaliq peuvent comporter des erreurs.",
+	"The words will appear here.": "Les mots apparaîtront ici.",
+	"Its own text": "Son propre texte",
+	"No words on this page.": "Aucun mot sur cette page.",
+	"You can stop at any time and keep what's been read.":
+		"Vous pouvez arrêter à tout moment et garder ce qui a été lu.",
+	Stop: "Arrêter",
+	"Read {n} more pages": {
+		one: "Lire {n} page de plus",
+		other: "Lire {n} pages de plus",
+	},
+	"{n} words found": {
+		one: "{n} mot trouvé",
+		other: "{n} mots trouvés",
+	},
+	"Copy all": "Tout copier",
+	"Add to Notes": "Ajouter aux Notes",
+	"Save a searchable PDF": "Enregistrer un PDF consultable",
+	"Copy with page numbers, for an AI assistant":
+		"Copier avec les numéros de page, pour un assistant IA",
+	"Get the words from a PDF, a scan or a photo":
+		"Récupérez les mots d'un PDF, d'un scan ou d'une photo",
+	"Choose a PDF or a picture. You'll watch it being read, and its text will appear on the screen.":
+		"Choisissez un PDF ou une image. Vous le verrez se lire, et son texte apparaîtra à l'écran.",
+	"{name} isn't a PDF or a picture": "{name} n'est ni un PDF ni une image",
+	"Start with a PDF or a picture": "Commencez par un PDF ou une image",
+	"Open the last document at start": "Ouvrir le dernier document au démarrage",
+	"Go back to what you were reading when the app opens":
+		"Reprendre là où vous en étiez à l'ouverture de l'application",
+	"Files are read on this device. The recent list, your highlights and notes, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
+		"Les fichiers sont lus sur cet appareil. La liste des récents, vos surlignages et notes, vos réglages et les copies des fichiers ouverts restent dans le stockage privé de l'application et peuvent être supprimés ci-dessus. Les mots de passe sont utilisés une seule fois et jamais enregistrés.",
+	"What's new": "Nouveautés",
+	"Press Esc to leave full screen":
+		"Appuyez sur Échap pour quitter le plein écran",
+	"Highlight the selected words, or add a note to them":
+		"Surlignez les mots sélectionnés ou ajoutez-y une note",
+	"Draw on a PDF, or add text to it":
+		"Dessinez sur un PDF ou ajoutez-y du texte",
+	"Undo and redo a mark": "Annuler et rétablir une marque",
+	"Remove the mark you tapped": "Retirer la marque que vous avez touchée",
+	"Turn the pages, or show two side by side":
+		"Tournez les pages ou affichez-en deux côte à côte",
+	"Show this list": "Afficher cette liste",
 };

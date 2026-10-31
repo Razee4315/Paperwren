@@ -9,6 +9,7 @@ import {
 	sortRecents,
 	updateEntry,
 } from "@/lib/recents";
+import { forgetThumb } from "@/lib/thumbs";
 import {
 	type Position,
 	type RecentEntry,
@@ -252,18 +253,24 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		[commit],
 	);
 	const remove = useCallback<RecentsApi["remove"]>(
-		(id) =>
-			commit(
+		(id) => {
+			forgetThumb(id);
+			return commit(
 				(prev) =>
 					prev.some((e) => e.id === id)
 						? prev.filter((e) => e.id !== id)
 						: prev,
 				true,
-			),
+			);
+		},
 		[commit],
 	);
 	const clear = useCallback(
-		() => commit((prev) => (prev.length ? [] : prev), true),
+		() =>
+			commit((prev) => {
+				for (const entry of prev) forgetThumb(entry.id);
+				return prev.length ? [] : prev;
+			}, true),
 		[commit],
 	);
 	const restore = useCallback<RecentsApi["restore"]>(

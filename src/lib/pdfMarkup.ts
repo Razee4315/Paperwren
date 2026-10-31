@@ -12,6 +12,7 @@ import type {
 	PDFDict,
 	PDFPage,
 	PDFRef,
+	PDFString,
 } from "@cantoo/pdf-lib";
 import { open, pagePoint, shownBox } from "./pdfTools";
 
@@ -46,8 +47,31 @@ export type Markup =
 			color: string;
 			/** The words marked, for the file's list of comments. */
 			text: string;
+			/** What the reader wrote about them. */
+			note?: string;
 	  }
-	| { kind: "note"; page: number; x: number; y: number; text: string };
+	| { kind: "note"; page: number; x: number; y: number; text: string }
+	| {
+			kind: "text";
+			page: number;
+			/** Its box. A height is a share of the page's. */
+			x: number;
+			y: number;
+			w: number;
+			h: number;
+			/** In points. */
+			size: number;
+			text: string;
+			color: string;
+	  }
+	| {
+			kind: "measure";
+			page: number;
+			/** Two ends of a line, or the corners of an area. */
+			points: Array<[number, number]>;
+			closed?: boolean;
+			color: string;
+	  };
 
 /** See-through felt pen and highlight, as both are drawn on screen. */
 export const MARKER_OPACITY = 0.65;
@@ -149,6 +173,7 @@ async function attach(
 	ap: PDFRef,
 	extra: Record<string, unknown>,
 	contents?: string,
+	style?: PDFString,
 ) {
 	const { PDFHexString, PDFName } = await lib();
 	// The literal type does not name what `extra` holds.
@@ -163,6 +188,8 @@ async function attach(
 	} as never) as unknown as PDFDict;
 	if (contents)
 		dict.set(PDFName.of("Contents"), PDFHexString.fromText(contents));
+	// The default look of its words: a string, which `obj` would not make.
+	if (style) dict.set(PDFName.of("DA"), style);
 	page.node.addAnnot(doc.context.register(dict));
 }
 
@@ -248,7 +275,8 @@ async function addTextMark(
 			CA: highlight ? MARKER_OPACITY : 1,
 			QuadPoints: lines.flat(2),
 		},
-		mark.text || undefined,
+		// A note says more than the words it sits on.
+		mark.note || mark.text || undefined,
 	);
 }
 
@@ -285,16 +313,137 @@ async function addNote(
 	);
 }
 
+/** A text box as a PNG, drawn the way the screen shows it. */
+export interface TextPicture {
+	png: Uint8Array;
+}
+
+/**
+ * A text box as a FreeText annotation. Its words are kept as words, so
+ * other apps can list and change them. What is shown is a picture of
+ * them, laid along the page as it is shown, because the standard PDF
+ * fonts cannot write most of the scripts it may be in.
+ */
+async function addTextBox(
+	doc: Doc,
+	page: PDFPage,
+	mark: Extract<Markup, { kind: "text" }>,
+	picture?: TextPicture,
+) {
+	const box = shownBox(page);
+	const corners: Point[] = [
+		pagePoint(box, mark.x, mark.y + mark.h),
+		pagePoint(box, mark.x + mark.w, mark.y + mark.h),
+		pagePoint(box, mark.x, mark.y),
+		pagePoint(box, mark.x + mark.w, mark.y),
+	];
+	const rect = bounds(corners, 0);
+	const [r, g, b] = rgb(mark.color);
+	const fields = { BS: { W: 0 } };
+	const { PDFHexString, PDFName, PDFString } = await lib();
+	const style = PDFString.of(
+		`/Helv ${n(mark.size)} Tf ${n(r)} ${n(g)} ${n(b)} rg`,
+	);
+	if (!picture) {
+		// Nothing drawn: a viewer makes its own from the words.
+		const dict = doc.context.obj({
+			Type: "Annot",
+			Subtype: "FreeText",
+			Rect: [...rect],
+			F: PRINT,
+			P: page.ref,
+			...fields,
+		} as never) as unknown as PDFDict;
+		dict.set(PDFName.of("Contents"), PDFHexString.fromText(mark.text));
+		dict.set(PDFName.of("DA"), style);
+		page.node.addAnnot(doc.context.register(dict));
+		return;
+	}
+	const image = await doc.embedPng(picture.png);
+	// The picture's unit square, along the box as it is shown.
+	const [o, right, up] = corners;
+	const ap = doc.context.register(
+		doc.context.flateStream(
+			`q\n${n(right[0] - o[0])} ${n(right[1] - o[1])} ${n(up[0] - o[0])} ${n(
+				up[1] - o[1],
+			)} ${n(o[0])} ${n(o[1])} cm\n/Im Do\nQ\n`,
+			{
+				Type: "XObject",
+				Subtype: "Form",
+				BBox: [...rect],
+				Resources: { XObject: { Im: image.ref } },
+			},
+		),
+	);
+	await attach(doc, page, "FreeText", rect, ap, fields, mark.text, style);
+}
+
+/**
+ * A measurement as a Line or a Polygon annotation, with the distance or
+ * area it came to as its comment.
+ */
+async function addMeasure(
+	doc: Doc,
+	page: PDFPage,
+	mark: Extract<Markup, { kind: "measure" }>,
+	label?: string,
+) {
+	const box = shownBox(page);
+	const points = mark.points.map(([u, v]) => pagePoint(box, u, v));
+	const rect = bounds(points, 2);
+	const [r, g, b] = rgb(mark.color);
+	const path = points
+		.map(([x, y], i) => `${n(x)} ${n(y)} ${i ? "l" : "m"}`)
+		.join("\n");
+	const ap = await appearance(
+		doc,
+		rect,
+		`${n(r)} ${n(g)} ${n(b)} RG\n1.2 w\n1 J\n1 j\n${path}${
+			mark.closed ? "\nh" : ""
+		}\nS`,
+		{},
+	);
+	await attach(
+		doc,
+		page,
+		mark.closed ? "Polygon" : "Line",
+		rect,
+		ap,
+		mark.closed
+			? { C: [r, g, b], BS: { W: 1.2 }, Vertices: points.flat() }
+			: { C: [r, g, b], BS: { W: 1.2 }, L: points.slice(0, 2).flat() },
+		label,
+	);
+}
+
 /** A copy of the PDF with the marks added, on top of any it already has. */
 export async function addMarkup(
 	bytes: Uint8Array,
-	{ password, marks }: { password?: string; marks: Markup[] },
+	{
+		password,
+		marks,
+		pictures,
+		labels,
+	}: {
+		password?: string;
+		marks: Markup[];
+		/** Text boxes, drawn, in the order of those in `marks`. */
+		pictures?: Array<TextPicture | undefined>;
+		/** What each measurement came to, in the order of those in `marks`. */
+		labels?: Array<string | undefined>;
+	},
 ): Promise<Uint8Array> {
 	const doc = await open(bytes, password);
+	let box = 0;
+	let measure = 0;
 	for (const mark of marks) {
 		const page = doc.getPage(mark.page);
 		if (mark.kind === "ink") await addInk(doc, page, mark);
 		else if (mark.kind === "note") await addNote(doc, page, mark);
+		else if (mark.kind === "text")
+			await addTextBox(doc, page, mark, pictures?.[box++]);
+		else if (mark.kind === "measure")
+			await addMeasure(doc, page, mark, labels?.[measure++]);
 		else await addTextMark(doc, page, mark);
 	}
 	return doc.save({ updateFieldAppearances: false });

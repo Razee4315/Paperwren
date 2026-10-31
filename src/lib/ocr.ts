@@ -24,34 +24,81 @@ export const OCR_NAMES: Record<Language, string> = {
 
 /** Below this Tesseract is guessing, usually at a picture or a stain. */
 const LEAST_SURE = 30;
+/** Below this a word is worth a second look. */
+export const DOUBTFUL = 65;
 
+const PARAGRAPH = 3;
 const LINE = 4;
 const WORD = 5;
 
+/** A line of a page, as read: its words, its box and where it falls. */
+export interface ReadLine {
+	text: string;
+	words: ReadWord[];
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+	/** It starts a paragraph. */
+	opens: boolean;
+}
+
+/** The box around some words. */
+function around(words: ReadWord[]) {
+	const x = Math.min(...words.map((w) => w.x));
+	const y = Math.min(...words.map((w) => w.y));
+	return {
+		x,
+		y,
+		w: Math.max(...words.map((w) => w.x + w.w)) - x,
+		h: Math.max(...words.map((w) => w.y + w.h)) - y,
+	};
+}
+
 /**
- * The words in Tesseract's table of results, in reading order, as
+ * The lines of Tesseract's table of results, in reading order, as
  * fractions of the picture it was given. Each word takes the height of
  * its line, so a selection runs level across the words.
  */
-export function wordsOfTable(
+export function linesOfTable(
 	table: string,
 	width: number,
 	height: number,
-): ReadWord[] {
-	const words: ReadWord[] = [];
+): ReadLine[] {
+	const lines: ReadLine[] = [];
 	let top = 0;
 	let tall = 0;
+	let words: ReadWord[] = [];
+	let opens = true;
+	let nextOpens = true;
+	const end = () => {
+		if (words.length)
+			lines.push({
+				text: words.map((w) => w.text).join(" "),
+				words,
+				opens,
+				...around(words),
+			});
+		words = [];
+	};
 	for (const row of table.split("\n")) {
 		const cells = row.split("\t");
 		if (cells.length < 12) continue;
 		const level = Number(cells[0]);
 		const [left, up, wide, high] = cells.slice(6, 10).map(Number);
-		if (level === LINE) {
+		if (level === PARAGRAPH) {
+			end();
+			nextOpens = true;
+		} else if (level === LINE) {
+			end();
+			opens = nextOpens;
+			nextOpens = false;
 			top = up;
 			tall = high;
 		}
 		const text = cells.slice(11).join("\t").trim();
-		if (level !== WORD || !text || Number(cells[10]) < LEAST_SURE) continue;
+		const sure = Number(cells[10]);
+		if (level !== WORD || !text || sure < LEAST_SURE) continue;
 		words.push({
 			text,
 			x: left / width,
@@ -59,9 +106,30 @@ export function wordsOfTable(
 			w: wide / width,
 			h: tall / height,
 			rtl: startsRtl(text),
+			sure: Math.round(sure),
 		});
 	}
-	return words;
+	end();
+	return lines;
+}
+
+/** Lines as plain text, a blank line between paragraphs. */
+export function textOfLines(lines: Array<Pick<ReadLine, "text" | "opens">>) {
+	let text = "";
+	lines.forEach((line, i) => {
+		if (i) text += line.opens ? "\n\n" : "\n";
+		text += line.text;
+	});
+	return text;
+}
+
+/** The words in Tesseract's table of results, in reading order. */
+export function wordsOfTable(
+	table: string,
+	width: number,
+	height: number,
+): ReadWord[] {
+	return linesOfTable(table, width, height).flatMap((line) => line.words);
 }
 
 /** Enough of a page's own text that it is not just a scan with a line
@@ -174,6 +242,8 @@ export type OcrRequest =
 export type OcrReply =
 	| { kind: "ready" }
 	| { kind: "read"; id: number; table: string }
+	/** How far through the page it is, from 0 to 100. */
+	| { kind: "progress"; percent: number }
 	| { kind: "failed"; id?: number; message: string };
 
 /** One language's reader, for one document. */
@@ -187,6 +257,7 @@ export class OcrReader {
 	private refuse: ((err: Error) => void) | null = null;
 	private next = 0;
 	private stopped = false;
+	private watcher: ((share: number) => void) | null = null;
 
 	constructor(private readonly language: Language) {}
 
@@ -207,6 +278,8 @@ export class OcrReader {
 				worker.onerror = () => fail(new Error("ocr worker failed"));
 				worker.onmessage = ({ data: reply }: MessageEvent<OcrReply>) => {
 					if (reply.kind === "ready") done();
+					else if (reply.kind === "progress")
+						this.watcher?.(reply.percent / 100);
 					else if (reply.kind === "failed" && reply.id === undefined)
 						fail(new Error(reply.message));
 					else if (reply.kind === "read") {
@@ -224,13 +297,18 @@ export class OcrReader {
 		return this.ready;
 	}
 
-	/** Tesseract's table of what a picture says. */
-	async read(picture: Uint8Array): Promise<string> {
+	/** Tesseract's table of what a picture says. `onProgress` hears how
+	 * far through it is, from 0 to 1. */
+	async read(
+		picture: Uint8Array,
+		onProgress?: (share: number) => void,
+	): Promise<string> {
 		if (this.stopped) throw new Error("stopped");
 		await this.start();
 		const worker = this.worker;
 		if (!worker) throw new Error("stopped");
 		const id = ++this.next;
+		this.watcher = onProgress ?? null;
 		return new Promise((done, fail) => {
 			this.waiting.set(id, { done, fail });
 			const message: OcrRequest = { kind: "read", id, picture };

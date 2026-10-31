@@ -103,7 +103,9 @@ export function useModalFocus(
 	closeRef.current = onClose;
 	useEffect(() => {
 		const opener = document.activeElement as HTMLElement | null;
-		const field = root.current?.querySelector<HTMLElement>("input, textarea");
+		const field = root.current?.querySelector<HTMLElement>(
+			"input:not([data-no-focus]), textarea:not([data-no-focus])",
+		);
 		(field ?? root.current)?.focus();
 		// Overlays are portalled beside the app, so the app itself can be
 		// taken out of reach of Tab and assistive tech while one is open.

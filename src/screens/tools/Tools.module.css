@@ -1446,6 +1446,121 @@
 	margin: 0;
 	text-align: center;
 }
+/* On a phone every tool shows at once, as an icon, and the bars leave the
+ * page most of the screen. The labels stay for screen readers. */
+@media (max-width: 520px) {
+	.markTools {
+		gap: 0;
+		padding: 4px 6px;
+	}
+	.markTools .tool {
+		flex: 1 1 0;
+		min-width: 0;
+		min-height: 44px;
+		padding: 0;
+	}
+	.markTools .tool span,
+	.markOptions:has(input) p {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+	.markOptions {
+		flex-wrap: nowrap;
+		min-height: 52px;
+		padding: 4px 12px;
+		font-size: 12px;
+		line-height: 1.3;
+	}
+	.markWidth {
+		flex: 1;
+		width: auto;
+		min-width: 0;
+	}
+	.fillActions {
+		padding-block: 6px calc(6px + var(--safe-bottom));
+	}
+	.fillPages {
+		padding: 8px 8px 24px;
+	}
+
+	/* The list of tools: the first screen shows tools, not an introduction,
+	 * and the two main ones sit side by side. */
+	.intro {
+		gap: 4px;
+	}
+	.intro .eyebrow,
+	.intro .lead {
+		display: none;
+	}
+	.intro h2 {
+		margin: 0;
+		font-size: 21px;
+	}
+	.column {
+		gap: 14px;
+	}
+	.featuredRow {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+	}
+	.featured {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+		min-height: 0;
+		padding: 12px;
+	}
+	.featured > .toolIcon {
+		width: 38px;
+		height: 38px;
+	}
+	.featured > .toolText {
+		padding-inline-end: 0;
+	}
+	.featured .toolText strong {
+		font-size: 16px;
+		letter-spacing: normal;
+	}
+	.featured .toolText span,
+	.featured .paperArt {
+		display: none;
+	}
+	.toolCard {
+		gap: 12px;
+		min-height: 0;
+		padding: 10px 12px;
+	}
+	.toolCard .toolIcon {
+		width: 38px;
+		height: 38px;
+	}
+	.toolCard .toolText {
+		flex: 1;
+		gap: 1px;
+	}
+	.toolCard .toolText span {
+		overflow: hidden;
+		font-size: 12px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+}
+/* The save button comes first on the narrowest phones. Pages still zoom
+ * with two fingers. */
+@media (max-width: 380px) {
+	.markZoom > span {
+		display: none;
+	}
+}
+@media (max-width: 340px) {
+	.markZoom > :nth-child(n + 3) {
+		display: none;
+	}
+}
 .swatches {
 	display: flex;
 	gap: 8px;
@@ -1484,4 +1599,144 @@
 .markNote {
 	cursor: pointer;
 	pointer-events: auto;
+}
+
+/* A photo of a signature: the part kept, and how dark its ink reads. */
+.photoTrim {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	width: 100%;
+}
+.photoFrame {
+	position: relative;
+	margin: 0 auto;
+	overflow: hidden;
+	border-radius: var(--r-s);
+	touch-action: none;
+	cursor: crosshair;
+}
+.photoFrame img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: fill;
+	pointer-events: none;
+}
+.photoKeep {
+	position: absolute;
+	border: 2px solid var(--accent);
+	border-radius: 3px;
+	box-shadow: 0 0 0 999px rgb(0 0 0 / 0.42);
+	pointer-events: none;
+}
+.photoResult {
+	display: grid;
+	place-items: center;
+	width: 100%;
+	height: 84px;
+	flex: none;
+}
+.photoResult .photoPreview {
+	max-width: 100%;
+	max-height: 84px;
+	margin: 0;
+}
+.inkDepth {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	font-size: 12px;
+	color: var(--text-3);
+}
+.inkDepth input {
+	flex: 1;
+	min-width: 0;
+}
+
+/* Measuring: what to measure, and setting the scale. */
+.measureRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+/* A small choice inside the tool's own bar. */
+.segment {
+	display: inline-flex;
+	gap: 2px;
+	padding: 2px;
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.segment button {
+	min-height: 32px;
+	padding: 0 12px;
+	border-radius: 8px;
+	color: var(--accent);
+	font-size: 13px;
+	font-weight: 600;
+}
+.segment button[aria-pressed="true"] {
+	background: var(--surface);
+	box-shadow: var(--shadow-1, 0 1px 2px rgb(0 0 0 / 0.12));
+}
+.scaleFields {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 96px;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+/* Mark up has more tools than a title bar has room for: on any desktop
+ * window they keep a row of their own, in the middle. */
+@media (min-width: 700px) {
+	:global(html.desktop) .markFill {
+		grid-template-columns: minmax(160px, 1fr) auto;
+		grid-template-areas: "title actions" "tools tools" "hint hint" "pages pages";
+		grid-template-rows: 44px auto auto minmax(0, 1fr);
+	}
+	:global(html.desktop) .markFill .toolbar {
+		justify-content: safe center;
+		padding: 6px 12px;
+	}
+	:global(html.desktop) .markFill .fillActions {
+		gap: 8px;
+	}
+	:global(html.desktop) .markFill .fillActions > button {
+		margin-inline-start: 0;
+	}
+}
+
+/* On a phone the foot of Mark up keeps Save a copy and Done on screen:
+ * two fingers zoom there, so its zoom buttons can go. A tool with choices
+ * has its hint on a line of its own, above them. */
+@media (max-width: 520px) {
+	.markFill .fillActions {
+		gap: 6px;
+		padding-inline: 8px;
+	}
+	.markFill .fillActions > button {
+		margin-inline-start: 0;
+		padding-inline: 14px;
+		white-space: nowrap;
+	}
+	.markFill .fillActions > button:first-of-type {
+		margin-inline-start: auto;
+	}
+	.markFill .markZoom > :nth-child(n + 3) {
+		display: none;
+	}
+	.markFill .markOptions:has(.segment) {
+		flex-wrap: wrap;
+		padding-block: 6px;
+	}
+	.markFill .markOptions:has(.segment) p {
+		flex-basis: 100%;
+	}
+	.measureRow > button {
+		min-height: 36px;
+		padding-inline: 10px;
+	}
 }

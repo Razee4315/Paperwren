@@ -469,6 +469,42 @@ html.touch ::-webkit-scrollbar {
 	}
 }
 
+/* The reader's marks on a PDF's pages (see pdfMarks.ts). The filter is
+ * on the page's canvas, not on these: on a dark page a highlight glows
+ * instead of multiplying away. */
+.pw-marks-under,
+.pw-marks-over {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 1;
+	/* Marks in cropped margins stay off the next page. */
+	overflow: hidden;
+	pointer-events: none;
+}
+.pw-marks-under {
+	mix-blend-mode: multiply;
+	opacity: 0.65;
+}
+[data-page-color="dark"] .pw-marks-under {
+	mix-blend-mode: screen;
+	opacity: 0.4;
+}
+.pw-mark-pulse {
+	animation: pw-mark-pulse 1.2s ease-out;
+}
+@keyframes pw-mark-pulse {
+	30% {
+		filter: drop-shadow(0 0 6px var(--accent)) brightness(1.1);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.pw-mark-pulse {
+		animation: none;
+	}
+}
+
 /* The sentence being read aloud. */
 ::highlight(pw-speech) {
 	background-color: color-mix(in srgb, var(--accent) 24%, transparent);

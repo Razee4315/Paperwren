@@ -93,6 +93,7 @@ export function normalizeSettings(value: unknown): Settings {
 		speechRate: pick(raw.speechRate, SPEECH_RATES, DEFAULT_SETTINGS.speechRate),
 		volumeKeys: bool(raw.volumeKeys, DEFAULT_SETTINGS.volumeKeys),
 		tapToTurn: bool(raw.tapToTurn, DEFAULT_SETTINGS.tapToTurn),
+		reopenLast: bool(raw.reopenLast, DEFAULT_SETTINGS.reopenLast),
 		autoHideBars: bool(raw.autoHideBars, DEFAULT_SETTINGS.autoHideBars),
 		dim: range(raw.dim, 0, MAX_DIM, DEFAULT_SETTINGS.dim),
 		scrollSpeed: range(

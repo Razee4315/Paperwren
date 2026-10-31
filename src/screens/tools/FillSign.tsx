@@ -52,6 +52,8 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { whole } from "../viewer/pdfCrop";
+import { SIGNED_WARNING } from "./MarkUp";
 import { SignaturePad } from "./SignaturePad";
 import { StampPad } from "./StampPad";
 import s from "./Tools.module.css";
@@ -123,7 +125,7 @@ async function readFields(doc: PDFDocumentProxy): Promise<Field[]> {
 	const out: Field[] = [];
 	for (let n = 1; n <= doc.numPages && out.length < 2000; n++) {
 		const page = await doc.getPage(n);
-		const view = page.getViewport({ scale: 1 });
+		const view = whole(page, () => page.getViewport({ scale: 1 }));
 		const widgets = (await page.getAnnotations({
 			intent: "display",
 		})) as Widget[];
@@ -242,6 +244,8 @@ export function FillSign({
 	name,
 	password,
 	canMark,
+	signed = false,
+	startPage = 0,
 	onClose,
 	onSaved,
 }: {
@@ -250,6 +254,10 @@ export function FillSign({
 	password?: string;
 	/** The file's author allows more than its form to be filled. */
 	canMark: boolean;
+	/** The file has a digital signature, which a copy will not keep. */
+	signed?: boolean;
+	/** The page to open at, from 0. */
+	startPage?: number;
 	onClose: () => void;
 	onSaved?: (saved: SavedFile) => void;
 }) {
@@ -286,7 +294,8 @@ export function FillSign({
 		(async () => {
 			const out: Array<[number, number]> = [];
 			for (let n = 1; n <= doc.numPages; n++) {
-				const view = (await doc.getPage(n)).getViewport({ scale: 1 });
+				const page = await doc.getPage(n);
+				const view = whole(page, () => page.getViewport({ scale: 1 }));
 				out.push([view.width, view.height]);
 			}
 			if (alive) setSizes(out);
@@ -297,6 +306,17 @@ export function FillSign({
 			alive = false;
 		};
 	}, [doc]);
+
+	// Opened from a page: that page, once the pages are laid out.
+	const placed = useRef(false);
+	useEffect(() => {
+		if (placed.current || !sizes.length || !width) return;
+		placed.current = true;
+		if (startPage > 0)
+			scroller.current
+				?.querySelector(`[data-page="${startPage}"]`)
+				?.scrollIntoView({ block: "start" });
+	}, [sizes, width, startPage]);
 
 	useLayoutEffect(() => {
 		const el = scroller.current;
@@ -884,6 +904,7 @@ export function FillSign({
 					<p className={s.hint}>
 						{t("A new PDF is made; the file you opened stays as it was.")}
 					</p>
+					{signed && <p className={s.hint}>{t(SIGNED_WARNING)}</p>}
 					{changedFields.length > 0 && (
 						<label className={s.keep}>
 							<input
@@ -996,10 +1017,11 @@ export function FillPage({
 			const ctx = el?.getContext("2d");
 			if (!alive || !el || !ctx) return;
 			const density = Math.min(2, window.devicePixelRatio || 1);
-			const base = proxy.getViewport({ scale: 1 });
-			const viewport = proxy.getViewport({
-				scale: (width * density) / base.width,
-			});
+			// The whole page, whatever the reader has cropped on screen.
+			const base = whole(proxy, () => proxy.getViewport({ scale: 1 }));
+			const viewport = whole(proxy, () =>
+				proxy.getViewport({ scale: (width * density) / base.width }),
+			);
 			el.width = Math.ceil(viewport.width);
 			el.height = Math.ceil(viewport.height);
 			task = proxy.render({ canvasContext: ctx, viewport });

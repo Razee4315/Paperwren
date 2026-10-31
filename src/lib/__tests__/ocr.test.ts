@@ -17,8 +17,16 @@ describe("wordsOfTable", () => {
 			row(5, [220, 200, 180, 40], 91, "world"),
 		].join("\n");
 		expect(wordsOfTable(table, 1000, 2000)).toEqual([
-			{ text: "Hello", x: 0.1, y: 0.1, w: 0.1, h: 0.02, rtl: false },
-			{ text: "world", x: 0.22, y: 0.1, w: 0.18, h: 0.02, rtl: false },
+			{ text: "Hello", x: 0.1, y: 0.1, w: 0.1, h: 0.02, rtl: false, sure: 96 },
+			{
+				text: "world",
+				x: 0.22,
+				y: 0.1,
+				w: 0.18,
+				h: 0.02,
+				rtl: false,
+				sure: 91,
+			},
 		]);
 	});
 

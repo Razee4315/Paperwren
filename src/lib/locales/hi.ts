@@ -173,8 +173,6 @@ export const hi: Table = {
 	Privacy: "गोपनीयता",
 	"Paperwren never connects to the internet. It has no ads, no accounts and no analytics, and it asks for no permissions.":
 		"Paperwren कभी इंटरनेट से नहीं जुड़ता। इसमें न विज्ञापन हैं, न खाते, न एनालिटिक्स, और यह कोई अनुमति नहीं माँगता।",
-	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
-		"फ़ाइलें इसी डिवाइस पर पढ़ी जाती हैं। हाल की सूची, आपकी सेटिंग और खोली गई फ़ाइलों की प्रतियाँ ऐप के निजी स्टोरेज में रहती हैं और ऊपर से हटाई जा सकती हैं। पासवर्ड एक बार इस्तेमाल होते हैं और कभी सहेजे नहीं जाते।",
 	About: "परिचय",
 	"Email address copied": "ईमेल पता कॉपी हो गया",
 	Contact: "संपर्क",
@@ -935,8 +933,6 @@ export const hi: Table = {
 	Colour: "रंग",
 	"Colour {n}": "रंग {n}",
 	Thickness: "मोटाई",
-	"Scroll and zoom the pages. Tap a note to read or change it.":
-		"पृष्ठों को स्क्रॉल और ज़ूम करें। किसी नोट को पढ़ने या बदलने के लिए उस पर टैप करें।",
 	"Write with a finger, stylus or mouse. Two fingers scroll.":
 		"उँगली, स्टाइलस या माउस से लिखें। दो उँगलियों से स्क्रॉल करें।",
 	"Colour over anything on the page. Two fingers scroll.":
@@ -990,26 +986,135 @@ export const hi: Table = {
 		"यह PDF पहले से ही जितनी छोटी हो सकती है उतनी है, इसलिए कोई प्रति नहीं बनी।",
 	"{was} down to {now}, {n}% smaller": "{was} से घटकर {now}, {n}% की कमी",
 	compressed: "आकार घटाया",
-	"PDF to text": "PDF से टेक्स्ट",
-	"The words of a PDF as a text file": "PDF के शब्द टेक्स्ट फ़ाइल के रूप में",
-	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
-		"PDF चुनें और उसके शब्द टेक्स्ट फ़ाइल में सहेजें। स्कैन की गई चीज़ एक तस्वीर होती है, इसलिए उसमें शब्द नहीं होते।",
-	"This PDF has no text in it. A scan is only pictures of pages.":
-		"इस PDF में कोई टेक्स्ट नहीं है। स्कैन में सिर्फ़ पृष्ठों की तस्वीरें होती हैं।",
 	"Save as text": "टेक्स्ट के रूप में सहेजें",
-	"Make a scan searchable": "स्कैन को खोजने योग्य बनाएँ",
-	"A copy of a scan whose words you can search and select":
-		"स्कैन की ऐसी प्रति जिसके शब्द आप खोज और चुन सकें",
-	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
-		"स्कैन किया हुआ PDF और उसकी भाषा चुनें। प्रति में पृष्ठ बिल्कुल वैसे ही दिखेंगे।",
 	"Language of the document": "दस्तावेज़ की भाषा",
-	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
-		"हर पृष्ठ में कई सेकंड लगते हैं, फ़ोन पर इससे ज़्यादा। साफ़ छपाई सबसे अच्छी पढ़ी जाती है: हाथ की लिखावट, धुंधले स्कैन और नस्तालीक़ उर्दू में ग़लतियाँ हो सकती हैं।",
 	"Reading page {n} of {total}": "पृष्ठ {n} / {total} पढ़ा जा रहा है",
-	"Make searchable": "खोजने योग्य बनाएँ",
-	"This PDF already has words you can search, so no copy was made.":
-		"इस PDF में पहले से खोजने योग्य शब्द हैं, इसलिए कोई प्रति नहीं बनाई गई।",
-	"No words were found on its pages, so no copy was made.":
-		"इसके पृष्ठों पर कोई शब्द नहीं मिले, इसलिए कोई प्रति नहीं बनाई गई।",
 	searchable: "खोजने योग्य",
+	"Nothing found yet.": "अभी कुछ नहीं मिला।",
+	"Showing the first {n} pages.": "पहले {n} पृष्ठ दिखाए जा रहे हैं।",
+	"Try a sample document": "नमूना दस्तावेज़ आज़माएँ",
+	"Found on {n} pages": {
+		one: "{n} पृष्ठ पर मिला",
+		other: "{n} पृष्ठों पर मिला",
+	},
+	"Copy the words in this picture": "इस चित्र के शब्द कॉपी करें",
+	Picture: "चित्र",
+	"View picture": "चित्र देखें",
+	"Couldn't show this picture": "यह चित्र दिखाया नहीं जा सका",
+	"This PDF has a digital signature. A changed copy won't keep it valid.":
+		"इस PDF पर डिजिटल हस्ताक्षर है। बदली हुई प्रति में वह मान्य नहीं रहेगा।",
+	"This page has a place to sign.": "इस पृष्ठ पर हस्ताक्षर करने की जगह है।",
+	"This adds a picture of your signature, not a digital certificate.":
+		"यह आपके हस्ताक्षर का चित्र जोड़ता है, डिजिटल प्रमाणपत्र नहीं।",
+	"Drag around your signature to leave out the rest.":
+		"बाकी हिस्सा छोड़ने के लिए अपने हस्ताक्षर के चारों ओर खींचें।",
+	Lighter: "हल्का",
+	"How dark the ink reads": "स्याही कितनी गहरी दिखे",
+	Darker: "गहरा",
+	"Enter a length above zero.": "शून्य से बड़ी लंबाई दर्ज करें।",
+	Measure: "मापें",
+	"Scroll and zoom the pages. Tap a note or a text box to change it.":
+		"पृष्ठों को स्क्रॉल और ज़ूम करें। किसी नोट या टेक्स्ट बॉक्स को बदलने के लिए उस पर टैप करें।",
+	"Tap the page where the text goes.": "पृष्ठ पर जहाँ टेक्स्ट रखना हो वहाँ टैप करें।",
+	"Drag along something whose real length you know.":
+		"किसी ऐसी चीज़ के साथ खींचें जिसकी असली लंबाई आपको पता हो।",
+	"Tap each corner, then choose Finish shape.":
+		"हर कोने पर टैप करें, फिर «आकार पूरा करें» चुनें।",
+	"Drag from one end to the other to measure it.":
+		"मापने के लिए एक सिरे से दूसरे सिरे तक खींचें।",
+	Length: "लंबाई",
+	Area: "क्षेत्रफल",
+	"Finish shape": "आकार पूरा करें",
+	"Set the scale": "स्केल तय करें",
+	"Size {n}": "आकार {n}",
+	"How long is that line?": "वह रेखा कितनी लंबी है?",
+	Unit: "इकाई",
+	"Everything measured on this page will use this scale.":
+		"इस पृष्ठ पर मापी गई हर चीज़ इसी स्केल का उपयोग करेगी।",
+	Show: "दिखाएँ",
+	"Couldn't mark that selection": "उस चयन पर निशान नहीं लग सका",
+	"Kept on this device. Find it under Highlights.":
+		"इसी डिवाइस पर रखा गया है। इसे «हाइलाइट» में देखें।",
+	"Mark removed": "निशान हटा दिया गया",
+	Mark: "निशान",
+	"Edit note": "नोट संपादित करें",
+	notes: "नोट्स",
+	"Notes about this document": "इस दस्तावेज़ के बारे में नोट्स",
+	"Select words on a page, then pick a colour. What you mark shows up here and stays with this PDF.":
+		"किसी पृष्ठ पर शब्द चुनें, फिर रंग चुनें। आप जो निशान लगाएँगे वह यहाँ दिखेगा और इस PDF के साथ रहेगा।",
+	"Save as a file": "फ़ाइल के रूप में सहेजें",
+	"Save a copy with them": "उनके साथ एक प्रति सहेजें",
+	"Kept on this device. The PDF itself is not changed.":
+		"इसी डिवाइस पर रखा गया है। PDF में खुद कोई बदलाव नहीं होता।",
+	"This PDF has a password, so nothing is kept. Save a copy to keep your marks.":
+		"इस PDF पर पासवर्ड है, इसलिए कुछ भी नहीं रखा जाता। अपने निशान रखने के लिए प्रति सहेजें।",
+	"p. {n}": "पृ. {n}",
+	"Everything you marked, in one list": "आपके सभी निशान, एक सूची में",
+	"Highlights and notes": "हाइलाइट और नोट्स",
+	"A new PDF other apps can show them in": "एक नई PDF जिसमें दूसरे ऐप उन्हें दिखा सकें",
+	"Save a copy with my marks": "मेरे निशानों के साथ प्रति सहेजें",
+	"All results": "सभी परिणाम",
+	Highlights: "हाइलाइट",
+	"Highlights deleted": "हाइलाइट हटा दिए गए",
+	"Delete highlights and notes on documents": "दस्तावेज़ों पर हाइलाइट और नोट्स हटाएँ",
+	"Plus {n} drawings on the pages": {
+		one: "साथ में पृष्ठों पर {n} चित्रांकन",
+		other: "साथ में पृष्ठों पर {n} चित्रांकन",
+	},
+	"In {n} documents, kept only on this device": {
+		one: "{n} दस्तावेज़ में, सिर्फ़ इसी डिवाइस पर रखे गए",
+		other: "{n} दस्तावेज़ों में, सिर्फ़ इसी डिवाइस पर रखे गए",
+	},
+	"Copy its words, even from a scan": "इसके शब्द कॉपी करें, स्कैन से भी",
+	"This page is a scan.": "यह पृष्ठ एक स्कैन है।",
+	"Read its text": "इसका टेक्स्ट पढ़ें",
+	"Couldn't read this page": "यह पृष्ठ पढ़ा नहीं जा सका",
+	"Added to Notes": "नोट्स में जोड़ा गया",
+	"Getting ready…": "तैयार हो रहा है…",
+	"No words were found": "कोई शब्द नहीं मिले",
+	"Read text": "टेक्स्ट पढ़ें",
+	"Get the words from these pages": "इन पृष्ठों से शब्द निकालें",
+	"You'll see each page being read, and its text will appear here to copy. Nothing leaves this device.":
+		"आप हर पृष्ठ को पढ़े जाते देखेंगे, और उसका टेक्स्ट कॉपी करने के लिए यहाँ दिखेगा। कुछ भी इस डिवाइस से बाहर नहीं जाता।",
+	"Only page {n}": "केवल पृष्ठ {n}",
+	"Clear print reads best. Handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"साफ़ छपाई सबसे अच्छी पढ़ी जाती है। हाथ की लिखावट, धुंधले स्कैन और नस्तालीक़ उर्दू में ग़लतियाँ हो सकती हैं।",
+	"The words will appear here.": "शब्द यहाँ दिखाई देंगे।",
+	"Its own text": "इसका अपना टेक्स्ट",
+	"No words on this page.": "इस पृष्ठ पर कोई शब्द नहीं हैं।",
+	"You can stop at any time and keep what's been read.":
+		"आप कभी भी रुक सकते हैं और जो पढ़ा जा चुका है उसे रख सकते हैं।",
+	Stop: "रोकें",
+	"Read {n} more pages": {
+		one: "{n} और पृष्ठ पढ़ें",
+		other: "{n} और पृष्ठ पढ़ें",
+	},
+	"{n} words found": {
+		one: "{n} शब्द मिला",
+		other: "{n} शब्द मिले",
+	},
+	"Copy all": "सब कॉपी करें",
+	"Add to Notes": "नोट्स में जोड़ें",
+	"Save a searchable PDF": "खोजने योग्य PDF सहेजें",
+	"Copy with page numbers, for an AI assistant":
+		"पृष्ठ संख्याओं के साथ कॉपी करें, AI असिस्टेंट के लिए",
+	"Get the words from a PDF, a scan or a photo": "PDF, स्कैन या फ़ोटो से शब्द निकालें",
+	"Choose a PDF or a picture. You'll watch it being read, and its text will appear on the screen.":
+		"PDF या चित्र चुनें। आप उसे पढ़े जाते देखेंगे, और उसका टेक्स्ट स्क्रीन पर दिखेगा।",
+	"{name} isn't a PDF or a picture": "{name} न PDF है, न चित्र",
+	"Start with a PDF or a picture": "PDF या चित्र से शुरू करें",
+	"Open the last document at start": "शुरू में आख़िरी दस्तावेज़ खोलें",
+	"Go back to what you were reading when the app opens":
+		"ऐप खुलने पर वहीं लौटें जो आप पढ़ रहे थे",
+	"Files are read on this device. The recent list, your highlights and notes, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
+		"फ़ाइलें इसी डिवाइस पर पढ़ी जाती हैं। हाल की सूची, आपके हाइलाइट और नोट्स, आपकी सेटिंग और खोली गई फ़ाइलों की प्रतियाँ ऐप के निजी स्टोरेज में रहती हैं और ऊपर से हटाई जा सकती हैं। पासवर्ड एक बार इस्तेमाल होते हैं और कभी सहेजे नहीं जाते।",
+	"What's new": "नया क्या है",
+	"Press Esc to leave full screen": "फ़ुल स्क्रीन से बाहर निकलने के लिए Esc दबाएँ",
+	"Highlight the selected words, or add a note to them":
+		"चुने हुए शब्दों को हाइलाइट करें, या उनमें नोट जोड़ें",
+	"Draw on a PDF, or add text to it": "PDF पर चित्र बनाएँ, या उसमें टेक्स्ट जोड़ें",
+	"Undo and redo a mark": "किसी निशान को पूर्ववत या फिर से करें",
+	"Remove the mark you tapped": "जिस निशान पर टैप किया उसे हटाएँ",
+	"Turn the pages, or show two side by side": "पृष्ठ पलटें, या दो साथ-साथ दिखाएँ",
+	"Show this list": "यह सूची दिखाएँ",
 };

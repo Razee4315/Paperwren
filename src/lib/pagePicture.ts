@@ -26,6 +26,7 @@ export async function drawPage(
 		type,
 		rotation = page.rotate,
 		viewportOf = (params) => page.getViewport(params),
+		after,
 	}: {
 		dpi: number;
 		type: PagePicture["type"];
@@ -33,6 +34,8 @@ export async function drawPage(
 		/** How the page's box is measured (the viewer swaps in the whole
 		 * page while its margins are cropped on screen). */
 		viewportOf?: (params: { scale: number; rotation: number }) => PageViewport;
+		/** Draws over the page before it becomes a picture. */
+		after?: (ctx: CanvasRenderingContext2D, viewport: PageViewport) => void;
 	},
 ): Promise<PagePicture> {
 	const base = viewportOf({ scale: 1, rotation });
@@ -52,6 +55,7 @@ export async function drawPage(
 	// page is drawn even while the app is off screen.
 	await page.render({ canvasContext: context, viewport, intent: "print" })
 		.promise;
+	after?.(context, viewport);
 	const blob = await new Promise<Blob | null>((done) =>
 		canvas.toBlob(done, type, type === "image/jpeg" ? 0.9 : undefined),
 	);

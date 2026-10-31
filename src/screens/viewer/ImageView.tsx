@@ -6,8 +6,18 @@ import { type Pictures, readPictures, systemDecode } from "@/lib/pictures";
 import { idForReopen } from "@/lib/recents";
 import { picturesAround } from "@/lib/siblings";
 import type { OpenRequest } from "@/lib/types";
+import { ReadText } from "@/screens/tools/ReadText";
+import { type ReadSource, pictureSource } from "@/screens/tools/readSource";
+import { announceSaved } from "@/screens/tools/saved";
 import { useSettings } from "@/state/settings";
-import { Button, ErrorArt, IconButton, SheetItem, StateView } from "@/ui";
+import {
+	Button,
+	ErrorArt,
+	IconButton,
+	SheetItem,
+	StateView,
+	toast,
+} from "@/ui";
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -17,6 +27,7 @@ import {
 	RotateCcw,
 	RotateCw,
 	ScanLine,
+	ScanText,
 } from "lucide-react";
 import {
 	useContext,
@@ -281,6 +292,7 @@ export default function ImageView({
 
 	// --- one picture: the others of its folder, to step through ---
 	const context = useContext(ViewerFileContext);
+	const [reading, setReading] = useState<ReadSource | null>(null);
 	const file = context?.file;
 	const openOther = context?.openOther;
 	const [beside, setBeside] = useState<OpenRequest[]>([]);
@@ -445,6 +457,23 @@ export default function ImageView({
 										testId="image-save-page"
 									>
 										{t("Save this picture")}
+									</SheetItem>
+								)}
+								{!several && (
+									<SheetItem
+										icon={<ScanText size={20} />}
+										hint={t("Copy the words in this picture")}
+										onClick={() => {
+											close();
+											const image = picture.current;
+											if (!image) return;
+											pictureSource(image, name)
+												.then(setReading)
+												.catch(() => toast(t("Couldn't read this page")));
+										}}
+										testId="image-read-text"
+									>
+										{t("Read text")}
 									</SheetItem>
 								)}
 								{!several && context?.openTools && (
@@ -634,6 +663,13 @@ export default function ImageView({
 				<span className={s.counting}>
 					{tn(count, "{n} picture", "{n} pictures")}
 				</span>
+			)}
+			{reading && (
+				<ReadText
+					source={reading}
+					onClose={() => setReading(null)}
+					onSaved={(saved) => announceSaved(saved, context?.openOver)}
+				/>
 			)}
 		</Shell>
 	);

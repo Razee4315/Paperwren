@@ -74,6 +74,21 @@ export async function open(bytes: Uint8Array, password?: string): Promise<Doc> {
 	}
 }
 
+const SIGNED = new TextEncoder().encode("/ByteRange");
+
+/** True for a PDF with a digital signature: the mark every signature
+ * dictionary carries. A copy rewrites the file, which breaks it. */
+export function digitallySigned(bytes: Uint8Array): boolean {
+	let at = bytes.indexOf(SIGNED[0]);
+	while (at >= 0) {
+		let i = 1;
+		while (i < SIGNED.length && bytes[at + i] === SIGNED[i]) i++;
+		if (i === SIGNED.length) return true;
+		at = bytes.indexOf(SIGNED[0], at + 1);
+	}
+	return false;
+}
+
 /** The page's box as shown (pdf.js shows the crop box), and the turn
  * the file gives it, in degrees clockwise. */
 export function shownBox(page: PDFPage) {
@@ -720,6 +735,8 @@ export interface ReadWord {
 	w: number;
 	h: number;
 	rtl: boolean;
+	/** How sure the reader was, out of 100, for words it read itself. */
+	sure?: number;
 }
 
 /** Tesseract's own font for a text layer (Apache-2.0): every character

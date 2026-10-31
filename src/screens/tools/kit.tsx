@@ -33,7 +33,7 @@ export interface ToolFile {
 let keys = 0;
 
 /** What the tools take in. */
-export type Takes = "pdf" | "image";
+export type Takes = "pdf" | "image" | "any";
 
 /** Ask for a PDF's password until it opens or the reader gives up. */
 function usePassword() {
@@ -93,8 +93,12 @@ export function useToolFiles(takes: Takes, initial?: OpenRequest) {
 					toast(t("{name} isn't a picture", { name: request.name }));
 					return;
 				}
+				if (takes === "any" && format !== "pdf" && format !== "image") {
+					toast(t("{name} isn't a PDF or a picture", { name: request.name }));
+					return;
+				}
 				const file: ToolFile = { key: ++keys, name: request.name, bytes };
-				if (takes === "pdf") {
+				if (format === "pdf" && takes !== "image") {
 					let tried: string | undefined;
 					let wrong = false;
 					for (;;) {
@@ -224,16 +228,18 @@ export function FileList({
 					{!files.length && (
 						<>
 							<span className={s.pickIcon}>
-								{kit.takes === "pdf" ? (
-									<FilePlus2 size={30} />
-								) : (
+								{kit.takes === "image" ? (
 									<Image size={30} />
+								) : (
+									<FilePlus2 size={30} />
 								)}
 							</span>
 							<h3>
 								{kit.takes === "pdf"
 									? t("Start with your PDF")
-									: t("Start with your pictures")}
+									: kit.takes === "any"
+										? t("Start with a PDF or a picture")
+										: t("Start with your pictures")}
 							</h3>
 							<p>{t("Choose a file from your device to get started.")}</p>
 						</>
