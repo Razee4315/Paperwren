@@ -3,12 +3,13 @@ import {
 	type Scales,
 	loadMarks,
 	saveMarks,
+	watchMarks,
 } from "@/lib/docMarks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /** A step that can be undone: the marks as they were. */
 const MAX_STEPS = 100;
-const SAVE_AFTER = 400;
+const SAVE_AFTER = 250;
 
 /** One document's marks, while it is open. */
 export interface MarkStore {
@@ -60,14 +61,17 @@ export function useDocMarks(
 		unsaved.current = false;
 		const doc = current.current;
 		if (!doc.key || !doc.persist) return;
-		saveMarks({
-			key: doc.key,
-			name: doc.name,
-			note: doc.note,
-			marks: doc.list,
-			scales: doc.scales,
-			updatedAt: Date.now(),
-		}).catch(() => {});
+		saveMarks(
+			{
+				key: doc.key,
+				name: doc.name,
+				note: doc.note,
+				marks: doc.list,
+				scales: doc.scales,
+				updatedAt: Date.now(),
+			},
+			current,
+		).catch(() => {});
 	}, []);
 
 	// Another document: what is waiting to be written belongs to the last
@@ -106,6 +110,46 @@ export function useDocMarks(
 		});
 		return () => {
 			alive = false;
+		};
+	}, [key, persist]);
+
+	// Changed elsewhere (Mark up from the tools, another tab or window,
+	// Settings): what is shown here follows, or the next save here would
+	// put the old marks back. Work not yet written here comes first.
+	useEffect(() => {
+		if (!key || !persist) return;
+		let alive = true;
+		const follow = () => {
+			if (unsaved.current) return;
+			loadMarks(key).then((doc) => {
+				if (!alive || unsaved.current) return;
+				const marks = doc?.marks ?? [];
+				const same =
+					JSON.stringify(marks) === JSON.stringify(current.current.list);
+				if (!same) {
+					past.current = [];
+					future.current = [];
+					setSteps({ back: 0, forward: 0 });
+					current.current.list = marks;
+					setList(marks);
+				}
+				const text = doc?.note ?? "";
+				current.current.note = text;
+				setNoteState(text);
+				const sizes = doc?.scales ?? {};
+				current.current.scales = sizes;
+				setScalesState(sizes);
+			});
+		};
+		const stop = watchMarks(key, (from) => {
+			if (from !== current) follow();
+		});
+		// A desktop's other windows write to the same store.
+		window.addEventListener("focus", follow);
+		return () => {
+			alive = false;
+			stop();
+			window.removeEventListener("focus", follow);
 		};
 	}, [key, persist]);
 
@@ -178,6 +222,8 @@ export function useDocMarks(
 	);
 	const setNote = useCallback(
 		(text: string) => {
+			// Also from a field going away, when state no longer updates.
+			current.current.note = text;
 			setNoteState(text);
 			changed();
 		},
@@ -185,6 +231,7 @@ export function useDocMarks(
 	);
 	const setScales = useCallback(
 		(next: Scales) => {
+			current.current.scales = next;
 			setScalesState(next);
 			changed();
 		},

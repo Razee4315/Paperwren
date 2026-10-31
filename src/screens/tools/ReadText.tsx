@@ -49,7 +49,11 @@ const WORDS_MAX_MS = 900;
 const wordCount = (reads: Record<number, PageRead>) =>
 	Object.values(reads).reduce(
 		(sum, read) =>
-			sum + read.lines.reduce((n, line) => n + line.words.length, 0),
+			sum +
+			read.lines.reduce(
+				(n, line) => n + line.text.split(/\s+/).filter(Boolean).length,
+				0,
+			),
 		0,
 	);
 
@@ -90,6 +94,8 @@ export function ReadText({
 }) {
 	const [phase, setPhase] = useState<Phase>("ready");
 	const [lang, setLang] = useState<Language>(language);
+	/** The language of the pages read so far. */
+	const readIn = useRef<Language>(lang);
 	const [scope, setScope] = useState<"all" | "this">("all");
 	const [reads, setReads] = useState<Record<number, PageRead>>({});
 	const readsRef = useRef(reads);
@@ -140,6 +146,7 @@ export function ReadText({
 				pages[Number(page)] = { lines, own: false };
 			if (!Object.keys(pages).length) return;
 			setLang(kept.language);
+			readIn.current = kept.language;
 			setReads(pages);
 			setPhase("done");
 		});
@@ -202,8 +209,21 @@ export function ReadText({
 	};
 
 	const run = async () => {
+		// Read in another language, what was read before gives way now
+		// that it is being replaced, and not a moment sooner.
+		if (lang !== readIn.current) {
+			const kept: Record<number, PageRead> = {};
+			for (const [page, read] of Object.entries(readsRef.current))
+				if (read.own) kept[Number(page)] = read;
+			readsRef.current = kept;
+			setReads(kept);
+			readIn.current = lang;
+		}
 		const todo = pagesWanted.filter((page) => !readsRef.current[page]);
-		if (!todo.length) return;
+		if (!todo.length) {
+			setPhase("done");
+			return;
+		}
 		const job = new OcrReader(lang);
 		reader.current = job;
 		const release = holdScreen();
@@ -257,14 +277,12 @@ export function ReadText({
 
 	const changeLanguage = (next: Language) => {
 		setLang(next);
-		if (phase !== "done") return;
-		// Read in the wrong language, the words are wrong: start over.
-		const kept: Record<number, PageRead> = {};
-		for (const [page, read] of Object.entries(reads))
-			if (read.own) kept[Number(page)] = read;
-		setReads(kept);
-		keep(kept, next);
-		setPhase("ready");
+		if (phase === "reading") return;
+		// Only what was worked out depends on the language.
+		const scannedPages = Object.values(reads).some((read) => !read.own);
+		if (!scannedPages) return;
+		// Back to the language it was read in: nothing to do after all.
+		setPhase(next === readIn.current ? "done" : "ready");
 	};
 
 	// The text follows the reading, until the reader scrolls it themself.
@@ -590,19 +608,22 @@ export function ReadText({
 													}
 													onClick={() => light(page, index)}
 												>
-													{line.words.map((word, i) => (
-														<span
-															key={i}
-															className={
-																word.sure !== undefined && word.sure < DOUBTFUL
-																	? s.doubtful
-																	: undefined
-															}
-														>
-															{i ? " " : ""}
-															{word.text}
-														</span>
-													))}
+													{reads[page].own
+														? line.text
+														: line.words.map((word, i) => (
+																<span
+																	key={i}
+																	className={
+																		word.sure !== undefined &&
+																		word.sure < DOUBTFUL
+																			? s.doubtful
+																			: undefined
+																	}
+																>
+																	{i ? " " : ""}
+																	{word.text}
+																</span>
+															))}
 												</p>
 											))}
 										</article>

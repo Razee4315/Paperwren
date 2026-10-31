@@ -49,7 +49,16 @@ interface Selected {
 /** Said once, after the very first mark. */
 const TOLD_KEY = "paperwren.marks-told";
 
-function tellOnce(message: string, show: () => void) {
+function tellOnce(message: string, show: () => void, kept: boolean) {
+	// Kept nowhere: that is worth saying every time it could matter.
+	if (!kept) {
+		toast(
+			t(
+				"This PDF has a password, so nothing is kept. Save a copy to keep your marks.",
+			),
+		);
+		return;
+	}
 	try {
 		if (localStorage.getItem(TOLD_KEY)) return;
 		localStorage.setItem(TOLD_KEY, "1");
@@ -310,7 +319,11 @@ export const Marking = forwardRef<
 			})),
 		);
 		clear();
-		tellOnce(t("Kept on this device. Find it under Highlights."), onShowMarks);
+		tellOnce(
+			t("Kept on this device. Find it under Highlights."),
+			onShowMarks,
+			store.persist,
+		);
 	};
 
 	const copy = async () => {
@@ -350,6 +363,7 @@ export const Marking = forwardRef<
 				tellOnce(
 					t("Kept on this device. Find it under Highlights."),
 					onShowMarks,
+					store.persist,
 				);
 			},
 		});

@@ -315,6 +315,16 @@ export default function PdfView({
 	marksRef.current = marks;
 	const marking = useRef<MarkingHandle>(null);
 	const [scrollBox, setScrollBox] = useState<HTMLDivElement | null>(null);
+	const holdScroller = useCallback((el: HTMLDivElement | null) => {
+		(container as { current: HTMLDivElement | null }).current = el;
+		setScrollBox(el);
+	}, []);
+	// With a password nothing is kept, so going is worth a question.
+	const [leaving, setLeaving] = useState(false);
+	const leave = () => {
+		if (!marks.persist && marks.ready && marks.list.length) setLeaving(true);
+		else onClose();
+	};
 	const [marksOpen, setMarksOpen] = useState(false);
 	const [readingText, setReadingText] = useState(false);
 	const textSource = useMemo(
@@ -638,6 +648,10 @@ export default function PdfView({
 						placePictures(page, view.div, found, view.viewport.rotation);
 				});
 			};
+			// pdf.js clears a page's own layers before it draws it again.
+			eventBus.on("pagerender", (e: { source: DrawnPage }) =>
+				paintPage.current(e.source),
+			);
 			eventBus.on("pagerendered", (e: { source: DrawnPage }) => {
 				keepPictures.current(e.source);
 				paintPage.current(e.source);
@@ -1309,13 +1323,15 @@ export default function PdfView({
 					? ([mark.boxes[0].x, mark.boxes[0].y] as [number, number])
 					: ([mark.x, mark.y] as [number, number]);
 		const [x, y] = toDrawn(spot.map, place[0], place[1]);
-		const [left, top] = view.viewport.convertToPdfPoint(x, y);
+		// A little room above it, whichever way the page is turned.
+		const [left, top] = view.viewport.convertToPdfPoint(x, y - 48);
 		v.scrollPageIntoView({
 			pageNumber: mark.page + 1,
-			destArray: [null, { name: "XYZ" }, left, top + 48, null],
+			destArray: [null, { name: "XYZ" }, left, top, null],
 			allowNegativeOffset: true,
 		});
-		paintPage.current(view);
+		// A page not drawn yet shows it when it is.
+		if (view.renderingState === RENDERED) paintPage.current(view);
 	};
 
 	const pageName = (index: number) => {
@@ -2053,7 +2069,7 @@ export default function PdfView({
 		<Shell
 			name={name}
 			format={format}
-			onClose={onClose}
+			onClose={leave}
 			active={active}
 			hud={hud}
 			progressOf={container}
@@ -2095,10 +2111,7 @@ export default function PdfView({
 			}
 		>
 			<div
-				ref={(el) => {
-					(container as { current: HTMLDivElement | null }).current = el;
-					setScrollBox(el);
-				}}
+				ref={holdScroller}
 				className={`${s.container} ${across && fits ? s.snap : ""}`}
 				data-flow={across ? "across" : undefined}
 				data-one={across && spread ? "" : undefined}
@@ -2308,6 +2321,26 @@ export default function PdfView({
 						{t("Print these")}
 					</Button>
 				</form>
+			</Dialog>
+
+			<Dialog
+				open={leaving}
+				title={t("Leave without saving?")}
+				onClose={() => setLeaving(false)}
+				alert
+				testId="reader-leave"
+				actions={
+					<>
+						<Button variant="ghost" onClick={() => setLeaving(false)}>
+							{t("Keep editing")}
+						</Button>
+						<Button variant="danger" onClick={onClose}>
+							{t("Discard")}
+						</Button>
+					</>
+				}
+			>
+				{t("What you added is lost unless you save a copy.")}
 			</Dialog>
 
 			<Dialog

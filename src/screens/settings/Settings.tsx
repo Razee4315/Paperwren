@@ -2,6 +2,7 @@ import { backend, formatBytes } from "@/lib/backend";
 import { clearAllMarks, loadMarkList, restoreMarks } from "@/lib/docMarks";
 import { isDesktop, isTauri, isTouch, ownsFrame, sharesFrame } from "@/lib/env";
 import { LANGUAGES, type LanguageSetting, t, tn } from "@/lib/i18n";
+import { clearReads, readCount } from "@/lib/ocrStore";
 import {
 	SIGNATURES_KEY,
 	STAMPS_KEY,
@@ -166,7 +167,9 @@ export function SettingsScreen() {
 	const [markedCount, setMarkedCount] = useState(0);
 	const [newsOpen, setNewsOpen] = useState(false);
 	useEffect(() => {
-		loadMarkList().then((list) => setMarkedCount(list.length));
+		Promise.all([loadMarkList(), readCount()]).then(([list, reads]) =>
+			setMarkedCount(Math.max(list.length, reads)),
+		);
 	}, []);
 	const [stampCount, setStampCount] = useState(0);
 	useEffect(() => {
@@ -450,6 +453,7 @@ export function SettingsScreen() {
 							disabled={markedCount === 0}
 							onClick={async () => {
 								const previous = await clearAllMarks();
+								await clearReads();
 								setMarkedCount(0);
 								toast(t("Highlights deleted"), {
 									label: t("Undo"),

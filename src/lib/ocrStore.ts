@@ -40,8 +40,32 @@ export function validRead(raw: unknown): KeptRead | null {
 	return { language: read.language as Language, pages };
 }
 
+const LIST_KEY = "reads_v1";
+
+const readList = async (): Promise<string[]> => {
+	const list = await backend.storeGet(LIST_KEY).catch(() => null);
+	return Array.isArray(list)
+		? list.filter((key) => /^[0-9a-f]{32}$/.test(key))
+		: [];
+};
+
 export const loadRead = async (key: string) =>
 	validRead(await backend.storeGet(storeKey(key)).catch(() => null));
 
-export const saveRead = (key: string, read: KeptRead | null) =>
-	backend.storeSet(storeKey(key), read).catch(() => {});
+export async function saveRead(key: string, read: KeptRead | null) {
+	await backend.storeSet(storeKey(key), read).catch(() => {});
+	const rest = (await readList()).filter((other) => other !== key);
+	await backend
+		.storeSet(LIST_KEY, read ? [key, ...rest] : rest)
+		.catch(() => {});
+}
+
+/** How many documents have text kept. */
+export const readCount = async () => (await readList()).length;
+
+/** Forget everything read from scans. */
+export async function clearReads() {
+	for (const key of await readList())
+		await backend.storeSet(storeKey(key), null).catch(() => {});
+	await backend.storeSet(LIST_KEY, []).catch(() => {});
+}

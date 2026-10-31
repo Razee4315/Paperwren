@@ -36,7 +36,8 @@ const PAGES = [
 /** The sample as a PDF. */
 export async function samplePdf(): Promise<Uint8Array> {
 	const { PDFDocument, StandardFonts, rgb } = await import("@cantoo/pdf-lib");
-	const doc = await PDFDocument.create();
+	// No dates: the same bytes each time, so marks on it come back.
+	const doc = await PDFDocument.create({ updateMetadata: false });
 	doc.setTitle("Welcome to Paperwren");
 	const body = await doc.embedFont(StandardFonts.Helvetica);
 	const bold = await doc.embedFont(StandardFonts.HelveticaBold);

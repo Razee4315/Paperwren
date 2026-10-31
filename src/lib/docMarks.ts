@@ -253,9 +253,32 @@ function changeList(edit: (list: DocSummary[]) => DocSummary[]) {
 	return next;
 }
 
-/** Keep a document's record, or drop it once there is nothing in it. */
-export async function saveMarks(doc: DocMarks): Promise<void> {
-	const empty = !doc.marks.length && !doc.note.trim();
+const watchers = new Map<string, Set<(from: unknown) => void>>();
+
+/** Hear when a document's record changes. Several places can have one
+ * document open at once (a tab kept under the tools, Mark up, two tabs
+ * of one file). Returns a stop. */
+export function watchMarks(
+	key: string,
+	heard: (from: unknown) => void,
+): () => void {
+	const list = watchers.get(key) ?? new Set();
+	watchers.set(key, list);
+	list.add(heard);
+	return () => list.delete(heard);
+}
+
+const announce = (key: string, from?: unknown) => {
+	for (const heard of watchers.get(key) ?? []) heard(from);
+};
+
+/** Keep a document's record, or drop it once there is nothing in it.
+ * `from` is who wrote it, and already knows. */
+export async function saveMarks(doc: DocMarks, from?: unknown): Promise<void> {
+	const empty =
+		!doc.marks.length &&
+		!doc.note.trim() &&
+		!Object.keys(doc.scales ?? {}).length;
 	await backend.storeSet(docKey(doc.key), empty ? null : doc);
 	await changeList((list) => {
 		const rest = list.filter((n) => n.key !== doc.key);
@@ -263,6 +286,7 @@ export async function saveMarks(doc: DocMarks): Promise<void> {
 		const { key, name, updatedAt } = doc;
 		return [{ key, name, updatedAt, count: doc.marks.length }, ...rest];
 	});
+	announce(doc.key, from);
 }
 
 /** Every document's record: for a backup, and to undo clearing them. */
@@ -280,6 +304,7 @@ export async function clearAllMarks(): Promise<DocMarks[]> {
 	const docs = await allMarks();
 	for (const { key } of docs) await backend.storeSet(docKey(key), null);
 	await changeList(() => []);
+	for (const { key } of docs) announce(key);
 	return docs;
 }
 

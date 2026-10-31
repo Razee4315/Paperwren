@@ -6,7 +6,13 @@ import {
 } from "@/lib/signatures";
 import { Button, Dialog, toast } from "@/ui";
 import { Check, ImageUp, Maximize, Minimize, Redo2, Undo2 } from "lucide-react";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import {
+	type CSSProperties,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import s from "./Tools.module.css";
 import {
 	MAX_WIDTH,
@@ -593,7 +599,7 @@ function PhotoTrim({
 }) {
 	const box = useRef<HTMLDivElement>(null);
 	const from = useRef<[number, number] | null>(null);
-	const [url] = useState(() => source.toDataURL("image/jpeg", 0.7));
+	const url = useMemo(() => source.toDataURL("image/jpeg", 0.7), [source]);
 	const place = (e: React.PointerEvent): [number, number] => {
 		const r = box.current?.getBoundingClientRect();
 		if (!r) return [0, 0];

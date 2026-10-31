@@ -1048,7 +1048,10 @@ export function MarkUp({
 							</Button>
 							<Button
 								variant="danger"
-								onClick={onClose}
+								onClick={() => {
+									store.set([]);
+									onClose();
+								}}
 								data-testid="mark-discard"
 							>
 								{t("Discard")}

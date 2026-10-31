@@ -12,6 +12,7 @@ import type {
 	PDFDict,
 	PDFPage,
 	PDFRef,
+	PDFString,
 } from "@cantoo/pdf-lib";
 import { open, pagePoint, shownBox } from "./pdfTools";
 
@@ -172,6 +173,7 @@ async function attach(
 	ap: PDFRef,
 	extra: Record<string, unknown>,
 	contents?: string,
+	style?: PDFString,
 ) {
 	const { PDFHexString, PDFName } = await lib();
 	// The literal type does not name what `extra` holds.
@@ -186,6 +188,8 @@ async function attach(
 	} as never) as unknown as PDFDict;
 	if (contents)
 		dict.set(PDFName.of("Contents"), PDFHexString.fromText(contents));
+	// The default look of its words: a string, which `obj` would not make.
+	if (style) dict.set(PDFName.of("DA"), style);
 	page.node.addAnnot(doc.context.register(dict));
 }
 
@@ -335,13 +339,13 @@ async function addTextBox(
 	];
 	const rect = bounds(corners, 0);
 	const [r, g, b] = rgb(mark.color);
-	const fields = {
-		DA: `/Helv ${n(mark.size)} Tf ${n(r)} ${n(g)} ${n(b)} rg`,
-		BS: { W: 0 },
-	};
+	const fields = { BS: { W: 0 } };
+	const { PDFHexString, PDFName, PDFString } = await lib();
+	const style = PDFString.of(
+		`/Helv ${n(mark.size)} Tf ${n(r)} ${n(g)} ${n(b)} rg`,
+	);
 	if (!picture) {
 		// Nothing drawn: a viewer makes its own from the words.
-		const { PDFHexString, PDFName } = await lib();
 		const dict = doc.context.obj({
 			Type: "Annot",
 			Subtype: "FreeText",
@@ -351,6 +355,7 @@ async function addTextBox(
 			...fields,
 		} as never) as unknown as PDFDict;
 		dict.set(PDFName.of("Contents"), PDFHexString.fromText(mark.text));
+		dict.set(PDFName.of("DA"), style);
 		page.node.addAnnot(doc.context.register(dict));
 		return;
 	}
@@ -370,7 +375,7 @@ async function addTextBox(
 			},
 		),
 	);
-	await attach(doc, page, "FreeText", rect, ap, fields, mark.text);
+	await attach(doc, page, "FreeText", rect, ap, fields, mark.text, style);
 }
 
 /**

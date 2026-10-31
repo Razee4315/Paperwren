@@ -6,6 +6,7 @@ import {
 	PDFName,
 	type PDFNumber,
 	PDFRawStream,
+	PDFString,
 	degrees,
 } from "@cantoo/pdf-lib";
 import { describe, expect, it } from "vitest";
@@ -175,7 +176,7 @@ describe("text boxes and measurements", () => {
 		expect(
 			(box.lookup(PDFName.of("Contents")) as PDFHexString).decodeText(),
 		).toBe("Check this");
-		expect(box.has(PDFName.of("DA"))).toBe(true);
+		expect(box.lookup(PDFName.of("DA"))).toBeInstanceOf(PDFString);
 	});
 
 	it("writes a line with what it came to", async () => {

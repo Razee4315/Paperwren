@@ -35,13 +35,16 @@ async function scan(page: Page): Promise<Uint8Array> {
 	return doc.save();
 }
 
-async function openTool(page: Page, bytes: Uint8Array) {
+async function openTool(page: Page, bytes: Uint8Array, name = "scan.pdf") {
 	await page.getByTestId("open-tools").click();
 	await page.getByTestId("tool-ocr").click();
-	await page.evaluate((b64) => {
-		const data = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-		window.__paperwrenTestFile = new File([data], "scan.pdf");
-	}, Buffer.from(bytes).toString("base64"));
+	await page.evaluate(
+		({ b64, name }) => {
+			const data = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+			window.__paperwrenTestFile = new File([data], name);
+		},
+		{ b64: Buffer.from(bytes).toString("base64"), name },
+	);
 	await page.getByTestId("tool-add").click();
 	await expect(page.getByTestId("read-start")).toBeVisible({ timeout: 20_000 });
 }
@@ -93,7 +96,11 @@ test.describe("read text", () => {
 
 	test("the words can be saved as a text file", async ({ page }) => {
 		await boot(page);
-		await openTool(page, new Uint8Array(readFileSync("fixtures/sample.pdf")));
+		await openTool(
+			page,
+			new Uint8Array(readFileSync("fixtures/sample.pdf")),
+			"sample.pdf",
+		);
 		await page.getByTestId("read-start").click();
 		await expect(page.getByTestId("read-save-text")).toBeVisible({
 			timeout: 30_000,
