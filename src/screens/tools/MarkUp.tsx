@@ -1,4 +1,10 @@
 import { type SavedFile, backend } from "@/lib/backend";
+import {
+	type DocMark,
+	MARKER_COLORS,
+	PEN_COLORS,
+	newMarkId,
+} from "@/lib/docMarks";
 import { copyName } from "@/lib/fileName";
 import { t } from "@/lib/i18n";
 import {
@@ -7,8 +13,17 @@ import {
 	textBetween,
 	textLines,
 } from "@/lib/pageText";
-import { type Markup, NOTE_SIZE, addMarkup } from "@/lib/pdfMarkup";
+import { NOTE_SIZE, type TextPicture, addMarkup } from "@/lib/pdfMarkup";
 import { ToolError } from "@/lib/pdfTools";
+import {
+	LINE_HEIGHT,
+	layoutText,
+	textFont,
+	textHeight,
+	textPicture,
+} from "@/lib/textBox";
+import { whole } from "@/screens/viewer/pdfCrop";
+import type { MarkStore } from "@/screens/viewer/useDocMarks";
 import { useBackClose } from "@/state/navigation";
 import { Button, Dialog, IconButton, Spinner, toast } from "@/ui";
 import { useModalFocus } from "@/ui/Overlay";
@@ -24,6 +39,7 @@ import {
 	StickyNote,
 	Strikethrough,
 	Trash2,
+	Type,
 	Underline,
 	Undo2,
 	WholeWord,
@@ -52,8 +68,9 @@ type Tool =
 	| "underline"
 	| "strike"
 	| "note"
+	| "text"
 	| "erase";
-type Item = Markup & { id: string };
+type Item = DocMark;
 /** What is being drawn or dragged, not yet part of the page. */
 type Live =
 	| { kind: "ink"; page: number; points: Array<[number, number]> }
@@ -63,47 +80,49 @@ type Live =
 			from: [number, number];
 			to: [number, number];
 	  };
-/** A note being written: a new one has no id yet. */
+/** A note or a text box being written: a new one has no id yet. */
 type Writing = {
 	id?: string;
+	kind: "note" | "text";
 	page: number;
 	x: number;
 	y: number;
 	text: string;
 };
 
-const PEN_COLORS = ["#111111", "#1a3c8c", "#c0392b", "#1f8a4c"];
-const MARKER_COLORS = ["#ffd93b", "#8ee06e", "#ff9ecb", "#7fd3ff"];
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
-
-let made = 0;
-const newId = () => `k${++made}`;
+/** A new text box: how wide as a share of its page, and how large. */
+const TEXT_WIDTH = 0.4;
+const TEXT_SIZES = [10, 14, 20, 28];
 
 /**
  * Write on a PDF: a pen and a felt marker that go anywhere, highlight,
- * underline and strike-out that follow the words, and notes. Saving
- * makes a new copy with them as the PDF's own annotations; the file
- * that was opened stays as it was.
+ * underline and strike-out that follow the words, notes and text
+ * boxes. What is made here is the same set of marks the reader shows
+ * and keeps: there is nothing to save to go on reading. A saved copy has
+ * them as the PDF's own annotations, for other apps; the file that was
+ * opened stays as it was.
  */
 export function MarkUp({
 	doc,
 	name,
 	password,
+	store,
 	onClose,
 	onSaved,
 }: {
 	doc: PDFDocumentProxy;
 	name: string;
 	password?: string;
+	/** The document's marks. */
+	store: MarkStore;
 	onClose: () => void;
 	onSaved?: (saved: SavedFile) => void;
 }) {
-	const [items, setItems] = useState<Item[]>([]);
+	const items = store.list;
 	const marks = useRef(items);
 	marks.current = items;
-	const [past, setPast] = useState<Item[][]>([]);
-	const [future, setFuture] = useState<Item[][]>([]);
 	const [tool, setTool] = useState<Tool>("pen");
 	const [penColor, setPenColor] = useState(PEN_COLORS[0]);
 	const [markerColor, setMarkerColor] = useState(MARKER_COLORS[0]);
@@ -118,6 +137,7 @@ export function MarkUp({
 	const [stylus, setStylus] = useState(false);
 	const [leaving, setLeaving] = useState(false);
 	const [saving, setSaving] = useState<"ask" | "busy" | null>(null);
+	const [textSize, setTextSize] = useState(TEXT_SIZES[1]);
 	const scroller = useRef<HTMLDivElement>(null);
 	const editor = useRef<HTMLDivElement>(null);
 	const textOf = useRef(new Map<number, Promise<TextLine[]>>());
@@ -128,7 +148,9 @@ export function MarkUp({
 		(async () => {
 			const out: Array<[number, number]> = [];
 			for (let n = 1; n <= doc.numPages; n++) {
-				const view = (await doc.getPage(n)).getViewport({ scale: 1 });
+				const page = await doc.getPage(n);
+				// The whole page, whatever the reader has cropped on screen.
+				const view = whole(page, () => page.getViewport({ scale: 1 }));
 				out.push([view.width, view.height]);
 			}
 			if (alive) setSizes(out);
@@ -156,7 +178,7 @@ export function MarkUp({
 				const { items: read } = await proxy.getTextContent();
 				return textLines(
 					read as PageTextItem[],
-					proxy.getViewport({ scale: 1 }),
+					whole(proxy, () => proxy.getViewport({ scale: 1 })),
 				);
 			})().catch(() => []);
 			textOf.current.set(page, found);
@@ -164,38 +186,19 @@ export function MarkUp({
 		return found;
 	};
 
-	const dirty = items.length > 0;
+	// Only a file with a password loses what is not saved as a copy.
+	const atRisk = !store.persist && items.length > 0;
 	const close = useCallback(() => {
-		if (dirty) setLeaving(true);
+		if (atRisk) setLeaving(true);
 		else onClose();
-	}, [dirty, onClose]);
+	}, [atRisk, onClose]);
 	useBackClose("mark-up", true, close);
 	useModalFocus(editor, close);
 
 	/** Change what is on the pages, as one step of undo. */
-	const change = (next: Item[]) => {
-		const was = marks.current;
-		setPast((list) => [...list, was]);
-		setFuture([]);
-		setItems(next);
-	};
-	const undo = () => {
-		const last = past[past.length - 1];
-		if (!last) return;
-		setPast(past.slice(0, -1));
-		setFuture([items, ...future]);
-		setItems(last);
-	};
-	const redo = () => {
-		const [next, ...rest] = future;
-		if (!next) return;
-		setFuture(rest);
-		setPast([...past, items]);
-		setItems(next);
-	};
-
-	const stepKeys = useRef({ undo, redo });
-	stepKeys.current = { undo, redo };
+	const change = store.set;
+	const stepKeys = useRef(store);
+	stepKeys.current = store;
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			if (!(e.ctrlKey || e.metaKey)) return;
@@ -270,8 +273,8 @@ export function MarkUp({
 		if (!at) return;
 		e.preventDefault();
 		scroller.current?.setPointerCapture(e.pointerId);
-		if (tool === "note") {
-			setWriting({ page, x: at[0], y: at[1], text: "" });
+		if (tool === "note" || tool === "text") {
+			setWriting({ kind: tool, page, x: at[0], y: at[1], text: "" });
 			return;
 		}
 		if (tool === "erase") {
@@ -347,7 +350,8 @@ export function MarkUp({
 			change([
 				...items,
 				{
-					id: newId(),
+					id: newMarkId(),
+					createdAt: Date.now(),
 					kind: "ink",
 					page: now.page,
 					points: now.points,
@@ -369,7 +373,8 @@ export function MarkUp({
 		change([
 			...marks.current,
 			{
-				id: newId(),
+				id: newMarkId(),
+				createdAt: Date.now(),
 				kind: tool,
 				page: now.page,
 				color: tool === "highlight" ? markerColor : penColor,
@@ -386,28 +391,57 @@ export function MarkUp({
 
 	const keepNote = () => {
 		if (!writing) return;
-		const { id, page, x, y } = writing;
+		const { id, kind, page, x, y } = writing;
 		const text = writing.text.trim();
 		setWriting(null);
 		if (!text) return;
-		if (id)
-			change(
-				items.map((item) =>
-					item.id === id && item.kind === "note" ? { ...item, text } : item,
-				),
-			);
-		else change([...items, { id: newId(), kind: "note", page, x, y, text }]);
-		// A note is one at a time; the page can be read again after it.
-		if (tool === "note") setTool("move");
+		const was = items.find((item) => item.id === id);
+		const base = {
+			id: id ?? newMarkId(),
+			createdAt: was?.createdAt ?? Date.now(),
+			page,
+			x,
+			y,
+			text,
+		};
+		let made: Item = { ...base, kind: "note" };
+		if (kind === "text") {
+			const [pw, ph] = sizes[page] ?? [600, 800];
+			const box = was?.kind === "text" ? was : null;
+			const w = box?.w ?? Math.min(TEXT_WIDTH, 1 - x);
+			const size = box?.size ?? textSize;
+			made = {
+				...base,
+				kind: "text",
+				w,
+				h: textHeight(layoutText(text, size, w * pw), size) / ph,
+				size,
+				color: box?.color ?? penColor,
+			};
+		}
+		change(
+			id
+				? items.map((item) => (item.id === id ? made : item))
+				: [...items, made],
+		);
+		// One at a time; the page can be read again after it.
+		if (tool === "note" || tool === "text") setTool("move");
 	};
 
 	const save = async () => {
 		setSaving("busy");
 		try {
+			const pictures: Array<TextPicture | undefined> = [];
+			for (const item of items) {
+				if (item.kind !== "text") continue;
+				const [pw, ph] = sizes[item.page] ?? [600, 800];
+				pictures.push(await textPicture(item, pw, ph));
+			}
 			// pdf.js holds the file's bytes (the ones read were handed to it).
 			const bytes = await addMarkup(await doc.getData(), {
 				password,
 				marks: items,
+				pictures,
 			});
 			const saved = await backend.saveFile(
 				copyName(name, t("marked up")),
@@ -439,10 +473,15 @@ export function MarkUp({
 		["underline", t("Underline"), <Underline key="u" size={20} />],
 		["strike", t("Strike out"), <Strikethrough key="s" size={20} />],
 		["note", t("Note"), <StickyNote key="n" size={20} />],
+		["text", t("Text"), <Type key="t" size={20} />],
 		["erase", t("Eraser"), <Eraser key="e" size={20} />],
 	];
 
-	const usesPen = tool === "pen" || tool === "underline" || tool === "strike";
+	const usesPen =
+		tool === "pen" ||
+		tool === "underline" ||
+		tool === "strike" ||
+		tool === "text";
 	const usesMarker = tool === "marker" || tool === "highlight";
 	const colors = usesPen ? PEN_COLORS : usesMarker ? MARKER_COLORS : null;
 	const color = usesPen ? penColor : markerColor;
@@ -457,13 +496,16 @@ export function MarkUp({
 		return out;
 	}, [items]);
 	const hint = {
-		move: t("Scroll and zoom the pages. Tap a note to read or change it."),
+		move: t(
+			"Scroll and zoom the pages. Tap a note or a text box to change it.",
+		),
 		pen: t("Write with a finger, stylus or mouse. Two fingers scroll."),
 		marker: t("Colour over anything on the page. Two fingers scroll."),
 		highlight: t("Drag across the words to highlight them."),
 		underline: t("Drag across the words to underline them."),
 		strike: t("Drag across the words to strike them out."),
 		note: t("Tap the page where the note belongs."),
+		text: t("Tap the page where the text goes."),
 		erase: t("Tap or drag over a mark to remove it."),
 	}[tool];
 
@@ -516,16 +558,16 @@ export function MarkUp({
 				<div className={`${s.zoom} ${s.markZoom}`}>
 					<IconButton
 						label={t("Undo")}
-						disabled={!past.length}
-						onClick={undo}
+						disabled={!store.canUndo}
+						onClick={store.undo}
 						data-testid="mark-undo"
 					>
 						<Undo2 size={18} className="pw-flip" />
 					</IconButton>
 					<IconButton
 						label={t("Redo")}
-						disabled={!future.length}
-						onClick={redo}
+						disabled={!store.canRedo}
+						onClick={store.redo}
 						data-testid="mark-redo"
 					>
 						<Redo2 size={18} className="pw-flip" />
@@ -547,11 +589,15 @@ export function MarkUp({
 					</IconButton>
 				</div>
 				<Button
+					variant="secondary"
 					onClick={() => setSaving("ask")}
-					disabled={!dirty || saving === "busy"}
+					disabled={!items.length || saving === "busy"}
 					data-testid="mark-save"
 				>
 					{t("Save a copy")}
+				</Button>
+				<Button onClick={close} data-testid="mark-done">
+					{t("Done")}
 				</Button>
 			</div>
 
@@ -577,6 +623,24 @@ export function MarkUp({
 								onClick={() => setColor(c)}
 								data-testid="mark-color"
 							/>
+						))}
+					</div>
+				)}
+				{tool === "text" && (
+					<div className={s.ways}>
+						{TEXT_SIZES.map((size, i) => (
+							<button
+								key={size}
+								type="button"
+								className={s.way}
+								aria-pressed={textSize === size}
+								aria-label={t("Size {n}", { n: i + 1 })}
+								onClick={() => setTextSize(size)}
+								data-testid="mark-text-size"
+								style={{ fontSize: 11 + i * 3 }}
+							>
+								A
+							</button>
 						))}
 					</div>
 				)}
@@ -630,6 +694,7 @@ export function MarkUp({
 							onOpen={(note) =>
 								setWriting({
 									id: note.id,
+									kind: note.kind,
 									page,
 									x: note.x,
 									y: note.y,
@@ -656,7 +721,13 @@ export function MarkUp({
 			{writing && (
 				<Dialog
 					open
-					title={writing.id ? t("Note") : t("Add a note")}
+					title={
+						writing.kind === "text"
+							? t("Text")
+							: writing.id
+								? t("Note")
+								: t("Add a note")
+					}
 					onClose={() => setWriting(null)}
 					testId="mark-note"
 					actions={
@@ -692,7 +763,7 @@ export function MarkUp({
 						dir="auto"
 						// biome-ignore lint/a11y/noAutofocus: the dialog exists to take these words
 						autoFocus
-						aria-label={t("Note")}
+						aria-label={writing.kind === "text" ? t("Text") : t("Note")}
 						value={writing.text}
 						onChange={(e) => setWriting({ ...writing, text: e.target.value })}
 						data-testid="mark-note-text"
@@ -759,7 +830,7 @@ export function MarkUp({
 	);
 }
 
-type NoteItem = Extract<Item, { kind: "note" }>;
+type NoteItem = Extract<Item, { kind: "note" | "text" }>;
 
 /** The marks of a page. Felt ink and highlights sit in a layer of their
  * own, blended with the page, so the words stay dark under them. */
@@ -798,7 +869,39 @@ const Marks = memo(function Marks({
 			>
 				<title>{t("Page {n}", { n: page + 1 })}</title>
 				{over.map((item) =>
-					item.kind === "note" ? (
+					item.kind === "text" ? (
+						<g
+							key={item.id}
+							// biome-ignore lint/a11y/useSemanticElements: a mark inside a drawing, which a button cannot be
+							role="button"
+							tabIndex={canOpen ? 0 : -1}
+							aria-label={item.text}
+							className={canOpen ? s.markNote : undefined}
+							data-testid="mark-text"
+							onClick={() => canOpen && onOpen(item)}
+							onKeyDown={(e) => e.key === "Enter" && canOpen && onOpen(item)}
+						>
+							<rect
+								x={item.x * pw}
+								y={item.y * ph}
+								width={item.w * pw}
+								height={item.h * ph}
+								fill="transparent"
+							/>
+							{layoutText(item.text, item.size, item.w * pw).map((line, i) => (
+								<text
+									key={`${i}-${line}`}
+									x={item.x * pw}
+									y={item.y * ph + (i + 0.8) * item.size * LINE_HEIGHT}
+									fill={item.color}
+									direction="auto"
+									style={{ font: textFont(item.size) }}
+								>
+									{line}
+								</text>
+							))}
+						</g>
+					) : item.kind === "note" ? (
 						<g
 							key={item.id}
 							// biome-ignore lint/a11y/useSemanticElements: a mark inside a drawing, which a button cannot be
@@ -857,7 +960,16 @@ function MarkShape({
 				strokeWidth={item.width}
 			/>
 		);
-	if (item.kind === "note") return null;
+	if (item.kind === "note" || item.kind === "text") return null;
+	if (item.kind === "measure")
+		return (
+			<polyline
+				points={item.points.map(([u, v]) => `${u * pw},${v * ph}`).join(" ")}
+				fill="none"
+				stroke={item.color}
+				strokeWidth={1.2}
+			/>
+		);
 	return (
 		<TextMark
 			kind={item.kind}

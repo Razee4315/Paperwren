@@ -1,6 +1,7 @@
 import { formatBytes } from "@/lib/backend";
 import { copyName, splitName } from "@/lib/fileName";
 import { LANGUAGES, type Language, language, msg, t, tn } from "@/lib/i18n";
+import { contentKey, fileSample } from "@/lib/docMarks";
 import { OcrReader } from "@/lib/ocr";
 import { drawPage } from "@/lib/pagePicture";
 import {
@@ -50,7 +51,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { FillSign } from "./FillSign";
 import { MarkUp } from "./MarkUp";
 import s from "./Tools.module.css";
@@ -64,6 +65,7 @@ import {
 	useRun,
 	useToolFiles,
 } from "./kit";
+import { useDocMarks } from "../viewer/useDocMarks";
 import { readPages, recodePicture, textOfPdf } from "./pdfFiles";
 import { announceSaved } from "./saved";
 import { ScanTool } from "./scan/ScanTool";
@@ -501,6 +503,11 @@ function MarkUpTool({ file, onOpen }: ToolProps) {
 	const doc = usePdf(kit.files[0]);
 	const [open, setOpen] = useState(false);
 	const picked = kit.files[0];
+	const key = useMemo(
+		() => (picked ? contentKey(fileSample(picked.bytes)) : null),
+		[picked],
+	);
+	const store = useDocMarks(key, picked?.name ?? "", !picked?.password);
 	return (
 		<>
 			<OnePdf kit={kit} />
@@ -517,6 +524,7 @@ function MarkUpTool({ file, onOpen }: ToolProps) {
 					doc={doc}
 					name={picked.name}
 					password={picked.password}
+					store={store}
 					onClose={() => setOpen(false)}
 					onSaved={(saved) => announceSaved(saved, onOpen)}
 				/>

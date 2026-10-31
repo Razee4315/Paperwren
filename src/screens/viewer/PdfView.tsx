@@ -1,9 +1,13 @@
-import { requestForBytes } from "@/lib/backend";
+import { backend, requestForBytes } from "@/lib/backend";
+import { type DocMark, contentKey, fileSample } from "@/lib/docMarks";
 import { isDesktop } from "@/lib/env";
+import { copyName } from "@/lib/fileName";
 import { locale, t, tn } from "@/lib/i18n";
 import { loadEngine, pdfAsset } from "@/lib/pdfEngine";
+import { type TextPicture, addMarkup } from "@/lib/pdfMarkup";
 import { PrintCancelled } from "@/lib/print";
 import { resolvePageColor } from "@/lib/settings";
+import { textPicture } from "@/lib/textBox";
 import type { Position } from "@/lib/types";
 import { useBackClose } from "@/state/navigation";
 import { useSettings } from "@/state/settings";
@@ -23,6 +27,7 @@ import {
 	BookOpen,
 	BookOpenText,
 	Crop,
+	FileDown,
 	GalleryHorizontal,
 	Highlighter,
 	ImageDown,
@@ -31,6 +36,7 @@ import {
 	ListTree,
 	Maximize,
 	MessageSquare,
+	MessageSquareText,
 	Paperclip,
 	PenLine,
 	RotateCcw,
@@ -55,6 +61,7 @@ import "pdfjs-dist/web/pdf_viewer.css";
 import { drawPage } from "@/lib/pagePicture";
 import { FillSign } from "@/screens/tools/FillSign";
 import { MarkUp } from "@/screens/tools/MarkUp";
+import { markHit } from "@/screens/tools/ink";
 import { announceSaved } from "@/screens/tools/saved";
 import {
 	useCallback,
@@ -66,6 +73,8 @@ import {
 } from "react";
 import { PageJump, PasswordDialog } from "./Dialogs";
 import { ViewerFileContext } from "./FileMenu";
+import { Marking, type MarkingHandle } from "./Marking";
+import { MarksPanel } from "./MarksPanel";
 import {
 	type Attachment,
 	AttachmentList,
@@ -95,10 +104,19 @@ import {
 } from "./Shell";
 import { useZoom } from "./hooks";
 import { canCrop, cropPages, whole } from "./pdfCrop";
+import {
+	type PageMap,
+	drawMarks,
+	pageMap,
+	paintMarks,
+	toDrawn,
+	toShown,
+} from "./pdfMarks";
 import { type Box, findPictures, placePictures } from "./pdfPictures";
 import { pageFileName, savePicture } from "./savePicture";
 import { pdfSpeech } from "./speechSources";
 import type { ViewerProps } from "./types";
+import { useDocMarks } from "./useDocMarks";
 
 /**
  * PDF on pdf.js's own viewer component (the engine behind Firefox's
@@ -161,7 +179,7 @@ interface DrawnPage {
 	id: number;
 	div: HTMLElement;
 	pdfPage?: PDFPageProxy;
-	viewport: { rotation: number };
+	viewport: ReturnType<PDFPageProxy["getViewport"]>;
 	renderingState: number;
 }
 
@@ -252,7 +270,7 @@ export default function PdfView({
 	// filling in its form.
 	const [rights, setRights] = useState({ mark: true, fill: true });
 	const [filling, setFilling] = useState(false);
-	const [marking, setMarking] = useState(false);
+	const [markingUp, setMarkingUp] = useState(false);
 	// The password the reader opened it with, held for saving copies.
 	const passwordRef = useRef<string | undefined>(undefined);
 	const layerConfig = useRef<LayerConfig | null>(null);
@@ -261,6 +279,23 @@ export default function PdfView({
 		"comments" | "attachments" | "layers" | null
 	>(null);
 	const file = useContext(ViewerFileContext);
+	// The file's content key, and whether its marks may be kept.
+	const [markDoc, setMarkDoc] = useState<{
+		key: string;
+		persist: boolean;
+	} | null>(null);
+	const marks = useDocMarks(
+		markDoc?.key ?? null,
+		name,
+		markDoc?.persist ?? false,
+	);
+	const marksRef = useRef(marks);
+	marksRef.current = marks;
+	const marking = useRef<MarkingHandle>(null);
+	const [scrollBox, setScrollBox] = useState<HTMLDivElement | null>(null);
+	const [marksOpen, setMarksOpen] = useState(false);
+	/** A mark to draw the eye to, once its page is drawn. */
+	const pulse = useRef<string | null>(null);
 	const [findOpen, setFindOpen] = useState(false);
 	const [find, setFind] = useState<FindState>({
 		query: "",
@@ -309,6 +344,8 @@ export default function PdfView({
 		resolvePageColor(settings.pageColor, theme) !== "original";
 	/** Leave a drawn page's pictures as they are on coloured paper. */
 	const keepPictures = useRef<(view: DrawnPage) => void>(() => {});
+	/** Draw the reader's marks on a page. */
+	const paintPage = useRef<(view: DrawnPage) => void>(() => {});
 
 	// --- open the document ---
 	// pdf.js takes the bytes over: they move to its worker rather than
@@ -331,6 +368,8 @@ export default function PdfView({
 					setStatus("error");
 					return;
 				}
+				// Read before pdf.js takes the bytes away to its worker.
+				const sample = fileSample(new Uint8Array(data));
 				task = pdfjs.getDocument({
 					data: new Uint8Array(data),
 					isEvalSupported: false,
@@ -354,6 +393,10 @@ export default function PdfView({
 					setDoc(pdf);
 					setPages(pdf.numPages);
 					setStatus("ready");
+					setMarkDoc({
+						key: contentKey(sample),
+						persist: !passwordRef.current,
+					});
 					pdf
 						.getOutline()
 						.then((o) => setOutline((o as unknown as Outline[]) ?? []))
@@ -544,9 +587,10 @@ export default function PdfView({
 						placePictures(page, view.div, found, view.viewport.rotation);
 				});
 			};
-			eventBus.on("pagerendered", (e: { source: DrawnPage }) =>
-				keepPictures.current(e.source),
-			);
+			eventBus.on("pagerendered", (e: { source: DrawnPage }) => {
+				keepPictures.current(e.source);
+				paintPage.current(e.source);
+			});
 			eventBus.on(
 				"pagechanging",
 				(e: { pageNumber: number; pageLabel?: string | null }) => {
@@ -728,7 +772,8 @@ export default function PdfView({
 			(pdfViewer.current?.getPageView(pdfViewer.current.currentPageNumber - 1)
 				?.div as HTMLElement | undefined) ??
 			null,
-		onTap: (_target, x) => {
+		onTap: (_target, x, y) => {
+			if (marking.current?.tap(x, y)) return;
 			// Pages in a row turn with a tap on either side, and so do pages
 			// down a scroll where the reader asked for it.
 			const box = container.current?.getBoundingClientRect();
@@ -990,6 +1035,150 @@ export default function PdfView({
 			if (view?.renderingState === RENDERED) keepPictures.current(view);
 		}
 	}, [tinted]);
+	// --- marks on the pages ---
+	const mapOf = (view: DrawnPage): PageMap | null =>
+		view.pdfPage ? pageMap(view.pdfPage, view.viewport) : null;
+	const measureLabel = useRef<(mark: DocMark) => string | undefined>(
+		() => undefined,
+	);
+	paintPage.current = (view) => {
+		const map = mapOf(view);
+		if (!map) return;
+		const index = view.id - 1;
+		const list = marks.list.filter((mark) => mark.page === index);
+		const target = pulse.current;
+		paintMarks(view.div, list, map, {
+			pulse: target,
+			label: measureLabel.current,
+		});
+		if (target && list.some((mark) => mark.id === target)) pulse.current = null;
+	};
+	const markList = marks.list;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: drawn again whenever the marks change
+	useEffect(() => {
+		const v = pdfViewer.current;
+		if (!v) return;
+		for (let i = 0; i < v.pagesCount; i++) {
+			const view = v.getPageView(i) as DrawnPage | undefined;
+			if (view?.renderingState === RENDERED) paintPage.current(view);
+		}
+	}, [markList, marks.scales]);
+
+	const spotOf = useCallback((pageNumber: number) => {
+		const view = pdfViewer.current?.getPageView(pageNumber - 1) as
+			| DrawnPage
+			| undefined;
+		const map = view?.pdfPage ? pageMap(view.pdfPage, view.viewport) : null;
+		return view && map ? { div: view.div, map } : null;
+	}, []);
+
+	/** The mark under a point of the screen, the newest on top. */
+	const markAt = useCallback(
+		(x: number, y: number) => {
+			const pageDiv = document
+				.elementsFromPoint(x, y)
+				.find((el) => el.classList.contains("page")) as HTMLElement | undefined;
+			const n = Number(pageDiv?.dataset.pageNumber);
+			const spot = n ? spotOf(n) : null;
+			if (!spot) return null;
+			const box = spot.div.getBoundingClientRect();
+			const { map } = spot;
+			const [u, v] = toShown(
+				map,
+				((x - box.left) / box.width) * map.width,
+				((y - box.top) / box.height) * map.height,
+			);
+			// A finger's width, whatever the zoom.
+			const reach = (8 * map.pw) / box.width;
+			const list = marksRef.current.list;
+			for (let i = list.length - 1; i >= 0; i--) {
+				const mark = list[i];
+				if (mark.page === n - 1 && markHit(mark, u, v, map.pw, map.ph, reach))
+					return mark;
+			}
+			return null;
+		},
+		[spotOf],
+	);
+
+	// A click on a mark. A tap on a phone comes through `onTap`.
+	useEffect(() => {
+		if (!scrollBox) return;
+		const onClick = (e: MouseEvent) => {
+			if ((e as PointerEvent).pointerType === "touch" || e.button !== 0) return;
+			if ((e.target as Element).closest("a, .annotationLayer section")) return;
+			marking.current?.tap(e.clientX, e.clientY);
+		};
+		scrollBox.addEventListener("click", onClick);
+		return () => scrollBox.removeEventListener("click", onClick);
+	}, [scrollBox]);
+
+	/** Go to a mark and draw the eye to it. */
+	const showMark = (mark: DocMark) => {
+		const v = pdfViewer.current;
+		if (!v) return;
+		setMarksOpen(false);
+		pulse.current = mark.id;
+		const spot = spotOf(mark.page + 1);
+		const view = v.getPageView(mark.page) as DrawnPage | undefined;
+		if (!spot || !view) {
+			v.currentPageNumber = mark.page + 1;
+			return;
+		}
+		const place =
+			mark.kind === "ink" || mark.kind === "measure"
+				? mark.points[0]
+				: "boxes" in mark
+					? ([mark.boxes[0].x, mark.boxes[0].y] as [number, number])
+					: ([mark.x, mark.y] as [number, number]);
+		const [x, y] = toDrawn(spot.map, place[0], place[1]);
+		const [left, top] = view.viewport.convertToPdfPoint(x, y);
+		v.scrollPageIntoView({
+			pageNumber: mark.page + 1,
+			destArray: [null, { name: "XYZ" }, left, top + 48, null],
+			allowNegativeOffset: true,
+		});
+		paintPage.current(view);
+	};
+
+	const pageName = (index: number) => {
+		const view = pdfViewer.current?.getPageView(index) as
+			| { pageLabel?: string | null }
+			| undefined;
+		return t("p. {n}", { n: view?.pageLabel || index + 1 });
+	};
+
+	/** A new PDF with what the reader has marked; the file stays as it is. */
+	const saveWithMarks = async () => {
+		if (!doc) return;
+		const list = marks.list;
+		try {
+			const pictures: Array<TextPicture | undefined> = [];
+			for (const mark of list) {
+				if (mark.kind !== "text") continue;
+				const page = await doc.getPage(mark.page + 1);
+				const shown = whole(page, () => page.getViewport({ scale: 1 }));
+				pictures.push(await textPicture(mark, shown.width, shown.height));
+			}
+			const bytes = await addMarkup(await doc.getData(), {
+				password: passwordRef.current,
+				marks: list,
+				pictures,
+				labels: list
+					.filter((mark) => mark.kind === "measure")
+					.map((mark) => measureLabel.current(mark)),
+			});
+			const saved = await backend.saveFile(
+				copyName(name, t("marked up")),
+				bytes,
+				"application/pdf",
+			);
+			if (saved) announceSaved(saved, file?.openOver);
+		} catch {
+			toast(t("Couldn't save a copy"));
+		}
+	};
+
 	// Two pages side by side need the room: a wide window, a tablet or an
 	// unfolded phone held sideways.
 	const [roomForTwo, setRoomForTwo] = useState(false);
@@ -1025,6 +1214,13 @@ export default function PdfView({
 				rotation:
 					(proxy.rotate + (pdfViewer.current?.pagesRotation ?? 0)) % 360,
 				viewportOf: (params) => whole(proxy, () => proxy.getViewport(params)),
+				after: (ctx, viewport) =>
+					drawMarks(
+						ctx,
+						marks.list.filter((mark) => mark.page === n - 1),
+						pageMap(proxy, viewport),
+						measureLabel.current,
+					),
 			});
 			return { ...picture, name: pageFileName(name, n, picture.type) };
 		}, file?.openOver);
@@ -1059,12 +1255,40 @@ export default function PdfView({
 				}
 				onClick={() => {
 					close();
-					setMarking(true);
+					setMarkingUp(true);
 				}}
 				testId="pdf-mark-up"
 			>
 				{t("Mark up")}
 			</SheetItem>
+			<SheetItem
+				icon={<MessageSquareText size={20} />}
+				hint={
+					marks.list.length
+						? String(marks.list.length)
+						: t("Everything you marked, in one list")
+				}
+				onClick={() => {
+					close();
+					setMarksOpen(true);
+				}}
+				testId="pdf-highlights"
+			>
+				{t("Highlights and notes")}
+			</SheetItem>
+			{marks.list.length > 0 && (
+				<SheetItem
+					icon={<FileDown size={20} />}
+					hint={t("A new PDF other apps can show them in")}
+					onClick={() => {
+						close();
+						void saveWithMarks();
+					}}
+					testId="pdf-save-marks"
+				>
+					{t("Save a copy with my marks")}
+				</SheetItem>
+			)}
 			{file?.openTools && (
 				<SheetItem
 					icon={<Wrench size={20} />}
@@ -1304,6 +1528,12 @@ export default function PdfView({
 				viewport,
 				intent: "print",
 			}).promise;
+			drawMarks(
+				context,
+				marks.list.filter((mark) => mark.page === n - 1),
+				pageMap(pdfPage, viewport),
+				measureLabel.current,
+			);
 			const blob = await new Promise<Blob | null>((resolve) =>
 				canvas.toBlob(resolve, "image/jpeg", 0.92),
 			);
@@ -1324,7 +1554,7 @@ export default function PdfView({
 	};
 
 	// --- bookmarks: a page, and the spot on it ---
-	const marks = useMemo<BookmarkSource>(
+	const places = useMemo<BookmarkSource>(
 		() => ({
 			here: () => {
 				const v = pdfViewer.current;
@@ -1444,6 +1674,20 @@ export default function PdfView({
 				),
 			},
 			{
+				id: "highlights",
+				label: t("Highlights"),
+				icon: <Highlighter size={16} />,
+				content: (
+					<MarksPanel
+						store={marks}
+						name={name}
+						label={pageName}
+						onShow={showMark}
+						onSaveCopy={saveWithMarks}
+					/>
+				),
+			},
+			{
 				id: "comments",
 				label: t("Comments"),
 				icon: <MessageSquare size={16} />,
@@ -1478,7 +1722,7 @@ export default function PdfView({
 					]
 				: []),
 		];
-	}, [doc, status, page, rotation, outline, attachments, layers]);
+	}, [doc, status, page, rotation, outline, attachments, layers, marks, name]);
 
 	const presets: ZoomPreset[] = [
 		{
@@ -1496,6 +1740,16 @@ export default function PdfView({
 
 	const actions = (
 		<>
+			{rights.mark && (
+				<IconButton
+					label={t("Mark up")}
+					onClick={() => setMarkingUp(true)}
+					disabled={status !== "ready"}
+					data-testid="pdf-mark-button"
+				>
+					<PenLine size={20} />
+				</IconButton>
+			)}
 			<IconButton
 				label={t("Find")}
 				shortcut="Ctrl+F"
@@ -1554,7 +1808,7 @@ export default function PdfView({
 			side={side}
 			details={details}
 			onStep={turn}
-			bookmarks={status === "ready" ? marks : undefined}
+			bookmarks={status === "ready" ? places : undefined}
 			speech={speech}
 			turnPages={across}
 			onEdge={across ? (end) => goTo(end ? pages : 1) : undefined}
@@ -1582,7 +1836,10 @@ export default function PdfView({
 			}
 		>
 			<div
-				ref={container}
+				ref={(el) => {
+					(container as { current: HTMLDivElement | null }).current = el;
+					setScrollBox(el);
+				}}
 				className={`${s.container} ${across && fits ? s.snap : ""}`}
 				data-flow={across ? "across" : undefined}
 				data-one={across && spread ? "" : undefined}
@@ -1610,6 +1867,18 @@ export default function PdfView({
 				</button>
 			)}
 
+			{status === "ready" && marks.ready && (
+				<Marking
+					ref={marking}
+					container={scrollBox}
+					store={marks}
+					canMark={rights.mark}
+					active={active && !markingUp && !filling}
+					spotOf={spotOf}
+					markAt={markAt}
+					onFind={openFind}
+				/>
+			)}
 			{status === "loading" && (
 				<StateView>
 					<Spinner label={t("Opening PDF")} />
@@ -1626,12 +1895,13 @@ export default function PdfView({
 				</StateView>
 			)}
 
-			{marking && doc && (
+			{markingUp && doc && (
 				<MarkUp
 					doc={doc}
 					name={name}
 					password={passwordRef.current}
-					onClose={() => setMarking(false)}
+					store={marks}
+					onClose={() => setMarkingUp(false)}
 					onSaved={(saved) => announceSaved(saved, file?.openOver)}
 				/>
 			)}
@@ -1727,6 +1997,22 @@ export default function PdfView({
 					</Button>
 				</form>
 			</Dialog>
+
+			<Sheet
+				open={marksOpen}
+				title={t("Highlights and notes")}
+				onClose={() => setMarksOpen(false)}
+				wide
+				testId="marks-sheet"
+			>
+				<MarksPanel
+					store={marks}
+					name={name}
+					label={pageName}
+					onShow={showMark}
+					onSaveCopy={saveWithMarks}
+				/>
+			</Sheet>
 
 			<Sheet
 				open={thumbsOpen}

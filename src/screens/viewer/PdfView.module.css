@@ -187,3 +187,203 @@ button.extra[aria-pressed="false"] {
 	justify-content: center;
 	padding: 16px;
 }
+
+/* The bar on selected words and on a mark. */
+.floatBar {
+	position: fixed;
+	z-index: 40;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	max-width: calc(100vw - 16px);
+	padding: 4px;
+	border-radius: 14px;
+	border: 1px solid var(--line-strong);
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: var(--shadow-2);
+	animation: pw-rise 120ms ease-out;
+	touch-action: manipulation;
+	user-select: none;
+	-webkit-user-select: none;
+}
+/* On a phone it sits above the page counter, in reach of a thumb. */
+.floatBar[data-docked] {
+	left: 50%;
+	bottom: calc(var(--safe-bottom) + 68px);
+	transform: translateX(-50%);
+	animation: none;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+.barSwatches {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 6px;
+	flex: none;
+}
+.barSwatch {
+	width: 26px;
+	height: 26px;
+	border-radius: 50%;
+	flex: none;
+	box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.18);
+	transition: transform 120ms ease-out;
+}
+.barSwatch:hover {
+	transform: scale(1.14);
+}
+.barSwatch[aria-pressed="true"] {
+	box-shadow:
+		inset 0 0 0 1px rgb(0 0 0 / 0.18),
+		0 0 0 2px var(--surface),
+		0 0 0 4px var(--accent);
+}
+.barLine {
+	width: 1px;
+	height: 22px;
+	margin: 0 4px;
+	flex: none;
+	background: var(--line-strong);
+}
+.quote {
+	margin: 0 0 12px;
+	padding: 2px 0 2px 12px;
+	border-inline-start: 3px solid var(--accent);
+	color: var(--text-2);
+	font-size: 14px;
+	line-height: 1.45;
+}
+.noteField {
+	display: block;
+	width: 100%;
+	min-height: 96px;
+	padding: 10px 12px;
+	resize: vertical;
+	border-radius: var(--r-s);
+	border: 1px solid var(--line-strong);
+	background: var(--surface);
+	color: var(--text);
+	font: inherit;
+}
+
+/* What the reader has marked, beside the document. */
+.marksPanel {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px 2px 8px;
+}
+.docNote,
+.markNote {
+	display: block;
+	width: 100%;
+	resize: none;
+	overflow: hidden;
+	border-radius: var(--r-s);
+	border: 1px solid transparent;
+	background: var(--surface-2);
+	color: var(--text);
+	font: inherit;
+	font-size: 14px;
+	line-height: 1.45;
+	padding: 8px 10px;
+}
+.docNote:focus,
+.markNote:focus {
+	outline: none;
+	border-color: var(--accent);
+	background: var(--surface);
+}
+.markList {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.markCard {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding-block: 6px;
+	padding-inline: 12px 6px;
+	border-radius: var(--r-s);
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-inline-start: 3px solid var(--mark);
+}
+.markQuote {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	width: 100%;
+	padding-block: 2px;
+	padding-inline: 0 28px;
+	text-align: start;
+	font-size: 14px;
+	line-height: 1.4;
+	color: var(--text);
+}
+.markQuote small {
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--text-3);
+}
+.markQuote span {
+	display: -webkit-box;
+	overflow: hidden;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 4;
+}
+.markQuote:hover span {
+	color: var(--accent);
+}
+.markNote {
+	background: transparent;
+	padding: 4px 6px;
+}
+.markDelete {
+	position: absolute;
+	top: 2px;
+	inset-inline-end: 2px;
+	opacity: 0.55;
+}
+.markCard:hover .markDelete,
+.markDelete:focus-visible {
+	opacity: 1;
+}
+.marksEmpty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding: 20px 12px;
+	text-align: center;
+	color: var(--text-3);
+	font-size: 14px;
+	line-height: 1.45;
+}
+.marksEmpty p {
+	margin: 0;
+}
+.marksActions {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 2px;
+}
+.marksActions > button {
+	justify-content: flex-start;
+	min-height: 36px;
+	font-size: 14px;
+}
+.marksFoot {
+	margin: 0;
+	padding: 0 4px;
+	font-size: 12px;
+	line-height: 1.4;
+	color: var(--text-3);
+}

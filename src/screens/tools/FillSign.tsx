@@ -52,6 +52,7 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { whole } from "../viewer/pdfCrop";
 import { SignaturePad } from "./SignaturePad";
 import { StampPad } from "./StampPad";
 import s from "./Tools.module.css";
@@ -123,7 +124,7 @@ async function readFields(doc: PDFDocumentProxy): Promise<Field[]> {
 	const out: Field[] = [];
 	for (let n = 1; n <= doc.numPages && out.length < 2000; n++) {
 		const page = await doc.getPage(n);
-		const view = page.getViewport({ scale: 1 });
+		const view = whole(page, () => page.getViewport({ scale: 1 }));
 		const widgets = (await page.getAnnotations({
 			intent: "display",
 		})) as Widget[];
@@ -286,7 +287,8 @@ export function FillSign({
 		(async () => {
 			const out: Array<[number, number]> = [];
 			for (let n = 1; n <= doc.numPages; n++) {
-				const view = (await doc.getPage(n)).getViewport({ scale: 1 });
+				const page = await doc.getPage(n);
+				const view = whole(page, () => page.getViewport({ scale: 1 }));
 				out.push([view.width, view.height]);
 			}
 			if (alive) setSizes(out);
@@ -996,10 +998,11 @@ export function FillPage({
 			const ctx = el?.getContext("2d");
 			if (!alive || !el || !ctx) return;
 			const density = Math.min(2, window.devicePixelRatio || 1);
-			const base = proxy.getViewport({ scale: 1 });
-			const viewport = proxy.getViewport({
-				scale: (width * density) / base.width,
-			});
+			// The whole page, whatever the reader has cropped on screen.
+			const base = whole(proxy, () => proxy.getViewport({ scale: 1 }));
+			const viewport = whole(proxy, () =>
+				proxy.getViewport({ scale: (width * density) / base.width }),
+			);
 			el.width = Math.ceil(viewport.width);
 			el.height = Math.ceil(viewport.height);
 			task = proxy.render({ canvasContext: ctx, viewport });
