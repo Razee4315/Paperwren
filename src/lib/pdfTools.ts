@@ -711,3 +711,163 @@ export async function unlock(
 	const doc = await open(bytes, password);
 	return doc.save();
 }
+
+/** A word read from a page, placed as fractions of the page as shown. */
+export interface ReadWord {
+	text: string;
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+	rtl: boolean;
+}
+
+/** Tesseract's own font for a text layer (Apache-2.0): every character
+ * is the one blank glyph, half an em wide. */
+const BLANK_FONT =
+	"AAEAAAAKAIAAAwAgT1MvMlbeyJQAAAEoAAAAYGNtYXAACgA0AAABkAAAAB5nbHlmFSJBJAAAAbgAAAAYaGVhZAt48WUAAACsAAAANmhoZWEMAgQCAAAA5AAAACRobXR4BAAAAAAAAYgAAAAIbG9jYQAMAAAAAAGwAAAABm1heHAABAAFAAABCAAAACBuYW1l8usW2gAAAdAAAABLcG9zdAABAAEAAAIcAAAAIAABAAAAAQAAsJRxEF8PPPUEBwgAAAAAAM+a/G4AAAAA1MOn8gAAAAAEAAgAAAAAEAACAAAAAAAAAAEAAAgA//8AAAQAAAAAAAQAAAEAAAAAAAAAAAAAAAAAAAACAAEAAAACAAQAAQAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAwAAAZAABQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUAAQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAR09PRwBAAAAAAAAB//8AAAABAAGAAAAAAAAAAAAAAAAAAAABAAAAAAAABAAAAAAAAAIAAQAAAAAAFAADAAAAAAAUAAYACgAAAAAAAAAAAAAAAAAMAAAAAQAAAAAEAAgAAAMAADEhESEEAPwACAAAAAADACoAAAADAAAABQAWAAAAAQAAAAAABQALABYAAwABBAkABQAWAAAAVgBlAHIAcwBpAG8AbgAgADEALgAwVmVyc2lvbiAxLjAAAAEAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAA=";
+
+/** Each character code stands for itself. */
+const SAME_CODES = `/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def
+/CMapName /Adobe-Identity-UCS def
+/CMapType 2 def
+1 begincodespacerange
+<0000> <FFFF>
+endcodespacerange
+1 beginbfrange
+<0000> <FFFF> <0000>
+endbfrange
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end
+`;
+
+/** The blank font as a PDF object: any character in UTF-16, drawn with
+ * the blank glyph, and read back as itself by search and copy. */
+async function embedBlankFont(doc: Doc): Promise<PDFRef> {
+	const { PDFString } = await lib();
+	const { context } = doc;
+	const font = Uint8Array.from(atob(BLANK_FONT), (c) => c.charCodeAt(0));
+	// Every one of the 65,536 codes points at glyph 1.
+	const glyphs = new Uint8Array(2 << 16);
+	for (let i = 1; i < glyphs.length; i += 2) glyphs[i] = 1;
+	const face = context.obj({
+		Type: "Font",
+		Subtype: "CIDFontType2",
+		BaseFont: "GlyphLessFont",
+		CIDSystemInfo: {
+			Registry: PDFString.of("Adobe"),
+			Ordering: PDFString.of("Identity"),
+			Supplement: 0,
+		},
+		CIDToGIDMap: context.register(context.flateStream(glyphs)),
+		DW: 500,
+		FontDescriptor: context.register(
+			context.obj({
+				Type: "FontDescriptor",
+				FontName: "GlyphLessFont",
+				Flags: 5,
+				FontBBox: [0, 0, 500, 1000],
+				ItalicAngle: 0,
+				Ascent: 1000,
+				Descent: 0,
+				CapHeight: 1000,
+				StemV: 80,
+				FontFile2: context.register(
+					context.flateStream(font, { Length1: font.length }),
+				),
+			}),
+		),
+	});
+	return context.register(
+		context.obj({
+			Type: "Font",
+			Subtype: "Type0",
+			BaseFont: "GlyphLessFont",
+			Encoding: "Identity-H",
+			DescendantFonts: [context.register(face)],
+			ToUnicode: context.register(context.flateStream(SAME_CODES)),
+		}),
+	);
+}
+
+/** Ends in a character of a script written without spaces. */
+const NO_SPACES = /[　-ヿ㐀-鿿豈-﫿＀-￯]$/;
+
+/** The drawing commands for one word, unseen (text mode 3). */
+function wordCommands(
+	word: ReadWord,
+	box: ReturnType<typeof shownBox>,
+	shownW: number,
+	shownH: number,
+): string {
+	const size = word.h * shownH;
+	const width = word.w * shownW;
+	if (size <= 0 || width <= 0) return "";
+	// A file's right-to-left text runs in the order it is drawn, so
+	// readers put it back the other way.
+	const text = word.rtl ? [...word.text].reverse().join("") : word.text;
+	// A real space after it: a reader guessing words from the gaps runs
+	// the words of some scripts together. Chinese has none to put back,
+	// and one would split a word that search is looking for.
+	const spaced = NO_SPACES.test(word.text) ? text : `${text} `;
+	let hex = "";
+	for (const unit of spaced.split(""))
+		hex += unit.charCodeAt(0).toString(16).padStart(4, "0");
+	// Stretched so the word covers what it says on the page.
+	const stretch = (width / (text.length * size * 0.5)) * 100;
+	const [x, y] = pagePoint(box, word.x, word.y + word.h);
+	const turn = (box.turn * Math.PI) / 180;
+	const n = (value: number) => Number(value.toFixed(3));
+	const place = [
+		Math.round(Math.cos(turn)),
+		Math.round(Math.sin(turn)),
+		-Math.round(Math.sin(turn)),
+		Math.round(Math.cos(turn)),
+		n(x),
+		n(y),
+	].join(" ");
+	return `BT 3 Tr /PwOcr ${n(size)} Tf ${n(stretch)} Tz ${place} Tm <${hex}> Tj ET\n`;
+}
+
+/**
+ * The same pages with the words read from them laid over each one,
+ * unseen, so a scan can be searched, selected and read aloud. What the
+ * pages show, and every picture on them, stays as it is.
+ */
+export async function addTextLayer(
+	bytes: Uint8Array,
+	pages: Array<{ page: number; words: ReadWord[] }>,
+	{ password }: { password?: string } = {},
+): Promise<Uint8Array> {
+	if (!pages.some((p) => p.words.length)) throw new ToolError("empty");
+	const { PDFName } = await lib();
+	const doc = await open(bytes, password);
+	const { context } = doc;
+	const font = await embedBlankFont(doc);
+	const name = PDFName.of("PwOcr");
+	// Whatever a page leaves set stays inside these, away from the words.
+	const opening = context.register(context.flateStream("q\n"));
+	const closing = context.register(context.flateStream("Q\n"));
+	for (const { page: index, words } of pages) {
+		if (!words.length) continue;
+		const page = doc.getPage(index);
+		const box = shownBox(page);
+		const [w, h] = shownSize(box);
+		page.node.normalize();
+		page.node.setFontDictionary(name, font);
+		page.node.wrapContentStreams(opening, closing);
+		page.node.addContentStream(
+			context.register(
+				context.flateStream(
+					words.map((word) => wordCommands(word, box, w, h)).join(""),
+				),
+			),
+		);
+	}
+	return doc.save({ updateFieldAppearances: false });
+}

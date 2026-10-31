@@ -1012,4 +1012,19 @@ export const ur: Table = {
 	"This PDF has no text in it. A scan is only pictures of pages.":
 		"اس PDF میں کوئی متن نہیں ہے۔ اسکین میں صرف صفحات کی تصویریں ہوتی ہیں۔",
 	"Save as text": "متن کے طور پر محفوظ کریں",
+	"Make a scan searchable": "اسکین کو قابلِ تلاش بنائیں",
+	"A copy of a scan whose words you can search and select":
+		"اسکین کی ایسی نقل جس کے الفاظ آپ تلاش اور منتخب کر سکیں",
+	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
+		"اسکین شدہ PDF اور اس کی زبان منتخب کریں۔ نقل میں صفحات بالکل ویسے ہی نظر آئیں گے۔",
+	"Language of the document": "دستاویز کی زبان",
+	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"ہر صفحے میں کئی سیکنڈ لگتے ہیں، فون پر اس سے زیادہ۔ صاف چھپائی سب سے بہتر پڑھی جاتی ہے: ہاتھ کی لکھائی، دھندلے اسکین اور نستعلیق اردو میں غلطیاں ہو سکتی ہیں۔",
+	"Reading page {n} of {total}": "صفحہ {n} از {total} پڑھا جا رہا ہے",
+	"Make searchable": "قابلِ تلاش بنائیں",
+	"This PDF already has words you can search, so no copy was made.":
+		"اس PDF میں پہلے سے قابلِ تلاش الفاظ موجود ہیں، اس لیے کوئی نقل نہیں بنائی گئی۔",
+	"No words were found on its pages, so no copy was made.":
+		"اس کے صفحات پر کوئی الفاظ نہیں ملے، اس لیے کوئی نقل نہیں بنائی گئی۔",
+	searchable: "قابلِ تلاش",
 };

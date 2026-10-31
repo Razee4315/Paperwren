@@ -1031,4 +1031,19 @@ export const pt: Table = {
 	"This PDF has no text in it. A scan is only pictures of pages.":
 		"Este PDF não tem texto. Uma digitalização é só imagens das páginas.",
 	"Save as text": "Salvar como texto",
+	"Make a scan searchable": "Tornar um documento digitalizado pesquisável",
+	"A copy of a scan whose words you can search and select":
+		"Uma cópia do documento digitalizado com palavras que você pode pesquisar e selecionar",
+	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
+		"Escolha um PDF digitalizado e o idioma em que ele foi escrito. As páginas ficam exatamente iguais na cópia.",
+	"Language of the document": "Idioma do documento",
+	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"Cada página leva vários segundos, mais em um celular. Texto impresso nítido é lido melhor: escrita à mão, digitalizações fracas e urdu nastaliq podem sair com erros.",
+	"Reading page {n} of {total}": "Lendo a página {n} de {total}",
+	"Make searchable": "Tornar pesquisável",
+	"This PDF already has words you can search, so no copy was made.":
+		"Este PDF já tem palavras pesquisáveis, então nenhuma cópia foi feita.",
+	"No words were found on its pages, so no copy was made.":
+		"Nenhuma palavra foi encontrada nas páginas, então nenhuma cópia foi feita.",
+	searchable: "pesquisável",
 };

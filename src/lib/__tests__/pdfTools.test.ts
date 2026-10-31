@@ -12,6 +12,7 @@ import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { describe, expect, it } from "vitest";
 import {
 	addPageNumbers,
+	addTextLayer,
 	addWatermark,
 	buildPdf,
 	compressPdf,
@@ -394,5 +395,100 @@ describe("compressPdf", () => {
 			});
 			expect(seen).toEqual([]);
 		}
+	});
+});
+
+describe("addTextLayer", () => {
+	const word = (text: string, x: number, y: number, rtl = false) => ({
+		text,
+		x,
+		y,
+		w: 0.2,
+		h: 0.02,
+		rtl,
+	});
+	const blank = async (turn = 0) => {
+		const doc = await PDFDocument.create();
+		const page = doc.addPage([600, 800]);
+		if (turn) page.setRotation(degrees(turn));
+		return doc.save();
+	};
+
+	it("lays words where they were read, for pdf.js to find", async () => {
+		const out = await addTextLayer(await blank(), [
+			{ page: 0, words: [word("Hello", 0.1, 0.2), word("world", 0.35, 0.2)] },
+		]);
+		const [{ words }] = await read(out);
+		expect(words.map((w) => w.text.trim())).toEqual(["Hello", "world"]);
+		expect(words[0].u).toBeCloseTo(0.1, 2);
+		expect(words[0].v).toBeCloseTo(0.22, 1);
+	});
+
+	it("reads right-to-left words back in their own order", async () => {
+		const text = "کتاب";
+		const out = await addTextLayer(await blank(), [
+			{ page: 0, words: [word(text, 0.5, 0.2, true)] },
+		]);
+		const [{ words }] = await read(out);
+		expect(words[0].text.trim()).toBe(text);
+	});
+
+	it("reads Chinese and Hindi back", async () => {
+		const out = await addTextLayer(await blank(), [
+			{ page: 0, words: [word("委员会", 0.1, 0.2), word("परिषद", 0.4, 0.2)] },
+		]);
+		const [{ words }] = await read(out);
+		expect(words.map((w) => w.text.trim())).toEqual(["委员会", "परिषद"]);
+	});
+
+	it("keeps a real space between words", async () => {
+		const out = await addTextLayer(await blank(), [
+			{ page: 0, words: [word("परिषद", 0.1, 0.2), word("की", 0.31, 0.2)] },
+		]);
+		const [{ words }] = await read(out);
+		expect(words.map((w) => w.text).join("")).toBe("परिषद की");
+	});
+
+	it("puts no space inside a Chinese word", async () => {
+		const out = await addTextLayer(await blank(), [
+			{ page: 0, words: [word("图", 0.1, 0.2), word("书馆", 0.12, 0.2)] },
+		]);
+		const [{ words }] = await read(out);
+		expect(words.map((w) => w.text).join("")).toBe("图书馆");
+	});
+
+	it("follows a page the file turns", async () => {
+		const out = await addTextLayer(await blank(90), [
+			{ page: 0, words: [word("Turned", 0.1, 0.2)] },
+		]);
+		const [{ rotate, words }] = await read(out);
+		expect(rotate).toBe(90);
+		expect(words[0].u).toBeCloseTo(0.1, 1);
+		expect(words[0].v).toBeCloseTo(0.2, 1);
+	});
+
+	it("draws nothing that can be seen, and leaves other pages alone", async () => {
+		const out = await addTextLayer(await pages(2), [
+			{ page: 1, words: [word("Hidden", 0.1, 0.2)] },
+		]);
+		const doc = await pdfjs.getDocument({ data: out.slice(), verbosity: 0 })
+			.promise;
+		const list = await (await doc.getPage(2)).getOperatorList();
+		expect(list.fnArray).toContain(pdfjs.OPS.setTextRenderingMode);
+		expect(
+			list.argsArray[list.fnArray.indexOf(pdfjs.OPS.setTextRenderingMode)],
+		).toEqual([3]);
+		const [first, second] = await read(out);
+		expect(first.words.map((w) => w.text)).toEqual(["Page 1"]);
+		expect(second.words.map((w) => w.text.trim())).toEqual([
+			"Page 2",
+			"Hidden",
+		]);
+	});
+
+	it("refuses to make a copy with nothing to add", async () => {
+		await expect(
+			addTextLayer(await blank(), [{ page: 0, words: [] }]),
+		).rejects.toThrow();
 	});
 });

@@ -1042,4 +1042,19 @@ export const fr: Table = {
 	"This PDF has no text in it. A scan is only pictures of pages.":
 		"Ce PDF ne contient aucun texte. Un scan n'est qu'un ensemble d'images de pages.",
 	"Save as text": "Enregistrer en texte",
+	"Make a scan searchable": "Rendre un scan consultable",
+	"A copy of a scan whose words you can search and select":
+		"Une copie du scan dont vous pouvez rechercher et sélectionner les mots",
+	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
+		"Choisissez un PDF scanné et sa langue. Ses pages restent identiques dans la copie.",
+	"Language of the document": "Langue du document",
+	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"Chaque page prend plusieurs secondes, davantage sur un téléphone. Un texte imprimé net se lit le mieux : l'écriture manuscrite, les scans pâles et l'ourdou nastaliq peuvent comporter des erreurs.",
+	"Reading page {n} of {total}": "Lecture de la page {n} sur {total}",
+	"Make searchable": "Rendre consultable",
+	"This PDF already has words you can search, so no copy was made.":
+		"Ce PDF contient déjà des mots consultables : aucune copie n'a été créée.",
+	"No words were found on its pages, so no copy was made.":
+		"Aucun mot n'a été trouvé sur ses pages : aucune copie n'a été créée.",
+	searchable: "consultable",
 };
