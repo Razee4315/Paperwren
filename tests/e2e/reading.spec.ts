@@ -1008,7 +1008,8 @@ test.describe("pictures and code", () => {
 		const box = await scroller.boundingBox();
 		if (!box) throw new Error("no scroller");
 		// A tap on the right side, its two halves sent together: a tap is
-		// one only if it is quick.
+		// one only if it is quick. Its time is just after the page loaded,
+		// when the first tap of all must not pass for the second of two.
 		await scroller.evaluate(
 			(el, x) => {
 				const touch = new Touch({
@@ -1017,21 +1018,27 @@ test.describe("pictures and code", () => {
 					clientX: x,
 					clientY: 400,
 				});
+				const early = (event: TouchEvent) =>
+					Object.defineProperty(event, "timeStamp", { value: 100 });
 				el.dispatchEvent(
-					new TouchEvent("touchstart", {
-						touches: [touch],
-						changedTouches: [touch],
-						bubbles: true,
-						cancelable: true,
-					}),
+					early(
+						new TouchEvent("touchstart", {
+							touches: [touch],
+							changedTouches: [touch],
+							bubbles: true,
+							cancelable: true,
+						}),
+					),
 				);
 				el.dispatchEvent(
-					new TouchEvent("touchend", {
-						touches: [],
-						changedTouches: [touch],
-						bubbles: true,
-						cancelable: true,
-					}),
+					early(
+						new TouchEvent("touchend", {
+							touches: [],
+							changedTouches: [touch],
+							bubbles: true,
+							cancelable: true,
+						}),
+					),
 				);
 			},
 			box.x + box.width * 0.9,

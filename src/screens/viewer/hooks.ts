@@ -257,7 +257,9 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 			Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
 		let spread0 = 1;
 		let tap: { x: number; y: number; t: number; moved: boolean } | null = null;
-		let lastTap = 0;
+		// Far in the past: event times start at zero when the page loads,
+		// so zero would make the first tap of all look like a second one.
+		let lastTap = Number.NEGATIVE_INFINITY;
 		let tapTimer = 0;
 
 		const onStart = (e: TouchEvent) => {
@@ -305,7 +307,7 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 			const twice = o.current.doubleTap !== false;
 			if (twice && e.timeStamp - lastTap < 300) {
 				window.clearTimeout(tapTimer);
-				lastTap = 0;
+				lastTap = Number.NEGATIVE_INFINITY;
 				if (o.current.onDoubleTap) o.current.onDoubleTap(done.x, done.y);
 				else {
 					const home = o.current.home ?? 1;
