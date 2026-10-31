@@ -408,6 +408,26 @@
 .actions > button {
 	flex: 0 1 auto;
 }
+/* On a phone, the choices side by side, so the words keep the screen. */
+@media (max-width: 560px) {
+	.actions:has(.link) {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: 6px;
+	}
+	.actions:has(.link) > button {
+		min-height: 40px;
+		padding-inline: 8px;
+		font-size: 13px;
+		gap: 6px;
+	}
+	.actions:has(.link) > .link {
+		grid-column: 1 / -1;
+		min-height: 0;
+		padding: 2px 0;
+		font-size: 12px;
+	}
+}
 .hint {
 	flex: 1;
 	min-width: 160px;

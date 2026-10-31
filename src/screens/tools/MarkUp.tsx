@@ -1,4 +1,5 @@
 import { type SavedFile, backend } from "@/lib/backend";
+import { startsRtl } from "@/lib/bidi";
 import {
 	type DocMark,
 	MARKER_COLORS,
@@ -1126,10 +1127,10 @@ const Marks = memo(function Marks({
 							{layoutText(item.text, item.size, item.w * pw).map((line, i) => (
 								<text
 									key={`${i}-${line}`}
-									x={item.x * pw}
+									x={(item.x + (startsRtl(line) ? item.w : 0)) * pw}
 									y={item.y * ph + (i + 0.8) * item.size * LINE_HEIGHT}
 									fill={item.color}
-									direction="auto"
+									direction={startsRtl(line) ? "rtl" : "ltr"}
 									style={{ font: textFont(item.size) }}
 								>
 									{line}

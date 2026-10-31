@@ -170,8 +170,6 @@ export const zh: Table = {
 	Privacy: "隐私",
 	"Paperwren never connects to the internet. It has no ads, no accounts and no analytics, and it asks for no permissions.":
 		"Paperwren 从不连接互联网。它没有广告、账号和分析统计，也不请求任何权限。",
-	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
-		"文件在此设备上读取。最近列表、你的设置以及你打开的文件的副本保存在应用的私有存储中，可在上方删除。密码只使用一次，绝不保存。",
 	About: "关于",
 	"Email address copied": "已复制邮箱地址",
 	Contact: "联系",
@@ -958,4 +956,116 @@ export const zh: Table = {
 	"No words were found on its pages, so no copy was made.":
 		"未在其页面上找到文字，因此未生成副本。",
 	searchable: "可搜索",
+	"Nothing found yet.": "暂时没有找到内容。",
+	"Showing the first {n} pages.": "显示前 {n} 页。",
+	"Try a sample document": "试试示例文档",
+	"Found on {n} pages": "在 {n} 页中找到",
+	"Copy the words in this picture": "复制这张图片中的文字",
+	Picture: "图片",
+	"View picture": "查看图片",
+	"Couldn't show this picture": "无法显示这张图片",
+	"This PDF has a digital signature. A changed copy won't keep it valid.":
+		"此 PDF 带有数字签名。修改后的副本无法保持签名有效。",
+	"This page has a place to sign.": "此页有签名位置。",
+	"This adds a picture of your signature, not a digital certificate.":
+		"这只是添加你签名的图片，并非数字证书。",
+	"Drag around your signature to leave out the rest.":
+		"围绕你的签名拖动，以去掉其余部分。",
+	Lighter: "更浅",
+	"How dark the ink reads": "墨迹的深浅",
+	Darker: "更深",
+	"Enter a length above zero.": "请输入大于零的长度。",
+	Measure: "测量",
+	"Scroll and zoom the pages. Tap a note or a text box to change it.":
+		"滚动和缩放页面。轻点注释或文本框即可修改。",
+	"Tap the page where the text goes.": "轻点页面上要放置文字的位置。",
+	"Drag along something whose real length you know.":
+		"沿着一个你知道真实长度的物体拖动。",
+	"Tap each corner, then choose Finish shape.":
+		"依次轻点每个角，然后选择“完成图形”。",
+	"Drag from one end to the other to measure it.": "从一端拖到另一端即可测量。",
+	Length: "长度",
+	Area: "面积",
+	"Finish shape": "完成图形",
+	"Set the scale": "设置比例",
+	"Size {n}": "大小 {n}",
+	"How long is that line?": "这条线有多长？",
+	Unit: "单位",
+	"Everything measured on this page will use this scale.":
+		"此页面上测量的所有内容都将使用这个比例。",
+	Show: "显示",
+	"Couldn't mark that selection": "无法标记所选内容",
+	"Kept on this device. Find it under Highlights.":
+		"保存在此设备上。可在“高亮”中找到。",
+	"Mark removed": "已移除标记",
+	Mark: "标记",
+	"Edit note": "编辑注释",
+	notes: "注释",
+	"Notes about this document": "关于此文档的注释",
+	"Select words on a page, then pick a colour. What you mark shows up here and stays with this PDF.":
+		"在页面上选中文字，然后选一种颜色。你标记的内容会显示在这里，并与此 PDF 保存在一起。",
+	"Save as a file": "保存为文件",
+	"Save a copy with them": "连同它们保存副本",
+	"Kept on this device. The PDF itself is not changed.":
+		"保存在此设备上。PDF 本身不会被更改。",
+	"This PDF has a password, so nothing is kept. Save a copy to keep your marks.":
+		"此 PDF 有密码，因此不会保留任何内容。请保存副本以保留你的标记。",
+	"p. {n}": "第 {n} 页",
+	"Everything you marked, in one list": "你标记的所有内容，集中在一个列表中",
+	"Highlights and notes": "高亮和注释",
+	"A new PDF other apps can show them in": "一份新的 PDF，其他应用也能显示它们",
+	"Save a copy with my marks": "连同我的标记保存副本",
+	"All results": "全部结果",
+	Highlights: "高亮",
+	"Highlights deleted": "已删除高亮",
+	"Delete highlights and notes on documents": "删除文档上的高亮和注释",
+	"Plus {n} drawings on the pages": "页面上另有 {n} 处绘图",
+	"In {n} documents, kept only on this device":
+		"位于 {n} 个文档中，仅保存在此设备上",
+	"Copy its words, even from a scan": "复制其中的文字，扫描件也行",
+	"This page is a scan.": "此页是扫描件。",
+	"Read its text": "读取其文字",
+	"Couldn't read this page": "无法读取此页",
+	"Added to Notes": "已添加到笔记",
+	"Getting ready…": "正在准备…",
+	"No words were found": "未找到文字",
+	"Read text": "读取文字",
+	"Get the words from these pages": "获取这些页面中的文字",
+	"You'll see each page being read, and its text will appear here to copy. Nothing leaves this device.":
+		"你会看到每一页被读取，其文字会显示在这里供复制。任何内容都不会离开此设备。",
+	"Only page {n}": "仅第 {n} 页",
+	"Clear print reads best. Handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"清晰的印刷文字识别效果最好。手写、模糊的扫描件和波斯体乌尔都语可能会出错。",
+	"The words will appear here.": "文字会显示在这里。",
+	"Its own text": "自带文字",
+	"No words on this page.": "此页没有文字。",
+	"You can stop at any time and keep what's been read.":
+		"你可以随时停止，并保留已读取的内容。",
+	Stop: "停止",
+	"Read {n} more pages": "再读取 {n} 页",
+	"{n} words found": "找到 {n} 个词",
+	"Copy all": "全部复制",
+	"Add to Notes": "添加到笔记",
+	"Save a searchable PDF": "保存可搜索的 PDF",
+	"Copy with page numbers, for an AI assistant": "连同页码复制，供 AI 助手使用",
+	"Get the words from a PDF, a scan or a photo":
+		"从 PDF、扫描件或照片中获取文字",
+	"Choose a PDF or a picture. You'll watch it being read, and its text will appear on the screen.":
+		"选择 PDF 或图片。你会看到它被读取，其文字会显示在屏幕上。",
+	"{name} isn't a PDF or a picture": "{name} 不是 PDF 或图片",
+	"Start with a PDF or a picture": "请先选择 PDF 或图片",
+	"Open the last document at start": "启动时打开上次的文档",
+	"Go back to what you were reading when the app opens":
+		"打开应用时回到你正在阅读的内容",
+	"Files are read on this device. The recent list, your highlights and notes, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
+		"文件在此设备上读取。最近列表、你的高亮和注释、你的设置以及你打开的文件的副本保存在应用的私有存储中，可在上方删除。密码只使用一次，绝不保存。",
+	"What's new": "新功能",
+	"Press Esc to leave full screen": "按 Esc 退出全屏",
+	"Highlight the selected words, or add a note to them":
+		"高亮所选文字，或为其添加注释",
+	"Draw on a PDF, or add text to it": "在 PDF 上绘制，或为其添加文字",
+	"Undo and redo a mark": "撤销和重做标记",
+	"Remove the mark you tapped": "移除你轻点的标记",
+	"Turn the pages, or show two side by side": "翻页，或并排显示两页",
+	"Show this list": "显示此列表",
 };

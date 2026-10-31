@@ -179,8 +179,6 @@ export const ru: Table = {
 	Privacy: "Конфиденциальность",
 	"Paperwren never connects to the internet. It has no ads, no accounts and no analytics, and it asks for no permissions.":
 		"Paperwren никогда не подключается к интернету. В нём нет рекламы, аккаунтов и аналитики, и он не запрашивает никаких разрешений.",
-	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
-		"Файлы читаются на этом устройстве. Список недавних, ваши настройки и копии открытых файлов хранятся в закрытом хранилище приложения, и их можно удалить выше. Пароли используются один раз и никогда не сохраняются.",
 	About: "О приложении",
 	"Email address copied": "Адрес электронной почты скопирован",
 	Contact: "Контакты",
@@ -1063,4 +1061,148 @@ export const ru: Table = {
 	"No words were found on its pages, so no copy was made.":
 		"На его страницах не найдено слов, поэтому копия не создана.",
 	searchable: "с поиском",
+	"Nothing found yet.": "Пока ничего не найдено.",
+	"Showing the first {n} pages.": "Показаны первые страницы: {n}.",
+	"Try a sample document": "Попробовать пример документа",
+	"Found on {n} pages": {
+		one: "Найдено на {n} странице",
+		few: "Найдено на {n} страницах",
+		many: "Найдено на {n} страницах",
+		other: "Найдено на {n} страницах",
+	},
+	"Copy the words in this picture": "Скопировать слова с этого изображения",
+	Picture: "Изображение",
+	"View picture": "Посмотреть изображение",
+	"Couldn't show this picture": "Не удалось показать это изображение",
+	"This PDF has a digital signature. A changed copy won't keep it valid.":
+		"У этого PDF есть цифровая подпись. В изменённой копии она перестанет быть действительной.",
+	"This page has a place to sign.": "На этой странице есть место для подписи.",
+	"This adds a picture of your signature, not a digital certificate.":
+		"Добавляется изображение вашей подписи, а не цифровой сертификат.",
+	"Drag around your signature to leave out the rest.":
+		"Обведите свою подпись, чтобы убрать всё лишнее.",
+	Lighter: "Светлее",
+	"How dark the ink reads": "Насколько тёмными выглядят чернила",
+	Darker: "Темнее",
+	"Enter a length above zero.": "Введите длину больше нуля.",
+	Measure: "Измерить",
+	"Scroll and zoom the pages. Tap a note or a text box to change it.":
+		"Прокручивайте и масштабируйте страницы. Нажмите на заметку или текстовое поле, чтобы изменить.",
+	"Tap the page where the text goes.":
+		"Нажмите на страницу там, где должен быть текст.",
+	"Drag along something whose real length you know.":
+		"Проведите вдоль чего-нибудь, чья настоящая длина вам известна.",
+	"Tap each corner, then choose Finish shape.":
+		"Нажмите на каждый угол, затем выберите «Завершить фигуру».",
+	"Drag from one end to the other to measure it.":
+		"Проведите от одного конца к другому, чтобы измерить.",
+	Length: "Длина",
+	Area: "Площадь",
+	"Finish shape": "Завершить фигуру",
+	"Set the scale": "Задать масштаб",
+	"Size {n}": "Размер {n}",
+	"How long is that line?": "Какой длины эта линия?",
+	Unit: "Единица",
+	"Everything measured on this page will use this scale.":
+		"Всё, что вы измерите на этой странице, будет использовать этот масштаб.",
+	Show: "Показать",
+	"Couldn't mark that selection": "Не удалось отметить это выделение",
+	"Kept on this device. Find it under Highlights.":
+		"Хранится на этом устройстве. Найдите это в разделе «Выделения».",
+	"Mark removed": "Пометка убрана",
+	Mark: "Пометка",
+	"Edit note": "Изменить заметку",
+	notes: "заметки",
+	"Notes about this document": "Заметки об этом документе",
+	"Select words on a page, then pick a colour. What you mark shows up here and stays with this PDF.":
+		"Выделите слова на странице и выберите цвет. Всё, что вы отметите, появится здесь и останется с этим PDF.",
+	"Save as a file": "Сохранить как файл",
+	"Save a copy with them": "Сохранить копию с ними",
+	"Kept on this device. The PDF itself is not changed.":
+		"Хранится на этом устройстве. Сам PDF не меняется.",
+	"This PDF has a password, so nothing is kept. Save a copy to keep your marks.":
+		"У этого PDF есть пароль, поэтому ничего не сохраняется. Сохраните копию, чтобы не потерять свои пометки.",
+	"p. {n}": "стр. {n}",
+	"Everything you marked, in one list": "Всё, что вы отметили, в одном списке",
+	"Highlights and notes": "Выделения и заметки",
+	"A new PDF other apps can show them in":
+		"Новый PDF, в котором их смогут показать другие приложения",
+	"Save a copy with my marks": "Сохранить копию с моими пометками",
+	"All results": "Все результаты",
+	Highlights: "Выделения",
+	"Highlights deleted": "Выделения удалены",
+	"Delete highlights and notes on documents":
+		"Удалить выделения и заметки в документах",
+	"Plus {n} drawings on the pages": {
+		one: "И ещё {n} рисунок на страницах",
+		few: "И ещё {n} рисунка на страницах",
+		many: "И ещё {n} рисунков на страницах",
+		other: "И ещё {n} рисунка на страницах",
+	},
+	"In {n} documents, kept only on this device": {
+		one: "В {n} документе, хранятся только на этом устройстве",
+		few: "В {n} документах, хранятся только на этом устройстве",
+		many: "В {n} документах, хранятся только на этом устройстве",
+		other: "В {n} документах, хранятся только на этом устройстве",
+	},
+	"Copy its words, even from a scan": "Скопируйте слова, даже из скана",
+	"This page is a scan.": "Эта страница — скан.",
+	"Read its text": "Прочитать текст",
+	"Couldn't read this page": "Не удалось прочитать эту страницу",
+	"Added to Notes": "Добавлено в «Заметки»",
+	"Getting ready…": "Подготовка…",
+	"No words were found": "Слова не найдены",
+	"Read text": "Прочитать текст",
+	"Get the words from these pages": "Получить слова с этих страниц",
+	"You'll see each page being read, and its text will appear here to copy. Nothing leaves this device.":
+		"Вы увидите, как читается каждая страница, а её текст появится здесь, чтобы его можно было скопировать. Ничего не покидает это устройство.",
+	"Only page {n}": "Только страница {n}",
+	"Clear print reads best. Handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"Лучше всего читается чёткая печать. В рукописном тексте, бледных сканах и урду шрифтом насталик возможны ошибки.",
+	"The words will appear here.": "Слова появятся здесь.",
+	"Its own text": "Собственный текст",
+	"No words on this page.": "На этой странице нет слов.",
+	"You can stop at any time and keep what's been read.":
+		"Можно остановиться в любой момент и оставить то, что уже прочитано.",
+	Stop: "Остановить",
+	"Read {n} more pages": {
+		one: "Прочитать ещё {n} страницу",
+		few: "Прочитать ещё {n} страницы",
+		many: "Прочитать ещё {n} страниц",
+		other: "Прочитать ещё {n} страницы",
+	},
+	"{n} words found": {
+		one: "Найдено {n} слово",
+		few: "Найдено {n} слова",
+		many: "Найдено {n} слов",
+		other: "Найдено {n} слова",
+	},
+	"Copy all": "Копировать всё",
+	"Add to Notes": "Добавить в «Заметки»",
+	"Save a searchable PDF": "Сохранить PDF с поиском",
+	"Copy with page numbers, for an AI assistant":
+		"Копировать с номерами страниц — для ИИ-ассистента",
+	"Get the words from a PDF, a scan or a photo":
+		"Получите слова из PDF, скана или фото",
+	"Choose a PDF or a picture. You'll watch it being read, and its text will appear on the screen.":
+		"Выберите PDF или изображение. Вы увидите, как оно читается, а текст появится на экране.",
+	"{name} isn't a PDF or a picture": "{name} — не PDF и не изображение",
+	"Start with a PDF or a picture": "Начните с PDF или изображения",
+	"Open the last document at start": "Открывать последний документ при запуске",
+	"Go back to what you were reading when the app opens":
+		"При запуске приложения вернуться к тому, что вы читали",
+	"Files are read on this device. The recent list, your highlights and notes, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
+		"Файлы читаются на этом устройстве. Список недавних, ваши выделения и заметки, ваши настройки и копии открытых файлов хранятся в закрытом хранилище приложения, и их можно удалить выше. Пароли используются один раз и никогда не сохраняются.",
+	"What's new": "Что нового",
+	"Press Esc to leave full screen":
+		"Нажмите Esc, чтобы выйти из полноэкранного режима",
+	"Highlight the selected words, or add a note to them":
+		"Выделите выбранные слова или добавьте к ним заметку",
+	"Draw on a PDF, or add text to it":
+		"Рисуйте на PDF или добавляйте в него текст",
+	"Undo and redo a mark": "Отменить и повторить пометку",
+	"Remove the mark you tapped": "Убрать пометку, на которую вы нажали",
+	"Turn the pages, or show two side by side":
+		"Листайте страницы или показывайте две рядом",
+	"Show this list": "Показать этот список",
 };

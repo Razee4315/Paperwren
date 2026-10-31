@@ -26,7 +26,7 @@
 
 ![PDF, Word, Excel and PowerPoint files open in Paperwren](docs/screenshots/viewers.png)
 
-Paperwren opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, Markdown and plain-text files, source code, comic books and pictures. It also fills in, signs and marks up PDFs, compresses, merges, splits and organizes them, each tool saving a new copy, and it keeps notes you type or write by hand. Everything happens on the device. The Android app never touches the network and requests zero permissions; on Windows and macOS the only thing Paperwren ever fetches is a new version of itself, and only if you allow it.
+Paperwren opens PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, Markdown and plain-text files, source code, comic books and pictures. You can highlight and take notes as you read, with your marks kept on the device and the file left untouched. It also fills in, signs and marks up PDFs, reads the text in scans, compresses, merges, splits and organizes them, each tool saving a new copy, and it keeps notes you type or write by hand. Everything happens on the device. The Android app never touches the network and requests zero permissions; on Windows and macOS the only thing Paperwren ever fetches is a new version of itself, and only if you allow it.
 
 ## Contents
 
@@ -78,6 +78,10 @@ The bytes decide the format, not the file name: content URIs without extensions 
 
 ## Around the document
 
+- **Highlights and notes while reading a PDF**: select words and tap a colour, or underline, strike out or add a note. That's all: there is nothing to save. Marks are found again by the file's content, so they follow it through a rename or a move, and the file itself is never changed. Tap a mark to recolour it, note it or remove it. **Highlights** lists everything marked in the document, in reading order, with a note for the whole document; copy it all as Markdown, save it as a file, add it to Notes, or save a PDF copy with the marks in it. They go on paper when you print, and into your notes backup. A PDF opened with a password keeps nothing unless you save a copy.
+- **A scan offers to be read**, and a page with a signature field or a line for signing offers Fill & sign, right where you're reading.
+- **Search results** can be listed together, page by page, with the words around each.
+- **A picture in a PDF** opens large, sharp and on its own: click it, or press and hold on a phone.
 - **The file menu** in every viewer: share (or save a copy), open in another app, show in folder, print, details. What a platform cannot do is left out rather than greyed out.
 - **Print** lays the whole document out again for paper, including pages that were never scrolled into view.
 - **Folders**: pick a folder on Home to browse the documents inside it, with the same search and type filters as recents.
@@ -101,10 +105,9 @@ The PDF jobs people otherwise upload to a website for, on the device. Open them 
 |---|---|
 | Scan a document | Paper to a PDF. Take a photo with the phone's camera, or choose photos already taken (several at once). The page's edges are found by themselves and can be dragged into place, with a magnifier beside the finger; the page is straightened, then given a look: clean (the paper made evenly white, shadows and colour casts taken out), the original, grey, or black & white, and turned if need be. Pages are reordered, changed or removed, then saved together, as scanned or on A4 or Letter. A small "Scanned with Paperwren" line at the foot of each page goes with one switch, and stays off |
 | Fill & sign | The form's own fields can be typed into, ticked and chosen. Anywhere on a page you can put a signature or initials, a stamp, a line of text, the date, a tick or a cross, and move, resize or remove them; a signature field in the form is a "Sign here" box. A signature is drawn with a finger, pen or mouse, typed in a handwriting face, or uploaded: a PNG with a clear background is used as it is, a photo of one on paper has its paper made clear. A stamp is made from words (APPROVED, PAID or your own) in red, blue, green or black, square or round, with the date if wanted, or uploaded as a PNG or a scan. Signatures and stamps can be kept on the device for next time. The copy keeps the fields as fields, or makes them part of the page. Marks stay upright on pages the file turns, and text in a script the standard PDF fonts lack is drawn as a picture. A PDF whose author forbids changes says so instead |
-| Mark up | Write and draw on the pages with a finger, stylus or mouse, in a colour and thickness you choose. A felt marker colours over anything; **Highlight text**, **Underline** and **Strike out** follow the words as you drag across them. Notes sit where you tap. An eraser, undo and redo. One finger writes and two scroll and zoom; once a stylus touches the page, a finger only scrolls. The marks are saved as the PDF's own annotations, so other apps can show, list, change or remove them. A PDF whose author forbids changes says so instead |
+| Mark up | Write and draw on the pages with a finger, stylus or mouse, in a colour and thickness you choose. A felt marker colours over anything; **Highlight text**, **Underline** and **Strike out** follow the words as you drag across them. Notes sit where you tap, and **text boxes** take any language. **Measure** gives lengths and areas on a plan: at the page's real size, or at a scale you set by drawing along something of a known length, page by page. An eraser, undo and redo. What you make here is kept with the document, the same as highlights made while reading. One finger writes and two scroll and zoom; once a stylus touches the page, a finger only scrolls. The marks are saved as the PDF's own annotations, so other apps can show, list, change or remove them. A PDF whose author forbids changes says so instead |
 | Compress PDF | A smaller copy: its pictures stored again at the quality you choose, and only where that saves something. Text stays text, and what a JPEG would change (masks, CMYK and palette pictures) is left alone. If a file cannot get smaller, no copy is made and the app says so |
-| PDF to text | The words of a PDF as a `.txt` file. A scan has none: it is pictures of pages |
-| Make a scan searchable | A copy of a scan with its words laid unseen over each page, so it can be searched, selected and read aloud. The pages look the same and their pictures are not touched. Reads English, Spanish, French, Portuguese, Russian, Arabic, Urdu, Hindi and Chinese with [Tesseract](https://github.com/tesseract-ocr/tesseract), on the device, one page at a time. Clear print reads best; Nastaliq Urdu and handwriting come out with mistakes |
+| Read text | The words of a PDF, a scan or a photo, on the screen. You watch each page being read: a line sweeps down it as the engine works, the lines light up where they were found, and the text gathers beside the page. Tap a line to see where it came from; words the engine wasn't sure of are underlined. Copy it all, save it as text, add it to Notes, or save a searchable PDF: a copy with the words laid unseen over each page, which looks the same. Stop whenever you like and keep what's been read; pages already read are never read twice. A page with words of its own gives them straight away. Reads English, Spanish, French, Portuguese, Russian, Arabic, Urdu, Hindi and Chinese with [Tesseract](https://github.com/tesseract-ocr/tesseract), on the device. Clear print reads best; Nastaliq Urdu and handwriting come out with mistakes |
 | Merge PDFs | Several PDFs as one, in the order you set |
 | Organize pages | Turn, move or take out pages, picked from thumbnails |
 | Split or extract pages | Pages typed as "1-3, 5" as a new PDF, or every page as its own PDF in a ZIP |
@@ -165,7 +168,13 @@ On Windows the keyboard works from the moment a file opens, and keeps working af
 | F3, Shift+F3 (or Enter, Shift+Enter in the field) | Next and previous match. Esc closes the search |
 | Ctrl+P | Print |
 | Ctrl `+`, Ctrl `-`, Ctrl `0` | Zoom in, zoom out, back to the natural fit |
-| F11 | Full screen. Esc leaves |
+| F, F11 | Full screen. Esc leaves |
+| H, N | With words selected in a PDF: highlight them, or add a note |
+| D, T | PDF: draw on it, or add text |
+| Ctrl+Z, Ctrl+Y | Undo and redo a mark |
+| Delete | Remove the mark you clicked |
+| R, 2 | PDF: turn the pages, or show two side by side |
+| ? | The list of keys |
 | Space, Shift+Space, Page Up, Page Down, arrows | Scroll |
 | Home, End (also with Ctrl) | The start and the end of the document |
 | Left, Right | The previous and the next page, slide or picture |

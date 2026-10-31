@@ -1048,9 +1048,26 @@ export function FindBar({
 				aria-label={t("Find in document")}
 				data-testid="find-input"
 			/>
-			<span className={s.findCount} aria-live="polite" data-testid="find-count">
-				{label}
-			</span>
+			{onList && state.total > 0 && !state.busy ? (
+				<button
+					type="button"
+					className={s.findCount}
+					aria-live="polite"
+					aria-label={`${label}. ${t("All results")}`}
+					onClick={onList}
+					data-testid="find-count"
+				>
+					{label}
+				</button>
+			) : (
+				<span
+					className={s.findCount}
+					aria-live="polite"
+					data-testid="find-count"
+				>
+					{label}
+				</span>
+			)}
 			{options && onOptions && (
 				<>
 					<button
@@ -1084,7 +1101,7 @@ export function FindBar({
 			{onList && (
 				<IconButton
 					label={t("All results")}
-					className={s.findStep}
+					className={`${s.findStep} ${s.findAll}`}
 					disabled={!state.total}
 					onClick={onList}
 					data-testid="find-list"

@@ -177,8 +177,6 @@ export const ar: Table = {
 	Privacy: "الخصوصية",
 	"Paperwren never connects to the internet. It has no ads, no accounts and no analytics, and it asks for no permissions.":
 		"لا يتصل Paperwren بالإنترنت أبدًا. لا إعلانات فيه ولا حسابات ولا تحليلات، ولا يطلب أي أذونات.",
-	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
-		"تُقرأ الملفات على هذا الجهاز. قائمة الأخيرة وإعداداتك ونسخ الملفات التي تفتحها تبقى في تخزين التطبيق الخاص ويمكن حذفها من الأعلى. كلمات المرور تُستخدم مرة واحدة ولا تُحفظ أبدًا.",
 	About: "حول",
 	"Email address copied": "نُسخ عنوان البريد الإلكتروني",
 	Contact: "تواصل",
@@ -1051,4 +1049,155 @@ export const ar: Table = {
 	"No words were found on its pages, so no copy was made.":
 		"لم يُعثر على كلمات في صفحاته، لذا لم تُنشأ نسخة.",
 	searchable: "قابل للبحث",
+	"Nothing found yet.": "لم يُعثر على شيء بعد.",
+	"Showing the first {n} pages.": "تُعرض أول {n} صفحة.",
+	"Try a sample document": "جرّب مستندًا تجريبيًا",
+	"Found on {n} pages": {
+		zero: "وُجد في {n} صفحة",
+		one: "وُجد في صفحة واحدة",
+		two: "وُجد في صفحتين",
+		few: "وُجد في {n} صفحات",
+		many: "وُجد في {n} صفحةً",
+		other: "وُجد في {n} صفحة",
+	},
+	"Copy the words in this picture": "انسخ الكلمات الموجودة في هذه الصورة",
+	Picture: "صورة",
+	"View picture": "عرض الصورة",
+	"Couldn't show this picture": "تعذّر عرض هذه الصورة",
+	"This PDF has a digital signature. A changed copy won't keep it valid.":
+		"يحتوي هذا الـ PDF على توقيع رقمي. لن يبقى التوقيع صالحًا في نسخة معدَّلة.",
+	"This page has a place to sign.": "في هذه الصفحة مكان للتوقيع.",
+	"This adds a picture of your signature, not a digital certificate.":
+		"هذا يضيف صورة لتوقيعك، وليس شهادة رقمية.",
+	"Drag around your signature to leave out the rest.":
+		"اسحب حول توقيعك لاستبعاد الباقي.",
+	Lighter: "أفتح",
+	"How dark the ink reads": "مدى قتامة الحبر",
+	Darker: "أغمق",
+	"Enter a length above zero.": "أدخل طولًا أكبر من صفر.",
+	Measure: "قياس",
+	"Scroll and zoom the pages. Tap a note or a text box to change it.":
+		"مرّر الصفحات وكبّرها. انقر على ملاحظة أو مربع نص لتغييره.",
+	"Tap the page where the text goes.": "انقر على الصفحة حيث تريد وضع النص.",
+	"Drag along something whose real length you know.":
+		"اسحب على امتداد شيء تعرف طوله الحقيقي.",
+	"Tap each corner, then choose Finish shape.":
+		"انقر على كل زاوية، ثم اختر «إنهاء الشكل».",
+	"Drag from one end to the other to measure it.":
+		"اسحب من أحد الطرفين إلى الآخر لقياسه.",
+	Length: "الطول",
+	Area: "المساحة",
+	"Finish shape": "إنهاء الشكل",
+	"Set the scale": "تحديد المقياس",
+	"Size {n}": "الحجم {n}",
+	"How long is that line?": "ما طول هذا الخط؟",
+	Unit: "الوحدة",
+	"Everything measured on this page will use this scale.":
+		"كل ما يُقاس في هذه الصفحة سيستخدم هذا المقياس.",
+	Show: "إظهار",
+	"Couldn't mark that selection": "تعذّر وضع علامة على هذا التحديد",
+	"Kept on this device. Find it under Highlights.":
+		"محفوظ على هذا الجهاز. ستجده ضمن «التمييزات».",
+	"Mark removed": "أُزيلت العلامة",
+	Mark: "علامة",
+	"Edit note": "تحرير الملاحظة",
+	notes: "ملاحظات",
+	"Notes about this document": "ملاحظات حول هذا المستند",
+	"Select words on a page, then pick a colour. What you mark shows up here and stays with this PDF.":
+		"حدّد كلمات في صفحة، ثم اختر لونًا. ما تضع عليه علامة يظهر هنا ويبقى مع ملف PDF هذا.",
+	"Save as a file": "حفظ كملف",
+	"Save a copy with them": "حفظ نسخة تتضمنها",
+	"Kept on this device. The PDF itself is not changed.":
+		"محفوظ على هذا الجهاز. لا يتغيّر ملف PDF نفسه.",
+	"This PDF has a password, so nothing is kept. Save a copy to keep your marks.":
+		"هذا الـ PDF محمي بكلمة مرور، لذا لا يُحفظ شيء. احفظ نسخة للاحتفاظ بعلاماتك.",
+	"p. {n}": "ص {n}",
+	"Everything you marked, in one list": "كل ما وضعت عليه علامة، في قائمة واحدة",
+	"Highlights and notes": "التمييزات والملاحظات",
+	"A new PDF other apps can show them in":
+		"ملف PDF جديد يمكن لتطبيقات أخرى عرضها فيه",
+	"Save a copy with my marks": "حفظ نسخة تتضمن علاماتي",
+	"All results": "كل النتائج",
+	Highlights: "التمييزات",
+	"Highlights deleted": "حُذفت التمييزات",
+	"Delete highlights and notes on documents":
+		"حذف التمييزات والملاحظات على المستندات",
+	"Plus {n} drawings on the pages": {
+		zero: "بالإضافة إلى {n} رسم على الصفحات",
+		one: "بالإضافة إلى رسم واحد على الصفحات",
+		two: "بالإضافة إلى رسمين على الصفحات",
+		few: "بالإضافة إلى {n} رسومات على الصفحات",
+		many: "بالإضافة إلى {n} رسمًا على الصفحات",
+		other: "بالإضافة إلى {n} رسم على الصفحات",
+	},
+	"In {n} documents, kept only on this device": {
+		zero: "في {n} مستند، محفوظة على هذا الجهاز فقط",
+		one: "في مستند واحد، محفوظة على هذا الجهاز فقط",
+		two: "في مستندين، محفوظة على هذا الجهاز فقط",
+		few: "في {n} مستندات، محفوظة على هذا الجهاز فقط",
+		many: "في {n} مستندًا، محفوظة على هذا الجهاز فقط",
+		other: "في {n} مستند، محفوظة على هذا الجهاز فقط",
+	},
+	"Copy its words, even from a scan": "انسخ كلماته، حتى من مسح ضوئي",
+	"This page is a scan.": "هذه الصفحة مسح ضوئي.",
+	"Read its text": "اقرأ نصّها",
+	"Couldn't read this page": "تعذّرت قراءة هذه الصفحة",
+	"Added to Notes": "أُضيف إلى الملاحظات",
+	"Getting ready…": "جارٍ التحضير…",
+	"No words were found": "لم يُعثر على كلمات",
+	"Read text": "قراءة النص",
+	"Get the words from these pages": "استخرج الكلمات من هذه الصفحات",
+	"You'll see each page being read, and its text will appear here to copy. Nothing leaves this device.":
+		"ستشاهد قراءة كل صفحة، وسيظهر نصها هنا لتنسخه. لا شيء يغادر هذا الجهاز.",
+	"Only page {n}": "الصفحة {n} فقط",
+	"Clear print reads best. Handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"الطباعة الواضحة تُقرأ بأفضل شكل. قد تظهر أخطاء في خط اليد والمسوحات الباهتة والأردية بخط النستعليق.",
+	"The words will appear here.": "ستظهر الكلمات هنا.",
+	"Its own text": "نصها الأصلي",
+	"No words on this page.": "لا توجد كلمات في هذه الصفحة.",
+	"You can stop at any time and keep what's been read.":
+		"يمكنك التوقف في أي وقت والاحتفاظ بما تمت قراءته.",
+	Stop: "إيقاف",
+	"Read {n} more pages": {
+		zero: "اقرأ {n} صفحة أخرى",
+		one: "اقرأ صفحة أخرى",
+		two: "اقرأ صفحتين أخريين",
+		few: "اقرأ {n} صفحات أخرى",
+		many: "اقرأ {n} صفحةً أخرى",
+		other: "اقرأ {n} صفحة أخرى",
+	},
+	"{n} words found": {
+		zero: "عُثر على {n} كلمة",
+		one: "عُثر على كلمة واحدة",
+		two: "عُثر على كلمتين",
+		few: "عُثر على {n} كلمات",
+		many: "عُثر على {n} كلمةً",
+		other: "عُثر على {n} كلمة",
+	},
+	"Copy all": "نسخ الكل",
+	"Add to Notes": "إضافة إلى الملاحظات",
+	"Save a searchable PDF": "حفظ ملف PDF قابل للبحث",
+	"Copy with page numbers, for an AI assistant":
+		"انسخ مع أرقام الصفحات، لمساعد ذكاء اصطناعي",
+	"Get the words from a PDF, a scan or a photo":
+		"استخرج الكلمات من ملف PDF أو مسح ضوئي أو صورة",
+	"Choose a PDF or a picture. You'll watch it being read, and its text will appear on the screen.":
+		"اختر ملف PDF أو صورة. ستشاهد قراءته، وسيظهر نصه على الشاشة.",
+	"{name} isn't a PDF or a picture": "{name} ليس ملف PDF ولا صورة",
+	"Start with a PDF or a picture": "ابدأ بملف PDF أو صورة",
+	"Open the last document at start": "فتح آخر مستند عند البدء",
+	"Go back to what you were reading when the app opens":
+		"العودة إلى ما كنت تقرؤه عند فتح التطبيق",
+	"Files are read on this device. The recent list, your highlights and notes, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
+		"تُقرأ الملفات على هذا الجهاز. قائمة الملفات الأخيرة وتمييزاتك وملاحظاتك وإعداداتك ونسخ الملفات التي تفتحها تبقى في تخزين التطبيق الخاص ويمكن حذفها من الأعلى. كلمات المرور تُستخدم مرة واحدة ولا تُحفظ أبدًا.",
+	"What's new": "ما الجديد",
+	"Press Esc to leave full screen": "اضغط Esc للخروج من ملء الشاشة",
+	"Highlight the selected words, or add a note to them":
+		"ميّز الكلمات المحددة، أو أضف ملاحظة إليها",
+	"Draw on a PDF, or add text to it": "ارسم على ملف PDF، أو أضف إليه نصًا",
+	"Undo and redo a mark": "تراجع عن علامة أو أعدها",
+	"Remove the mark you tapped": "أزل العلامة التي نقرت عليها",
+	"Turn the pages, or show two side by side":
+		"اقلب الصفحات، أو اعرض صفحتين جنبًا إلى جنب",
+	"Show this list": "إظهار هذه القائمة",
 };

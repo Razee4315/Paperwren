@@ -1114,7 +1114,7 @@ export default function PdfView({
 			let text = "";
 			for (const byte of bytes) text += String.fromCharCode(byte);
 			if (live) saveThumb(thumbFor, `data:image/jpeg;base64,${btoa(text)}`);
-		}, 1200);
+		}, 500);
 		return () => {
 			live = false;
 			window.clearTimeout(timer);

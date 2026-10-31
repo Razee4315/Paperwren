@@ -178,8 +178,6 @@ export const es: Table = {
 	Privacy: "Privacidad",
 	"Paperwren never connects to the internet. It has no ads, no accounts and no analytics, and it asks for no permissions.":
 		"Paperwren nunca se conecta a internet. No tiene anuncios, cuentas ni analíticas, y no pide ningún permiso.",
-	"Files are read on this device. The recent list, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
-		"Los archivos se leen en este dispositivo. La lista de recientes, tus ajustes y las copias de los archivos que abres se guardan en el almacenamiento privado de la aplicación y pueden eliminarse arriba. Las contraseñas se usan una vez y nunca se guardan.",
 	About: "Acerca de",
 	"Email address copied": "Dirección de correo copiada",
 	Contact: "Contacto",
@@ -1044,4 +1042,137 @@ export const es: Table = {
 	"No words were found on its pages, so no copy was made.":
 		"No se encontraron palabras en sus páginas, así que no se hizo ninguna copia.",
 	searchable: "con búsqueda",
+	"Nothing found yet.": "Aún no se ha encontrado nada.",
+	"Showing the first {n} pages.": "Se muestran las primeras {n} páginas.",
+	"Try a sample document": "Prueba un documento de muestra",
+	"Found on {n} pages": {
+		one: "Encontrado en {n} página",
+		other: "Encontrado en {n} páginas",
+	},
+	"Copy the words in this picture": "Copia las palabras de esta imagen",
+	Picture: "Imagen",
+	"View picture": "Ver imagen",
+	"Couldn't show this picture": "No se pudo mostrar esta imagen",
+	"This PDF has a digital signature. A changed copy won't keep it valid.":
+		"Este PDF tiene una firma digital. Una copia modificada no la mantendrá válida.",
+	"This page has a place to sign.": "Esta página tiene un lugar para firmar.",
+	"This adds a picture of your signature, not a digital certificate.":
+		"Esto añade una imagen de tu firma, no un certificado digital.",
+	"Drag around your signature to leave out the rest.":
+		"Arrastra alrededor de tu firma para dejar fuera el resto.",
+	Lighter: "Más claro",
+	"How dark the ink reads": "Qué tan oscura se ve la tinta",
+	Darker: "Más oscuro",
+	"Enter a length above zero.": "Introduce una longitud mayor que cero.",
+	Measure: "Medir",
+	"Scroll and zoom the pages. Tap a note or a text box to change it.":
+		"Desplaza las páginas y haz zoom. Toca una nota o un cuadro de texto para cambiarlo.",
+	"Tap the page where the text goes.":
+		"Toca la página donde quieras poner el texto.",
+	"Drag along something whose real length you know.":
+		"Arrastra a lo largo de algo cuya longitud real conozcas.",
+	"Tap each corner, then choose Finish shape.":
+		"Toca cada esquina y luego elige «Terminar figura».",
+	"Drag from one end to the other to measure it.":
+		"Arrastra de un extremo al otro para medirlo.",
+	Length: "Longitud",
+	Area: "Área",
+	"Finish shape": "Terminar figura",
+	"Set the scale": "Fijar la escala",
+	"Size {n}": "Tamaño {n}",
+	"How long is that line?": "¿Cuánto mide esa línea?",
+	Unit: "Unidad",
+	"Everything measured on this page will use this scale.":
+		"Todo lo que midas en esta página usará esta escala.",
+	Show: "Mostrar",
+	"Couldn't mark that selection": "No se pudo marcar esa selección",
+	"Kept on this device. Find it under Highlights.":
+		"Se guarda en este dispositivo. Búscalo en «Resaltados».",
+	"Mark removed": "Marca quitada",
+	Mark: "Marca",
+	"Edit note": "Editar nota",
+	notes: "notas",
+	"Notes about this document": "Notas sobre este documento",
+	"Select words on a page, then pick a colour. What you mark shows up here and stays with this PDF.":
+		"Selecciona palabras en una página y elige un color. Lo que marques aparecerá aquí y se quedará con este PDF.",
+	"Save as a file": "Guardar como archivo",
+	"Save a copy with them": "Guardar una copia con ellas",
+	"Kept on this device. The PDF itself is not changed.":
+		"Se guarda en este dispositivo. El PDF en sí no cambia.",
+	"This PDF has a password, so nothing is kept. Save a copy to keep your marks.":
+		"Este PDF tiene contraseña, así que no se guarda nada. Guarda una copia para conservar tus marcas.",
+	"p. {n}": "p. {n}",
+	"Everything you marked, in one list": "Todo lo que marcaste, en una lista",
+	"Highlights and notes": "Resaltados y notas",
+	"A new PDF other apps can show them in":
+		"Un PDF nuevo en el que otras apps puedan mostrarlas",
+	"Save a copy with my marks": "Guardar una copia con mis marcas",
+	"All results": "Todos los resultados",
+	Highlights: "Resaltados",
+	"Highlights deleted": "Resaltados eliminados",
+	"Delete highlights and notes on documents":
+		"Eliminar resaltados y notas de los documentos",
+	"Plus {n} drawings on the pages": {
+		one: "Más {n} dibujo en las páginas",
+		other: "Más {n} dibujos en las páginas",
+	},
+	"In {n} documents, kept only on this device": {
+		one: "En {n} documento, guardados solo en este dispositivo",
+		other: "En {n} documentos, guardados solo en este dispositivo",
+	},
+	"Copy its words, even from a scan":
+		"Copia sus palabras, incluso de un escaneo",
+	"This page is a scan.": "Esta página es un escaneo.",
+	"Read its text": "Leer su texto",
+	"Couldn't read this page": "No se pudo leer esta página",
+	"Added to Notes": "Añadido a Notas",
+	"Getting ready…": "Preparando…",
+	"No words were found": "No se encontraron palabras",
+	"Read text": "Leer texto",
+	"Get the words from these pages": "Obtén las palabras de estas páginas",
+	"You'll see each page being read, and its text will appear here to copy. Nothing leaves this device.":
+		"Verás cómo se lee cada página y su texto aparecerá aquí para copiarlo. Nada sale de este dispositivo.",
+	"Only page {n}": "Solo la página {n}",
+	"Clear print reads best. Handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"La letra impresa clara se lee mejor. La escritura a mano, los escaneos tenues y el urdu nastaliq pueden salir con errores.",
+	"The words will appear here.": "Las palabras aparecerán aquí.",
+	"Its own text": "Su propio texto",
+	"No words on this page.": "No hay palabras en esta página.",
+	"You can stop at any time and keep what's been read.":
+		"Puedes parar en cualquier momento y conservar lo que ya se leyó.",
+	Stop: "Detener",
+	"Read {n} more pages": {
+		one: "Leer {n} página más",
+		other: "Leer {n} páginas más",
+	},
+	"{n} words found": {
+		one: "{n} palabra encontrada",
+		other: "{n} palabras encontradas",
+	},
+	"Copy all": "Copiar todo",
+	"Add to Notes": "Añadir a Notas",
+	"Save a searchable PDF": "Guardar un PDF con búsqueda",
+	"Copy with page numbers, for an AI assistant":
+		"Copiar con números de página, para un asistente de IA",
+	"Get the words from a PDF, a scan or a photo":
+		"Obtén las palabras de un PDF, un escaneo o una foto",
+	"Choose a PDF or a picture. You'll watch it being read, and its text will appear on the screen.":
+		"Elige un PDF o una imagen. Verás cómo se lee y su texto aparecerá en la pantalla.",
+	"{name} isn't a PDF or a picture": "{name} no es un PDF ni una imagen",
+	"Start with a PDF or a picture": "Empieza con un PDF o una imagen",
+	"Open the last document at start": "Abrir el último documento al iniciar",
+	"Go back to what you were reading when the app opens":
+		"Vuelve a lo que estabas leyendo cuando se abre la app",
+	"Files are read on this device. The recent list, your highlights and notes, your settings and copies of files you open live in private app storage and can be deleted above. Passwords are used once and never saved.":
+		"Los archivos se leen en este dispositivo. La lista de recientes, tus resaltados y notas, tus ajustes y las copias de los archivos que abres se guardan en el almacenamiento privado de la aplicación y pueden eliminarse arriba. Las contraseñas se usan una vez y nunca se guardan.",
+	"What's new": "Novedades",
+	"Press Esc to leave full screen": "Pulsa Esc para salir de pantalla completa",
+	"Highlight the selected words, or add a note to them":
+		"Resalta las palabras seleccionadas o añade una nota",
+	"Draw on a PDF, or add text to it": "Dibuja en un PDF o añade texto",
+	"Undo and redo a mark": "Deshacer y rehacer una marca",
+	"Remove the mark you tapped": "Quita la marca que tocaste",
+	"Turn the pages, or show two side by side":
+		"Pasa las páginas o muestra dos en paralelo",
+	"Show this list": "Mostrar esta lista",
 };

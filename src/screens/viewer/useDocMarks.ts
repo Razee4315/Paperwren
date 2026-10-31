@@ -51,7 +51,6 @@ export function useDocMarks(
 	const past = useRef<DocMark[][]>([]);
 	const future = useRef<DocMark[][]>([]);
 	const current = useRef({ key, name, list, note, scales, persist });
-	current.current = { key, name, list, note, scales, persist };
 	const unsaved = useRef(false);
 	const timer = useRef(0);
 
@@ -70,6 +69,11 @@ export function useDocMarks(
 			updatedAt: Date.now(),
 		}).catch(() => {});
 	}, []);
+
+	// Another document: what is waiting to be written belongs to the last
+	// one, and goes under its key before this one's takes over.
+	if (current.current.key !== key) flush();
+	current.current = { key, name, list, note, scales, persist };
 
 	const changed = useCallback(() => {
 		unsaved.current = true;

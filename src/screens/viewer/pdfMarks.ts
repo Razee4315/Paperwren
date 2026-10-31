@@ -6,6 +6,7 @@
  * its margins, so everything goes through one map.
  */
 
+import { startsRtl } from "@/lib/bidi";
 import type { DocMark } from "@/lib/docMarks";
 import { MARKER_OPACITY, NOTE_SIZE } from "@/lib/pdfMarkup";
 import { LINE_HEIGHT, layoutText, paintText, textFont } from "@/lib/textBox";
@@ -145,13 +146,14 @@ function shapes(
 		const left = mark.x * pw;
 		const width = mark.w * pw;
 		return layoutText(mark.text, mark.size, width).map((line, i) => {
+			const rtl = startsRtl(line);
 			const text = el("text", {
-				x: left,
+				x: rtl ? left + width : left,
 				y: mark.y * ph + (i + 0.8) * mark.size * LINE_HEIGHT,
 				fill: mark.color,
+				direction: rtl ? "rtl" : "ltr",
 				style: `font:${textFont(mark.size)}`,
 			});
-			text.setAttribute("direction", "auto");
 			text.textContent = line;
 			return text;
 		});
