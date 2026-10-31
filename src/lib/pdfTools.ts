@@ -720,6 +720,8 @@ export interface ReadWord {
 	w: number;
 	h: number;
 	rtl: boolean;
+	/** How sure the reader was, out of 100, for words it read itself. */
+	sure?: number;
 }
 
 /** Tesseract's own font for a text layer (Apache-2.0): every character

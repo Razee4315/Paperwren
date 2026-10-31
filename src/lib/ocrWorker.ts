@@ -35,6 +35,8 @@ const post = (reply: OcrReply) => self.postMessage(reply);
 async function start(language: string, data: ArrayBuffer) {
 	core = (await TesseractCore({
 		locateFile: () => coreWasm,
+		// The engine says how far through a page it is as it reads.
+		TesseractProgress: (percent: number) => post({ kind: "progress", percent }),
 	})) as Core;
 	core.FS.writeFile(`./${language}.traineddata`, new Uint8Array(data));
 	api = new core.TessBaseAPI();

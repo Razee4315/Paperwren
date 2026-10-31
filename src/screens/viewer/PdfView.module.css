@@ -75,6 +75,35 @@
 .trail:hover {
 	background: var(--surface-2);
 }
+/* A scan offers to be read. */
+.scanOffer {
+	position: absolute;
+	z-index: 5;
+	top: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	max-width: calc(100% - 24px);
+	padding: 4px 4px 4px 12px;
+	border-radius: 14px;
+	border: 1px solid var(--line-strong);
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: var(--shadow-2);
+	font-size: 14px;
+	white-space: nowrap;
+	animation: pw-fade-in 160ms ease-out;
+}
+.scanOffer > svg {
+	flex: none;
+	color: var(--accent);
+}
+.scanOffer > span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
 .outline {
 	display: block;
 	width: 100%;
@@ -235,10 +264,8 @@ button.extra[aria-pressed="false"] {
 	transform: scale(1.14);
 }
 .barSwatch[aria-pressed="true"] {
-	box-shadow:
-		inset 0 0 0 1px rgb(0 0 0 / 0.18),
-		0 0 0 2px var(--surface),
-		0 0 0 4px var(--accent);
+	box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.18), 0 0 0 2px var(--surface), 0 0 0
+		4px var(--accent);
 }
 .barLine {
 	width: 1px;

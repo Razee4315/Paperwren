@@ -3,6 +3,7 @@ import { type DocMark, contentKey, fileSample } from "@/lib/docMarks";
 import { isDesktop } from "@/lib/env";
 import { copyName } from "@/lib/fileName";
 import { locale, t, tn } from "@/lib/i18n";
+import { hasOwnText } from "@/lib/ocr";
 import { loadEngine, pdfAsset } from "@/lib/pdfEngine";
 import { type TextPicture, addMarkup } from "@/lib/pdfMarkup";
 import { PrintCancelled } from "@/lib/print";
@@ -41,9 +42,11 @@ import {
 	PenLine,
 	RotateCcw,
 	RotateCw,
+	ScanText,
 	Search,
 	StretchHorizontal,
 	Wrench,
+	X,
 } from "lucide-react";
 import type {
 	PDFDocumentLoadingTask,
@@ -61,7 +64,9 @@ import "pdfjs-dist/web/pdf_viewer.css";
 import { drawPage } from "@/lib/pagePicture";
 import { FillSign } from "@/screens/tools/FillSign";
 import { MarkUp } from "@/screens/tools/MarkUp";
+import { ReadText } from "@/screens/tools/ReadText";
 import { markHit } from "@/screens/tools/ink";
+import { pdfSource } from "@/screens/tools/readSource";
 import { announceSaved } from "@/screens/tools/saved";
 import {
 	useCallback,
@@ -112,7 +117,12 @@ import {
 	toDrawn,
 	toShown,
 } from "./pdfMarks";
-import { type Box, findPictures, placePictures } from "./pdfPictures";
+import {
+	type Box,
+	findPictures,
+	looksScanned,
+	placePictures,
+} from "./pdfPictures";
 import { pageFileName, savePicture } from "./savePicture";
 import { pdfSpeech } from "./speechSources";
 import type { ViewerProps } from "./types";
@@ -294,6 +304,10 @@ export default function PdfView({
 	const marking = useRef<MarkingHandle>(null);
 	const [scrollBox, setScrollBox] = useState<HTMLDivElement | null>(null);
 	const [marksOpen, setMarksOpen] = useState(false);
+	const [readingText, setReadingText] = useState(false);
+	// The page on show is a picture of a page: offer to read it.
+	const [scanOffer, setScanOffer] = useState(false);
+	const [scanRefused, setScanRefused] = useState(false);
 	/** A mark to draw the eye to, once its page is drawn. */
 	const pulse = useRef<string | null>(null);
 	const [findOpen, setFindOpen] = useState(false);
@@ -1035,6 +1049,32 @@ export default function PdfView({
 			if (view?.renderingState === RENDERED) keepPictures.current(view);
 		}
 	}, [tinted]);
+	// A scan has no words to search or select. Asked of the page on
+	// show, a moment after it settles, so paging through costs nothing.
+	useEffect(() => {
+		if (!doc || status !== "ready" || scanRefused) return;
+		let live = true;
+		const timer = window.setTimeout(async () => {
+			try {
+				const proxy = await doc.getPage(page);
+				const { items } = await proxy.getTextContent();
+				if (hasOwnText(items as Array<{ str?: string }>)) {
+					if (live) setScanOffer(false);
+					return;
+				}
+				const { pdfjs } = await loadEngine();
+				const scanned = await looksScanned(proxy, pdfjs.OPS);
+				if (live) setScanOffer(scanned);
+			} catch {
+				if (live) setScanOffer(false);
+			}
+		}, 500);
+		return () => {
+			live = false;
+			window.clearTimeout(timer);
+		};
+	}, [doc, status, page, scanRefused]);
+
 	// --- marks on the pages ---
 	const mapOf = (view: DrawnPage): PageMap | null =>
 		view.pdfPage ? pageMap(view.pdfPage, view.viewport) : null;
@@ -1289,6 +1329,17 @@ export default function PdfView({
 					{t("Save a copy with my marks")}
 				</SheetItem>
 			)}
+			<SheetItem
+				icon={<ScanText size={20} />}
+				hint={t("Copy its words, even from a scan")}
+				onClick={() => {
+					close();
+					setReadingText(true);
+				}}
+				testId="pdf-read-text"
+			>
+				{t("Read text")}
+			</SheetItem>
 			{file?.openTools && (
 				<SheetItem
 					icon={<Wrench size={20} />}
@@ -1867,13 +1918,33 @@ export default function PdfView({
 				</button>
 			)}
 
+			{scanOffer && !scanRefused && !readingText && status === "ready" && (
+				<div className={s.scanOffer} data-testid="scan-offer">
+					<ScanText size={18} aria-hidden="true" />
+					<span>{t("This page is a scan.")}</span>
+					<Button
+						variant="secondary"
+						onClick={() => setReadingText(true)}
+						data-testid="scan-offer-read"
+					>
+						{t("Read its text")}
+					</Button>
+					<IconButton
+						label={t("Close")}
+						onClick={() => setScanRefused(true)}
+						data-testid="scan-offer-close"
+					>
+						<X size={16} />
+					</IconButton>
+				</div>
+			)}
 			{status === "ready" && marks.ready && (
 				<Marking
 					ref={marking}
 					container={scrollBox}
 					store={marks}
 					canMark={rights.mark}
-					active={active && !markingUp && !filling}
+					active={active && !markingUp && !filling && !readingText}
 					spotOf={spotOf}
 					markAt={markAt}
 					onFind={openFind}
@@ -1902,6 +1973,16 @@ export default function PdfView({
 					password={passwordRef.current}
 					store={marks}
 					onClose={() => setMarkingUp(false)}
+					onSaved={(saved) => announceSaved(saved, file?.openOver)}
+				/>
+			)}
+
+			{readingText && doc && (
+				<ReadText
+					source={pdfSource(doc, name, passwordRef.current)}
+					docKey={markDoc?.persist ? markDoc.key : null}
+					start={page - 1}
+					onClose={() => setReadingText(false)}
 					onSaved={(saved) => announceSaved(saved, file?.openOver)}
 				/>
 			)}

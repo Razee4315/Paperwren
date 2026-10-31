@@ -28,6 +28,8 @@ export interface PictureOps {
 /** A picture over this share of the page is the page: a scan or a
  * photographed sheet, which reads better turned dark with the rest. */
 const WHOLE_PAGE = 0.7;
+/** A picture this much of a page, on a page with no words, is a scan. */
+const SCAN_SHARE = 0.5;
 const MAX_PICTURES = 200;
 /** Smaller than this, in points, is an icon or a rule, not a picture. */
 const MIN_SIDE = 6;
@@ -62,6 +64,7 @@ export function picturesIn(
 	argsArray: ArrayLike<unknown>,
 	ops: PictureOps,
 	view: Box,
+	largest = WHOLE_PAGE,
 ): Box[] {
 	const found: Box[] = [];
 	const stack: Matrix[] = [];
@@ -113,7 +116,21 @@ export function picturesIn(
 	}
 	const area = (view[2] - view[0]) * (view[3] - view[1]);
 	return found.filter(
-		(b) => area <= 0 || ((b[2] - b[0]) * (b[3] - b[1])) / area < WHOLE_PAGE,
+		(b) => area <= 0 || ((b[2] - b[0]) * (b[3] - b[1])) / area < largest,
+	);
+}
+
+/** True for a page that is mostly one picture: a scan or a photograph
+ * of a page. */
+export async function looksScanned(
+	page: PDFPageProxy,
+	ops: PictureOps,
+): Promise<boolean> {
+	const list = await page.getOperatorList();
+	const view = page.view as Box;
+	const area = (view[2] - view[0]) * (view[3] - view[1]);
+	return picturesIn(list.fnArray, list.argsArray, ops, view, 2).some(
+		(b) => ((b[2] - b[0]) * (b[3] - b[1])) / area >= SCAN_SHARE,
 	);
 }
 
