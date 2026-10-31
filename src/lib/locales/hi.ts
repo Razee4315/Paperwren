@@ -933,8 +933,6 @@ export const hi: Table = {
 	Colour: "रंग",
 	"Colour {n}": "रंग {n}",
 	Thickness: "मोटाई",
-	"Scroll and zoom the pages. Tap a note to read or change it.":
-		"पृष्ठों को स्क्रॉल और ज़ूम करें। किसी नोट को पढ़ने या बदलने के लिए उस पर टैप करें।",
 	"Write with a finger, stylus or mouse. Two fingers scroll.":
 		"उँगली, स्टाइलस या माउस से लिखें। दो उँगलियों से स्क्रॉल करें।",
 	"Colour over anything on the page. Two fingers scroll.":
@@ -988,27 +986,9 @@ export const hi: Table = {
 		"यह PDF पहले से ही जितनी छोटी हो सकती है उतनी है, इसलिए कोई प्रति नहीं बनी।",
 	"{was} down to {now}, {n}% smaller": "{was} से घटकर {now}, {n}% की कमी",
 	compressed: "आकार घटाया",
-	"PDF to text": "PDF से टेक्स्ट",
-	"The words of a PDF as a text file": "PDF के शब्द टेक्स्ट फ़ाइल के रूप में",
-	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
-		"PDF चुनें और उसके शब्द टेक्स्ट फ़ाइल में सहेजें। स्कैन की गई चीज़ एक तस्वीर होती है, इसलिए उसमें शब्द नहीं होते।",
-	"This PDF has no text in it. A scan is only pictures of pages.":
-		"इस PDF में कोई टेक्स्ट नहीं है। स्कैन में सिर्फ़ पृष्ठों की तस्वीरें होती हैं।",
 	"Save as text": "टेक्स्ट के रूप में सहेजें",
-	"Make a scan searchable": "स्कैन को खोजने योग्य बनाएँ",
-	"A copy of a scan whose words you can search and select":
-		"स्कैन की ऐसी प्रति जिसके शब्द आप खोज और चुन सकें",
-	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
-		"स्कैन किया हुआ PDF और उसकी भाषा चुनें। प्रति में पृष्ठ बिल्कुल वैसे ही दिखेंगे।",
 	"Language of the document": "दस्तावेज़ की भाषा",
-	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
-		"हर पृष्ठ में कई सेकंड लगते हैं, फ़ोन पर इससे ज़्यादा। साफ़ छपाई सबसे अच्छी पढ़ी जाती है: हाथ की लिखावट, धुंधले स्कैन और नस्तालीक़ उर्दू में ग़लतियाँ हो सकती हैं।",
 	"Reading page {n} of {total}": "पृष्ठ {n} / {total} पढ़ा जा रहा है",
-	"Make searchable": "खोजने योग्य बनाएँ",
-	"This PDF already has words you can search, so no copy was made.":
-		"इस PDF में पहले से खोजने योग्य शब्द हैं, इसलिए कोई प्रति नहीं बनाई गई।",
-	"No words were found on its pages, so no copy was made.":
-		"इसके पृष्ठों पर कोई शब्द नहीं मिले, इसलिए कोई प्रति नहीं बनाई गई।",
 	searchable: "खोजने योग्य",
 	"Nothing found yet.": "अभी कुछ नहीं मिला।",
 	"Showing the first {n} pages.": "पहले {n} पृष्ठ दिखाए जा रहे हैं।",

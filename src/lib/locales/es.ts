@@ -960,8 +960,6 @@ export const es: Table = {
 	Colour: "Color",
 	"Colour {n}": "Color {n}",
 	Thickness: "Grosor",
-	"Scroll and zoom the pages. Tap a note to read or change it.":
-		"Desplaza las páginas y haz zoom. Toca una nota para leerla o cambiarla.",
 	"Write with a finger, stylus or mouse. Two fingers scroll.":
 		"Escribe con el dedo, un lápiz óptico o el ratón. Dos dedos para desplazar.",
 	"Colour over anything on the page. Two fingers scroll.":
@@ -1019,28 +1017,9 @@ export const es: Table = {
 		"Este PDF ya es casi tan pequeño como puede ser, así que no se hizo ninguna copia.",
 	"{was} down to {now}, {n}% smaller": "De {was} a {now}, un {n} % menos",
 	compressed: "comprimido",
-	"PDF to text": "PDF a texto",
-	"The words of a PDF as a text file":
-		"Las palabras de un PDF como archivo de texto",
-	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
-		"Elige un PDF para guardar sus palabras como archivo de texto. Un escaneo es una imagen, así que no tiene texto.",
-	"This PDF has no text in it. A scan is only pictures of pages.":
-		"Este PDF no tiene texto. Un escaneo son solo imágenes de las páginas.",
 	"Save as text": "Guardar como texto",
-	"Make a scan searchable": "Hacer que un escaneo se pueda buscar",
-	"A copy of a scan whose words you can search and select":
-		"Una copia del escaneo cuyas palabras puedes buscar y seleccionar",
-	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
-		"Elige un PDF escaneado y el idioma en que está escrito. Sus páginas se ven exactamente igual en la copia.",
 	"Language of the document": "Idioma del documento",
-	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
-		"Cada página tarda varios segundos, más en un teléfono. La letra impresa clara se lee mejor: la escritura a mano, los escaneos tenues y el urdu nastaliq pueden salir con errores.",
 	"Reading page {n} of {total}": "Leyendo la página {n} de {total}",
-	"Make searchable": "Hacer que se pueda buscar",
-	"This PDF already has words you can search, so no copy was made.":
-		"Este PDF ya tiene palabras que se pueden buscar, así que no se hizo ninguna copia.",
-	"No words were found on its pages, so no copy was made.":
-		"No se encontraron palabras en sus páginas, así que no se hizo ninguna copia.",
 	searchable: "con búsqueda",
 	"Nothing found yet.": "Aún no se ha encontrado nada.",
 	"Showing the first {n} pages.": "Se muestran las primeras {n} páginas.",

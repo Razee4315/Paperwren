@@ -9,7 +9,7 @@ import { type FormatKind, kindOf } from "@/lib/formats";
 import { isolate, locale, msg, t } from "@/lib/i18n";
 import { keys } from "@/lib/keys";
 import { samplePdf } from "@/lib/sample";
-import { loadThumb } from "@/lib/thumbs";
+import { loadThumb, watchThumb } from "@/lib/thumbs";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
 import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
@@ -128,15 +128,20 @@ function RowPicture({ entry }: { entry: RecentEntry }) {
 		const el = box.current;
 		if (!el || entry.format !== "pdf") return;
 		let alive = true;
+		const read = () =>
+			loadThumb(entry.id).then((found) => alive && setUrl(found));
 		const seen = new IntersectionObserver(([spot]) => {
 			if (!spot.isIntersecting) return;
 			seen.disconnect();
-			loadThumb(entry.id).then((found) => alive && setUrl(found));
+			read();
 		});
 		seen.observe(el);
+		// A file just opened gets its picture a moment later.
+		const stop = watchThumb(entry.id, read);
 		return () => {
 			alive = false;
 			seen.disconnect();
+			stop();
 		};
 	}, [entry.id, entry.format]);
 	return (

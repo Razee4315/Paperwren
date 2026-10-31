@@ -978,8 +978,6 @@ export const ru: Table = {
 	Colour: "Цвет",
 	"Colour {n}": "Цвет {n}",
 	Thickness: "Толщина",
-	"Scroll and zoom the pages. Tap a note to read or change it.":
-		"Прокручивайте и масштабируйте страницы. Нажмите на заметку, чтобы прочитать или изменить её.",
 	"Write with a finger, stylus or mouse. Two fingers scroll.":
 		"Пишите пальцем, стилусом или мышью. Двумя пальцами — прокрутка.",
 	"Colour over anything on the page. Two fingers scroll.":
@@ -1039,27 +1037,9 @@ export const ru: Table = {
 	"{was} down to {now}, {n}% smaller":
 		"Было {was}, стало {now}: на {n}% меньше",
 	compressed: "сжато",
-	"PDF to text": "PDF в текст",
-	"The words of a PDF as a text file": "Слова из PDF в виде текстового файла",
-	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
-		"Выберите PDF, чтобы сохранить его слова в текстовый файл. Скан — это картинка, поэтому слов в нём нет.",
-	"This PDF has no text in it. A scan is only pictures of pages.":
-		"В этом PDF нет текста. Скан — это просто картинки страниц.",
 	"Save as text": "Сохранить как текст",
-	"Make a scan searchable": "Сделать скан доступным для поиска",
-	"A copy of a scan whose words you can search and select":
-		"Копия скана, в которой можно искать и выделять слова",
-	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
-		"Выберите отсканированный PDF и язык текста. В копии страницы будут выглядеть точно так же.",
 	"Language of the document": "Язык документа",
-	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
-		"Каждая страница занимает несколько секунд, на телефоне дольше. Лучше всего читается чёткая печать: в рукописном тексте, бледных сканах и урду шрифтом насталик возможны ошибки.",
 	"Reading page {n} of {total}": "Чтение страницы {n} из {total}",
-	"Make searchable": "Сделать доступным для поиска",
-	"This PDF already has words you can search, so no copy was made.":
-		"В этом PDF уже есть слова для поиска, поэтому копия не создана.",
-	"No words were found on its pages, so no copy was made.":
-		"На его страницах не найдено слов, поэтому копия не создана.",
 	searchable: "с поиском",
 	"Nothing found yet.": "Пока ничего не найдено.",
 	"Showing the first {n} pages.": "Показаны первые страницы: {n}.",

@@ -969,8 +969,6 @@ export const ar: Table = {
 	Colour: "اللون",
 	"Colour {n}": "اللون {n}",
 	Thickness: "السُّمك",
-	"Scroll and zoom the pages. Tap a note to read or change it.":
-		"مرّر الصفحات وكبّرها. انقر على ملاحظة لقراءتها أو تغييرها.",
 	"Write with a finger, stylus or mouse. Two fingers scroll.":
 		"اكتب بإصبعك أو بالقلم الرقمي أو بالفأرة. التمرير بإصبعين.",
 	"Colour over anything on the page. Two fingers scroll.":
@@ -1027,27 +1025,9 @@ export const ar: Table = {
 		"هذا الملف صغير بالفعل بقدر الإمكان، لذا لم تُنشأ نسخة.",
 	"{was} down to {now}, {n}% smaller": "من {was} إلى {now}، أصغر بنسبة {n}%",
 	compressed: "مضغوط",
-	"PDF to text": "PDF إلى نص",
-	"The words of a PDF as a text file": "كلمات ملف PDF كملف نصي",
-	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
-		"اختر ملف PDF لحفظ كلماته كملف نصي. المسح الضوئي صورة، لذا لا يحتوي على كلمات.",
-	"This PDF has no text in it. A scan is only pictures of pages.":
-		"لا يحتوي هذا الملف على نص. المسح الضوئي مجرد صور للصفحات.",
 	"Save as text": "حفظ كنص",
-	"Make a scan searchable": "اجعل المسح الضوئي قابلًا للبحث",
-	"A copy of a scan whose words you can search and select":
-		"نسخة من المسح الضوئي يمكنك البحث في كلماتها وتحديدها",
-	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
-		"اختر ملف PDF ممسوحًا ضوئيًا واللغة المكتوب بها. ستبدو صفحاته في النسخة كما هي تمامًا.",
 	"Language of the document": "لغة المستند",
-	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
-		"تستغرق كل صفحة عدة ثوانٍ، وأكثر على الهاتف. الطباعة الواضحة تُقرأ بأفضل شكل: قد تظهر أخطاء في خط اليد والمسوحات الباهتة والأردية بخط النستعليق.",
 	"Reading page {n} of {total}": "جارٍ قراءة الصفحة {n} من {total}",
-	"Make searchable": "اجعله قابلًا للبحث",
-	"This PDF already has words you can search, so no copy was made.":
-		"يحتوي ملف PDF هذا بالفعل على كلمات يمكن البحث فيها، لذا لم تُنشأ نسخة.",
-	"No words were found on its pages, so no copy was made.":
-		"لم يُعثر على كلمات في صفحاته، لذا لم تُنشأ نسخة.",
 	searchable: "قابل للبحث",
 	"Nothing found yet.": "لم يُعثر على شيء بعد.",
 	"Showing the first {n} pages.": "تُعرض أول {n} صفحة.",

@@ -885,8 +885,6 @@ export const zh: Table = {
 	Colour: "颜色",
 	"Colour {n}": "颜色 {n}",
 	Thickness: "粗细",
-	"Scroll and zoom the pages. Tap a note to read or change it.":
-		"滚动和缩放页面。轻点注释即可查看或修改。",
 	"Write with a finger, stylus or mouse. Two fingers scroll.":
 		"用手指、触控笔或鼠标书写。双指滚动。",
 	"Colour over anything on the page. Two fingers scroll.":
@@ -934,27 +932,9 @@ export const zh: Table = {
 		"此 PDF 已经小得不能再小，因此没有生成副本。",
 	"{was} down to {now}, {n}% smaller": "从 {was} 减小到 {now}，缩小了 {n}%",
 	compressed: "已压缩",
-	"PDF to text": "PDF 转文本",
-	"The words of a PDF as a text file": "将 PDF 中的文字保存为文本文件",
-	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
-		"选择 PDF，将其中的文字保存为文本文件。扫描件只是图片，所以没有文字。",
-	"This PDF has no text in it. A scan is only pictures of pages.":
-		"此 PDF 中没有文字。扫描件只是页面的图片。",
 	"Save as text": "保存为文本",
-	"Make a scan searchable": "让扫描件可搜索",
-	"A copy of a scan whose words you can search and select":
-		"生成一份可以搜索和选择文字的扫描件副本",
-	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
-		"选择扫描的 PDF 及其书写语言。副本中的页面外观完全不变。",
 	"Language of the document": "文档语言",
-	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
-		"每页需要几秒钟，在手机上会更久。清晰的印刷文字识别效果最好；手写、模糊的扫描件和波斯体乌尔都语可能会出错。",
 	"Reading page {n} of {total}": "正在读取第 {n} 页，共 {total} 页",
-	"Make searchable": "设为可搜索",
-	"This PDF already has words you can search, so no copy was made.":
-		"此 PDF 已包含可搜索的文字，因此未生成副本。",
-	"No words were found on its pages, so no copy was made.":
-		"未在其页面上找到文字，因此未生成副本。",
 	searchable: "可搜索",
 	"Nothing found yet.": "暂时没有找到内容。",
 	"Showing the first {n} pages.": "显示前 {n} 页。",

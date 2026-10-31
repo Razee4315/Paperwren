@@ -421,8 +421,12 @@ button.extra[aria-pressed="false"] {
 }
 .marksActions > button {
 	justify-content: flex-start;
+	height: auto;
 	min-height: 36px;
+	padding-block: 6px;
 	font-size: 14px;
+	white-space: normal;
+	text-align: start;
 }
 .marksFoot {
 	margin: 0;
