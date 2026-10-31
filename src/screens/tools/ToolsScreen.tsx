@@ -586,7 +586,8 @@ function CompressTool({ file, onOpen }: ToolProps) {
 							t("{was} down to {now}, {n}% smaller", {
 								was: formatBytes(was),
 								now: formatBytes(bytes.length),
-								n: Math.round((1 - bytes.length / was) * 100),
+								// Never "100%": the copy still has something in it.
+								n: Math.min(99, Math.round((1 - bytes.length / was) * 100)),
 							}),
 						);
 						return {

@@ -492,7 +492,11 @@ export function MarkUp({
 					<span dir="auto">{name}</span>
 				</div>
 			</header>
-			<div className={s.toolbar} role="toolbar" aria-label={t("Mark up")}>
+			<div
+				className={`${s.toolbar} ${s.markTools}`}
+				role="toolbar"
+				aria-label={t("Mark up")}
+			>
 				{tools.map(([kind, label, icon]) => (
 					<button
 						key={kind}
@@ -509,7 +513,7 @@ export function MarkUp({
 				))}
 			</div>
 			<div className={s.fillActions} data-testid="mark-actions">
-				<div className={s.zoom}>
+				<div className={`${s.zoom} ${s.markZoom}`}>
 					<IconButton
 						label={t("Undo")}
 						disabled={!past.length}

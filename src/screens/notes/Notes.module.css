@@ -180,6 +180,42 @@
 .swatch[aria-pressed="true"] {
 	outline: 2px solid var(--accent);
 }
+/* The way out of drawing never scrolls away. */
+.done {
+	position: sticky;
+	inset-inline-end: 0;
+	flex-shrink: 0;
+	margin-inline-start: auto;
+}
+@media (max-width: 520px) {
+	.tools {
+		gap: 2px;
+		padding-inline: calc(6px + var(--safe-left, 0px))
+			calc(6px + var(--safe-right, 0px));
+	}
+	.tool {
+		width: 32px;
+	}
+	.swatch {
+		width: 24px;
+		height: 24px;
+	}
+	.done {
+		width: 40px;
+		min-width: 40px;
+		height: 40px;
+		min-height: 40px;
+		padding: 0;
+	}
+	.done span {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}
 .page {
 	display: flex;
 	flex-direction: column;
