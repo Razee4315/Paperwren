@@ -227,10 +227,14 @@ function Root() {
 	useEffect(() => {
 		if (resumed.current || !settingsReady || !recentsReady) return;
 		if (welcome !== false) return;
-		resumed.current = true;
-		if (!settings.reopenLast) return;
+		if (!settings.reopenLast) {
+			resumed.current = true;
+			return;
+		}
 		const timer = window.setTimeout(() => {
-			if (stateRef.current.screens.length) return;
+			resumed.current = true;
+			const busy = stateRef.current.screens.some((x) => x.kind === "viewer");
+			if (busy) return;
 			const last = [...recentsRef.current]
 				.filter((entry) => !entry.unavailable)
 				.sort((a, b) => b.openedAt - a.openedAt)[0];

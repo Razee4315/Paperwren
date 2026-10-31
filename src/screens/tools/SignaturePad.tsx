@@ -26,6 +26,8 @@ import {
 type Way = "draw" | "type" | "photo";
 /** A part of a photo: left, top, right, bottom, as fractions of it. */
 type Trim = [number, number, number, number];
+/** How tall the photo is shown, at most. */
+const FRAME_HEIGHT = 220;
 
 /** Faces for a typed signature, as the system has them: no fonts are
  * downloaded. The last of each list is there everywhere. */
@@ -520,13 +522,23 @@ export function SignaturePad({
 			{way === "photo" && (
 				<div className={s.photo}>
 					{raw && <PhotoTrim source={raw} trim={trim} onTrim={setTrim} />}
-					{photo && (
-						<img
-							className={s.photoPreview}
-							src={photo.toDataURL("image/png")}
-							alt={t("Your signature")}
-							data-testid="signature-preview"
-						/>
+					{raw && (
+						// As tall with a signature or without: the dialog must not
+						// move under a finger still dragging on the photo.
+						<div className={s.photoResult}>
+							{photo ? (
+								<img
+									className={s.photoPreview}
+									src={photo.toDataURL("image/png")}
+									alt={t("Your signature")}
+									data-testid="signature-preview"
+								/>
+							) : (
+								<p className={s.hint} data-testid="signature-missed">
+									{t("No signature was found in that picture")}
+								</p>
+							)}
+						</div>
 					)}
 					{raw && (
 						<label className={s.inkDepth}>
@@ -599,6 +611,8 @@ function PhotoTrim({
 }) {
 	const box = useRef<HTMLDivElement>(null);
 	const from = useRef<[number, number] | null>(null);
+	// The box being dragged: the picture is only worked on once it is let go.
+	const [dragging, setDragging] = useState<Trim | null>(null);
 	const url = useMemo(() => source.toDataURL("image/jpeg", 0.7), [source]);
 	const place = (e: React.PointerEvent): [number, number] => {
 		const r = box.current?.getBoundingClientRect();
@@ -608,13 +622,21 @@ function PhotoTrim({
 			Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)),
 		];
 	};
-	const [x0, y0, x1, y1] = trim ?? [0, 0, 1, 1];
+	const [x0, y0, x1, y1] = dragging ?? trim ?? [0, 0, 1, 1];
+	const letGo = (keep: boolean) => {
+		from.current = null;
+		if (keep && dragging) onTrim(dragging);
+		setDragging(null);
+	};
 	return (
 		<div className={s.photoTrim}>
 			<div
 				ref={box}
 				className={s.photoFrame}
-				style={{ aspectRatio: `${source.width} / ${source.height}` }}
+				style={{
+					aspectRatio: `${source.width} / ${source.height}`,
+					width: `min(100%, ${(FRAME_HEIGHT * source.width) / source.height}px)`,
+				}}
 				data-testid="signature-trim"
 				onPointerDown={(e) => {
 					e.preventDefault();
@@ -628,19 +650,15 @@ function PhotoTrim({
 					const wide = Math.abs(x - start[0]) > 0.02;
 					const tall = Math.abs(y - start[1]) > 0.02;
 					if (wide && tall)
-						onTrim([
+						setDragging([
 							Math.min(x, start[0]),
 							Math.min(y, start[1]),
 							Math.max(x, start[0]),
 							Math.max(y, start[1]),
 						]);
 				}}
-				onPointerUp={() => {
-					from.current = null;
-				}}
-				onPointerCancel={() => {
-					from.current = null;
-				}}
+				onPointerUp={() => letGo(true)}
+				onPointerCancel={() => letGo(false)}
 			>
 				<img src={url} alt="" draggable={false} />
 				<span

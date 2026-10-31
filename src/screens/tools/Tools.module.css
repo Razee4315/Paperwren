@@ -1610,8 +1610,6 @@
 }
 .photoFrame {
 	position: relative;
-	width: 100%;
-	max-height: 220px;
 	margin: 0 auto;
 	overflow: hidden;
 	border-radius: var(--r-s);
@@ -1631,6 +1629,18 @@
 	border-radius: 3px;
 	box-shadow: 0 0 0 999px rgb(0 0 0 / 0.42);
 	pointer-events: none;
+}
+.photoResult {
+	display: grid;
+	place-items: center;
+	width: 100%;
+	height: 84px;
+	flex: none;
+}
+.photoResult .photoPreview {
+	max-width: 100%;
+	max-height: 84px;
+	margin: 0;
 }
 .inkDepth {
 	display: flex;
@@ -1696,5 +1706,37 @@
 	}
 	:global(html.desktop) .markFill .fillActions > button {
 		margin-inline-start: 0;
+	}
+}
+
+/* On a phone the foot of Mark up keeps Save a copy and Done on screen:
+ * two fingers zoom there, so its zoom buttons can go. A tool with choices
+ * has its hint on a line of its own, above them. */
+@media (max-width: 520px) {
+	.markFill .fillActions {
+		gap: 6px;
+		padding-inline: 8px;
+	}
+	.markFill .fillActions > button {
+		margin-inline-start: 0;
+		padding-inline: 14px;
+		white-space: nowrap;
+	}
+	.markFill .fillActions > button:first-of-type {
+		margin-inline-start: auto;
+	}
+	.markFill .markZoom > :nth-child(n + 3) {
+		display: none;
+	}
+	.markFill .markOptions:has(.segment) {
+		flex-wrap: wrap;
+		padding-block: 6px;
+	}
+	.markFill .markOptions:has(.segment) p {
+		flex-basis: 100%;
+	}
+	.measureRow > button {
+		min-height: 36px;
+		padding-inline: 10px;
 	}
 }
