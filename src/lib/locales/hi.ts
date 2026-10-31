@@ -915,4 +915,101 @@ export const hi: Table = {
 		"अपनी पसंद का रूप चुनें। अगर पृष्ठ बगल में मुड़ा है तो उसे घुमाएँ।",
 	"This photo couldn't be opened.": "यह फ़ोटो नहीं खुल सकी।",
 	"Something went wrong with this photo.": "इस फ़ोटो में कुछ गड़बड़ हो गई।",
+	"Mark up": "निशान लगाएँ",
+	"Write on a PDF, highlight words, add notes":
+		"PDF पर लिखें, शब्द हाइलाइट करें, नोट जोड़ें",
+	"Choose a PDF, write on it or highlight its words, then save a copy.":
+		"PDF चुनें, उस पर लिखें या उसके शब्द हाइलाइट करें, फिर एक प्रति सहेजें।",
+	"Write on it, highlight words, add notes":
+		"उस पर लिखें, शब्द हाइलाइट करें, नोट जोड़ें",
+	"marked up": "चिह्नित",
+	"There's no text to mark here. Use the pen or marker instead.":
+		"यहाँ निशान लगाने लायक कोई टेक्स्ट नहीं है। इसके बजाय पेन या मार्कर इस्तेमाल करें।",
+	Move: "खिसकाएँ",
+	Pen: "पेन",
+	Marker: "मार्कर",
+	"Highlight text": "टेक्स्ट हाइलाइट करें",
+	"Strike out": "काटें",
+	Eraser: "रबर",
+	"Add a note": "नोट जोड़ें",
+	Colour: "रंग",
+	"Colour {n}": "रंग {n}",
+	Thickness: "मोटाई",
+	"Scroll and zoom the pages. Tap a note to read or change it.":
+		"पृष्ठों को स्क्रॉल और ज़ूम करें। किसी नोट को पढ़ने या बदलने के लिए उस पर टैप करें।",
+	"Write with a finger, stylus or mouse. Two fingers scroll.":
+		"उँगली, स्टाइलस या माउस से लिखें। दो उँगलियों से स्क्रॉल करें।",
+	"Colour over anything on the page. Two fingers scroll.":
+		"पृष्ठ पर किसी भी चीज़ के ऊपर रंग फेरें। दो उँगलियों से स्क्रॉल करें।",
+	"Drag across the words to highlight them.": "शब्दों पर खींचें, वे हाइलाइट हो जाएँगे।",
+	"Drag across the words to underline them.":
+		"शब्दों पर खींचें, उनके नीचे रेखा लग जाएगी।",
+	"Drag across the words to strike them out.": "शब्दों पर खींचें, वे कट जाएँगे।",
+	"Tap the page where the note belongs.": "पृष्ठ पर जहाँ नोट रखना हो वहाँ टैप करें।",
+	"Tap or drag over a mark to remove it.":
+		"किसी निशान को हटाने के लिए उस पर टैप करें या खींचें।",
+	Notes: "नोट्स",
+	"Couldn't open this note": "यह नोट नहीं खुल सका",
+	"This isn't a Paperwren notes backup": "यह Paperwren के नोट्स का बैकअप नहीं है",
+	"Couldn't read this file": "यह फ़ाइल पढ़ी नहीं जा सकी",
+	"Search your notes": "अपने नोट्स खोजें",
+	"Nothing here yet": "यहाँ अभी कुछ नहीं है",
+	"Type or write by hand. Notes stay on this device and save themselves.":
+		"टाइप करें या हाथ से लिखें। नोट्स इसी डिवाइस पर रहते हैं और अपने-आप सहेजे जाते हैं।",
+	"No notes match your search": "आपकी खोज से कोई नोट नहीं मिला",
+	"New note": "नया नोट",
+	"Notes go with the app if it is removed. Keep this file somewhere safe.":
+		"ऐप हटाने पर नोट्स भी चले जाते हैं। इस फ़ाइल को किसी सुरक्षित जगह रखें।",
+	"Back up all notes": "सभी नोट्स का बैकअप लें",
+	"Bring back from a backup": "बैकअप से वापस लाएँ",
+	"Choose a file": "फ़ाइल चुनें",
+	"The notes in the file are added to these. Where a note is in both, the one changed last is kept.":
+		"फ़ाइल के नोट्स इनमें जोड़ दिए जाएँगे। जो नोट दोनों में हो, उसका सबसे बाद में बदला हुआ रूप रखा जाएगा।",
+	"Couldn't save this note": "यह नोट सहेजा नहीं जा सका",
+	"Add a drawing": "चित्रांकन जोड़ें",
+	"Write by hand": "हाथ से लिखें",
+	"Start writing": "लिखना शुरू करें",
+	"Save as PDF": "PDF के रूप में सहेजें",
+	"Delete this note?": "यह नोट हटाएँ?",
+	"A deleted note can't be brought back.":
+		"हटाया गया नोट वापस नहीं लाया जा सकता।",
+	"{n} notes brought back": {
+		one: "{n} नोट वापस आ गया",
+		other: "{n} नोट्स वापस आ गए",
+	},
+	"Compress PDF": "PDF का आकार घटाएँ",
+	"A smaller copy, easier to send": "छोटी प्रति, भेजने में आसान",
+	"Choose a PDF and how small to make it. Its pictures are stored again at a lower quality.":
+		"PDF चुनें और तय करें कि उसे कितना छोटा करना है। उसकी तस्वीरें कम गुणवत्ता में दोबारा सहेजी जाती हैं।",
+	"How small": "कितना छोटा",
+	"Best quality": "सर्वोत्तम गुणवत्ता",
+	Balanced: "संतुलित",
+	"Smallest file": "सबसे छोटी फ़ाइल",
+	Compress: "आकार घटाएँ",
+	"This PDF is already about as small as it can be, so no copy was made.":
+		"यह PDF पहले से ही जितनी छोटी हो सकती है उतनी है, इसलिए कोई प्रति नहीं बनी।",
+	"{was} down to {now}, {n}% smaller": "{was} से घटकर {now}, {n}% की कमी",
+	compressed: "आकार घटाया",
+	"PDF to text": "PDF से टेक्स्ट",
+	"The words of a PDF as a text file": "PDF के शब्द टेक्स्ट फ़ाइल के रूप में",
+	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
+		"PDF चुनें और उसके शब्द टेक्स्ट फ़ाइल में सहेजें। स्कैन की गई चीज़ एक तस्वीर होती है, इसलिए उसमें शब्द नहीं होते।",
+	"This PDF has no text in it. A scan is only pictures of pages.":
+		"इस PDF में कोई टेक्स्ट नहीं है। स्कैन में सिर्फ़ पृष्ठों की तस्वीरें होती हैं।",
+	"Save as text": "टेक्स्ट के रूप में सहेजें",
+	"Make a scan searchable": "स्कैन को खोजने योग्य बनाएँ",
+	"A copy of a scan whose words you can search and select":
+		"स्कैन की ऐसी प्रति जिसके शब्द आप खोज और चुन सकें",
+	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
+		"स्कैन किया हुआ PDF और उसकी भाषा चुनें। प्रति में पृष्ठ बिल्कुल वैसे ही दिखेंगे।",
+	"Language of the document": "दस्तावेज़ की भाषा",
+	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"हर पृष्ठ में कई सेकंड लगते हैं, फ़ोन पर इससे ज़्यादा। साफ़ छपाई सबसे अच्छी पढ़ी जाती है: हाथ की लिखावट, धुंधले स्कैन और नस्तालीक़ उर्दू में ग़लतियाँ हो सकती हैं।",
+	"Reading page {n} of {total}": "पृष्ठ {n} / {total} पढ़ा जा रहा है",
+	"Make searchable": "खोजने योग्य बनाएँ",
+	"This PDF already has words you can search, so no copy was made.":
+		"इस PDF में पहले से खोजने योग्य शब्द हैं, इसलिए कोई प्रति नहीं बनाई गई।",
+	"No words were found on its pages, so no copy was made.":
+		"इसके पृष्ठों पर कोई शब्द नहीं मिले, इसलिए कोई प्रति नहीं बनाई गई।",
+	searchable: "खोजने योग्य",
 };

@@ -26,9 +26,11 @@ import {
 	Combine,
 	Folder as FolderIcon,
 	FolderPlus,
+	Highlighter,
 	Info,
 	LayoutGrid,
 	MoreVertical,
+	NotebookPen,
 	PencilLine,
 	Pin,
 	PinOff,
@@ -122,6 +124,7 @@ export function Home({
 	onOpenRequest,
 	onSettings,
 	onTools,
+	onNotes,
 }: {
 	onOpenFile: () => void;
 	onOpenRecent: (entry: RecentEntry) => void;
@@ -129,6 +132,7 @@ export function Home({
 	onOpenRequest: (request: OpenRequest) => void;
 	onSettings: () => void;
 	onTools: (tool?: ToolId) => void;
+	onNotes: () => void;
 }) {
 	const { entries, ready, togglePin, remove, restore } = useRecents();
 	const [query, setQuery] = useState("");
@@ -306,6 +310,7 @@ export function Home({
 								[
 									["scan", ScanLine, t("Scan a document")],
 									["sign", PencilLine, t("Fill & sign")],
+									["markup", Highlighter, t("Mark up")],
 									["merge", Combine, t("Merge PDFs")],
 									["organize", LayoutGrid, t("Organize pages")],
 								] as const
@@ -323,6 +328,17 @@ export function Home({
 									<span>{label}</span>
 								</button>
 							))}
+							<button
+								type="button"
+								className={s.toolShortcut}
+								onClick={onNotes}
+								data-testid="home-notes"
+							>
+								<span className={s.toolIcon}>
+									<NotebookPen size={20} />
+								</span>
+								<span>{t("Notes")}</span>
+							</button>
 						</div>
 					</section>
 					{canBrowse && (hasAny || folders.length > 0) && (

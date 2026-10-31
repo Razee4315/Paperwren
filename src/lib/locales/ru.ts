@@ -960,4 +960,107 @@ export const ru: Table = {
 		"Выберите подходящий вид. Поверните страницу, если она лежит на боку.",
 	"This photo couldn't be opened.": "Не удалось открыть это фото.",
 	"Something went wrong with this photo.": "С этим фото что-то пошло не так.",
+	"Mark up": "Сделать пометки",
+	"Write on a PDF, highlight words, add notes":
+		"Пишите на PDF, выделяйте слова, добавляйте заметки",
+	"Choose a PDF, write on it or highlight its words, then save a copy.":
+		"Выберите PDF, напишите на нём или выделите слова, затем сохраните копию.",
+	"Write on it, highlight words, add notes":
+		"Пишите на нём, выделяйте слова, добавляйте заметки",
+	"marked up": "с пометками",
+	"There's no text to mark here. Use the pen or marker instead.":
+		"Здесь нет текста, который можно отметить. Используйте перо или маркер.",
+	Move: "Перемещение",
+	Pen: "Перо",
+	Marker: "Маркер",
+	"Highlight text": "Выделить текст",
+	"Strike out": "Зачеркнуть",
+	Eraser: "Ластик",
+	"Add a note": "Добавить заметку",
+	Colour: "Цвет",
+	"Colour {n}": "Цвет {n}",
+	Thickness: "Толщина",
+	"Scroll and zoom the pages. Tap a note to read or change it.":
+		"Прокручивайте и масштабируйте страницы. Нажмите на заметку, чтобы прочитать или изменить её.",
+	"Write with a finger, stylus or mouse. Two fingers scroll.":
+		"Пишите пальцем, стилусом или мышью. Двумя пальцами — прокрутка.",
+	"Colour over anything on the page. Two fingers scroll.":
+		"Закрашивайте что угодно на странице. Двумя пальцами — прокрутка.",
+	"Drag across the words to highlight them.":
+		"Проведите по словам, чтобы выделить их.",
+	"Drag across the words to underline them.":
+		"Проведите по словам, чтобы подчеркнуть их.",
+	"Drag across the words to strike them out.":
+		"Проведите по словам, чтобы зачеркнуть их.",
+	"Tap the page where the note belongs.":
+		"Нажмите на страницу там, где должна быть заметка.",
+	"Tap or drag over a mark to remove it.":
+		"Нажмите или проведите по пометке, чтобы убрать её.",
+	Notes: "Заметки",
+	"Couldn't open this note": "Не удалось открыть эту заметку",
+	"This isn't a Paperwren notes backup":
+		"Это не резервная копия заметок Paperwren",
+	"Couldn't read this file": "Не удалось прочитать этот файл",
+	"Search your notes": "Поиск по заметкам",
+	"Nothing here yet": "Здесь пока ничего нет",
+	"Type or write by hand. Notes stay on this device and save themselves.":
+		"Печатайте или пишите от руки. Заметки хранятся на этом устройстве и сохраняются сами.",
+	"No notes match your search": "Заметок по вашему запросу не найдено",
+	"New note": "Новая заметка",
+	"Notes go with the app if it is removed. Keep this file somewhere safe.":
+		"Если удалить приложение, заметки пропадут вместе с ним. Храните этот файл в надёжном месте.",
+	"Back up all notes": "Сделать резервную копию всех заметок",
+	"Bring back from a backup": "Восстановить из резервной копии",
+	"Choose a file": "Выбрать файл",
+	"The notes in the file are added to these. Where a note is in both, the one changed last is kept.":
+		"Заметки из файла добавятся к этим. Если заметка есть и там и там, останется та, что менялась последней.",
+	"Couldn't save this note": "Не удалось сохранить эту заметку",
+	"Add a drawing": "Добавить рисунок",
+	"Write by hand": "Писать от руки",
+	"Start writing": "Начать писать",
+	"Save as PDF": "Сохранить как PDF",
+	"Delete this note?": "Удалить эту заметку?",
+	"A deleted note can't be brought back.": "Удалённую заметку нельзя вернуть.",
+	"{n} notes brought back": {
+		one: "Восстановлена {n} заметка",
+		few: "Восстановлено {n} заметки",
+		many: "Восстановлено {n} заметок",
+		other: "Восстановлено {n} заметки",
+	},
+	"Compress PDF": "Сжать PDF",
+	"A smaller copy, easier to send": "Копия поменьше, её проще отправить",
+	"Choose a PDF and how small to make it. Its pictures are stored again at a lower quality.":
+		"Выберите PDF и насколько его уменьшить. Изображения в нём сохраняются заново в более низком качестве.",
+	"How small": "Насколько уменьшить",
+	"Best quality": "Лучшее качество",
+	Balanced: "Сбалансированно",
+	"Smallest file": "Самый маленький файл",
+	Compress: "Сжать",
+	"This PDF is already about as small as it can be, so no copy was made.":
+		"Этот PDF уже почти минимального размера, поэтому копия не создана.",
+	"{was} down to {now}, {n}% smaller":
+		"Было {was}, стало {now}: на {n}% меньше",
+	compressed: "сжато",
+	"PDF to text": "PDF в текст",
+	"The words of a PDF as a text file": "Слова из PDF в виде текстового файла",
+	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
+		"Выберите PDF, чтобы сохранить его слова в текстовый файл. Скан — это картинка, поэтому слов в нём нет.",
+	"This PDF has no text in it. A scan is only pictures of pages.":
+		"В этом PDF нет текста. Скан — это просто картинки страниц.",
+	"Save as text": "Сохранить как текст",
+	"Make a scan searchable": "Сделать скан доступным для поиска",
+	"A copy of a scan whose words you can search and select":
+		"Копия скана, в которой можно искать и выделять слова",
+	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
+		"Выберите отсканированный PDF и язык текста. В копии страницы будут выглядеть точно так же.",
+	"Language of the document": "Язык документа",
+	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"Каждая страница занимает несколько секунд, на телефоне дольше. Лучше всего читается чёткая печать: в рукописном тексте, бледных сканах и урду шрифтом насталик возможны ошибки.",
+	"Reading page {n} of {total}": "Чтение страницы {n} из {total}",
+	"Make searchable": "Сделать доступным для поиска",
+	"This PDF already has words you can search, so no copy was made.":
+		"В этом PDF уже есть слова для поиска, поэтому копия не создана.",
+	"No words were found on its pages, so no copy was made.":
+		"На его страницах не найдено слов, поэтому копия не создана.",
+	searchable: "с поиском",
 };

@@ -43,6 +43,11 @@ const ToolsScreen = lazy(() =>
 		default: m.ToolsScreen,
 	})),
 );
+const NotesScreen = lazy(() =>
+	import("@/screens/notes/NotesScreen").then((m) => ({
+		default: m.NotesScreen,
+	})),
+);
 // Shown once; never part of a regular launch's bundle.
 const Onboarding = lazy(() => import("@/screens/onboarding/Onboarding"));
 
@@ -445,11 +450,18 @@ function Root() {
 				onOpenRequest={open}
 				onSettings={() => push({ kind: "settings" })}
 				onTools={(tool) => push({ kind: "tools", tool })}
+				onNotes={() => push({ kind: "notes" })}
 			/>
 			{state.screens.map((screen, i) => {
 				const atTop = i === state.screens.length - 1;
 				if (screen.kind === "settings")
 					return <SettingsScreen key="settings" />;
+				if (screen.kind === "notes")
+					return (
+						<Suspense key="notes" fallback={null}>
+							<NotesScreen />
+						</Suspense>
+					);
 				if (screen.kind === "tools")
 					return (
 						<Suspense key={`tools-${i}`} fallback={null}>

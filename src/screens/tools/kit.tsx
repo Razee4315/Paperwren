@@ -261,7 +261,11 @@ export function useRun(onOpen?: (request: OpenRequest) => void) {
 	);
 	const [error, setError] = useState("");
 	const run = async (
-		make: () => Promise<{ name: string; bytes: Uint8Array; mime: string }>,
+		make: () => Promise<{
+			name: string;
+			bytes: Uint8Array;
+			mime: string;
+		} | null>,
 	): Promise<SavedFile | null> => {
 		if (inFlight.current) return null;
 		inFlight.current = true;
@@ -270,6 +274,8 @@ export function useRun(onOpen?: (request: OpenRequest) => void) {
 		setError("");
 		try {
 			const made = await make();
+			// The tool found nothing to save, and says so itself.
+			if (!made) return null;
 			const saved = await backend.saveFile(made.name, made.bytes, made.mime);
 			setResult(saved ? { ...saved, size: made.bytes.length } : null);
 			if (saved) announceSaved(saved, onOpen, made.bytes.length);

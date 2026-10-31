@@ -10,6 +10,8 @@ import type {
 	PDFDocument as Doc,
 	PDFFont,
 	PDFPage,
+	PDFRef,
+	PDFRawStream as RawStream,
 	SecurityOptions,
 } from "@cantoo/pdf-lib";
 
@@ -58,7 +60,7 @@ export class ToolError extends Error {
 	}
 }
 
-async function open(bytes: Uint8Array, password?: string): Promise<Doc> {
+export async function open(bytes: Uint8Array, password?: string): Promise<Doc> {
 	const { PDFDocument } = await lib();
 	try {
 		return await PDFDocument.load(bytes, {
@@ -74,7 +76,7 @@ async function open(bytes: Uint8Array, password?: string): Promise<Doc> {
 
 /** The page's box as shown (pdf.js shows the crop box), and the turn
  * the file gives it, in degrees clockwise. */
-function shownBox(page: PDFPage) {
+export function shownBox(page: PDFPage) {
 	const box = page.getCropBox();
 	const turn = (((page.getRotation().angle % 360) + 360) % 360) as
 		| 0
@@ -520,6 +522,161 @@ export async function addWatermark(
 	return doc.save();
 }
 
+/** A picture inside a PDF, for making smaller: JPEG as it is stored, or
+ * raw 8-bit samples. */
+export interface StoredPicture {
+	bytes: Uint8Array;
+	raw: boolean;
+	width: number;
+	height: number;
+	/** Grey or colour. */
+	channels: 1 | 3;
+}
+
+/** A picture stored again as a colour JPEG, or null to keep it. */
+export type Recode = (
+	picture: StoredPicture,
+) => Promise<{ bytes: Uint8Array; width: number; height: number } | null>;
+
+/** How many colour channels a picture's colour space has: 1 or 3, or
+ * null for what a canvas would get wrong (CMYK, palettes, patterns). */
+function channelsOf(doc: Doc, space: unknown, names: Names): 1 | 3 | null {
+	const { PDFArray, PDFDict, PDFName, PDFNumber, PDFRawStream } = names;
+	const value = doc.context.lookup(space as never);
+	if (value instanceof PDFName) {
+		if (value === PDFName.of("DeviceRGB")) return 3;
+		if (value === PDFName.of("DeviceGray")) return 1;
+		return null;
+	}
+	if (!(value instanceof PDFArray) || value.size() < 2) return null;
+	if (value.get(0) !== PDFName.of("ICCBased")) return null;
+	const profile = doc.context.lookup(value.get(1));
+	const dict =
+		profile instanceof PDFRawStream
+			? profile.dict
+			: profile instanceof PDFDict
+				? profile
+				: null;
+	const count = dict?.get(PDFName.of("N"));
+	if (!(count instanceof PDFNumber)) return null;
+	const n = count.asNumber();
+	return n === 1 || n === 3 ? n : null;
+}
+
+type Names = Awaited<ReturnType<typeof lib>>;
+
+/** The stream filters pdf-lib can undo for a picture. */
+const UNPACKED = [
+	"/FlateDecode",
+	"/LZWDecode",
+	"/ASCII85Decode",
+	"/ASCIIHexDecode",
+	"/RunLengthDecode",
+];
+
+/**
+ * A smaller copy: its pictures stored again, each only if that saves
+ * something, and the file's structure packed. Masks, CMYK and palette
+ * pictures, and anything else a JPEG would change, stay as they are.
+ */
+export async function compressPdf(
+	bytes: Uint8Array,
+	recode: Recode,
+	{ password }: { password?: string } = {},
+): Promise<Uint8Array> {
+	const names = await lib();
+	const { PDFArray, PDFName, PDFNumber, PDFRawStream, decodePDFRawStream } =
+		names;
+	const doc = await open(bytes, password);
+	const { context } = doc;
+	const key = (name: string) => PDFName.of(name);
+	const images = context
+		.enumerateIndirectObjects()
+		.filter(
+			(entry): entry is [PDFRef, RawStream] =>
+				entry[1] instanceof PDFRawStream &&
+				entry[1].dict.get(key("Subtype")) === key("Image"),
+		);
+	// A soft mask is a picture too, and must keep every grey it has.
+	const masks = new Set(
+		images
+			.map(([, image]) => image.dict.get(key("SMask")))
+			.filter((mask) => mask !== undefined),
+	);
+	for (const [ref, image] of images) {
+		const { dict } = image;
+		if (
+			masks.has(ref) ||
+			dict.has(key("ImageMask")) ||
+			dict.has(key("Decode")) ||
+			dict.has(key("DecodeParms")) ||
+			dict.lookup(key("Mask")) instanceof PDFArray
+		)
+			continue;
+		const filter = dict.lookup(key("Filter"));
+		const filters =
+			filter instanceof PDFArray
+				? filter.asArray()
+				: filter instanceof PDFName
+					? [filter]
+					: [];
+		const jpeg = filters[filters.length - 1] === key("DCTDecode");
+		// What wraps a JPEG, or holds a raw picture: both unpacked below.
+		const wraps = jpeg ? filters.slice(0, -1) : filters;
+		if (
+			(!jpeg && !filters.length) ||
+			wraps.some((name) => !UNPACKED.includes(String(name)))
+		)
+			continue;
+		const channels = channelsOf(doc, dict.get(key("ColorSpace")), names);
+		const width = dict.lookup(key("Width"));
+		const height = dict.lookup(key("Height"));
+		const bits = dict.lookup(key("BitsPerComponent"));
+		if (
+			!channels ||
+			!(width instanceof PDFNumber) ||
+			!(height instanceof PDFNumber) ||
+			(bits instanceof PDFNumber && bits.asNumber() !== 8)
+		)
+			continue;
+		let samples: Uint8Array;
+		try {
+			const unwrapped = dict.clone(context);
+			unwrapped.delete(key("Filter"));
+			if (wraps.length)
+				unwrapped.set(key("Filter"), context.obj(wraps as never));
+			// Through the stream's own decryption, for a locked file.
+			samples = decodePDFRawStream(
+				PDFRawStream.of(unwrapped, image.contents, image.transform),
+			).decode();
+		} catch {
+			continue;
+		}
+		if (
+			!jpeg &&
+			samples.length < width.asNumber() * height.asNumber() * channels
+		)
+			continue;
+		const made = await recode({
+			bytes: samples,
+			raw: !jpeg,
+			width: width.asNumber(),
+			height: height.asNumber(),
+			channels,
+		}).catch(() => null);
+		// Not worth a generation of JPEG loss for less than a tenth.
+		if (!made || made.bytes.length > image.contents.length * 0.9) continue;
+		const next = dict.clone(context);
+		next.set(key("Filter"), key("DCTDecode"));
+		next.set(key("ColorSpace"), key("DeviceRGB"));
+		next.set(key("BitsPerComponent"), PDFNumber.of(8));
+		next.set(key("Width"), PDFNumber.of(made.width));
+		next.set(key("Height"), PDFNumber.of(made.height));
+		context.assign(ref, PDFRawStream.of(next, made.bytes));
+	}
+	return doc.save({ useObjectStreams: true, updateFieldAppearances: false });
+}
+
 /** A copy that asks for a password to open. */
 export async function protect(
 	bytes: Uint8Array,
@@ -553,4 +710,164 @@ export async function unlock(
 ): Promise<Uint8Array> {
 	const doc = await open(bytes, password);
 	return doc.save();
+}
+
+/** A word read from a page, placed as fractions of the page as shown. */
+export interface ReadWord {
+	text: string;
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+	rtl: boolean;
+}
+
+/** Tesseract's own font for a text layer (Apache-2.0): every character
+ * is the one blank glyph, half an em wide. */
+const BLANK_FONT =
+	"AAEAAAAKAIAAAwAgT1MvMlbeyJQAAAEoAAAAYGNtYXAACgA0AAABkAAAAB5nbHlmFSJBJAAAAbgAAAAYaGVhZAt48WUAAACsAAAANmhoZWEMAgQCAAAA5AAAACRobXR4BAAAAAAAAYgAAAAIbG9jYQAMAAAAAAGwAAAABm1heHAABAAFAAABCAAAACBuYW1l8usW2gAAAdAAAABLcG9zdAABAAEAAAIcAAAAIAABAAAAAQAAsJRxEF8PPPUEBwgAAAAAAM+a/G4AAAAA1MOn8gAAAAAEAAgAAAAAEAACAAAAAAAAAAEAAAgA//8AAAQAAAAAAAQAAAEAAAAAAAAAAAAAAAAAAAACAAEAAAACAAQAAQAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAwAAAZAABQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUAAQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAR09PRwBAAAAAAAAB//8AAAABAAGAAAAAAAAAAAAAAAAAAAABAAAAAAAABAAAAAAAAAIAAQAAAAAAFAADAAAAAAAUAAYACgAAAAAAAAAAAAAAAAAMAAAAAQAAAAAEAAgAAAMAADEhESEEAPwACAAAAAADACoAAAADAAAABQAWAAAAAQAAAAAABQALABYAAwABBAkABQAWAAAAVgBlAHIAcwBpAG8AbgAgADEALgAwVmVyc2lvbiAxLjAAAAEAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAA=";
+
+/** Each character code stands for itself. */
+const SAME_CODES = `/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def
+/CMapName /Adobe-Identity-UCS def
+/CMapType 2 def
+1 begincodespacerange
+<0000> <FFFF>
+endcodespacerange
+1 beginbfrange
+<0000> <FFFF> <0000>
+endbfrange
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end
+`;
+
+/** The blank font as a PDF object: any character in UTF-16, drawn with
+ * the blank glyph, and read back as itself by search and copy. */
+async function embedBlankFont(doc: Doc): Promise<PDFRef> {
+	const { PDFString } = await lib();
+	const { context } = doc;
+	const font = Uint8Array.from(atob(BLANK_FONT), (c) => c.charCodeAt(0));
+	// Every one of the 65,536 codes points at glyph 1.
+	const glyphs = new Uint8Array(2 << 16);
+	for (let i = 1; i < glyphs.length; i += 2) glyphs[i] = 1;
+	const face = context.obj({
+		Type: "Font",
+		Subtype: "CIDFontType2",
+		BaseFont: "GlyphLessFont",
+		CIDSystemInfo: {
+			Registry: PDFString.of("Adobe"),
+			Ordering: PDFString.of("Identity"),
+			Supplement: 0,
+		},
+		CIDToGIDMap: context.register(context.flateStream(glyphs)),
+		DW: 500,
+		FontDescriptor: context.register(
+			context.obj({
+				Type: "FontDescriptor",
+				FontName: "GlyphLessFont",
+				Flags: 5,
+				FontBBox: [0, 0, 500, 1000],
+				ItalicAngle: 0,
+				Ascent: 1000,
+				Descent: 0,
+				CapHeight: 1000,
+				StemV: 80,
+				FontFile2: context.register(
+					context.flateStream(font, { Length1: font.length }),
+				),
+			}),
+		),
+	});
+	return context.register(
+		context.obj({
+			Type: "Font",
+			Subtype: "Type0",
+			BaseFont: "GlyphLessFont",
+			Encoding: "Identity-H",
+			DescendantFonts: [context.register(face)],
+			ToUnicode: context.register(context.flateStream(SAME_CODES)),
+		}),
+	);
+}
+
+/** Ends in a character of a script written without spaces. */
+const NO_SPACES = /[　-ヿ㐀-鿿豈-﫿＀-￯]$/;
+
+/** The drawing commands for one word, unseen (text mode 3). */
+function wordCommands(
+	word: ReadWord,
+	box: ReturnType<typeof shownBox>,
+	shownW: number,
+	shownH: number,
+): string {
+	const size = word.h * shownH;
+	const width = word.w * shownW;
+	if (size <= 0 || width <= 0) return "";
+	// A file's right-to-left text runs in the order it is drawn, so
+	// readers put it back the other way.
+	const text = word.rtl ? [...word.text].reverse().join("") : word.text;
+	// A real space after it: a reader guessing words from the gaps runs
+	// the words of some scripts together. Chinese has none to put back,
+	// and one would split a word that search is looking for.
+	const spaced = NO_SPACES.test(word.text) ? text : `${text} `;
+	let hex = "";
+	for (const unit of spaced.split(""))
+		hex += unit.charCodeAt(0).toString(16).padStart(4, "0");
+	// Stretched so the word covers what it says on the page.
+	const stretch = (width / (text.length * size * 0.5)) * 100;
+	const [x, y] = pagePoint(box, word.x, word.y + word.h);
+	const turn = (box.turn * Math.PI) / 180;
+	const n = (value: number) => Number(value.toFixed(3));
+	const place = [
+		Math.round(Math.cos(turn)),
+		Math.round(Math.sin(turn)),
+		-Math.round(Math.sin(turn)),
+		Math.round(Math.cos(turn)),
+		n(x),
+		n(y),
+	].join(" ");
+	return `BT 3 Tr /PwOcr ${n(size)} Tf ${n(stretch)} Tz ${place} Tm <${hex}> Tj ET\n`;
+}
+
+/**
+ * The same pages with the words read from them laid over each one,
+ * unseen, so a scan can be searched, selected and read aloud. What the
+ * pages show, and every picture on them, stays as it is.
+ */
+export async function addTextLayer(
+	bytes: Uint8Array,
+	pages: Array<{ page: number; words: ReadWord[] }>,
+	{ password }: { password?: string } = {},
+): Promise<Uint8Array> {
+	if (!pages.some((p) => p.words.length)) throw new ToolError("empty");
+	const { PDFName } = await lib();
+	const doc = await open(bytes, password);
+	const { context } = doc;
+	const font = await embedBlankFont(doc);
+	const name = PDFName.of("PwOcr");
+	// Whatever a page leaves set stays inside these, away from the words.
+	const opening = context.register(context.flateStream("q\n"));
+	const closing = context.register(context.flateStream("Q\n"));
+	for (const { page: index, words } of pages) {
+		if (!words.length) continue;
+		const page = doc.getPage(index);
+		const box = shownBox(page);
+		const [w, h] = shownSize(box);
+		page.node.normalize();
+		page.node.setFontDictionary(name, font);
+		page.node.wrapContentStreams(opening, closing);
+		page.node.addContentStream(
+			context.register(
+				context.flateStream(
+					words.map((word) => wordCommands(word, box, w, h)).join(""),
+				),
+			),
+		);
+	}
+	return doc.save({ updateFieldAppearances: false });
 }

@@ -1,12 +1,16 @@
+import { formatBytes } from "@/lib/backend";
 import { copyName, splitName } from "@/lib/fileName";
-import { msg, t, tn } from "@/lib/i18n";
+import { LANGUAGES, type Language, language, msg, t, tn } from "@/lib/i18n";
+import { OcrReader } from "@/lib/ocr";
 import { drawPage } from "@/lib/pagePicture";
 import {
 	type NumberSpot,
 	type PagePick,
 	addPageNumbers,
+	addTextLayer,
 	addWatermark,
 	buildPdf,
+	compressPdf,
 	imagesToPdf,
 	parsePages,
 	protect,
@@ -15,6 +19,7 @@ import {
 } from "@/lib/pdfTools";
 import { sniffFormat } from "@/lib/sniff";
 import type { OpenRequest } from "@/lib/types";
+import { holdScreen } from "@/lib/wake";
 import { useBackClose, useNav } from "@/state/navigation";
 import { Button, IconButton } from "@/ui";
 import { zipSync } from "fflate";
@@ -25,8 +30,11 @@ import {
 	Check,
 	Combine,
 	Droplet,
+	FileDown,
 	FileImage,
+	FileText,
 	Hash,
+	Highlighter,
 	Images,
 	LayoutGrid,
 	LockKeyhole,
@@ -38,11 +46,13 @@ import {
 	Scissors,
 	ShieldCheck,
 	Sparkles,
+	TextSearch,
 	Trash2,
 } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { FillSign } from "./FillSign";
+import { MarkUp } from "./MarkUp";
 import s from "./Tools.module.css";
 import {
 	Choice,
@@ -54,12 +64,17 @@ import {
 	useRun,
 	useToolFiles,
 } from "./kit";
+import { readPages, recodePicture, textOfPdf } from "./pdfFiles";
 import { announceSaved } from "./saved";
 import { ScanTool } from "./scan/ScanTool";
 
 export type ToolId =
 	| "sign"
 	| "scan"
+	| "markup"
+	| "compress"
+	| "text"
+	| "ocr"
 	| "merge"
 	| "organize"
 	| "extract"
@@ -90,6 +105,30 @@ const TOOLS: Array<{
 		icon: <ScanLine size={22} />,
 		title: msg("Scan a document"),
 		hint: msg("Photos of paper as a clean, straight PDF"),
+	},
+	{
+		id: "markup",
+		icon: <Highlighter size={22} />,
+		title: msg("Mark up"),
+		hint: msg("Write on a PDF, highlight words, add notes"),
+	},
+	{
+		id: "compress",
+		icon: <FileDown size={22} />,
+		title: msg("Compress PDF"),
+		hint: msg("A smaller copy, easier to send"),
+	},
+	{
+		id: "text",
+		icon: <FileText size={22} />,
+		title: msg("PDF to text"),
+		hint: msg("The words of a PDF as a text file"),
+	},
+	{
+		id: "ocr",
+		icon: <TextSearch size={22} />,
+		title: msg("Make a scan searchable"),
+		hint: msg("A copy of a scan whose words you can search and select"),
 	},
 	{
 		id: "merge",
@@ -149,10 +188,13 @@ const TOOLS: Array<{
 
 const GROUPS = [
 	{ title: msg("Arrange your pages"), ids: ["merge", "organize", "extract"] },
-	{ title: msg("Convert your files"), ids: ["images", "pictures"] },
+	{
+		title: msg("Convert your files"),
+		ids: ["compress", "images", "pictures", "text", "ocr"],
+	},
 	{
 		title: msg("Add the finishing touches"),
-		ids: ["numbers", "watermark", "protect", "unlock"],
+		ids: ["markup", "numbers", "watermark", "protect", "unlock"],
 	},
 ];
 
@@ -162,6 +204,18 @@ const GUIDANCE: Record<ToolId, string> = {
 	),
 	scan: msg(
 		"Photograph each page, check its edges and pick a look, then save them all as one PDF.",
+	),
+	markup: msg(
+		"Choose a PDF, write on it or highlight its words, then save a copy.",
+	),
+	compress: msg(
+		"Choose a PDF and how small to make it. Its pictures are stored again at a lower quality.",
+	),
+	text: msg(
+		"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.",
+	),
+	ocr: msg(
+		"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.",
 	),
 	merge: msg(
 		"Add at least two PDFs. Arrange them from top to bottom, then save them as one file.",
@@ -335,6 +389,12 @@ export function ToolsScreen({
 					<div className={tool ? s.taskPanel : undefined}>
 						{tool === "sign" && <SignTool file={file} onOpen={onOpen} />}
 						{tool === "scan" && <ScanTool file={file} onOpen={onOpen} />}
+						{tool === "markup" && <MarkUpTool file={file} onOpen={onOpen} />}
+						{tool === "compress" && (
+							<CompressTool file={file} onOpen={onOpen} />
+						)}
+						{tool === "text" && <TextTool file={file} onOpen={onOpen} />}
+						{tool === "ocr" && <OcrTool file={file} onOpen={onOpen} />}
 						{tool === "merge" && <MergeTool file={file} onOpen={onOpen} />}
 						{tool === "organize" && (
 							<OrganizeTool file={file} onOpen={onOpen} />
@@ -431,6 +491,259 @@ function SignTool({ file, onOpen }: ToolProps) {
 					onClose={() => setOpen(false)}
 					onSaved={(saved) => announceSaved(saved, onOpen)}
 				/>
+			)}
+		</>
+	);
+}
+
+function MarkUpTool({ file, onOpen }: ToolProps) {
+	const kit = useToolFiles("pdf", file);
+	const doc = usePdf(kit.files[0]);
+	const [open, setOpen] = useState(false);
+	const picked = kit.files[0];
+	return (
+		<>
+			<OnePdf kit={kit} />
+			{picked && (
+				<Go
+					label={doc ? t("Open editor") : t("Opening…")}
+					disabled={!doc}
+					running={false}
+					onClick={() => setOpen(true)}
+				/>
+			)}
+			{open && doc && picked && (
+				<MarkUp
+					doc={doc}
+					name={picked.name}
+					password={picked.password}
+					onClose={() => setOpen(false)}
+					onSaved={(saved) => announceSaved(saved, onOpen)}
+				/>
+			)}
+		</>
+	);
+}
+
+/** How far each choice goes: the longest side a picture may keep, and
+ * its JPEG quality. */
+const SQUEEZE = {
+	light: { side: 2200, quality: 0.8 },
+	balanced: { side: 1600, quality: 0.68 },
+	small: { side: 1100, quality: 0.5 },
+} as const;
+
+function CompressTool({ file, onOpen }: ToolProps) {
+	const kit = useToolFiles("pdf", file);
+	const { running, run, feedback } = useRun(onOpen);
+	const [level, setLevel] = useState<keyof typeof SQUEEZE>("balanced");
+	const [outcome, setOutcome] = useState("");
+	const picked = kit.files[0];
+	return (
+		<>
+			<OnePdf kit={kit} />
+			{picked && (
+				<Choice
+					label={t("How small")}
+					value={level}
+					onChange={setLevel}
+					options={[
+						["light", t("Best quality")],
+						["balanced", t("Balanced")],
+						["small", t("Smallest file")],
+					]}
+					testId="compress-level"
+				/>
+			)}
+			{outcome && (
+				<p className={s.hint} data-testid="compress-outcome">
+					{outcome}
+				</p>
+			)}
+			{feedback}
+			<Go
+				label={t("Compress")}
+				disabled={!picked}
+				running={running}
+				onClick={() =>
+					run(async () => {
+						setOutcome("");
+						const bytes = await compressPdf(
+							picked.bytes,
+							(picture) => recodePicture(picture, SQUEEZE[level]),
+							{ password: picked.password },
+						);
+						const was = picked.bytes.length;
+						if (bytes.length >= was * 0.97) {
+							setOutcome(
+								t(
+									"This PDF is already about as small as it can be, so no copy was made.",
+								),
+							);
+							return null;
+						}
+						setOutcome(
+							t("{was} down to {now}, {n}% smaller", {
+								was: formatBytes(was),
+								now: formatBytes(bytes.length),
+								n: Math.round((1 - bytes.length / was) * 100),
+							}),
+						);
+						return {
+							name: copyName(picked.name, t("compressed")),
+							bytes,
+							mime: PDF,
+						};
+					})
+				}
+			/>
+		</>
+	);
+}
+
+function TextTool({ file, onOpen }: ToolProps) {
+	const kit = useToolFiles("pdf", file);
+	const doc = usePdf(kit.files[0]);
+	const { running, run, feedback } = useRun(onOpen);
+	const [empty, setEmpty] = useState(false);
+	const picked = kit.files[0];
+	return (
+		<>
+			<OnePdf kit={kit} />
+			{empty && (
+				<p className={s.hint} data-testid="text-empty">
+					{t("This PDF has no text in it. A scan is only pictures of pages.")}
+				</p>
+			)}
+			{feedback}
+			<Go
+				label={t("Save as text")}
+				disabled={!doc}
+				running={running}
+				onClick={() =>
+					run(async () => {
+						if (!doc) return null;
+						const text = await textOfPdf(doc);
+						setEmpty(!text.trim());
+						if (!text.trim()) return null;
+						return {
+							name: `${splitName(picked.name)[0]}.txt`,
+							bytes: new TextEncoder().encode(text),
+							mime: "text/plain",
+						};
+					})
+				}
+			/>
+		</>
+	);
+}
+
+function OcrTool({ file, onOpen }: ToolProps) {
+	const kit = useToolFiles("pdf", file);
+	const doc = usePdf(kit.files[0]);
+	const { running, run, feedback } = useRun(onOpen);
+	const [lang, setLang] = useState<Language>(language);
+	const [page, setPage] = useState<{ n: number; total: number } | null>(null);
+	const [outcome, setOutcome] = useState("");
+	const reader = useRef<OcrReader | null>(null);
+	const picked = kit.files[0];
+	useEffect(() => () => reader.current?.stop(), []);
+	const cancel = () => {
+		reader.current?.stop();
+		reader.current = null;
+	};
+	return (
+		<>
+			<OnePdf kit={kit} />
+			{picked && (
+				<>
+					<label className={s.label} htmlFor="tool-ocr-language">
+						{t("Language of the document")}
+					</label>
+					<select
+						id="tool-ocr-language"
+						className={s.field}
+						value={lang}
+						disabled={running}
+						onChange={(e) => setLang(e.target.value as Language)}
+						data-testid="tool-ocr-language"
+					>
+						{LANGUAGES.map(([code, name]) => (
+							<option key={code} value={code}>
+								{name}
+							</option>
+						))}
+					</select>
+					<p className={s.hint}>
+						{t(
+							"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.",
+						)}
+					</p>
+				</>
+			)}
+			{outcome && (
+				<p className={s.hint} data-testid="ocr-outcome">
+					{outcome}
+				</p>
+			)}
+			{running && page && (
+				<output className={s.hint} data-testid="ocr-progress">
+					{t("Reading page {n} of {total}", page)}
+				</output>
+			)}
+			{feedback}
+			<Go
+				label={t("Make searchable")}
+				disabled={!doc}
+				running={running}
+				onClick={() =>
+					run(async () => {
+						if (!doc) return null;
+						setOutcome("");
+						const job = new OcrReader(lang);
+						reader.current = job;
+						const release = holdScreen();
+						try {
+							const pages = await readPages(doc, job, (n, total) =>
+								setPage({ n, total }),
+							);
+							if (!pages.length) {
+								setOutcome(
+									t(
+										"This PDF already has words you can search, so no copy was made.",
+									),
+								);
+								return null;
+							}
+							if (!pages.some((p) => p.words.length)) {
+								setOutcome(
+									t("No words were found on its pages, so no copy was made."),
+								);
+								return null;
+							}
+							return {
+								name: copyName(picked.name, t("searchable")),
+								bytes: await addTextLayer(picked.bytes, pages, {
+									password: picked.password,
+								}),
+								mime: PDF,
+							};
+						} catch (err) {
+							// Cancelled: nothing to save, and nothing went wrong.
+							if (reader.current !== job) return null;
+							throw err;
+						} finally {
+							release();
+							job.stop();
+							setPage(null);
+						}
+					})
+				}
+			/>
+			{running && (
+				<Button variant="ghost" onClick={cancel} data-testid="ocr-cancel">
+					{t("Cancel")}
+				</Button>
 			)}
 		</>
 	);

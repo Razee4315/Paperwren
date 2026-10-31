@@ -953,7 +953,7 @@ function textWidth(text: string, h: number, pw: number, ph: number): number {
 
 /** One page: its picture, drawn once it is near the screen, under the
  * fields and marks laid over it. */
-function FillPage({
+export function FillPage({
 	doc,
 	page,
 	width,
@@ -1019,6 +1019,7 @@ function FillPage({
 			className={s.fillPage}
 			style={{ width, height }}
 			data-testid="fill-page"
+			data-page={page}
 			onPointerDown={(e) => {
 				if (e.target !== e.currentTarget && e.target !== canvas.current) return;
 				// The text placed here takes the keyboard: the tap must not

@@ -1,12 +1,21 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
-import { PDFDocument, StandardFonts, degrees } from "@cantoo/pdf-lib";
+import {
+	PDFDocument,
+	PDFName,
+	PDFNumber,
+	type PDFRawStream,
+	StandardFonts,
+	degrees,
+} from "@cantoo/pdf-lib";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { describe, expect, it } from "vitest";
 import {
 	addPageNumbers,
+	addTextLayer,
 	addWatermark,
 	buildPdf,
+	compressPdf,
 	fillAndSign,
 	imagesToPdf,
 	pageCount,
@@ -282,5 +291,204 @@ describe("passwords", () => {
 			"Page 2",
 		]);
 		await expect(unlock(locked, "nope")).rejects.toThrow();
+	});
+});
+
+describe("compressPdf", () => {
+	/** A PDF holding one picture, stored the way `store` says. */
+	async function withPicture(
+		size: number,
+		dict: Record<string, unknown>,
+		bytes: Uint8Array,
+	) {
+		const doc = await PDFDocument.create();
+		doc.addPage([100, 100]);
+		const ref = doc.context.register(
+			doc.context.stream(bytes, {
+				Type: "XObject",
+				Subtype: "Image",
+				Width: size,
+				Height: size,
+				BitsPerComponent: 8,
+				ColorSpace: "DeviceRGB",
+				...dict,
+			} as never),
+		);
+		return { bytes: await doc.save(), ref };
+	}
+
+	const shrink = async () => ({
+		bytes: new Uint8Array(50).fill(7),
+		width: 10,
+		height: 10,
+	});
+
+	it("stores a JPEG again when that saves something", async () => {
+		const jpeg = new Uint8Array(5000).fill(1);
+		const { bytes, ref } = await withPicture(
+			100,
+			{ Filter: "DCTDecode" },
+			jpeg,
+		);
+		const seen: boolean[] = [];
+		const out = await compressPdf(bytes, async (picture) => {
+			seen.push(picture.raw);
+			expect(picture.bytes).toEqual(jpeg);
+			return shrink();
+		});
+		expect(seen).toEqual([false]);
+		expect(out.length).toBeLessThan(bytes.length);
+		const doc = await PDFDocument.load(out);
+		const image = doc.context.lookup(ref) as PDFRawStream;
+		expect(image.dict.lookup(PDFName.of("Width"))).toEqual(PDFNumber.of(10));
+		expect(image.dict.get(PDFName.of("Filter"))).toBe(PDFName.of("DCTDecode"));
+	});
+
+	it("reads a JPEG wrapped in another filter", async () => {
+		// "Hell" in ASCII85: what reaches the recoder is what it wrapped.
+		const wrapped = new TextEncoder().encode("87cUR~>");
+		const { bytes } = await withPicture(
+			100,
+			{ Filter: ["ASCII85Decode", "DCTDecode"] },
+			wrapped,
+		);
+		const seen: string[] = [];
+		await compressPdf(bytes, async (picture) => {
+			seen.push(new TextDecoder().decode(picture.bytes));
+			return null;
+		});
+		expect(seen).toEqual(["Hell"]);
+	});
+
+	it("keeps a picture when the new one is hardly smaller", async () => {
+		const jpeg = new Uint8Array(100).fill(1);
+		const { bytes, ref } = await withPicture(
+			100,
+			{ Filter: "DCTDecode" },
+			jpeg,
+		);
+		const out = await compressPdf(bytes, async () => ({
+			bytes: new Uint8Array(95),
+			width: 10,
+			height: 10,
+		}));
+		const doc = await PDFDocument.load(out);
+		const image = doc.context.lookup(ref) as PDFRawStream;
+		expect(image.dict.lookup(PDFName.of("Width"))).toEqual(PDFNumber.of(100));
+	});
+
+	it("leaves alone what a JPEG would change", async () => {
+		const jpeg = new Uint8Array(5000).fill(1);
+		const cases: Array<Record<string, unknown>> = [
+			{ Filter: "DCTDecode", ColorSpace: "DeviceCMYK" },
+			{ Filter: "DCTDecode", ImageMask: true },
+			{ Filter: "DCTDecode", Decode: [1, 0, 1, 0, 1, 0] },
+			{ Filter: "DCTDecode", Mask: [0, 0, 0, 0, 0, 0] },
+			{ Filter: "JBIG2Decode" },
+		];
+		for (const dict of cases) {
+			const { bytes } = await withPicture(100, dict, jpeg);
+			const seen: unknown[] = [];
+			await compressPdf(bytes, async (picture) => {
+				seen.push(picture);
+				return null;
+			});
+			expect(seen).toEqual([]);
+		}
+	});
+});
+
+describe("addTextLayer", () => {
+	const word = (text: string, x: number, y: number, rtl = false) => ({
+		text,
+		x,
+		y,
+		w: 0.2,
+		h: 0.02,
+		rtl,
+	});
+	const blank = async (turn = 0) => {
+		const doc = await PDFDocument.create();
+		const page = doc.addPage([600, 800]);
+		if (turn) page.setRotation(degrees(turn));
+		return doc.save();
+	};
+
+	it("lays words where they were read, for pdf.js to find", async () => {
+		const out = await addTextLayer(await blank(), [
+			{ page: 0, words: [word("Hello", 0.1, 0.2), word("world", 0.35, 0.2)] },
+		]);
+		const [{ words }] = await read(out);
+		expect(words.map((w) => w.text.trim())).toEqual(["Hello", "world"]);
+		expect(words[0].u).toBeCloseTo(0.1, 2);
+		expect(words[0].v).toBeCloseTo(0.22, 1);
+	});
+
+	it("reads right-to-left words back in their own order", async () => {
+		const text = "کتاب";
+		const out = await addTextLayer(await blank(), [
+			{ page: 0, words: [word(text, 0.5, 0.2, true)] },
+		]);
+		const [{ words }] = await read(out);
+		expect(words[0].text.trim()).toBe(text);
+	});
+
+	it("reads Chinese and Hindi back", async () => {
+		const out = await addTextLayer(await blank(), [
+			{ page: 0, words: [word("委员会", 0.1, 0.2), word("परिषद", 0.4, 0.2)] },
+		]);
+		const [{ words }] = await read(out);
+		expect(words.map((w) => w.text.trim())).toEqual(["委员会", "परिषद"]);
+	});
+
+	it("keeps a real space between words", async () => {
+		const out = await addTextLayer(await blank(), [
+			{ page: 0, words: [word("परिषद", 0.1, 0.2), word("की", 0.31, 0.2)] },
+		]);
+		const [{ words }] = await read(out);
+		expect(words.map((w) => w.text).join("")).toBe("परिषद की");
+	});
+
+	it("puts no space inside a Chinese word", async () => {
+		const out = await addTextLayer(await blank(), [
+			{ page: 0, words: [word("图", 0.1, 0.2), word("书馆", 0.12, 0.2)] },
+		]);
+		const [{ words }] = await read(out);
+		expect(words.map((w) => w.text).join("")).toBe("图书馆");
+	});
+
+	it("follows a page the file turns", async () => {
+		const out = await addTextLayer(await blank(90), [
+			{ page: 0, words: [word("Turned", 0.1, 0.2)] },
+		]);
+		const [{ rotate, words }] = await read(out);
+		expect(rotate).toBe(90);
+		expect(words[0].u).toBeCloseTo(0.1, 1);
+		expect(words[0].v).toBeCloseTo(0.2, 1);
+	});
+
+	it("draws nothing that can be seen, and leaves other pages alone", async () => {
+		const out = await addTextLayer(await pages(2), [
+			{ page: 1, words: [word("Hidden", 0.1, 0.2)] },
+		]);
+		const doc = await pdfjs.getDocument({ data: out.slice(), verbosity: 0 })
+			.promise;
+		const list = await (await doc.getPage(2)).getOperatorList();
+		expect(list.fnArray).toContain(pdfjs.OPS.setTextRenderingMode);
+		expect(
+			list.argsArray[list.fnArray.indexOf(pdfjs.OPS.setTextRenderingMode)],
+		).toEqual([3]);
+		const [first, second] = await read(out);
+		expect(first.words.map((w) => w.text)).toEqual(["Page 1"]);
+		expect(second.words.map((w) => w.text.trim())).toEqual([
+			"Page 2",
+			"Hidden",
+		]);
+	});
+
+	it("refuses to make a copy with nothing to add", async () => {
+		await expect(
+			addTextLayer(await blank(), [{ page: 0, words: [] }]),
+		).rejects.toThrow();
 	});
 });

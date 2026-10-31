@@ -868,4 +868,94 @@ export const zh: Table = {
 		"选择你喜欢的效果。如果页面是横着的，请旋转它。",
 	"This photo couldn't be opened.": "无法打开这张照片。",
 	"Something went wrong with this photo.": "这张照片处理出错了。",
+	"Mark up": "标注",
+	"Write on a PDF, highlight words, add notes":
+		"在 PDF 上书写、高亮文字、添加注释",
+	"Choose a PDF, write on it or highlight its words, then save a copy.":
+		"选择 PDF，在上面书写或高亮文字，然后保存副本。",
+	"Write on it, highlight words, add notes": "在上面书写、高亮文字、添加注释",
+	"marked up": "已标注",
+	"There's no text to mark here. Use the pen or marker instead.":
+		"这里没有可标记的文字。请改用笔或马克笔。",
+	Move: "移动",
+	Pen: "笔",
+	Marker: "马克笔",
+	"Highlight text": "高亮文字",
+	"Strike out": "划掉",
+	Eraser: "橡皮擦",
+	"Add a note": "添加注释",
+	Colour: "颜色",
+	"Colour {n}": "颜色 {n}",
+	Thickness: "粗细",
+	"Scroll and zoom the pages. Tap a note to read or change it.":
+		"滚动和缩放页面。轻点注释即可查看或修改。",
+	"Write with a finger, stylus or mouse. Two fingers scroll.":
+		"用手指、触控笔或鼠标书写。双指滚动。",
+	"Colour over anything on the page. Two fingers scroll.":
+		"可在页面上的任何内容上涂色。双指滚动。",
+	"Drag across the words to highlight them.": "在文字上拖动即可高亮。",
+	"Drag across the words to underline them.": "在文字上拖动即可加下划线。",
+	"Drag across the words to strike them out.": "在文字上拖动即可加删除线。",
+	"Tap the page where the note belongs.": "轻点页面上要放置注释的位置。",
+	"Tap or drag over a mark to remove it.": "轻点或拖过标记即可将其移除。",
+	Notes: "笔记",
+	"Couldn't open this note": "无法打开此笔记",
+	"This isn't a Paperwren notes backup": "这不是 Paperwren 笔记备份",
+	"Couldn't read this file": "无法读取此文件",
+	"Search your notes": "搜索你的笔记",
+	"Nothing here yet": "这里还没有内容",
+	"Type or write by hand. Notes stay on this device and save themselves.":
+		"可以打字，也可以手写。笔记留在此设备上，并自动保存。",
+	"No notes match your search": "没有符合搜索条件的笔记",
+	"New note": "新建笔记",
+	"Notes go with the app if it is removed. Keep this file somewhere safe.":
+		"如果卸载应用，笔记也会一起删除。请将此文件保存在安全的地方。",
+	"Back up all notes": "备份所有笔记",
+	"Bring back from a backup": "从备份还原",
+	"Choose a file": "选择文件",
+	"The notes in the file are added to these. Where a note is in both, the one changed last is kept.":
+		"文件中的笔记会添加到现有笔记中。同一条笔记两边都有时，保留最后修改的那一份。",
+	"Couldn't save this note": "无法保存此笔记",
+	"Add a drawing": "添加绘图",
+	"Write by hand": "手写",
+	"Start writing": "开始书写",
+	"Save as PDF": "保存为 PDF",
+	"Delete this note?": "删除此笔记？",
+	"A deleted note can't be brought back.": "删除的笔记无法恢复。",
+	"{n} notes brought back": "已还原 {n} 条笔记",
+	"Compress PDF": "压缩 PDF",
+	"A smaller copy, easier to send": "更小的副本，更方便发送",
+	"Choose a PDF and how small to make it. Its pictures are stored again at a lower quality.":
+		"选择 PDF 和压缩程度。其中的图片会以较低质量重新保存。",
+	"How small": "压缩程度",
+	"Best quality": "最佳质量",
+	Balanced: "均衡",
+	"Smallest file": "最小文件",
+	Compress: "压缩",
+	"This PDF is already about as small as it can be, so no copy was made.":
+		"此 PDF 已经小得不能再小，因此没有生成副本。",
+	"{was} down to {now}, {n}% smaller": "从 {was} 减小到 {now}，缩小了 {n}%",
+	compressed: "已压缩",
+	"PDF to text": "PDF 转文本",
+	"The words of a PDF as a text file": "将 PDF 中的文字保存为文本文件",
+	"Choose a PDF to save its words as a text file. A scan is a picture, so it has none.":
+		"选择 PDF，将其中的文字保存为文本文件。扫描件只是图片，所以没有文字。",
+	"This PDF has no text in it. A scan is only pictures of pages.":
+		"此 PDF 中没有文字。扫描件只是页面的图片。",
+	"Save as text": "保存为文本",
+	"Make a scan searchable": "让扫描件可搜索",
+	"A copy of a scan whose words you can search and select":
+		"生成一份可以搜索和选择文字的扫描件副本",
+	"Choose a scanned PDF and the language it is written in. Its pages look just the same in the copy.":
+		"选择扫描的 PDF 及其书写语言。副本中的页面外观完全不变。",
+	"Language of the document": "文档语言",
+	"Each page takes several seconds, longer on a phone. Clear print reads best: handwriting, faint scans and Nastaliq Urdu can come out with mistakes.":
+		"每页需要几秒钟，在手机上会更久。清晰的印刷文字识别效果最好；手写、模糊的扫描件和波斯体乌尔都语可能会出错。",
+	"Reading page {n} of {total}": "正在读取第 {n} 页，共 {total} 页",
+	"Make searchable": "设为可搜索",
+	"This PDF already has words you can search, so no copy was made.":
+		"此 PDF 已包含可搜索的文字，因此未生成副本。",
+	"No words were found on its pages, so no copy was made.":
+		"未在其页面上找到文字，因此未生成副本。",
+	searchable: "可搜索",
 };
