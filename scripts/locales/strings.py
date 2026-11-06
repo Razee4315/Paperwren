@@ -439,7 +439,7 @@ ROWS = [
     ("Pictures to PDF", "تصاویر سے PDF", "الصور إلى PDF", "图片转 PDF", "चित्रों से PDF", "Imágenes a PDF", "Images en PDF", "Изображения в PDF", "Imagens para PDF"),
     ("Photos or scans as the pages of one PDF", "تصاویر یا اسکین ایک PDF کے صفحات کے طور پر", "صور أو مسح ضوئي كصفحات ملف PDF واحد", "将照片或扫描件作为一个 PDF 的页面", "फ़ोटो या स्कैन एक PDF के पृष्ठों के रूप में", "Fotos o escaneos como páginas de un PDF", "Des photos ou des scans comme pages d'un même PDF", "Фото или сканы как страницы одного PDF", "Fotos ou digitalizações como as páginas de um só PDF"),
     ("PDF to pictures", "PDF سے تصاویر", "PDF إلى صور", "PDF 转图片", "PDF से चित्र", "PDF a imágenes", "PDF en images", "PDF в изображения", "PDF em imagens"),
-    ("Each page as a JPEG picture", "ہر صفحہ ایک JPEG تصویر کے طور پر", "كل صفحة كصورة JPEG", "每页存为一张 JPEG 图片", "हर पृष्ठ एक JPEG चित्र के रूप में", "Cada página como una imagen JPEG", "Chaque page en image JPEG", "Каждая страница как изображение JPEG", "Cada página como uma imagem JPEG"),
+    ("Each page as a JPEG or PNG picture", "ہر صفحہ ایک JPEG یا PNG تصویر کے طور پر", "كل صفحة كصورة JPEG أو PNG", "每页存为一张 JPEG 或 PNG 图片", "हर पृष्ठ एक JPEG या PNG चित्र के रूप में", "Cada página como imagen JPEG o PNG", "Chaque page en image JPEG ou PNG", "Каждая страница — изображение JPEG или PNG", "Cada página como imagem JPEG ou PNG"),
     ("Page numbers", "صفحہ نمبر", "أرقام الصفحات", "页码", "पृष्ठ संख्या", "Números de página", "Numéros de page", "Номера страниц", "Números de página"),
     ("Number every page", "ہر صفحے پر نمبر لگائیں", "رقّم كل صفحة", "为每页编号", "हर पृष्ठ पर संख्या लगाएँ", "Numera cada página", "Numérotez chaque page", "Пронумеровать каждую страницу", "Numerar cada página"),
     ("Watermark", "واٹر مارک", "علامة مائية", "水印", "वॉटरमार्क", "Marca de agua", "Filigrane", "Водяной знак", "Marca d'água"),
@@ -455,12 +455,10 @@ ROWS = [
     ("Choose a PDF", "کوئی PDF چنیں", "اختر ملف PDF", "选择 PDF", "कोई PDF चुनें", "Elegir un PDF", "Choisir un PDF", "Выбрать PDF", "Escolher um PDF"),
     ("DRAFT", "DRAFT", "DRAFT", "DRAFT", "DRAFT", "BORRADOR", "BROUILLON", "ЧЕРНОВИК", "RASCUNHO"),
     ("Each page is saved as a PDF of its own, together in a ZIP file.", "ہر صفحہ الگ PDF کے طور پر، سب ایک ZIP فائل میں محفوظ ہوتے ہیں۔", "تُحفظ كل صفحة كملف PDF مستقل، وكلها معًا في ملف ZIP.", "每页都保存为单独的 PDF，并打包到一个 ZIP 文件中。", "हर पृष्ठ अलग PDF के रूप में, सब एक ZIP फ़ाइल में सहेजे जाते हैं।", "Cada página se guarda como un PDF propio, todos juntos en un archivo ZIP.", "Chaque page est enregistrée dans son propre PDF, le tout dans un fichier ZIP.", "Каждая страница сохраняется как отдельный PDF, все вместе в ZIP-файле.", "Cada página é salva como um PDF separado, todos juntos em um arquivo ZIP."),
-    ("Each picture's own size", "ہر تصویر کا اپنا سائز", "حجم كل صورة الأصلي", "每张图片的原始大小", "हर चित्र का अपना आकार", "El tamaño de cada imagen", "La taille de chaque image", "Собственный размер каждого изображения", "O tamanho de cada imagem"),
+    ("Picture size", "تصویر کا سائز", "حجم الصورة", "图片尺寸", "चित्र का आकार", "Tamaño de la imagen", "Taille de l'image", "Размер фото", "Tamanho da imagem"),
     ("Earlier", "پہلے", "قبل", "前移", "पहले", "Antes", "Avant", "Раньше", "Antes"),
     ("Every page as its own PDF", "ہر صفحہ الگ PDF", "كل صفحة في ملف PDF مستقل", "每页单独成一个 PDF", "हर पृष्ठ अलग PDF", "Cada página como su propio PDF", "Chaque page dans son propre PDF", "Каждая страница как отдельный PDF", "Cada página como um PDF separado"),
     ("Extract", "نکالیں", "استخراج", "提取", "निकालें", "Extraer", "Extraire", "Извлечь", "Extrair"),
-    ("Foot, middle", "نیچے، درمیان میں", "الأسفل، في المنتصف", "底部居中", "नीचे, बीच में", "Abajo, en el centro", "En bas, au centre", "Внизу, по центру", "Rodapé, centro"),
-    ("Foot, right", "نیچے، دائیں", "الأسفل، يمينًا", "底部靠右", "नीचे, दाईं ओर", "Abajo, a la derecha", "En bas, à droite", "Внизу, справа", "Rodapé, direita"),
     ("For example 1-3, 5", "مثال کے طور پر 1-3, 5", "مثلًا 1-3, 5", "例如 1-3, 5", "उदाहरण के लिए 1-3, 5", "Por ejemplo 1-3, 5", "Par exemple 1-3, 5", "Например, 1-3, 5", "Por exemplo 1-3, 5"),
     ("How", "کیسے", "كيف", "样式", "कैसे", "Cómo", "Comment", "Как", "Como"),
     ("Keep it somewhere safe: without it the copy cannot be opened. Paperwren does not keep it.", "اسے محفوظ جگہ رکھیں: اس کے بغیر کاپی نہیں کھل سکتی۔ Paperwren اسے نہیں رکھتا۔", "احفظها في مكان آمن: لا يمكن فتح النسخة بدونها. لا يحتفظ بها Paperwren.", "请妥善保管：没有它就无法打开副本。Paperwren 不会保存它。", "इसे सुरक्षित जगह रखें: इसके बिना कॉपी नहीं खुल सकती। Paperwren इसे नहीं रखता।", "Guárdala en un lugar seguro: sin ella no se puede abrir la copia. Paperwren no la guarda.", "Gardez-le en lieu sûr : sans lui, la copie ne peut pas être ouverte. Paperwren ne le conserve pas.", "Храните его в надёжном месте: без него копию не открыть. Paperwren его не сохраняет.", "Guarde-a em um lugar seguro: sem ela, a cópia não pode ser aberta. O Paperwren não a guarda."),
@@ -475,7 +473,6 @@ ROWS = [
     ("Number the pages", "صفحات پر نمبر لگائیں", "ترقيم الصفحات", "添加页码", "पृष्ठों पर संख्या लगाएँ", "Numerar las páginas", "Numéroter les pages", "Пронумеровать страницы", "Numerar as páginas"),
     ("Opening…", "کھل رہی ہے…", "جارٍ الفتح…", "正在打开…", "खुल रही है…", "Abriendo…", "Ouverture…", "Открытие…", "Abrindo…"),
     ("Page {n} of {total}", "صفحہ {n} از {total}", "الصفحة {n} من {total}", "第 {n} 页，共 {total} 页", "पृष्ठ {n} / {total}", "Página {n} de {total}", "Page {n} sur {total}", "Страница {n} из {total}", "Página {n} de {total}"),
-    ("Pages are drawn at 150 dots to the inch.", "صفحات 150 ڈاٹس فی انچ پر بنائے جاتے ہیں۔", "تُرسم الصفحات بدقة 150 نقطة في البوصة.", "页面以每英寸 150 点的分辨率绘制。", "पृष्ठ 150 डॉट प्रति इंच पर बनाए जाते हैं।", "Las páginas se dibujan a 150 puntos por pulgada.", "Les pages sont rendues à 150 points par pouce.", "Страницы рисуются с разрешением 150 точек на дюйм.", "As páginas são desenhadas a 150 pontos por polegada."),
     ("Pick the PDF and type its password; the copy opens without it.", "PDF چنیں اور اس کا پاس ورڈ لکھیں؛ کاپی اس کے بغیر کھلے گی۔", "اختر ملف PDF واكتب كلمة مروره؛ تُفتح النسخة بدونها.", "选择 PDF 并输入其密码；副本无需密码即可打开。", "PDF चुनें और उसका पासवर्ड लिखें; कॉपी उसके बिना खुलेगी।", "Elige el PDF y escribe su contraseña; la copia se abre sin ella.", "Choisissez le PDF et saisissez son mot de passe ; la copie s'ouvre sans.", "Выберите PDF и введите его пароль; копия открывается без пароля.", "Escolha o PDF e digite a senha dele; a cópia abre sem ela."),
     ("Save a locked copy", "مقفل کاپی محفوظ کریں", "حفظ نسخة مقفلة", "保存加密副本", "लॉक की गई कॉपी सहेजें", "Guardar una copia protegida", "Enregistrer une copie verrouillée", "Сохранить защищённую копию", "Salvar uma cópia protegida"),
     ("Save an unlocked copy", "بغیر قفل کی کاپی محفوظ کریں", "حفظ نسخة غير مقفلة", "保存无密码副本", "बिना लॉक की कॉपी सहेजें", "Guardar una copia sin contraseña", "Enregistrer une copie déverrouillée", "Сохранить копию без пароля", "Salvar uma cópia sem senha"),
@@ -489,7 +486,6 @@ ROWS = [
     ("The same password again", "وہی پاس ورڈ دوبارہ", "كلمة المرور نفسها مرة أخرى", "再次输入相同的密码", "वही पासवर्ड फिर से", "La misma contraseña otra vez", "Le même mot de passe à nouveau", "Тот же пароль ещё раз", "A mesma senha novamente"),
     ("The two passwords are not the same", "دونوں پاس ورڈ ایک جیسے نہیں ہیں", "كلمتا المرور غير متطابقتين", "两次输入的密码不一致", "दोनों पासवर्ड एक जैसे नहीं हैं", "Las dos contraseñas no coinciden", "Les deux mots de passe ne sont pas identiques", "Пароли не совпадают", "As duas senhas não são iguais"),
     ("This PDF has no password to remove.", "اس PDF پر ہٹانے کے لیے کوئی پاس ورڈ نہیں ہے۔", "لا توجد كلمة مرور لإزالتها من ملف PDF هذا.", "此 PDF 没有可移除的密码。", "इस PDF पर हटाने के लिए कोई पासवर्ड नहीं है।", "Este PDF no tiene contraseña que quitar.", "Ce PDF n'a pas de mot de passe à retirer.", "У этого PDF нет пароля, который можно убрать.", "Este PDF não tem senha para remover."),
-    ("Top, right", "اوپر، دائیں", "الأعلى، يمينًا", "顶部靠右", "ऊपर, दाईं ओर", "Arriba, a la derecha", "En haut, à droite", "Вверху, справа", "Topo, direita"),
     ("Turn left", "بائیں گھمائیں", "تدوير لليسار", "向左旋转", "बाईं ओर घुमाएँ", "Girar a la izquierda", "Pivoter à gauche", "Повернуть влево", "Girar para a esquerda"),
     ("Turn right", "دائیں گھمائیں", "تدوير لليمين", "向右旋转", "दाईं ओर घुमाएँ", "Girar a la derecha", "Pivoter à droite", "Повернуть вправо", "Girar para a direita"),
     ("Use Latin letters: a PDF's standard fonts have no others.", "لاطینی حروف استعمال کریں: PDF کے معیاری فونٹس میں دوسرے حروف نہیں ہوتے۔", "استخدم الحروف اللاتينية: الخطوط القياسية في PDF لا تحتوي غيرها.", "请使用拉丁字母：PDF 的标准字体不含其他文字。", "लैटिन अक्षर इस्तेमाल करें: PDF के मानक फ़ॉन्ट में दूसरे अक्षर नहीं होते।", "Usa letras latinas: las fuentes estándar de un PDF no tienen otras.", "Utilisez des lettres latines : les polices standard d'un PDF n'en ont pas d'autres.", "Используйте латинские буквы: в стандартных шрифтах PDF других нет.", "Use letras latinas: as fontes padrão de um PDF não têm outras."),
@@ -815,3 +811,11 @@ ROWS += OCR_UX_ROWS
 # Marking while reading, finding, measuring and reading the words of a page.
 from reader_ux import ROWS as READER_UX_ROWS
 ROWS += READER_UX_ROWS
+
+# Controls for watermark, page numbers, pictures, protect and images.
+from tool_controls_ux import ROWS as TOOL_CONTROLS_UX_ROWS
+ROWS += TOOL_CONTROLS_UX_ROWS
+
+# Words for a phone whose web engine is out of date.
+from compat_ux import ROWS as COMPAT_UX_ROWS
+ROWS += COMPAT_UX_ROWS

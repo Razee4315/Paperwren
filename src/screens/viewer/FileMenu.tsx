@@ -1,11 +1,12 @@
 import { type FileRef, backend, formatBytes } from "@/lib/backend";
 import { isDesktop } from "@/lib/env";
-import { formatLabel, kindLabel, kindOf } from "@/lib/formats";
+import { formatLabel, kindLabel, kindOf, mimeOf } from "@/lib/formats";
 import { inFullscreen, toggleFullscreen } from "@/lib/fullscreen";
 import { t } from "@/lib/i18n";
 import { FULLSCREEN_KEYS } from "@/lib/keys";
 import { printDocument } from "@/lib/print";
 import type { OpenRequest, Reopen } from "@/lib/types";
+import { announceSaved } from "@/screens/tools/saved";
 import { Button, Dialog, IconButton, Sheet, SheetItem, toast } from "@/ui";
 import {
 	AppWindow,
@@ -110,9 +111,21 @@ export function FileDetails({
 	);
 }
 
+/** A copy of the file as it is, saved as a new file where the reader
+ * picks (the file itself is never touched). */
+async function saveCopyOf(file: FileRef) {
+	const bytes = new Uint8Array(await backend.read(file.reopen));
+	const saved = await backend.saveFile(
+		file.name,
+		bytes,
+		mimeOf(file.format, file.name),
+	);
+	if (saved) announceSaved(saved, undefined, bytes.length);
+}
+
 /**
- * Share, open in another app, show in folder: the ways a file leaves
- * the app, as menu items. Those the platform cannot do for this file
+ * Share, save a copy, open in another app, show in folder: the ways a
+ * file leaves the app, as menu items. Those the platform cannot do for this file
  * are left out rather than shown disabled.
  */
 export function HandOffItems({
@@ -143,6 +156,15 @@ export function HandOffItems({
 					testId={`${testPrefix}-share`}
 				>
 					{can.shareIsDownload ? t("Save a copy") : t("Share")}
+				</SheetItem>
+			)}
+			{can.saveCopy && (
+				<SheetItem
+					icon={<Download size={20} />}
+					onClick={() => run(saveCopyOf(file), t("Couldn't save a copy"))}
+					testId={`${testPrefix}-save-copy`}
+				>
+					{t("Save a copy")}
 				</SheetItem>
 			)}
 			{can.openWith && (

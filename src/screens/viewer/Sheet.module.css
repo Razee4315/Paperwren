@@ -183,6 +183,7 @@
 	z-index: 2;
 	pointer-events: none;
 	border: 2px solid var(--accent);
+	background: rgba(43, 110, 102, 0.1);
 	background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 /* Drag this corner to stretch the selection (touch has no shift-click). */

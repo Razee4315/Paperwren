@@ -645,7 +645,7 @@ export function ReadText({
 				</footer>
 			)}
 			{phase === "done" && words > 0 && (
-				<footer className={s.actions}>
+				<footer className={`${s.actions} ${s.withLink}`}>
 					{missing.length > 0 && (
 						<Button onClick={run} data-testid="read-more">
 							<Play size={16} />

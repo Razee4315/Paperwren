@@ -1,6 +1,7 @@
 import { backend, requestForBytes } from "@/lib/backend";
 import { type DocMark, contentKey, fileSample } from "@/lib/docMarks";
 import { isDesktop } from "@/lib/env";
+import { explainFailure } from "@/lib/errors";
 import { copyName, splitName } from "@/lib/fileName";
 import { locale, t, tn } from "@/lib/i18n";
 import { measureLabel as labelOf } from "@/lib/measure";
@@ -250,6 +251,8 @@ export default function PdfView({
 	const [status, setStatus] = useState<
 		"loading" | "ready" | "password" | "error"
 	>("loading");
+	/** Why it could not open: shown as the file's fault, or the phone's. */
+	const [fault, setFault] = useState<unknown>(null);
 	const [passwordWrong, setPasswordWrong] = useState(false);
 	const [page, setPage] = useState(1);
 	const [pageLabel, setPageLabel] = useState<string | null>(null);
@@ -521,8 +524,10 @@ export default function PdfView({
 						.catch(() => {});
 				});
 			})
-			.catch(() => {
-				if (alive) setStatus("error");
+			.catch((err) => {
+				if (!alive) return;
+				setFault(err);
+				setStatus("error");
 			});
 		return () => {
 			alive = false;
@@ -2202,7 +2207,10 @@ export default function PdfView({
 					action={<Button onClick={onClose}>{t("Close")}</Button>}
 					testId="pdf-error"
 				>
-					{t("The file is damaged or isn't a valid PDF.")}
+					{explainFailure(
+						fault,
+						t("The file is damaged or isn't a valid PDF."),
+					)}
 				</StateView>
 			)}
 

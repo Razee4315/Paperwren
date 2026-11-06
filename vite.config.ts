@@ -111,9 +111,11 @@ export default defineConfig({
 	},
 	worker: { format: "es" },
 	build: {
-		// Android System WebView and WebView2 are evergreen Chromium;
-		// pdf.js 4 needs ES2022 features anyway.
-		target: "chrome110",
+		// Not every Android WebView is kept up to date: phones without
+		// Google Play (Huawei's HarmonyOS among them) can be years behind.
+		// Syntax is lowered to Chrome 89 (the oldest that keeps top-level
+		// await) and src/lib/compat.ts fills the missing built-ins.
+		target: "chrome89",
 		minify: process.env.TAURI_DEBUG ? false : "esbuild",
 		sourcemap: !!process.env.TAURI_DEBUG,
 		chunkSizeWarningLimit: 1500,

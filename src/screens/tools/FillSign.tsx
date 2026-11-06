@@ -92,7 +92,10 @@ interface Item extends Box {
 	text?: string;
 }
 
-const INK = "#1a3c8c";
+/** The inks for typed text, the date, ticks and crosses: blue unless
+ * the reader picks black. */
+const INKS = { blue: "#1a3c8c", black: "#111111" } as const;
+type Ink = keyof typeof INKS;
 /** The height of a line of text placed on a page, as a share of the
  * page's height (about 12 points on A4). */
 const LINE = 0.021;
@@ -196,6 +199,7 @@ async function picture(
 	item: Item,
 	pageW: number,
 	pageH: number,
+	ink: string,
 ): Promise<Uint8Array> {
 	const scale = 4;
 	const w = Math.max(8, Math.round(item.w * pageW * scale));
@@ -205,8 +209,8 @@ async function picture(
 	canvas.height = h;
 	const ctx = canvas.getContext("2d");
 	if (!ctx) throw new Error("no canvas");
-	ctx.strokeStyle = INK;
-	ctx.fillStyle = INK;
+	ctx.strokeStyle = ink;
+	ctx.fillStyle = ink;
 	ctx.lineCap = "round";
 	ctx.lineJoin = "round";
 	if (item.kind === "check" || item.kind === "cross") {
@@ -279,6 +283,7 @@ export function FillSign({
 	const [leaving, setLeaving] = useState(false);
 	const [saving, setSaving] = useState<"ask" | "busy" | null>(null);
 	const [flatten, setFlatten] = useState(false);
+	const [ink, setInk] = useState<Ink>("blue");
 	const [zoom, setZoom] = useState(0);
 	const [width, setWidth] = useState(0);
 	const [sizes, setSizes] = useState<Array<[number, number]>>([]);
@@ -536,7 +541,7 @@ export function FillSign({
 						...box,
 						kind: "text",
 						text: item.text ?? "",
-						color: INK,
+						color: INKS[ink],
 					});
 				else if (
 					item.text?.trim() ||
@@ -546,7 +551,7 @@ export function FillSign({
 					marks.push({
 						...box,
 						kind: "image",
-						png: await picture(item, pw, ph),
+						png: await picture(item, pw, ph, INKS[ink]),
 					});
 			}
 			// pdf.js holds the file's bytes (the ones read were handed to it).
@@ -638,6 +643,24 @@ export function FillSign({
 							<span>{label}</span>
 						</button>
 					))}
+					<div className={s.inkChoices}>
+						{(["blue", "black"] as const).map((colour) => (
+							<button
+								key={colour}
+								type="button"
+								className={s.inkDot}
+								aria-pressed={ink === colour}
+								aria-label={colour === "blue" ? t("Blue ink") : t("Black ink")}
+								title={colour === "blue" ? t("Blue ink") : t("Black ink")}
+								onClick={() => setInk(colour)}
+								data-testid={`fill-ink-${colour}`}
+							>
+								<span style={{ background: INKS[colour] }} aria-hidden="true">
+									{ink === colour && <Check size={14} strokeWidth={2.5} />}
+								</span>
+							</button>
+						))}
+					</div>
 				</div>
 			)}
 			<div className={s.fillActions} data-testid="fill-actions">
@@ -748,6 +771,7 @@ export function FillSign({
 									item={item}
 									pageWidth={pageWidth}
 									pageHeight={(pageWidth * ph) / pw}
+									ink={INKS[ink]}
 									selected={selected === item.id}
 									editing={editing === item.id}
 									onSelect={() => {
@@ -1160,6 +1184,7 @@ function PlacedItem({
 	item,
 	pageWidth,
 	pageHeight,
+	ink,
 	selected,
 	editing,
 	onSelect,
@@ -1171,6 +1196,8 @@ function PlacedItem({
 	item: Item;
 	pageWidth: number;
 	pageHeight: number;
+	/** The colour of typed text and marks. */
+	ink: string;
 	selected: boolean;
 	editing: boolean;
 	onSelect: () => void;
@@ -1261,15 +1288,15 @@ function PlacedItem({
 				/>
 			) : item.kind === "check" || item.kind === "cross" ? (
 				item.kind === "check" ? (
-					<Check width="100%" height="100%" strokeWidth={3} color={INK} />
+					<Check width="100%" height="100%" strokeWidth={3} color={ink} />
 				) : (
-					<X width="100%" height="100%" strokeWidth={3} color={INK} />
+					<X width="100%" height="100%" strokeWidth={3} color={ink} />
 				)
 			) : editing ? (
 				<input
 					ref={input}
 					className={s.itemInput}
-					style={{ fontSize: fontPx }}
+					style={{ fontSize: fontPx, color: ink }}
 					value={item.text ?? ""}
 					dir="auto"
 					placeholder={t("Type here")}
@@ -1281,7 +1308,11 @@ function PlacedItem({
 					data-testid="fill-item-text"
 				/>
 			) : (
-				<span className={s.itemText} style={{ fontSize: fontPx }} dir="auto">
+				<span
+					className={s.itemText}
+					style={{ fontSize: fontPx, color: ink }}
+					dir="auto"
+				>
 					{item.text || t("Type here")}
 				</span>
 			)}

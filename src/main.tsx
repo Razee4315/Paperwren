@@ -1,3 +1,5 @@
+// First, before any other code: fills what an older WebView lacks.
+import "./lib/compat";
 import "@fontsource-variable/manrope";
 import "./styles/global.css";
 import { StrictMode } from "react";

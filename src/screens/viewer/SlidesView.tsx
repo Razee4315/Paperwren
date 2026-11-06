@@ -1,4 +1,5 @@
 import { isDesktop } from "@/lib/env";
+import { explainFailure } from "@/lib/errors";
 import { t, uiDir } from "@/lib/i18n";
 import type { DeckResult } from "@/lib/parseWorker";
 import {
@@ -615,7 +616,7 @@ function SlideThumbs({
 
 type Loaded =
 	| { deck: Presentation; textOnly: boolean }
-	| { failed: "corrupt" | "password" };
+	| { failed: "corrupt" | "password"; fault?: unknown };
 
 /** Read a deck in whichever format it is. .pptx and .odp are XML and
  * parse here; binary .ppt parses in the worker and returns pictures
@@ -653,6 +654,7 @@ async function loadDeck(
 		if ((err as Error)?.name === "AbortError") throw err;
 		return {
 			failed: String(err).includes("password") ? "password" : "corrupt",
+			fault: err,
 		};
 	}
 }
@@ -678,6 +680,7 @@ export default function SlidesView({
 	const speech = useMemo(() => domSpeech(scroller, list), []);
 	const [deck, setDeck] = useState<Presentation | null>(null);
 	const [error, setError] = useState<"corrupt" | "password" | null>(null);
+	const [fault, setFault] = useState<unknown>(null);
 	const [textOnly, setTextOnly] = useState(false);
 	const [fit, setFit] = useState(1);
 	// The slides have their real size only once the width was measured.
@@ -697,6 +700,7 @@ export default function SlidesView({
 		loadDeck(format, data, abort.signal)
 			.then((result) => {
 				if ("failed" in result) {
+					setFault(result.fault ?? null);
 					setError(result.failed);
 					return;
 				}
@@ -708,7 +712,11 @@ export default function SlidesView({
 				setTextOnly(result.textOnly);
 				setDeck(result.deck);
 			})
-			.catch(() => {});
+			.catch((err) => {
+				if (err?.name === "AbortError") return;
+				setFault(err);
+				setError("corrupt");
+			});
 		return () => {
 			abort.abort();
 			loaded?.dispose();
@@ -1102,7 +1110,10 @@ export default function SlidesView({
 						? t(
 								"This presentation is locked with a password and can't be opened.",
 							)
-						: t("The file is damaged or isn't a valid presentation.")}
+						: explainFailure(
+								fault,
+								t("The file is damaged or isn't a valid presentation."),
+							)}
 				</StateView>
 			)}
 		</Shell>

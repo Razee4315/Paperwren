@@ -4,10 +4,35 @@
  * way of reaching the network.
  */
 
-// @ts-expect-error the core ships no types
-import TesseractCore from "tesseract.js-core/tesseract-core-simd-lstm.js";
-import coreWasm from "tesseract.js-core/tesseract-core-simd-lstm.wasm?url";
+import plainWasm from "tesseract.js-core/tesseract-core-lstm.wasm?url";
+import simdWasm from "tesseract.js-core/tesseract-core-simd-lstm.wasm?url";
 import { type OcrReply, type OcrRequest, cleanPage } from "./ocr";
+
+/** A wasm module of one SIMD instruction: valid only where the engine
+ * has SIMD (Chrome 91). An older WebView gets the plain build, slower
+ * but the same words. */
+const SIMD = new Uint8Array([
+	0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8,
+	0, 65, 0, 253, 15, 253, 98, 11,
+]);
+const hasSimd = () => {
+	try {
+		return WebAssembly.validate(SIMD);
+	} catch {
+		return false;
+	}
+};
+
+async function loadCore(): Promise<{ factory: Factory; wasm: string }> {
+	if (hasSimd()) {
+		// @ts-expect-error the core ships no types
+		const m = await import("tesseract.js-core/tesseract-core-simd-lstm.js");
+		return { factory: m.default, wasm: simdWasm };
+	}
+	// @ts-expect-error the core ships no types
+	const m = await import("tesseract.js-core/tesseract-core-lstm.js");
+	return { factory: m.default, wasm: plainWasm };
+}
 
 interface Api {
 	Init(path: null, language: string, engine: number): number;
@@ -22,6 +47,11 @@ interface Core {
 	TessBaseAPI: new () => Api;
 }
 
+type Factory = (options: {
+	locateFile: () => string;
+	TesseractProgress: (percent: number) => void;
+}) => Promise<unknown>;
+
 /** Tesseract's neural network engine, the only one in this build. */
 const LSTM = 1;
 /** Find the page's own layout: blocks, columns and lines. */
@@ -33,8 +63,9 @@ let api: Api | null = null;
 const post = (reply: OcrReply) => self.postMessage(reply);
 
 async function start(language: string, data: ArrayBuffer) {
-	core = (await TesseractCore({
-		locateFile: () => coreWasm,
+	const { factory, wasm } = await loadCore();
+	core = (await factory({
+		locateFile: () => wasm,
 		// The engine says how far through a page it is as it reads.
 		TesseractProgress: (percent: number) => post({ kind: "progress", percent }),
 	})) as Core;

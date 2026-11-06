@@ -447,7 +447,7 @@ export const es: Table = {
 	"Photos or scans as the pages of one PDF":
 		"Fotos o escaneos como páginas de un PDF",
 	"PDF to pictures": "PDF a imágenes",
-	"Each page as a JPEG picture": "Cada página como una imagen JPEG",
+	"Each page as a JPEG or PNG picture": "Cada página como imagen JPEG o PNG",
 	"Page numbers": "Números de página",
 	"Number every page": "Numera cada página",
 	Watermark: "Marca de agua",
@@ -467,12 +467,10 @@ export const es: Table = {
 	DRAFT: "BORRADOR",
 	"Each page is saved as a PDF of its own, together in a ZIP file.":
 		"Cada página se guarda como un PDF propio, todos juntos en un archivo ZIP.",
-	"Each picture's own size": "El tamaño de cada imagen",
+	"Picture size": "Tamaño de la imagen",
 	Earlier: "Antes",
 	"Every page as its own PDF": "Cada página como su propio PDF",
 	Extract: "Extraer",
-	"Foot, middle": "Abajo, en el centro",
-	"Foot, right": "Abajo, a la derecha",
 	"For example 1-3, 5": "Por ejemplo 1-3, 5",
 	How: "Cómo",
 	"Keep it somewhere safe: without it the copy cannot be opened. Paperwren does not keep it.":
@@ -489,8 +487,6 @@ export const es: Table = {
 	"Number the pages": "Numerar las páginas",
 	"Opening…": "Abriendo…",
 	"Page {n} of {total}": "Página {n} de {total}",
-	"Pages are drawn at 150 dots to the inch.":
-		"Las páginas se dibujan a 150 puntos por pulgada.",
 	"Pick the PDF and type its password; the copy opens without it.":
 		"Elige el PDF y escribe su contraseña; la copia se abre sin ella.",
 	"Save a locked copy": "Guardar una copia protegida",
@@ -508,7 +504,6 @@ export const es: Table = {
 	"The two passwords are not the same": "Las dos contraseñas no coinciden",
 	"This PDF has no password to remove.":
 		"Este PDF no tiene contraseña que quitar.",
-	"Top, right": "Arriba, a la derecha",
 	"Turn left": "Girar a la izquierda",
 	"Turn right": "Girar a la derecha",
 	"Use Latin letters: a PDF's standard fonts have no others.":
@@ -1154,4 +1149,50 @@ export const es: Table = {
 	"Turn the pages, or show two side by side":
 		"Pasa las páginas o muestra dos en paralelo",
 	"Show this list": "Mostrar esta lista",
+	Top: "Arriba",
+	Foot: "Abajo",
+	Align: "Alinear",
+	Left: "Izquierda",
+	Middle: "Centro",
+	Right: "Derecha",
+	Small: "Pequeño",
+	Medium: "Medio",
+	Large: "Grande",
+	Orientation: "Orientación",
+	Portrait: "Vertical",
+	Landscape: "Horizontal",
+	Margin: "Margen",
+	None: "Sin margen",
+	Narrow: "Estrecho",
+	Normal: "Normal",
+	Format: "Formato",
+	Quality: "Calidad",
+	"For screens": "Para pantallas",
+	Standard: "Estándar",
+	"For printing": "Para imprimir",
+	"Pages are drawn at {n} dots to the inch.":
+		"Las páginas se dibujan a {n} puntos por pulgada.",
+	"Start at": "Empezar en",
+	"Use a whole number, 1 or more.": "Usa un número entero, 1 o mayor.",
+	"No number on the first page": "Sin número en la primera página",
+	"How many": "Cuántas",
+	One: "Una",
+	Repeated: "Repetida",
+	Strength: "Intensidad",
+	Faint: "Tenue",
+	Strong: "Fuerte",
+	Red: "Rojo",
+	Blue: "Azul",
+	Angle: "Ángulo",
+	Slanted: "Inclinado",
+	Straight: "Recto",
+	"Allow printing": "Permitir imprimir",
+	"Allow copying text": "Permitir copiar el texto",
+	"Allow changes": "Permitir cambios",
+	"Most PDF readers keep to these limits, but a reader can choose to ignore them.":
+		"La mayoría de los lectores de PDF respetan estos límites, pero un lector puede optar por ignorarlos.",
+	"This phone's web engine (Android System WebView) is out of date, so this file couldn't be shown. Update it from your app store (on Huawei phones, update Huawei WebView in AppGallery), then try again.":
+		"El motor web de este teléfono (Android System WebView) está desactualizado, así que no se pudo mostrar este archivo. Actualízalo desde tu tienda de aplicaciones (en teléfonos Huawei, actualiza Huawei WebView en AppGallery) y vuelve a intentarlo.",
+	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
+		"El motor web de este teléfono está desactualizado. Actualiza Android System WebView (Huawei WebView en teléfonos Huawei) y vuelve a intentarlo.",
 };

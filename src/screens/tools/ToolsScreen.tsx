@@ -1,11 +1,16 @@
 import { formatBytes } from "@/lib/backend";
 import { contentKey, fileSample } from "@/lib/docMarks";
+import { unreadNote } from "@/lib/errors";
 import { copyName, splitName } from "@/lib/fileName";
 import { msg, t, tn } from "@/lib/i18n";
 import { drawPage } from "@/lib/pagePicture";
 import {
+	MARK_COLORS,
+	type MarkSize,
 	type NumberSpot,
+	type PAPER,
 	type PagePick,
+	type PaperTurn,
 	addPageNumbers,
 	addWatermark,
 	buildPdf,
@@ -152,7 +157,7 @@ const TOOLS: Array<{
 		id: "pictures",
 		icon: <FileImage size={22} />,
 		title: msg("PDF to pictures"),
-		hint: msg("Each page as a JPEG picture"),
+		hint: msg("Each page as a JPEG or PNG picture"),
 	},
 	{
 		id: "numbers",
@@ -616,7 +621,7 @@ function ReadTool({ file, onOpen }: ToolProps) {
 		let alive = true;
 		bytesSource(picked.bytes, picked.name)
 			.then((made) => alive && setSource(made))
-			.catch(() => toast(t("{name} couldn't be read", { name: picked.name })));
+			.catch((err) => toast(unreadNote(err, picked.name)));
 		return () => {
 			alive = false;
 		};
@@ -993,7 +998,9 @@ async function asPageImage(
 function ImagesTool({ file, onOpen }: ToolProps) {
 	const kit = useToolFiles("image", file);
 	const { running, run, feedback } = useRun(onOpen);
-	const [paper, setPaper] = useState<"fit" | "a4" | "letter">("a4");
+	const [paper, setPaper] = useState<"fit" | keyof typeof PAPER>("a4");
+	const [turn, setTurn] = useState<PaperTurn>("auto");
+	const [margin, setMargin] = useState<"0" | "12" | "24">("24");
 	return (
 		<>
 			<FileList kit={kit} several addLabel={t("Add a picture")} />
@@ -1004,10 +1011,37 @@ function ImagesTool({ file, onOpen }: ToolProps) {
 				options={[
 					["a4", "A4"],
 					["letter", "Letter"],
-					["fit", t("Each picture's own size")],
+					["legal", "Legal"],
+					["fit", t("Picture size")],
 				]}
 				testId="tool-paper"
 			/>
+			{paper !== "fit" && (
+				<>
+					<Choice
+						label={t("Orientation")}
+						value={turn}
+						onChange={setTurn}
+						options={[
+							["auto", t("Auto")],
+							["portrait", t("Portrait")],
+							["landscape", t("Landscape")],
+						]}
+						testId="tool-turn"
+					/>
+					<Choice
+						label={t("Margin")}
+						value={margin}
+						onChange={setMargin}
+						options={[
+							["0", t("None")],
+							["12", t("Narrow")],
+							["24", t("Normal")],
+						]}
+						testId="tool-margin"
+					/>
+				</>
+			)}
 			{feedback}
 			<Go
 				label={t("Make a PDF")}
@@ -1019,6 +1053,7 @@ function ImagesTool({ file, onOpen }: ToolProps) {
 						bytes: await imagesToPdf(
 							await Promise.all(kit.files.map(asPageImage)),
 							paper,
+							{ turn, margin: Number(margin) },
 						),
 						mime: PDF,
 					}))
@@ -1034,6 +1069,8 @@ function PicturesTool({ file, onOpen }: ToolProps) {
 	const doc = usePdf(picked);
 	const { running, run, feedback } = useRun(onOpen);
 	const [which, setWhich] = useState("");
+	const [format, setFormat] = useState<"jpg" | "png">("jpg");
+	const [dpi, setDpi] = useState<"96" | "150" | "300">("150");
 	const pages = picked?.pages ?? 0;
 	const list = picked ? parsePages(which || `1-${pages}`, pages) : null;
 	return (
@@ -1053,10 +1090,34 @@ function PicturesTool({ file, onOpen }: ToolProps) {
 						dir="ltr"
 						data-testid="tool-pages-field"
 					/>
+					{list && list.length > 1 && (
+						<p className={s.hint}>
+							{t("The pictures are saved together in a ZIP file.")}
+						</p>
+					)}
+					<Choice
+						label={t("Format")}
+						value={format}
+						onChange={setFormat}
+						options={[
+							["jpg", "JPEG"],
+							["png", "PNG"],
+						]}
+						testId="tool-format"
+					/>
+					<Choice
+						label={t("Quality")}
+						value={dpi}
+						onChange={setDpi}
+						options={[
+							["96", t("For screens")],
+							["150", t("Standard")],
+							["300", t("For printing")],
+						]}
+						testId="tool-dpi"
+					/>
 					<p className={s.hint}>
-						{list && list.length > 1
-							? t("The pictures are saved together in a ZIP file.")
-							: t("Pages are drawn at 150 dots to the inch.")}
+						{t("Pages are drawn at {n} dots to the inch.", { n: dpi })}
 					</p>
 				</>
 			)}
@@ -1069,20 +1130,28 @@ function PicturesTool({ file, onOpen }: ToolProps) {
 					run(async () => {
 						if (!doc || !list) throw new Error("no pages");
 						const [stem] = splitName(picked.name);
+						const type = format === "png" ? "image/png" : "image/jpeg";
 						const shots: Record<string, Uint8Array> = {};
 						for (const page of list) {
-							const { bytes } = await drawPage(await doc.getPage(page + 1), {
-								dpi: 150,
-								type: "image/jpeg",
+							const sheet = await doc.getPage(page + 1);
+							const { width, height } = sheet.getViewport({ scale: 1 });
+							// No more than about 16 million pixels, which a phone can
+							// still draw: a large page at print sharpness is drawn
+							// less sharply.
+							const most = 72 * Math.sqrt(16e6 / Math.max(1, width * height));
+							const { bytes } = await drawPage(sheet, {
+								dpi: Math.min(Number(dpi), most),
+								type,
 							});
-							shots[`${stem} - ${t("page {n}", { n: page + 1 })}.jpg`] = bytes;
+							shots[`${stem} - ${t("page {n}", { n: page + 1 })}.${format}`] =
+								bytes;
 						}
 						const names = Object.keys(shots);
 						if (names.length === 1)
 							return {
 								name: names[0],
 								bytes: shots[names[0]],
-								mime: "image/jpeg",
+								mime: type,
 							};
 						return {
 							name: copyName(picked.name, t("pictures"), ".zip"),
@@ -1101,24 +1170,44 @@ function NumbersTool({ file, onOpen }: ToolProps) {
 	const picked = kit.files[0];
 	const { running, run, feedback } = useRun(onOpen);
 	const [spot, setSpot] = useState<NumberSpot>("bottom-center");
+	const [edge, side] = spot.split("-") as [
+		"top" | "bottom",
+		"left" | "center" | "right",
+	];
 	const [style, setStyle] = useState<"n" | "of">("n");
+	const [size, setSize] = useState<"8" | "10" | "14">("10");
+	const [start, setStart] = useState("1");
+	const [skipFirst, setSkipFirst] = useState(false);
 	// "Page 1 of 9" in the reader's language, where Helvetica can write it.
 	const words = t("Page {n} of {total}");
 	const fullPattern = standardText(words) ? words : "{n} / {total}";
 	const pattern = style === "n" ? "{n}" : fullPattern;
+	// A whole number from 1, as typed.
+	const first = /^\d{1,6}$/.test(start.trim()) ? Number(start) : 0;
 	return (
 		<>
 			<OnePdf kit={kit} />
+			{/* Two short rows, not six cramped buttons on a phone. */}
 			<Choice
 				label={t("Where")}
-				value={spot}
-				onChange={setSpot}
+				value={edge}
+				onChange={(next) => setSpot(`${next}-${side}` as NumberSpot)}
 				options={[
-					["bottom-center", t("Foot, middle")],
-					["bottom-right", t("Foot, right")],
-					["top-right", t("Top, right")],
+					["top", t("Top")],
+					["bottom", t("Foot")],
 				]}
-				testId="tool-spot"
+				testId="tool-spot-edge"
+			/>
+			<Choice
+				label={t("Align")}
+				value={side}
+				onChange={(next) => setSpot(`${edge}-${next}` as NumberSpot)}
+				options={[
+					["left", t("Left")],
+					["center", t("Middle")],
+					["right", t("Right")],
+				]}
+				testId="tool-spot-side"
 			/>
 			<Choice
 				label={t("How")}
@@ -1130,10 +1219,46 @@ function NumbersTool({ file, onOpen }: ToolProps) {
 				]}
 				testId="tool-style"
 			/>
+			<Choice
+				label={t("Size")}
+				value={size}
+				onChange={setSize}
+				options={[
+					["8", t("Small")],
+					["10", t("Medium")],
+					["14", t("Large")],
+				]}
+				testId="tool-number-size"
+			/>
+			<label className={s.label} htmlFor="tool-start">
+				{t("Start at")}
+			</label>
+			<input
+				id="tool-start"
+				className={s.field}
+				value={start}
+				inputMode="numeric"
+				maxLength={6}
+				onChange={(e) => setStart(e.target.value)}
+				dir="ltr"
+				data-testid="tool-start"
+			/>
+			{first < 1 && (
+				<p className={s.hint}>{t("Use a whole number, 1 or more.")}</p>
+			)}
+			<label className={s.keep}>
+				<input
+					type="checkbox"
+					checked={skipFirst}
+					onChange={(e) => setSkipFirst(e.target.checked)}
+					data-testid="tool-skip-first"
+				/>
+				{t("No number on the first page")}
+			</label>
 			{feedback}
 			<Go
 				label={t("Number the pages")}
-				disabled={!picked}
+				disabled={!picked || first < 1}
 				running={running}
 				onClick={() =>
 					run(async () => ({
@@ -1142,6 +1267,9 @@ function NumbersTool({ file, onOpen }: ToolProps) {
 							password: picked.password,
 							spot,
 							pattern,
+							first,
+							size: Number(size),
+							skipFirst,
 						}),
 						mime: PDF,
 					}))
@@ -1156,6 +1284,15 @@ function WatermarkTool({ file, onOpen }: ToolProps) {
 	const picked = kit.files[0];
 	const { running, run, feedback } = useRun(onOpen);
 	const [text, setText] = useState(t("DRAFT"));
+	const [size, setSize] = useState<MarkSize>("large");
+	const [tiled, setTiled] = useState<"one" | "tiled">("one");
+	const [opacity, setOpacity] = useState<"0.12" | "0.18" | "0.35">("0.18");
+	const [color, setColor] = useState<keyof typeof MARK_COLORS>("red");
+	const [slant, setSlant] = useState<"slant" | "level">("slant");
+	const [which, setWhich] = useState("");
+	const pages = picked?.pages ?? 0;
+	// Every page, unless some are named.
+	const list = which.trim() ? parsePages(which, pages) : undefined;
 	const usable = !!text.trim() && standardText(text);
 	return (
 		<>
@@ -1176,10 +1313,84 @@ function WatermarkTool({ file, onOpen }: ToolProps) {
 					{t("Use Latin letters: a PDF's standard fonts have no others.")}
 				</p>
 			)}
+			<Choice
+				label={t("How many")}
+				value={tiled}
+				onChange={setTiled}
+				options={[
+					["one", t("One")],
+					["tiled", t("Repeated")],
+				]}
+				testId="tool-mark-layout"
+			/>
+			<Choice
+				label={t("Size")}
+				value={size}
+				onChange={setSize}
+				options={[
+					["small", t("Small")],
+					["medium", t("Medium")],
+					["large", t("Large")],
+				]}
+				testId="tool-mark-size"
+			/>
+			<Choice
+				label={t("Strength")}
+				value={opacity}
+				onChange={setOpacity}
+				options={[
+					["0.12", t("Faint")],
+					["0.18", t("Medium")],
+					["0.35", t("Strong")],
+				]}
+				testId="tool-mark-strength"
+			/>
+			<Choice
+				label={t("Colour")}
+				value={color}
+				onChange={setColor}
+				options={[
+					["grey", t("Grey")],
+					["red", t("Red")],
+					["blue", t("Blue")],
+				]}
+				testId="tool-mark-colour"
+			/>
+			<Choice
+				label={t("Angle")}
+				value={slant}
+				onChange={setSlant}
+				options={[
+					["slant", t("Slanted")],
+					["level", t("Straight")],
+				]}
+				testId="tool-mark-angle"
+			/>
+			{picked && (
+				<>
+					<label className={s.label} htmlFor="tool-mark-pages">
+						{t("Pages")}
+					</label>
+					<input
+						id="tool-mark-pages"
+						className={s.field}
+						value={which}
+						onChange={(e) => setWhich(e.target.value)}
+						placeholder={t("All of them")}
+						dir="ltr"
+						data-testid="tool-mark-pages"
+					/>
+					{list === null && (
+						<p className={s.hint}>
+							{t("The document has {n} pages", { n: pages })}
+						</p>
+					)}
+				</>
+			)}
 			{feedback}
 			<Go
 				label={t("Add the watermark")}
-				disabled={!picked || !usable}
+				disabled={!picked || !usable || list === null}
 				running={running}
 				onClick={() =>
 					run(async () => ({
@@ -1187,6 +1398,12 @@ function WatermarkTool({ file, onOpen }: ToolProps) {
 						bytes: await addWatermark(picked.bytes, {
 							text: text.trim(),
 							password: picked.password,
+							size,
+							tiled: tiled === "tiled",
+							opacity: Number(opacity),
+							color: MARK_COLORS[color],
+							slant: slant === "slant",
+							pages: list ?? undefined,
 						}),
 						mime: PDF,
 					}))
@@ -1202,7 +1419,15 @@ function ProtectTool({ file, onOpen }: ToolProps) {
 	const { running, run, feedback } = useRun(onOpen);
 	const [one, setOne] = useState("");
 	const [two, setTwo] = useState("");
+	const [printing, setPrinting] = useState(true);
+	const [copying, setCopying] = useState(true);
+	const [changes, setChanges] = useState(true);
 	const same = one === two;
+	const allows: Array<[string, boolean, (on: boolean) => void, string]> = [
+		[t("Allow printing"), printing, setPrinting, "tool-allow-print"],
+		[t("Allow copying text"), copying, setCopying, "tool-allow-copy"],
+		[t("Allow changes"), changes, setChanges, "tool-allow-change"],
+	];
 	return (
 		<>
 			<OnePdf kit={kit} />
@@ -1237,6 +1462,24 @@ function ProtectTool({ file, onOpen }: ToolProps) {
 							"Keep it somewhere safe: without it the copy cannot be opened. Paperwren does not keep it.",
 						)}
 			</p>
+			{allows.map(([label, on, set, testId]) => (
+				<label key={testId} className={s.keep}>
+					<input
+						type="checkbox"
+						checked={on}
+						onChange={(e) => set(e.target.checked)}
+						data-testid={testId}
+					/>
+					{label}
+				</label>
+			))}
+			{!(printing && copying && changes) && (
+				<p className={s.hint}>
+					{t(
+						"Most PDF readers keep to these limits, but a reader can choose to ignore them.",
+					)}
+				</p>
+			)}
 			{feedback}
 			<Go
 				label={t("Save a locked copy")}
@@ -1247,6 +1490,7 @@ function ProtectTool({ file, onOpen }: ToolProps) {
 						name: copyName(picked.name, t("locked")),
 						bytes: await protect(picked.bytes, one, {
 							password: picked.password,
+							allow: { printing, copying, changes },
 						}),
 						mime: PDF,
 					}))

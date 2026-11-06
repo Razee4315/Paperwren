@@ -714,7 +714,18 @@ export function MarkUp({
 				</Button>
 			</div>
 
-			<div className={s.markOptions} data-testid="mark-options">
+			{/* Classes, not :has(), say what the bar holds: a WebView older
+			 * than Chrome 105 has no :has(). */}
+			<div
+				className={[
+					s.markOptions,
+					tool === "pen" || tool === "marker" ? s.withSlider : "",
+					tool === "measure" || tool === "text" ? s.withSegment : "",
+				]
+					.filter(Boolean)
+					.join(" ")}
+				data-testid="mark-options"
+			>
 				<p aria-live="polite" data-testid="mark-hint">
 					{hint}
 				</p>

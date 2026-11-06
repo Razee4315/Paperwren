@@ -1,4 +1,5 @@
 import { ANY_MATCH, type FindOptions, matchesIn } from "@/lib/find";
+import { markRanges, unmarkRanges } from "@/lib/markRanges";
 import {
 	type RefObject,
 	useCallback,
@@ -11,23 +12,9 @@ import { isPaged, reveal } from "./paged";
 
 const MAX_MATCHES = 2000;
 
-interface HighlightRegistry {
-	set(name: string, h: unknown): void;
-	delete(name: string): void;
-}
-declare const Highlight: { new (...ranges: Range[]): unknown } | undefined;
-
-function registry(): HighlightRegistry | null {
-	const css = (globalThis as { CSS?: { highlights?: HighlightRegistry } }).CSS;
-	return css?.highlights && typeof Highlight !== "undefined"
-		? css.highlights
-		: null;
-}
-
 function clearHighlights() {
-	const reg = registry();
-	reg?.delete("pw-find");
-	reg?.delete("pw-find-active");
+	unmarkRanges("pw-find");
+	unmarkRanges("pw-find-active");
 }
 
 /** Elements that end a line of text: a match never runs across one. */
@@ -128,8 +115,9 @@ export function findRanges(
 
 /**
  * Find-in-page for DOM-rendered documents (Word, slides, text):
- * matches are shown with the CSS Custom Highlight API, so the
- * document's DOM is never mutated.
+ * matches are marked by lib/markRanges.ts (the CSS Custom Highlight
+ * API, or boxes laid over the text), so the document's DOM is never
+ * mutated.
  */
 export function useDomFind(
 	root: RefObject<HTMLElement | null>,
@@ -146,13 +134,11 @@ export function useDomFind(
 
 	const show = useCallback(
 		(index: number) => {
-			const reg = registry();
 			const r = ranges.current[index];
-			if (reg && typeof Highlight !== "undefined") {
-				reg.set("pw-find", new Highlight(...ranges.current));
-				if (r) reg.set("pw-find-active", new Highlight(r));
-			}
 			const box = scroller.current;
+			markRanges("pw-find", ranges.current, box);
+			if (r) markRanges("pw-find-active", [r], box);
+			else unmarkRanges("pw-find-active");
 			if (r && box) {
 				const rect = r.getBoundingClientRect();
 				const view = box.getBoundingClientRect();

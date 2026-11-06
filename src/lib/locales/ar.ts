@@ -448,7 +448,7 @@ export const ar: Table = {
 	"Photos or scans as the pages of one PDF":
 		"صور أو مسح ضوئي كصفحات ملف PDF واحد",
 	"PDF to pictures": "PDF إلى صور",
-	"Each page as a JPEG picture": "كل صفحة كصورة JPEG",
+	"Each page as a JPEG or PNG picture": "كل صفحة كصورة JPEG أو PNG",
 	"Page numbers": "أرقام الصفحات",
 	"Number every page": "رقّم كل صفحة",
 	Watermark: "علامة مائية",
@@ -466,12 +466,10 @@ export const ar: Table = {
 	DRAFT: "DRAFT",
 	"Each page is saved as a PDF of its own, together in a ZIP file.":
 		"تُحفظ كل صفحة كملف PDF مستقل، وكلها معًا في ملف ZIP.",
-	"Each picture's own size": "حجم كل صورة الأصلي",
+	"Picture size": "حجم الصورة",
 	Earlier: "قبل",
 	"Every page as its own PDF": "كل صفحة في ملف PDF مستقل",
 	Extract: "استخراج",
-	"Foot, middle": "الأسفل، في المنتصف",
-	"Foot, right": "الأسفل، يمينًا",
 	"For example 1-3, 5": "مثلًا 1-3, 5",
 	How: "كيف",
 	"Keep it somewhere safe: without it the copy cannot be opened. Paperwren does not keep it.":
@@ -488,8 +486,6 @@ export const ar: Table = {
 	"Number the pages": "ترقيم الصفحات",
 	"Opening…": "جارٍ الفتح…",
 	"Page {n} of {total}": "الصفحة {n} من {total}",
-	"Pages are drawn at 150 dots to the inch.":
-		"تُرسم الصفحات بدقة 150 نقطة في البوصة.",
 	"Pick the PDF and type its password; the copy opens without it.":
 		"اختر ملف PDF واكتب كلمة مروره؛ تُفتح النسخة بدونها.",
 	"Save a locked copy": "حفظ نسخة مقفلة",
@@ -507,7 +503,6 @@ export const ar: Table = {
 	"The two passwords are not the same": "كلمتا المرور غير متطابقتين",
 	"This PDF has no password to remove.":
 		"لا توجد كلمة مرور لإزالتها من ملف PDF هذا.",
-	"Top, right": "الأعلى، يمينًا",
 	"Turn left": "تدوير لليسار",
 	"Turn right": "تدوير لليمين",
 	"Use Latin letters: a PDF's standard fonts have no others.":
@@ -1180,4 +1175,50 @@ export const ar: Table = {
 	"Turn the pages, or show two side by side":
 		"اقلب الصفحات، أو اعرض صفحتين جنبًا إلى جنب",
 	"Show this list": "إظهار هذه القائمة",
+	Top: "الأعلى",
+	Foot: "الأسفل",
+	Align: "المحاذاة",
+	Left: "يسار",
+	Middle: "الوسط",
+	Right: "يمين",
+	Small: "صغير",
+	Medium: "متوسط",
+	Large: "كبير",
+	Orientation: "الاتجاه",
+	Portrait: "عمودي",
+	Landscape: "أفقي",
+	Margin: "الهامش",
+	None: "بدون",
+	Narrow: "ضيق",
+	Normal: "عادي",
+	Format: "التنسيق",
+	Quality: "الجودة",
+	"For screens": "للشاشات",
+	Standard: "قياسية",
+	"For printing": "للطباعة",
+	"Pages are drawn at {n} dots to the inch.":
+		"تُرسم الصفحات بدقة {n} نقطة في البوصة.",
+	"Start at": "رقم البداية",
+	"Use a whole number, 1 or more.": "اكتب عددًا صحيحًا، 1 أو أكثر.",
+	"No number on the first page": "بلا رقم على الصفحة الأولى",
+	"How many": "العدد",
+	One: "واحدة",
+	Repeated: "متكررة",
+	Strength: "الشدة",
+	Faint: "خافت",
+	Strong: "قوي",
+	Red: "أحمر",
+	Blue: "أزرق",
+	Angle: "الزاوية",
+	Slanted: "مائل",
+	Straight: "مستقيم",
+	"Allow printing": "السماح بالطباعة",
+	"Allow copying text": "السماح بنسخ النص",
+	"Allow changes": "السماح بالتعديل",
+	"Most PDF readers keep to these limits, but a reader can choose to ignore them.":
+		"تلتزم معظم برامج قراءة PDF بهذه القيود، لكن يمكن لأي برنامج أن يتجاهلها.",
+	"This phone's web engine (Android System WebView) is out of date, so this file couldn't be shown. Update it from your app store (on Huawei phones, update Huawei WebView in AppGallery), then try again.":
+		"محرّك الويب في هذا الهاتف (Android System WebView) قديم، لذا تعذّر عرض هذا الملف. حدّثه من متجر التطبيقات (على هواتف Huawei حدّث Huawei WebView من AppGallery)، ثم حاول مجددًا.",
+	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
+		"محرّك الويب في هذا الهاتف قديم. حدّث Android System WebView (أو Huawei WebView على هواتف Huawei)، ثم حاول مجددًا.",
 };

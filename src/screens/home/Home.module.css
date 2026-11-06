@@ -547,6 +547,7 @@
 	font-weight: 800;
 	letter-spacing: 0.03em;
 	color: var(--c);
+	background: var(--surface);
 	background: color-mix(in srgb, var(--c) 12%, var(--surface));
 }
 .privacy {

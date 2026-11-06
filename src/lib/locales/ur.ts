@@ -440,7 +440,8 @@ export const ur: Table = {
 	"Photos or scans as the pages of one PDF":
 		"تصاویر یا اسکین ایک PDF کے صفحات کے طور پر",
 	"PDF to pictures": "PDF سے تصاویر",
-	"Each page as a JPEG picture": "ہر صفحہ ایک JPEG تصویر کے طور پر",
+	"Each page as a JPEG or PNG picture":
+		"ہر صفحہ ایک JPEG یا PNG تصویر کے طور پر",
 	"Page numbers": "صفحہ نمبر",
 	"Number every page": "ہر صفحے پر نمبر لگائیں",
 	Watermark: "واٹر مارک",
@@ -459,12 +460,10 @@ export const ur: Table = {
 	DRAFT: "DRAFT",
 	"Each page is saved as a PDF of its own, together in a ZIP file.":
 		"ہر صفحہ الگ PDF کے طور پر، سب ایک ZIP فائل میں محفوظ ہوتے ہیں۔",
-	"Each picture's own size": "ہر تصویر کا اپنا سائز",
+	"Picture size": "تصویر کا سائز",
 	Earlier: "پہلے",
 	"Every page as its own PDF": "ہر صفحہ الگ PDF",
 	Extract: "نکالیں",
-	"Foot, middle": "نیچے، درمیان میں",
-	"Foot, right": "نیچے، دائیں",
 	"For example 1-3, 5": "مثال کے طور پر 1-3, 5",
 	How: "کیسے",
 	"Keep it somewhere safe: without it the copy cannot be opened. Paperwren does not keep it.":
@@ -481,8 +480,6 @@ export const ur: Table = {
 	"Number the pages": "صفحات پر نمبر لگائیں",
 	"Opening…": "کھل رہی ہے…",
 	"Page {n} of {total}": "صفحہ {n} از {total}",
-	"Pages are drawn at 150 dots to the inch.":
-		"صفحات 150 ڈاٹس فی انچ پر بنائے جاتے ہیں۔",
 	"Pick the PDF and type its password; the copy opens without it.":
 		"PDF چنیں اور اس کا پاس ورڈ لکھیں؛ کاپی اس کے بغیر کھلے گی۔",
 	"Save a locked copy": "مقفل کاپی محفوظ کریں",
@@ -500,7 +497,6 @@ export const ur: Table = {
 	"The two passwords are not the same": "دونوں پاس ورڈ ایک جیسے نہیں ہیں",
 	"This PDF has no password to remove.":
 		"اس PDF پر ہٹانے کے لیے کوئی پاس ورڈ نہیں ہے۔",
-	"Top, right": "اوپر، دائیں",
 	"Turn left": "بائیں گھمائیں",
 	"Turn right": "دائیں گھمائیں",
 	"Use Latin letters: a PDF's standard fonts have no others.":
@@ -1139,4 +1135,50 @@ export const ur: Table = {
 	"Turn the pages, or show two side by side":
 		"صفحات پلٹیں، یا دو ساتھ ساتھ دکھائیں",
 	"Show this list": "یہ فہرست دکھائیں",
+	Top: "اوپر",
+	Foot: "نیچے",
+	Align: "سیدھ",
+	Left: "بائیں",
+	Middle: "درمیان",
+	Right: "دائیں",
+	Small: "چھوٹا",
+	Medium: "درمیانہ",
+	Large: "بڑا",
+	Orientation: "رخ",
+	Portrait: "عمودی",
+	Landscape: "افقی",
+	Margin: "حاشیہ",
+	None: "کوئی نہیں",
+	Narrow: "تنگ",
+	Normal: "عام",
+	Format: "فارمیٹ",
+	Quality: "معیار",
+	"For screens": "اسکرین کے لیے",
+	Standard: "معیاری",
+	"For printing": "پرنٹ کے لیے",
+	"Pages are drawn at {n} dots to the inch.":
+		"صفحات {n} ڈاٹس فی انچ پر بنائے جاتے ہیں۔",
+	"Start at": "شروعاتی نمبر",
+	"Use a whole number, 1 or more.": "1 یا اس سے بڑا پورا عدد لکھیں۔",
+	"No number on the first page": "پہلے صفحے پر نمبر نہ لگائیں",
+	"How many": "کتنے",
+	One: "ایک",
+	Repeated: "بار بار",
+	Strength: "گہرائی",
+	Faint: "ہلکا",
+	Strong: "گہرا",
+	Red: "سرخ",
+	Blue: "نیلا",
+	Angle: "زاویہ",
+	Slanted: "ترچھا",
+	Straight: "سیدھا",
+	"Allow printing": "پرنٹ کرنے کی اجازت دیں",
+	"Allow copying text": "متن کاپی کرنے کی اجازت دیں",
+	"Allow changes": "تبدیلیوں کی اجازت دیں",
+	"Most PDF readers keep to these limits, but a reader can choose to ignore them.":
+		"زیادہ تر PDF ریڈر ان پابندیوں کا خیال رکھتے ہیں، مگر کوئی ریڈر انہیں نظرانداز بھی کر سکتا ہے۔",
+	"This phone's web engine (Android System WebView) is out of date, so this file couldn't be shown. Update it from your app store (on Huawei phones, update Huawei WebView in AppGallery), then try again.":
+		"اس فون کا ویب انجن (Android System WebView) پرانا ہے، اس لیے یہ فائل نہیں دکھائی جا سکی۔ اسے اپنے ایپ اسٹور سے اپ ڈیٹ کریں (Huawei فونز پر AppGallery سے Huawei WebView اپ ڈیٹ کریں)، پھر دوبارہ کوشش کریں۔",
+	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
+		"اس فون کا ویب انجن پرانا ہے۔ Android System WebView اپ ڈیٹ کریں (Huawei فونز پر Huawei WebView)، پھر دوبارہ کوشش کریں۔",
 };

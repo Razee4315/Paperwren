@@ -1,4 +1,5 @@
 import { isDesktop } from "@/lib/env";
+import { explainFailure } from "@/lib/errors";
 import { t, uiDir } from "@/lib/i18n";
 import type { Block } from "@/lib/office/model";
 import type { DocResult } from "@/lib/parseWorker";
@@ -99,6 +100,7 @@ export default function ReflowView(props: ViewerProps) {
 	const pages = useRef<HTMLDivElement>(null);
 	const content = useRef<HTMLDivElement>(null);
 	const [result, setResult] = useState<Result | null>(null);
+	const [fault, setFault] = useState<unknown>(null);
 	const [zoom, commit] = useZoomLevel(position);
 	const [chromeHidden, setChromeHidden] = useState(false);
 	const [headings, setHeadings] = useState<Heading[]>([]);
@@ -110,11 +112,11 @@ export default function ReflowView(props: ViewerProps) {
 		const abort = new AbortController();
 		extract(props, abort.signal)
 			.then(setResult)
-			.catch(
-				(e) =>
-					e?.name !== "AbortError" &&
-					setResult({ ok: false, reason: "corrupt" }),
-			);
+			.catch((e) => {
+				if (e?.name === "AbortError") return;
+				setFault(e);
+				setResult({ ok: false, reason: "corrupt" });
+			});
 		return () => abort.abort();
 	}, [props.data]);
 
@@ -337,7 +339,12 @@ export default function ReflowView(props: ViewerProps) {
 				>
 					{result.reason === "password"
 						? t("This document is locked with a password and can't be opened.")
-						: t("The file is damaged or uses a variant Paperwren can't read.")}
+						: explainFailure(
+								fault,
+								t(
+									"The file is damaged or uses a variant Paperwren can't read.",
+								),
+							)}
 				</StateView>
 			)}
 			{doc &&
