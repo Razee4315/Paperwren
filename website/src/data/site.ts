@@ -11,7 +11,7 @@ export const SITE = {
 	/** From the v1.1.4 release assets. */
 	androidSize: "30.8 MB",
 	windowsSize: "6.7 MB",
-	version: "1.2.0",
+	version: "1.6.0",
 };
 
 /** Internal link that respects the deploy base path. */
