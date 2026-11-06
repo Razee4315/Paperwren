@@ -1175,6 +1175,9 @@ export const ar: Table = {
 	"Turn the pages, or show two side by side":
 		"اقلب الصفحات، أو اعرض صفحتين جنبًا إلى جنب",
 	"Show this list": "إظهار هذه القائمة",
+	"Ink for text and marks": "حبر النص والعلامات",
+	"Text in blue": "نص أزرق",
+	"Text in black": "نص أسود",
 	Top: "الأعلى",
 	Foot: "الأسفل",
 	Align: "المحاذاة",

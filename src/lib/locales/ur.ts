@@ -1135,6 +1135,9 @@ export const ur: Table = {
 	"Turn the pages, or show two side by side":
 		"صفحات پلٹیں، یا دو ساتھ ساتھ دکھائیں",
 	"Show this list": "یہ فہرست دکھائیں",
+	"Ink for text and marks": "متن اور نشانات کی سیاہی",
+	"Text in blue": "نیلا متن",
+	"Text in black": "سیاہ متن",
 	Top: "اوپر",
 	Foot: "نیچے",
 	Align: "سیدھ",

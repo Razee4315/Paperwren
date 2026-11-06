@@ -643,24 +643,6 @@ export function FillSign({
 							<span>{label}</span>
 						</button>
 					))}
-					<div className={s.inkChoices}>
-						{(["blue", "black"] as const).map((colour) => (
-							<button
-								key={colour}
-								type="button"
-								className={s.inkDot}
-								aria-pressed={ink === colour}
-								aria-label={colour === "blue" ? t("Blue ink") : t("Black ink")}
-								title={colour === "blue" ? t("Blue ink") : t("Black ink")}
-								onClick={() => setInk(colour)}
-								data-testid={`fill-ink-${colour}`}
-							>
-								<span style={{ background: INKS[colour] }} aria-hidden="true">
-									{ink === colour && <Check size={14} strokeWidth={2.5} />}
-								</span>
-							</button>
-						))}
-					</div>
 				</div>
 			)}
 			<div className={s.fillActions} data-testid="fill-actions">
@@ -707,6 +689,35 @@ export function FillSign({
 									)
 								: t("Type into the form's fields")}
 				</p>
+				{/* Here rather than in the tool bar, which a phone already fills:
+				 * the ink for typed text, the date, ticks and crosses. */}
+				{canMark && (
+					<div
+						className={s.fillInk}
+						role="radiogroup"
+						aria-label={t("Ink for text and marks")}
+					>
+						{(["blue", "black"] as const).map((colour) => (
+							<button
+								key={colour}
+								type="button"
+								// biome-ignore lint/a11y/useSemanticElements: a pair of buttons with radio semantics
+								role="radio"
+								aria-checked={ink === colour}
+								aria-label={
+									colour === "blue" ? t("Text in blue") : t("Text in black")
+								}
+								title={
+									colour === "blue" ? t("Text in blue") : t("Text in black")
+								}
+								onClick={() => setInk(colour)}
+								data-testid={`fill-ink-${colour}`}
+							>
+								<span style={{ background: INKS[colour] }} aria-hidden="true" />
+							</button>
+						))}
+					</div>
+				)}
 				{tool && (
 					<button
 						type="button"

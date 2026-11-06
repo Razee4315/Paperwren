@@ -1152,6 +1152,9 @@ export const pt: Table = {
 	"Turn the pages, or show two side by side":
 		"Vire as páginas ou mostre duas lado a lado",
 	"Show this list": "Mostrar esta lista",
+	"Ink for text and marks": "Tinta do texto e das marcas",
+	"Text in blue": "Texto em azul",
+	"Text in black": "Texto em preto",
 	Top: "Em cima",
 	Foot: "Embaixo",
 	Align: "Alinhar",

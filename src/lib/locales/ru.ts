@@ -1181,6 +1181,9 @@ export const ru: Table = {
 	"Turn the pages, or show two side by side":
 		"Листайте страницы или показывайте две рядом",
 	"Show this list": "Показать этот список",
+	"Ink for text and marks": "Цвет текста и отметок",
+	"Text in blue": "Синий текст",
+	"Text in black": "Чёрный текст",
 	Top: "Вверху",
 	Foot: "Внизу",
 	Align: "Выравнивание",

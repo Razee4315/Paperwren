@@ -113,6 +113,42 @@
 .fillHint > svg {
 	flex-shrink: 0;
 }
+/* The ink for text and marks, small enough to keep the hint row's
+ * height. */
+.fillInk {
+	display: flex;
+	gap: 4px;
+	flex-shrink: 0;
+	/* Taller than the words beside it: let it overhang the padding
+	 * rather than grow the row. */
+	margin-block: -8px;
+	margin-inline-start: auto;
+}
+.fillInk > button {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border-radius: 50%;
+}
+.fillInk > button > span {
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	box-shadow: 0 0 0 1px var(--line-strong);
+}
+.fillInk > button[aria-checked="true"] > span {
+	box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+:global(html.desktop) .fillInk > button {
+	width: 22px;
+	height: 22px;
+}
+:global(html.desktop) .fillInk > button > span {
+	width: 14px;
+	height: 14px;
+}
 .cancelTool {
 	text-decoration: underline;
 	font-weight: 750;

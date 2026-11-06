@@ -1149,6 +1149,9 @@ export const es: Table = {
 	"Turn the pages, or show two side by side":
 		"Pasa las páginas o muestra dos en paralelo",
 	"Show this list": "Mostrar esta lista",
+	"Ink for text and marks": "Tinta del texto y las marcas",
+	"Text in blue": "Texto en azul",
+	"Text in black": "Texto en negro",
 	Top: "Arriba",
 	Foot: "Abajo",
 	Align: "Alinear",
