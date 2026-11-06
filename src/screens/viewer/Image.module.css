@@ -31,6 +31,9 @@
 	height: 100%;
 	user-select: none;
 }
+.unloaded {
+	visibility: hidden;
+}
 .printed {
 	width: 100%;
 	height: auto;

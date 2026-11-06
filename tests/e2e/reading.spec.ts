@@ -1087,12 +1087,14 @@ test.describe("pictures and code", () => {
 		await expect.poll(() => natural(page), { timeout: 20_000 }).toBe("320x200");
 	});
 
-	test("with nothing to draw it, a HEIC photo says so", async ({ page }) => {
+	test("where the system cannot draw it, a HEIC photo is decoded by libheif", async ({
+		page,
+	}) => {
 		await boot(page);
 		await openFixture(page, "features/photo.heic");
-		await expect(page.getByTestId("image-error")).toContainText("HEIC", {
-			timeout: 20_000,
-		});
+		await expect.poll(() => natural(page), { timeout: 20_000 }).toBe("160x120");
+		await expect(page.getByTestId("image")).toBeVisible();
+		await expect(page.getByTestId("image-error")).toHaveCount(0);
 	});
 
 	test("a photo's camera details, and a mirror", async ({ page }) => {

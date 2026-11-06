@@ -143,11 +143,77 @@ function toBase64(bytes: Uint8Array): string {
 	return btoa(out);
 }
 
+/** HEIF brands that hold HEVC pictures: iPhone photos and the like. */
+const HEIC_BRANDS = new Set(["heic", "heix", "heim", "heis", "hevc", "hevx"]);
+
+/** Whether the bytes are a HEIC (an "ftyp" box naming a HEVC brand,
+ * or a plain HEIF one). AVIF shares the box and the plain "mif1" brand,
+ * and is left out: webviews draw it themselves. */
+export function looksHeif(bytes: Uint8Array): boolean {
+	if (bytes.length < 16) return false;
+	const text = (at: number) =>
+		String.fromCharCode(bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]);
+	if (text(4) !== "ftyp") return false;
+	const size = Math.min(
+		bytes.length,
+		new DataView(bytes.buffer, bytes.byteOffset).getUint32(0),
+	);
+	const brands: string[] = [];
+	for (let at = 8; at + 4 <= size; at += 4) brands.push(text(at));
+	if (brands.some((b) => b === "avif" || b === "avis")) return false;
+	return (
+		brands.some((b) => HEIC_BRANDS.has(b)) ||
+		brands[0] === "mif1" ||
+		brands[0] === "msf1"
+	);
+}
+
+let heicWorker: Worker | null = null;
+let heicJobs = 0;
+const heicWaiting = new Map<number, (jpeg: Blob | null) => void>();
+
+/** A HEIC decoded by libheif in a worker (lib/heicWorker.ts), as a
+ * JPEG; null when it cannot be. The worker is made on first use. */
+function libheifDecode(bytes: Uint8Array): Promise<Blob | null> {
+	if (typeof Worker === "undefined") return Promise.resolve(null);
+	if (!heicWorker) {
+		heicWorker = new Worker(new URL("./heicWorker.ts", import.meta.url), {
+			type: "module",
+		});
+		heicWorker.onmessage = (
+			event: MessageEvent<{ id: number; jpeg: Blob | null }>,
+		) => {
+			heicWaiting.get(event.data.id)?.(event.data.jpeg);
+			heicWaiting.delete(event.data.id);
+		};
+		heicWorker.onerror = () => {
+			for (const done of heicWaiting.values()) done(null);
+			heicWaiting.clear();
+			heicWorker?.terminate();
+			heicWorker = null;
+		};
+	}
+	const id = ++heicJobs;
+	return new Promise((resolve) => {
+		heicWaiting.set(id, resolve);
+		heicWorker?.postMessage({ id, bytes });
+	});
+}
+
 /**
- * A picture the webview cannot draw (HEIC, on Android), drawn by the
- * system instead and handed back as a JPEG. Null where nothing can.
+ * A picture the webview cannot draw, handed back as a JPEG: drawn by
+ * Android itself where it can, and a HEIC decoded by libheif where the
+ * system cannot (Windows). Null where nothing can.
  */
-export function systemDecode(bytes: Uint8Array): Promise<Blob | null> {
+export async function systemDecode(bytes: Uint8Array): Promise<Blob | null> {
+	const drawn = await androidDecode(bytes);
+	if (drawn) return drawn;
+	if (!looksHeif(bytes) || bytes.byteLength > DECODE_MAX) return null;
+	return libheifDecode(bytes);
+}
+
+/** Android draws it (HEIC among others) and hands back a JPEG. */
+function androidDecode(bytes: Uint8Array): Promise<Blob | null> {
 	const bridge = window.__paperwrenAndroidExtras;
 	if (!bridge?.decodePicture || bytes.byteLength > DECODE_MAX)
 		return Promise.resolve(null);
