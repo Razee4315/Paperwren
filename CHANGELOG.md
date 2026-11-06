@@ -11,6 +11,7 @@
 - Pictures to PDF: portrait or landscape, a choice of margin, and Legal paper.
 - Fill & sign: black or blue ink for text, dates and ticks.
 - Save a copy of the open file from its menu.
+- iPhone photos (HEIC) open on Windows too, and on Android a photo no longer shows a broken picture before it appears.
 - Word: tables that reach into the margin now fit the page, and pictures stored as EMF show.
 - The highlighted choice in the tools now follows what you pick.
 
