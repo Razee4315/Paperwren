@@ -710,7 +710,20 @@ export function FillSign({
 								title={
 									colour === "blue" ? t("Text in blue") : t("Text in black")
 								}
+								// One stop for the pair; the arrows switch between them.
+								tabIndex={ink === colour ? 0 : -1}
 								onClick={() => setInk(colour)}
+								onKeyDown={(e) => {
+									if (!/^Arrow(Left|Right|Up|Down)$/.test(e.key)) return;
+									e.preventDefault();
+									const next = colour === "blue" ? "black" : "blue";
+									setInk(next);
+									(
+										e.currentTarget.parentElement?.querySelector(
+											`[data-testid="fill-ink-${next}"]`,
+										) as HTMLElement | null
+									)?.focus();
+								}}
 								data-testid={`fill-ink-${colour}`}
 							>
 								<span style={{ background: INKS[colour] }} aria-hidden="true" />
