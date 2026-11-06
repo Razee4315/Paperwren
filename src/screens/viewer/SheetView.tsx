@@ -1,5 +1,6 @@
 import { hasRtl } from "@/lib/bidi";
 import { isDesktop } from "@/lib/env";
+import { explainFailure } from "@/lib/errors";
 import { ANY_MATCH, type FindOptions, matches } from "@/lib/find";
 import { locale, t } from "@/lib/i18n";
 import { type Chart, readChart } from "@/lib/pptx/chart";
@@ -234,7 +235,12 @@ export default function SheetView({
 			})
 			.catch((e) => {
 				if (e?.name !== "AbortError")
-					setError(t("The file is damaged or isn't a valid spreadsheet."));
+					setError(
+						explainFailure(
+							e,
+							t("The file is damaged or isn't a valid spreadsheet."),
+						),
+					);
 			});
 		return () => {
 			abort.abort();

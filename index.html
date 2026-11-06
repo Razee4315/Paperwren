@@ -43,6 +43,27 @@
         window.dispatchEvent(new CustomEvent("paperwren-file"));
         return true;
       };
+
+      // A WebView too old for the app (before Chrome 89: phones whose
+      // WebView is never updated) would show a blank screen. Plain
+      // words instead, written so that engine can run them.
+      (function () {
+        var m = /\bChrom(?:e|ium)\/(\d+)/.exec(navigator.userAgent);
+        if (!m || Number(m[1]) >= 89) return;
+        window.__paperwrenTooOld = true;
+        document.addEventListener("DOMContentLoaded", function () {
+          var root = document.getElementById("root");
+          if (!root) return;
+          root.innerHTML =
+            '<div style="max-width:420px;margin:0 auto;padding:48px 24px;font:16px/1.5 sans-serif;color:#23221f">' +
+            '<h1 style="font-size:20px;margin:0 0 12px">Paperwren needs a newer WebView</h1>' +
+            "<p>This phone's web engine (Android System WebView, version " + m[1] +
+            ") is too old to run Paperwren. Update it from your app store, or on a Huawei phone update Huawei WebView in AppGallery, then open Paperwren again.</p>" +
+            '<p lang="zh">此手机的网页引擎（WebView 版本 ' + m[1] +
+            "）过旧，无法运行 Paperwren。请在应用商店更新 Android System WebView（华为手机请在应用市场更新华为 WebView），然后重新打开 Paperwren。</p>" +
+            "</div>";
+        });
+      })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>

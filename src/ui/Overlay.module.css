@@ -16,6 +16,7 @@
 	z-index: 101;
 	margin: 0 auto;
 	max-width: 560px;
+	max-height: calc(100vh - 48px - var(--safe-top));
 	max-height: calc(100dvh - 48px - var(--safe-top));
 	display: flex;
 	flex-direction: column;
@@ -72,6 +73,7 @@
 	z-index: 101;
 	min-width: 220px;
 	max-width: min(360px, calc(100vw - 16px));
+	max-height: calc(100vh - 16px);
 	max-height: calc(100dvh - 16px);
 	overflow-y: auto;
 	overscroll-behavior: contain;
@@ -115,6 +117,7 @@
 	position: relative;
 	width: 100%;
 	max-width: 400px;
+	max-height: calc(100vh - 48px - var(--safe-top) - var(--safe-bottom));
 	max-height: calc(100dvh - 48px - var(--safe-top) - var(--safe-bottom));
 	overflow-y: auto;
 	background: var(--surface);

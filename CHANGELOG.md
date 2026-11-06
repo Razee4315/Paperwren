@@ -1,5 +1,19 @@
 # What's new
 
+## 1.6
+
+- PDFs open on phones with an older web engine, such as Huawei phones without Google Play. Menus, search highlights, Read text and Scan work there too.
+- When a file can't be shown because the phone's web engine is out of date, Paperwren says so, instead of calling the file damaged.
+- Watermark: one mark or repeated across the page, in three sizes, three strengths and three colours, slanted or straight, on all pages or the ones you pick.
+- Page numbers: start at any number, leave the first page without one, and choose the size and any corner or middle.
+- PDF to pictures: JPEG or PNG, at screen, standard or print quality.
+- Add a password: choose whether the copy can be printed, copied from or changed.
+- Pictures to PDF: portrait or landscape, a choice of margin, and Legal paper.
+- Fill & sign: black or blue ink for text, dates and ticks.
+- Save a copy of the open file from its menu.
+- Word: tables that reach into the margin now fit the page, and pictures stored as EMF show.
+- The highlighted choice in the tools now follows what you pick.
+
 ## 1.5
 
 - Highlight while you read. Select words, tap a colour, and it's done. Your highlights, notes and drawings stay with the document on this device, and the PDF itself is never changed.

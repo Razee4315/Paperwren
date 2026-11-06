@@ -1,4 +1,5 @@
 import { isDesktop } from "@/lib/env";
+import { explainFailure } from "@/lib/errors";
 import { t } from "@/lib/i18n";
 import { fitted } from "@/lib/print";
 import { useSettings } from "@/state/settings";
@@ -31,6 +32,7 @@ import {
 	shellStyles,
 } from "./Shell";
 import { seedListCounters } from "./docxLists";
+import { renderDocx } from "./docxRender";
 import { type Heading, HeadingList, readHeadings } from "./headings";
 import {
 	useOfficeDetails,
@@ -97,6 +99,7 @@ export default function DocxView({
 	const [status, setStatus] = useState<"loading" | "ready" | "error">(
 		"loading",
 	);
+	const [fault, setFault] = useState<unknown>(null);
 	const [zoom, commit] = useZoomLevel(position);
 	const [fit, setFit] = useState(1);
 	const [pageCount, setPageCount] = useState(0);
@@ -115,18 +118,22 @@ export default function DocxView({
 		setStatus("loading");
 		(async () => {
 			try {
-				const docx = await import("docx-preview");
-				await docx.renderAsync(data.slice(0), staging, staging, {
-					inWrapper: true,
-					// Reading view: one flowing column, no paper to keep to.
-					breakPages: !reading,
-					ignoreWidth: reading,
-					ignoreHeight: reading,
-					ignoreLastRenderedPageBreak: false,
-					experimental: true,
-					useBase64URL: true,
-					renderComments: comments,
-				});
+				await renderDocx(
+					data.slice(0),
+					staging,
+					{
+						inWrapper: true,
+						// Reading view: one flowing column, no paper to keep to.
+						breakPages: !reading,
+						ignoreWidth: reading,
+						ignoreHeight: reading,
+						ignoreLastRenderedPageBreak: false,
+						experimental: true,
+						useBase64URL: true,
+						renderComments: comments,
+					},
+					!reading,
+				);
 				if (cancelled || !host.current) return;
 				const count = staging.querySelectorAll("section.docx").length;
 				if (!count) throw new Error("empty");
@@ -138,8 +145,10 @@ export default function DocxView({
 				setHeadings(readHeadings(host.current));
 				setPageCount(count);
 				setStatus("ready");
-			} catch {
-				if (!cancelled) setStatus("error");
+			} catch (err) {
+				if (cancelled) return;
+				setFault(err);
+				setStatus("error");
 			}
 		})();
 		return () => {
@@ -369,17 +378,21 @@ export default function DocxView({
 							const source = document.createElement("div");
 							source.className = s.docx;
 							root.appendChild(source);
-							const docx = await import("docx-preview");
-							await docx.renderAsync(data.slice(0), source, source, {
-								inWrapper: true,
-								breakPages: true,
-								ignoreWidth: false,
-								ignoreHeight: false,
-								ignoreLastRenderedPageBreak: false,
-								experimental: true,
-								useBase64URL: true,
-								renderComments: comments,
-							});
+							await renderDocx(
+								data.slice(0),
+								source,
+								{
+									inWrapper: true,
+									breakPages: true,
+									ignoreWidth: false,
+									ignoreHeight: false,
+									ignoreLastRenderedPageBreak: false,
+									experimental: true,
+									useBase64URL: true,
+									renderComments: comments,
+								},
+								true,
+							);
 							let widest = 1;
 							for (const page of source.querySelectorAll<HTMLElement>(
 								"section.docx",
@@ -494,7 +507,10 @@ export default function DocxView({
 					title={t("Can't open this document")}
 					action={<Button onClick={onClose}>{t("Close")}</Button>}
 				>
-					{t("The file is damaged or isn't a valid Word document.")}
+					{explainFailure(
+						fault,
+						t("The file is damaged or isn't a valid Word document."),
+					)}
 				</StateView>
 			)}
 			<Sheet

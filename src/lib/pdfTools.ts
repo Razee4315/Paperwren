@@ -327,23 +327,30 @@ export function parsePages(text: string, count: number): number[] | null {
 /** Paper sizes for pictures turned into pages, in points. */
 export const PAPER = {
 	a4: [595.28, 841.89],
+	a5: [419.53, 595.28],
 	letter: [612, 792],
+	legal: [612, 1008],
 } as const;
+
+/** Which way a sheet of paper stands: turned to suit each picture, or
+ * the same way for all. */
+export type PaperTurn = "auto" | "portrait" | "landscape";
 
 /**
  * Pictures as pages: each on a page of its own, either the size of the
- * picture or fitted (with a margin) to A4 or Letter, turned to suit.
- * The pictures arrive as JPEG or PNG; anything else is drawn into one
- * of those first, where there is a canvas.
+ * picture or fitted (with a margin, in points) to a sheet of paper,
+ * turned to suit unless `turn` says which way. The pictures arrive as
+ * JPEG or PNG; anything else is drawn into one of those first, where
+ * there is a canvas.
  */
 export async function imagesToPdf(
 	images: Array<{ bytes: Uint8Array; type: "jpg" | "png" }>,
 	paper: "fit" | keyof typeof PAPER = "fit",
+	{ turn = "auto", margin = 24 }: { turn?: PaperTurn; margin?: number } = {},
 ): Promise<Uint8Array> {
 	if (!images.length) throw new ToolError("empty");
 	const { PDFDocument } = await lib();
 	const doc = await PDFDocument.create();
-	const margin = 24;
 	for (const picture of images) {
 		const image =
 			picture.type === "jpg"
@@ -357,7 +364,8 @@ export async function imagesToPdf(
 			continue;
 		}
 		const [a, b] = PAPER[paper];
-		const wide = image.width > image.height;
+		const wide =
+			turn === "auto" ? image.width > image.height : turn === "landscape";
 		const [pw, ph] = wide ? [b, a] : [a, b];
 		const scale = Math.min(
 			(pw - margin * 2) / image.width,
@@ -439,10 +447,22 @@ export async function scansToPdf(
 }
 
 /** Where page numbers go. */
-export type NumberSpot = "bottom-center" | "bottom-right" | "top-right";
+export type NumberSpot =
+	| "bottom-center"
+	| "bottom-right"
+	| "top-right"
+	| "bottom-left"
+	| "top-left"
+	| "top-center";
 
-/** Page numbers on every page: "1", or "Page 1 of 9" in the words the
- * caller gives ({n} and {total}). */
+/**
+ * Page numbers on every page: "1", or "Page 1 of 9" in the words the
+ * caller gives ({n} and {total}), `size` points tall. Page by page they
+ * count up from `first`; {total} is the last page's number. `skipFirst`
+ * leaves a cover without one, and the count still goes on from it, so
+ * the second page shows `first` + 1 and every number stays true to its
+ * page.
+ */
 export async function addPageNumbers(
 	bytes: Uint8Array,
 	{
@@ -450,11 +470,15 @@ export async function addPageNumbers(
 		spot = "bottom-center",
 		pattern = "{n}",
 		first = 1,
+		size = 10,
+		skipFirst = false,
 	}: {
 		password?: string;
 		spot?: NumberSpot;
 		pattern?: string;
 		first?: number;
+		size?: number;
+		skipFirst?: boolean;
 	} = {},
 ): Promise<Uint8Array> {
 	const { StandardFonts, degrees } = await lib();
@@ -462,8 +486,11 @@ export async function addPageNumbers(
 	const font = await doc.embedFont(StandardFonts.Helvetica);
 	const total = doc.getPageCount();
 	const grey = await rgbOf("#444444");
-	const size = 10;
+	// Further in for larger numbers: 28 points for the usual 10.
+	const margin = size * 2.8;
+	const [side, end] = spot.split("-");
 	doc.getPages().forEach((page, i) => {
+		if (skipFirst && i === 0) return;
 		const raw = pattern
 			.replace("{n}", String(first + i))
 			.replace("{total}", String(first + total - 1));
@@ -471,10 +498,13 @@ export async function addPageNumbers(
 		const box = shownBox(page);
 		const [w, h] = shownSize(box);
 		const textW = font.widthOfTextAtSize(text, size);
-		const margin = 28;
 		const u =
-			spot === "bottom-center" ? (w - textW) / 2 / w : (w - margin - textW) / w;
-		const v = spot === "top-right" ? (margin + size) / h : (h - margin) / h;
+			end === "center"
+				? (w - textW) / 2 / w
+				: end === "left"
+					? margin / w
+					: (w - margin - textW) / w;
+		const v = side === "top" ? (margin + size) / h : (h - margin) / h;
 		const [x, y] = pagePoint(box, u, v);
 		page.drawText(text, {
 			x,
@@ -488,51 +518,118 @@ export async function addPageNumbers(
 	return doc.save();
 }
 
-/** A word or two across every page, faint and on a slant: "DRAFT",
- * "COPY", "CONFIDENTIAL". Text Helvetica cannot write is refused. */
+/** Watermark colours, as "#rrggbb". */
+export const MARK_COLORS = {
+	grey: "#5f6368",
+	red: "#c0392b",
+	blue: "#2a5aa8",
+} as const;
+
+/** How large a watermark is. */
+export type MarkSize = "small" | "medium" | "large";
+
+/** One mark across the middle: the share of the page's diagonal it
+ * spans, and its largest size in points. */
+const ONE_MARK: Record<MarkSize, [number, number]> = {
+	small: [0.28, 70],
+	medium: [0.45, 110],
+	large: [0.7, 160],
+};
+
+/** Repeated marks: their size as a share of the page's diagonal. */
+const TILE_MARK: Record<MarkSize, number> = {
+	small: 0.022,
+	medium: 0.032,
+	large: 0.045,
+};
+
+/**
+ * A word or two across every page, faint: "DRAFT", "COPY",
+ * "CONFIDENTIAL". One mark across the middle, or `tiled` in staggered
+ * rows over the whole page; on the page's diagonal, or level when
+ * `slant` is false. `pages` (0-based) marks only those. Text Helvetica
+ * cannot write is refused.
+ */
 export async function addWatermark(
 	bytes: Uint8Array,
 	{
 		text,
 		password,
 		opacity = 0.18,
-	}: { text: string; password?: string; opacity?: number },
+		color = MARK_COLORS.red,
+		size: scale = "large",
+		tiled = false,
+		slant = true,
+		pages,
+	}: {
+		text: string;
+		password?: string;
+		opacity?: number;
+		/** "#rrggbb". */
+		color?: string;
+		size?: MarkSize;
+		tiled?: boolean;
+		slant?: boolean;
+		pages?: number[];
+	},
 ): Promise<Uint8Array> {
 	if (!text.trim() || !standardText(text)) throw new ToolError("empty");
 	const { StandardFonts, degrees } = await lib();
 	const doc = await open(bytes, password);
 	const font = await doc.embedFont(StandardFonts.HelveticaBold);
-	const color = await rgbOf("#c0392b");
-	for (const page of doc.getPages()) {
+	const ink = await rgbOf(color);
+	const only = pages ? new Set(pages) : null;
+	const unit = Math.max(1, font.widthOfTextAtSize(text, 1));
+	for (const [index, page] of doc.getPages().entries()) {
+		if (only && !only.has(index)) continue;
 		const box = shownBox(page);
 		const [w, h] = shownSize(box);
-		// As wide as most of the page's diagonal.
-		const angle = Math.atan2(h, w);
-		const size = Math.min(
-			160,
-			(Math.hypot(w, h) * 0.7) / Math.max(1, font.widthOfTextAtSize(text, 1)),
-		);
+		const diagonal = Math.hypot(w, h);
+		const angle = slant ? Math.atan2(h, w) : 0;
+		const cos = Math.cos(angle);
+		const sin = Math.sin(angle);
+		const [share, most] = ONE_MARK[scale];
+		// One mark spans its share of the diagonal; a repeated one is sized
+		// by the page, and a long word kept to two fifths of the diagonal.
+		const size = tiled
+			? Math.min(diagonal * TILE_MARK[scale], (diagonal * 0.4) / unit)
+			: Math.min(most, (diagonal * share) / unit);
 		const textW = font.widthOfTextAtSize(text, size);
-		// Centred: start half the text back along the slant, and half its
-		// height down across it.
-		const cu =
-			0.5 -
-			(Math.cos(angle) * textW) / 2 / w +
-			(Math.sin(angle) * size * 0.35) / w;
-		const cv =
-			0.5 +
-			(Math.sin(angle) * textW) / 2 / h +
-			(Math.cos(angle) * size * 0.35) / h;
-		const [x, y] = pagePoint(box, cu, cv);
-		page.drawText(text, {
-			x,
-			y,
-			size,
-			font,
-			color,
-			opacity,
-			rotate: degrees(box.turn + (angle * 180) / Math.PI),
-		});
+		const rotate = degrees(box.turn + (angle * 180) / Math.PI);
+		// A mark centred on a point of the page as shown (points from the
+		// top left): it starts half the text back along the slant, and half
+		// its height down across it.
+		const mark = (cx: number, cy: number) => {
+			const [x, y] = pagePoint(
+				box,
+				(cx - (cos * textW) / 2 + sin * size * 0.35) / w,
+				(cy + (sin * textW) / 2 + cos * size * 0.35) / h,
+			);
+			page.drawText(text, { x, y, size, font, color: ink, opacity, rotate });
+		};
+		if (!tiled) {
+			mark(w / 2, h / 2);
+			continue;
+		}
+		// Rows along the slant from the middle out, every other one moved
+		// half a step along, reaching past every corner; the page cuts off
+		// what overhangs it.
+		const along = textW + Math.max(size * 2, textW * 0.6);
+		const across = size * 3.5;
+		const reach = diagonal / 2;
+		const rows = Math.ceil(reach / across) + 1;
+		const cols = Math.ceil(reach / along) + 1;
+		const out = textW / 2 + size;
+		for (let row = -rows; row <= rows; row++)
+			for (let col = -cols; col <= cols; col++) {
+				const a = (col + (row % 2 ? 0.5 : 0)) * along;
+				const b = row * across;
+				// Along the slant is up and to the right; across it, down.
+				const cx = w / 2 + a * cos + b * sin;
+				const cy = h / 2 - a * sin + b * cos;
+				if (cx < -out || cx > w + out || cy < -out || cy > h + out) continue;
+				mark(cx, cy);
+			}
 	}
 	return doc.save();
 }
@@ -692,26 +789,50 @@ export async function compressPdf(
 	return doc.save({ useObjectStreams: true, updateFieldAppearances: false });
 }
 
-/** A copy that asks for a password to open. */
+/** What a locked copy lets its reader do; each is allowed unless set
+ * false. */
+export interface Allowed {
+	printing?: boolean;
+	copying?: boolean;
+	/** Changing pages, notes, form answers and the order of pages. */
+	changes?: boolean;
+}
+
+/** A long random password nobody is told. */
+function unknownPassword(): string {
+	const bytes = crypto.getRandomValues(new Uint8Array(24));
+	return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * A copy that asks for a password to open. What `allow` takes away is
+ * asked of the PDF reader: the reader's password still opens the copy,
+ * and the full rights go with a second password nobody is told. Most
+ * readers keep to the limits, but nothing in the file can make them.
+ */
 export async function protect(
 	bytes: Uint8Array,
 	userPassword: string,
-	{ password }: { password?: string } = {},
+	{ password, allow = {} }: { password?: string; allow?: Allowed } = {},
 ): Promise<Uint8Array> {
 	if (!userPassword) throw new ToolError("empty");
+	const { printing = true, copying = true, changes = true } = allow;
 	const doc = await open(bytes, password);
 	const options: SecurityOptions = {
 		userPassword,
-		// The same password opens it with every right: it is the reader's.
-		ownerPassword: userPassword,
+		// With nothing taken away the same password opens it with every
+		// right: it is the reader's.
+		ownerPassword:
+			printing && copying && changes ? userPassword : unknownPassword(),
 		permissions: {
-			printing: "highResolution",
-			modifying: true,
-			copying: true,
-			annotating: true,
-			fillingForms: true,
+			printing: printing ? "highResolution" : false,
+			modifying: changes,
+			copying,
+			annotating: changes,
+			fillingForms: changes,
+			// Screen readers may always read it.
 			contentAccessibility: true,
-			documentAssembly: true,
+			documentAssembly: changes,
 		},
 	};
 	doc.encrypt(options);

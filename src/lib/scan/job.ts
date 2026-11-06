@@ -33,7 +33,14 @@ export interface Photo {
  * is followed). Decoded off the page's own drawing, so a photo still
  * opens while the app is not on screen. */
 const bitmapOf = (blob: Blob) =>
-	createImageBitmap(blob, { imageOrientation: "from-image" });
+	createImageBitmap(blob, { imageOrientation: "from-image" }).catch(
+		(err: unknown) => {
+			// An older Chromium knows only "none" and "flipY" and refuses the
+			// option outright; left out, it still follows the tag.
+			if (err instanceof TypeError) return createImageBitmap(blob);
+			throw err;
+		},
+	);
 
 function drawn(
 	from: CanvasImageSource,

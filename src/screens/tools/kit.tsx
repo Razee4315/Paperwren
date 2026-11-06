@@ -1,4 +1,5 @@
 import { type SavedFile, backend, requestForSaved } from "@/lib/backend";
+import { unreadNote } from "@/lib/errors";
 import { t, tn } from "@/lib/i18n";
 import { openPdf } from "@/lib/pdfEngine";
 import { ToolError, pageCount } from "@/lib/pdfTools";
@@ -16,7 +17,13 @@ import {
 	X,
 } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	type CSSProperties,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import s from "./Tools.module.css";
 import { announceSaved } from "./saved";
 
@@ -108,7 +115,7 @@ export function useToolFiles(takes: Takes, initial?: OpenRequest) {
 							break;
 						} catch (err) {
 							if (!(err instanceof ToolError) || err.reason !== "password") {
-								toast(t("{name} couldn't be read", { name: request.name }));
+								toast(unreadNote(err, request.name));
 								return;
 							}
 							const answer = await password.ask(request.name, wrong);
@@ -119,8 +126,8 @@ export function useToolFiles(takes: Takes, initial?: OpenRequest) {
 					}
 				}
 				setFiles((list) => [...list, file]);
-			} catch {
-				toast(t("{name} couldn't be read", { name: request.name }));
+			} catch (err) {
+				toast(unreadNote(err, request.name));
 			} finally {
 				setBusy(false);
 			}
@@ -334,8 +341,8 @@ export function usePdf(file: ToolFile | undefined) {
 				if (alive) setDoc(d);
 				else d.destroy();
 			})
-			.catch(() => {
-				if (alive) toast(t("{name} couldn't be read", { name: file.name }));
+			.catch((err) => {
+				if (alive) toast(unreadNote(err, file.name));
 			});
 		return () => {
 			alive = false;
@@ -438,7 +445,21 @@ export function Choice<T extends string>({
 	return (
 		<>
 			<span className={s.label}>{label}</span>
-			<div className={s.ways} role="radiogroup" aria-label={label}>
+			<div
+				className={s.ways}
+				role="radiogroup"
+				aria-label={label}
+				// The sliding pill behind the chosen one: how many, and which.
+				style={
+					{
+						"--n": options.length,
+						"--i": Math.max(
+							0,
+							options.findIndex(([v]) => v === value),
+						),
+					} as CSSProperties
+				}
+			>
 				{options.map(([v, text]) => (
 					<button
 						key={v}

@@ -454,7 +454,8 @@ export const ru: Table = {
 	"Photos or scans as the pages of one PDF":
 		"Фото или сканы как страницы одного PDF",
 	"PDF to pictures": "PDF в изображения",
-	"Each page as a JPEG picture": "Каждая страница как изображение JPEG",
+	"Each page as a JPEG or PNG picture":
+		"Каждая страница — изображение JPEG или PNG",
 	"Page numbers": "Номера страниц",
 	"Number every page": "Пронумеровать каждую страницу",
 	Watermark: "Водяной знак",
@@ -474,12 +475,10 @@ export const ru: Table = {
 	DRAFT: "ЧЕРНОВИК",
 	"Each page is saved as a PDF of its own, together in a ZIP file.":
 		"Каждая страница сохраняется как отдельный PDF, все вместе в ZIP-файле.",
-	"Each picture's own size": "Собственный размер каждого изображения",
+	"Picture size": "Размер фото",
 	Earlier: "Раньше",
 	"Every page as its own PDF": "Каждая страница как отдельный PDF",
 	Extract: "Извлечь",
-	"Foot, middle": "Внизу, по центру",
-	"Foot, right": "Внизу, справа",
 	"For example 1-3, 5": "Например, 1-3, 5",
 	How: "Как",
 	"Keep it somewhere safe: without it the copy cannot be opened. Paperwren does not keep it.":
@@ -496,8 +495,6 @@ export const ru: Table = {
 	"Number the pages": "Пронумеровать страницы",
 	"Opening…": "Открытие…",
 	"Page {n} of {total}": "Страница {n} из {total}",
-	"Pages are drawn at 150 dots to the inch.":
-		"Страницы рисуются с разрешением 150 точек на дюйм.",
 	"Pick the PDF and type its password; the copy opens without it.":
 		"Выберите PDF и введите его пароль; копия открывается без пароля.",
 	"Save a locked copy": "Сохранить защищённую копию",
@@ -515,7 +512,6 @@ export const ru: Table = {
 	"The two passwords are not the same": "Пароли не совпадают",
 	"This PDF has no password to remove.":
 		"У этого PDF нет пароля, который можно убрать.",
-	"Top, right": "Вверху, справа",
 	"Turn left": "Повернуть влево",
 	"Turn right": "Повернуть вправо",
 	"Use Latin letters: a PDF's standard fonts have no others.":
@@ -1185,4 +1181,53 @@ export const ru: Table = {
 	"Turn the pages, or show two side by side":
 		"Листайте страницы или показывайте две рядом",
 	"Show this list": "Показать этот список",
+	"Ink for text and marks": "Цвет текста и отметок",
+	"Text in blue": "Синий текст",
+	"Text in black": "Чёрный текст",
+	Top: "Вверху",
+	Foot: "Внизу",
+	Align: "Выравнивание",
+	Left: "Слева",
+	Middle: "По центру",
+	Right: "Справа",
+	Small: "Маленький",
+	Medium: "Средний",
+	Large: "Большой",
+	Orientation: "Ориентация",
+	Portrait: "Книжная",
+	Landscape: "Альбомная",
+	Margin: "Поля",
+	None: "Без полей",
+	Narrow: "Узкие",
+	Normal: "Обычные",
+	Format: "Формат",
+	Quality: "Качество",
+	"For screens": "Для экрана",
+	Standard: "Стандартное",
+	"For printing": "Для печати",
+	"Pages are drawn at {n} dots to the inch.":
+		"Страницы рисуются с разрешением {n} точек на дюйм.",
+	"Start at": "Начать с",
+	"Use a whole number, 1 or more.": "Введите целое число от 1.",
+	"No number on the first page": "Без номера на первой странице",
+	"How many": "Сколько",
+	One: "Одна",
+	Repeated: "Повтор",
+	Strength: "Тон",
+	Faint: "Светлый",
+	Strong: "Тёмный",
+	Red: "Красный",
+	Blue: "Синий",
+	Angle: "Наклон",
+	Slanted: "Наискосок",
+	Straight: "Прямо",
+	"Allow printing": "Разрешить печать",
+	"Allow copying text": "Разрешить копировать текст",
+	"Allow changes": "Разрешить изменения",
+	"Most PDF readers keep to these limits, but a reader can choose to ignore them.":
+		"Большинство программ для PDF соблюдают эти ограничения, но программа может их и проигнорировать.",
+	"This phone's web engine (Android System WebView) is out of date, so this file couldn't be shown. Update it from your app store (on Huawei phones, update Huawei WebView in AppGallery), then try again.":
+		"Веб-движок этого телефона (Android System WebView) устарел, поэтому файл не удалось показать. Обновите его в магазине приложений (на телефонах Huawei обновите Huawei WebView в AppGallery) и попробуйте снова.",
+	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
+		"Веб-движок этого телефона устарел. Обновите Android System WebView (Huawei WebView на телефонах Huawei) и попробуйте снова.",
 };

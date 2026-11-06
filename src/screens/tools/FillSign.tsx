@@ -92,7 +92,10 @@ interface Item extends Box {
 	text?: string;
 }
 
-const INK = "#1a3c8c";
+/** The inks for typed text, the date, ticks and crosses: blue unless
+ * the reader picks black. */
+const INKS = { blue: "#1a3c8c", black: "#111111" } as const;
+type Ink = keyof typeof INKS;
 /** The height of a line of text placed on a page, as a share of the
  * page's height (about 12 points on A4). */
 const LINE = 0.021;
@@ -196,6 +199,7 @@ async function picture(
 	item: Item,
 	pageW: number,
 	pageH: number,
+	ink: string,
 ): Promise<Uint8Array> {
 	const scale = 4;
 	const w = Math.max(8, Math.round(item.w * pageW * scale));
@@ -205,8 +209,8 @@ async function picture(
 	canvas.height = h;
 	const ctx = canvas.getContext("2d");
 	if (!ctx) throw new Error("no canvas");
-	ctx.strokeStyle = INK;
-	ctx.fillStyle = INK;
+	ctx.strokeStyle = ink;
+	ctx.fillStyle = ink;
 	ctx.lineCap = "round";
 	ctx.lineJoin = "round";
 	if (item.kind === "check" || item.kind === "cross") {
@@ -279,6 +283,7 @@ export function FillSign({
 	const [leaving, setLeaving] = useState(false);
 	const [saving, setSaving] = useState<"ask" | "busy" | null>(null);
 	const [flatten, setFlatten] = useState(false);
+	const [ink, setInk] = useState<Ink>("blue");
 	const [zoom, setZoom] = useState(0);
 	const [width, setWidth] = useState(0);
 	const [sizes, setSizes] = useState<Array<[number, number]>>([]);
@@ -536,7 +541,7 @@ export function FillSign({
 						...box,
 						kind: "text",
 						text: item.text ?? "",
-						color: INK,
+						color: INKS[ink],
 					});
 				else if (
 					item.text?.trim() ||
@@ -546,7 +551,7 @@ export function FillSign({
 					marks.push({
 						...box,
 						kind: "image",
-						png: await picture(item, pw, ph),
+						png: await picture(item, pw, ph, INKS[ink]),
 					});
 			}
 			// pdf.js holds the file's bytes (the ones read were handed to it).
@@ -684,6 +689,48 @@ export function FillSign({
 									)
 								: t("Type into the form's fields")}
 				</p>
+				{/* Here rather than in the tool bar, which a phone already fills:
+				 * the ink for typed text, the date, ticks and crosses. */}
+				{canMark && (
+					<div
+						className={s.fillInk}
+						role="radiogroup"
+						aria-label={t("Ink for text and marks")}
+					>
+						{(["blue", "black"] as const).map((colour) => (
+							<button
+								key={colour}
+								type="button"
+								// biome-ignore lint/a11y/useSemanticElements: a pair of buttons with radio semantics
+								role="radio"
+								aria-checked={ink === colour}
+								aria-label={
+									colour === "blue" ? t("Text in blue") : t("Text in black")
+								}
+								title={
+									colour === "blue" ? t("Text in blue") : t("Text in black")
+								}
+								// One stop for the pair; the arrows switch between them.
+								tabIndex={ink === colour ? 0 : -1}
+								onClick={() => setInk(colour)}
+								onKeyDown={(e) => {
+									if (!/^Arrow(Left|Right|Up|Down)$/.test(e.key)) return;
+									e.preventDefault();
+									const next = colour === "blue" ? "black" : "blue";
+									setInk(next);
+									(
+										e.currentTarget.parentElement?.querySelector(
+											`[data-testid="fill-ink-${next}"]`,
+										) as HTMLElement | null
+									)?.focus();
+								}}
+								data-testid={`fill-ink-${colour}`}
+							>
+								<span style={{ background: INKS[colour] }} aria-hidden="true" />
+							</button>
+						))}
+					</div>
+				)}
 				{tool && (
 					<button
 						type="button"
@@ -748,6 +795,7 @@ export function FillSign({
 									item={item}
 									pageWidth={pageWidth}
 									pageHeight={(pageWidth * ph) / pw}
+									ink={INKS[ink]}
 									selected={selected === item.id}
 									editing={editing === item.id}
 									onSelect={() => {
@@ -1160,6 +1208,7 @@ function PlacedItem({
 	item,
 	pageWidth,
 	pageHeight,
+	ink,
 	selected,
 	editing,
 	onSelect,
@@ -1171,6 +1220,8 @@ function PlacedItem({
 	item: Item;
 	pageWidth: number;
 	pageHeight: number;
+	/** The colour of typed text and marks. */
+	ink: string;
 	selected: boolean;
 	editing: boolean;
 	onSelect: () => void;
@@ -1261,15 +1312,15 @@ function PlacedItem({
 				/>
 			) : item.kind === "check" || item.kind === "cross" ? (
 				item.kind === "check" ? (
-					<Check width="100%" height="100%" strokeWidth={3} color={INK} />
+					<Check width="100%" height="100%" strokeWidth={3} color={ink} />
 				) : (
-					<X width="100%" height="100%" strokeWidth={3} color={INK} />
+					<X width="100%" height="100%" strokeWidth={3} color={ink} />
 				)
 			) : editing ? (
 				<input
 					ref={input}
 					className={s.itemInput}
-					style={{ fontSize: fontPx }}
+					style={{ fontSize: fontPx, color: ink }}
 					value={item.text ?? ""}
 					dir="auto"
 					placeholder={t("Type here")}
@@ -1281,7 +1332,11 @@ function PlacedItem({
 					data-testid="fill-item-text"
 				/>
 			) : (
-				<span className={s.itemText} style={{ fontSize: fontPx }} dir="auto">
+				<span
+					className={s.itemText}
+					style={{ fontSize: fontPx, color: ink }}
+					dir="auto"
+				>
 					{item.text || t("Type here")}
 				</span>
 			)}

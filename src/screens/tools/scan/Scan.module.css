@@ -233,6 +233,7 @@
 	font-weight: 700;
 }
 .addTile button:hover {
+	background: var(--accent-soft);
 	background: color-mix(in srgb, var(--accent) 16%, var(--accent-soft));
 }
 .tapHint {
@@ -346,6 +347,7 @@
 	flex-shrink: 0;
 }
 .hint[data-tone="warn"] {
+	background: var(--surface);
 	background: color-mix(in srgb, var(--danger) 12%, var(--surface));
 	color: var(--danger);
 }
@@ -464,6 +466,7 @@
 .veil {
 	position: absolute;
 	inset: 0;
+	background: rgba(40, 38, 34, 0.4);
 	background: color-mix(in srgb, var(--canvas) 40%, transparent);
 }
 .sweep {
@@ -472,6 +475,7 @@
 	top: 0;
 	height: 26%;
 	border-bottom: 2px solid var(--accent);
+	background: rgba(43, 110, 102, 0.16);
 	background: color-mix(in srgb, var(--accent) 16%, transparent);
 	animation: sweep 1.6s var(--ease) infinite alternate;
 }

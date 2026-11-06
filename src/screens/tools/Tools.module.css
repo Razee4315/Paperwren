@@ -113,6 +113,42 @@
 .fillHint > svg {
 	flex-shrink: 0;
 }
+/* The ink for text and marks, small enough to keep the hint row's
+ * height. */
+.fillInk {
+	display: flex;
+	gap: 4px;
+	flex-shrink: 0;
+	/* Taller than the words beside it: let it overhang the padding
+	 * rather than grow the row. */
+	margin-block: -8px;
+	margin-inline-start: auto;
+}
+.fillInk > button {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border-radius: 50%;
+}
+.fillInk > button > span {
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	box-shadow: 0 0 0 1px var(--line-strong);
+}
+.fillInk > button[aria-checked="true"] > span {
+	box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+:global(html.desktop) .fillInk > button {
+	width: 22px;
+	height: 22px;
+}
+:global(html.desktop) .fillInk > button > span {
+	width: 14px;
+	height: 14px;
+}
 .cancelTool {
 	text-decoration: underline;
 	font-weight: 750;
@@ -869,6 +905,7 @@
 }
 .toolCard:hover {
 	border-color: var(--accent);
+	background: var(--surface);
 	background: color-mix(in srgb, var(--accent-soft) 24%, var(--surface));
 }
 .toolIcon {
@@ -1048,6 +1085,7 @@
 	gap: 20px;
 	padding: 28px 32px;
 	min-height: 180px;
+	border: 1px solid var(--line);
 	border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
 	border-radius: var(--r-xl);
 	background: var(--accent-soft);
@@ -1460,7 +1498,7 @@
 		padding: 0;
 	}
 	.markTools .tool span,
-	.markOptions:has(input) p {
+	.markOptions.withSlider p {
 		position: absolute;
 		width: 1px;
 		height: 1px;
@@ -1668,6 +1706,7 @@
 	gap: 2px;
 	padding: 2px;
 	border-radius: 10px;
+	background: rgba(43, 110, 102, 0.12);
 	background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .segment button {
@@ -1728,11 +1767,11 @@
 	.markFill .markZoom > :nth-child(n + 3) {
 		display: none;
 	}
-	.markFill .markOptions:has(.segment) {
+	.markFill .markOptions.withSegment {
 		flex-wrap: wrap;
 		padding-block: 6px;
 	}
-	.markFill .markOptions:has(.segment) p {
+	.markFill .markOptions.withSegment p {
 		flex-basis: 100%;
 	}
 	.measureRow > button {

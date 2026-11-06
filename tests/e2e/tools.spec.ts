@@ -928,6 +928,15 @@ test("editor keeps window controls separate and nested dialogs keep keyboard foc
 	await expect(editor).toBeVisible();
 	await expect(page.locator("#root")).toHaveAttribute("inert", "");
 	await expect(page.getByTestId("fill-save")).toBeFocused();
+	// The ink for text and marks is one stop on the way to the page.
+	await page.keyboard.press("Tab");
+	await expect(page.getByTestId("fill-ink-blue")).toBeFocused();
+	await page.keyboard.press("ArrowRight");
+	await expect(page.getByTestId("fill-ink-black")).toBeFocused();
+	await expect(page.getByTestId("fill-ink-black")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
 	await page.keyboard.press("Tab");
 	await expect(editor.getByLabel("fullname")).toBeFocused();
 	await page.getByTestId("fill-close").focus();

@@ -452,7 +452,7 @@ export const fr: Table = {
 	"Photos or scans as the pages of one PDF":
 		"Des photos ou des scans comme pages d'un même PDF",
 	"PDF to pictures": "PDF en images",
-	"Each page as a JPEG picture": "Chaque page en image JPEG",
+	"Each page as a JPEG or PNG picture": "Chaque page en image JPEG ou PNG",
 	"Page numbers": "Numéros de page",
 	"Number every page": "Numérotez chaque page",
 	Watermark: "Filigrane",
@@ -472,12 +472,10 @@ export const fr: Table = {
 	DRAFT: "BROUILLON",
 	"Each page is saved as a PDF of its own, together in a ZIP file.":
 		"Chaque page est enregistrée dans son propre PDF, le tout dans un fichier ZIP.",
-	"Each picture's own size": "La taille de chaque image",
+	"Picture size": "Taille de l'image",
 	Earlier: "Avant",
 	"Every page as its own PDF": "Chaque page dans son propre PDF",
 	Extract: "Extraire",
-	"Foot, middle": "En bas, au centre",
-	"Foot, right": "En bas, à droite",
 	"For example 1-3, 5": "Par exemple 1-3, 5",
 	How: "Comment",
 	"Keep it somewhere safe: without it the copy cannot be opened. Paperwren does not keep it.":
@@ -494,8 +492,6 @@ export const fr: Table = {
 	"Number the pages": "Numéroter les pages",
 	"Opening…": "Ouverture…",
 	"Page {n} of {total}": "Page {n} sur {total}",
-	"Pages are drawn at 150 dots to the inch.":
-		"Les pages sont rendues à 150 points par pouce.",
 	"Pick the PDF and type its password; the copy opens without it.":
 		"Choisissez le PDF et saisissez son mot de passe ; la copie s'ouvre sans.",
 	"Save a locked copy": "Enregistrer une copie verrouillée",
@@ -514,7 +510,6 @@ export const fr: Table = {
 		"Les deux mots de passe ne sont pas identiques",
 	"This PDF has no password to remove.":
 		"Ce PDF n'a pas de mot de passe à retirer.",
-	"Top, right": "En haut, à droite",
 	"Turn left": "Pivoter à gauche",
 	"Turn right": "Pivoter à droite",
 	"Use Latin letters: a PDF's standard fonts have no others.":
@@ -1169,4 +1164,53 @@ export const fr: Table = {
 	"Turn the pages, or show two side by side":
 		"Tournez les pages ou affichez-en deux côte à côte",
 	"Show this list": "Afficher cette liste",
+	"Ink for text and marks": "Encre du texte et des marques",
+	"Text in blue": "Texte en bleu",
+	"Text in black": "Texte en noir",
+	Top: "En haut",
+	Foot: "En bas",
+	Align: "Alignement",
+	Left: "Gauche",
+	Middle: "Milieu",
+	Right: "Droite",
+	Small: "Petit",
+	Medium: "Moyen",
+	Large: "Grand",
+	Orientation: "Orientation",
+	Portrait: "Portrait",
+	Landscape: "Paysage",
+	Margin: "Marge",
+	None: "Sans",
+	Narrow: "Étroite",
+	Normal: "Normale",
+	Format: "Format",
+	Quality: "Qualité",
+	"For screens": "Pour l’écran",
+	Standard: "Standard",
+	"For printing": "Pour l’impression",
+	"Pages are drawn at {n} dots to the inch.":
+		"Les pages sont rendues à {n} points par pouce.",
+	"Start at": "Commencer à",
+	"Use a whole number, 1 or more.": "Saisissez un nombre entier, 1 ou plus.",
+	"No number on the first page": "Pas de numéro sur la première page",
+	"How many": "Combien",
+	One: "Une seule",
+	Repeated: "Répétée",
+	Strength: "Intensité",
+	Faint: "Pâle",
+	Strong: "Fort",
+	Red: "Rouge",
+	Blue: "Bleu",
+	Angle: "Angle",
+	Slanted: "En biais",
+	Straight: "Droit",
+	"Allow printing": "Autoriser l’impression",
+	"Allow copying text": "Autoriser la copie du texte",
+	"Allow changes": "Autoriser les modifications",
+	"Most PDF readers keep to these limits, but a reader can choose to ignore them.":
+		"La plupart des lecteurs PDF respectent ces limites, mais un lecteur peut choisir de les ignorer.",
+	"This phone's web engine (Android System WebView) is out of date, so this file couldn't be shown. Update it from your app store (on Huawei phones, update Huawei WebView in AppGallery), then try again.":
+		"Le moteur web de ce téléphone (Android System WebView) n'est pas à jour, ce fichier n'a donc pas pu être affiché. Mettez-le à jour depuis votre boutique d'applications (sur les téléphones Huawei, mettez à jour Huawei WebView dans AppGallery), puis réessayez.",
+	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
+		"Le moteur web de ce téléphone n'est pas à jour. Mettez à jour Android System WebView (Huawei WebView sur les téléphones Huawei), puis réessayez.",
 };

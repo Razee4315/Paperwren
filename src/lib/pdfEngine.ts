@@ -4,21 +4,26 @@
  */
 
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import workerUrl from "./pdfWorker?worker&url";
 
 /** Where pdf.js finds its character maps and standard fonts: beside
  * the app (see vite.config.ts), never on the network. */
 export const pdfAsset = (dir: string) =>
 	new URL(`pdfjs/${dir}/`, document.baseURI).toString();
 
+/**
+ * The legacy build, not the modern one: the modern build needs a
+ * Chromium from late 2023 (Promise.withResolvers and more), and phones
+ * whose WebView is not kept up to date, Huawei's among them, could open
+ * no PDF at all. Its worker is built by Vite (pdfWorker.ts) so it is
+ * lowered and filled in the same way as the app.
+ */
 export async function loadEngine() {
-	const pdfjs = await import("pdfjs-dist");
-	pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-		"pdfjs-dist/build/pdf.worker.min.mjs",
-		import.meta.url,
-	).toString();
+	const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+	pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 	// pdf_viewer.mjs reads the core library from this global.
 	(globalThis as { pdfjsLib?: unknown }).pdfjsLib = pdfjs;
-	const viewer = await import("pdfjs-dist/web/pdf_viewer.mjs");
+	const viewer = await import("pdfjs-dist/legacy/web/pdf_viewer.mjs");
 	return { pdfjs, viewer };
 }
 

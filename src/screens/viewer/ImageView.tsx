@@ -1,5 +1,6 @@
 import { backend } from "@/lib/backend";
 import { isDesktop } from "@/lib/env";
+import { explainFailure } from "@/lib/errors";
 import { exifDate, readExif } from "@/lib/exif";
 import { formatNumber, locale, t, tn } from "@/lib/i18n";
 import { type Pictures, readPictures, systemDecode } from "@/lib/pictures";
@@ -110,6 +111,7 @@ export default function ImageView({
 	const hud = useRef<HTMLDivElement>(null);
 	const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
 	const [failed, setFailed] = useState<"damaged" | "unshown" | null>(null);
+	const [fault, setFault] = useState<unknown>(null);
 	const [fit, setFit] = useState(1);
 	const [zoom, commit] = useZoomLevel();
 	// Quarter turns clockwise: 0, 90, 180, 270; and mirrored either way.
@@ -132,7 +134,11 @@ export default function ImageView({
 				if (!found.count) setFailed("damaged");
 				setPictures(found);
 			})
-			.catch(() => alive && setFailed("damaged"));
+			.catch((err) => {
+				if (!alive) return;
+				setFault(err);
+				setFailed("damaged");
+			});
 		return () => {
 			alive = false;
 		};
@@ -162,7 +168,11 @@ export default function ImageView({
 				made = URL.createObjectURL(blob);
 				setUrl(made);
 			})
-			.catch(() => alive && setFailed("damaged"));
+			.catch((err) => {
+				if (!alive) return;
+				setFault(err);
+				setFailed("damaged");
+			});
 		return () => {
 			alive = false;
 			if (made) URL.revokeObjectURL(made);
@@ -654,8 +664,11 @@ export default function ImageView({
 						? t(
 								"This device can't draw HEIC pictures. Open it in another app from the menu.",
 							)
-						: t(
-								"The file is damaged or isn't a picture format Paperwren shows.",
+						: explainFailure(
+								fault,
+								t(
+									"The file is damaged or isn't a picture format Paperwren shows.",
+								),
 							)}
 				</StateView>
 			)}

@@ -259,6 +259,62 @@ describe("pages", () => {
 		).rejects.toThrow();
 	});
 
+	it("starts numbers where asked, skips a cover, and goes in any corner", async () => {
+		const out = await read(
+			await addPageNumbers(await pages(3, { 2: 90 }), {
+				first: 5,
+				skipFirst: true,
+				spot: "top-left",
+				size: 14,
+				pattern: "{n} of {total}",
+			}),
+		);
+		// The cover keeps no number, and the count goes on from it.
+		expect(out[0].words.some((w) => w.text.includes(" of "))).toBe(false);
+		for (const [i, page] of out.slice(1).entries()) {
+			const label = page.words.find((w) => w.text === `${6 + i} of 7`);
+			expect(label, `page ${i + 2}`).toBeTruthy();
+			expect(label?.u).toBeLessThan(0.15);
+			expect(label?.v).toBeLessThan(0.1);
+		}
+	});
+
+	it("repeats a watermark over a turned page with an offset box", async () => {
+		const doc = await PDFDocument.create();
+		for (let i = 0; i < 2; i++) {
+			const page = doc.addPage([600, 800]);
+			page.setCropBox(50, 60, 500, 700);
+			page.setRotation(degrees(90));
+		}
+		const out = await read(
+			await addWatermark(await doc.save(), {
+				text: "COPY",
+				tiled: true,
+				size: "small",
+				slant: false,
+				color: "#5f6368",
+				pages: [0],
+			}),
+		);
+		const shown = out[0].words.filter(
+			(w) =>
+				w.text.includes("COPY") && w.u >= 0 && w.u <= 1 && w.v >= 0 && w.v <= 1,
+		);
+		expect(shown.length).toBeGreaterThan(6);
+		// Some in every quarter of the page as shown.
+		for (const [left, top] of [
+			[true, true],
+			[false, true],
+			[true, false],
+			[false, false],
+		])
+			expect(shown.some((w) => w.u < 0.5 === left && w.v < 0.5 === top)).toBe(
+				true,
+			);
+		// Only the pages named.
+		expect(out[1].words.some((w) => w.text.includes("COPY"))).toBe(false);
+	});
+
 	it("turns pictures into pages", async () => {
 		const png = new Uint8Array(readFileSync("fixtures/sample.png"));
 		const fit = await PDFDocument.load(
@@ -277,6 +333,15 @@ describe("pages", () => {
 		expect(a4.getPageCount()).toBe(2);
 		const { width, height } = a4.getPage(0).getSize();
 		expect(Math.round(Math.min(width, height))).toBe(595);
+		const lying = await PDFDocument.load(
+			await imagesToPdf([{ bytes: png, type: "png" }], "a5", {
+				turn: "landscape",
+				margin: 0,
+			}),
+		);
+		const size = lying.getPage(0).getSize();
+		expect(Math.round(size.width)).toBe(595);
+		expect(Math.round(size.height)).toBe(420);
 	});
 });
 
@@ -291,6 +356,22 @@ describe("passwords", () => {
 			"Page 2",
 		]);
 		await expect(unlock(locked, "nope")).rejects.toThrow();
+	});
+
+	it("asks readers not to print, and still opens with the password", async () => {
+		const locked = await protect(await pages(1), "wren-42", {
+			allow: { printing: false },
+		});
+		const doc = await pdfjs.getDocument({
+			data: locked.slice(),
+			password: "wren-42",
+			verbosity: 0,
+		}).promise;
+		const allowed = (await doc.getPermissions()) ?? [];
+		expect(allowed).not.toContain(pdfjs.PermissionFlag.PRINT);
+		expect(allowed).toContain(pdfjs.PermissionFlag.COPY);
+		expect(allowed).toContain(pdfjs.PermissionFlag.COPY_FOR_ACCESSIBILITY);
+		await doc.destroy();
 	});
 });
 

@@ -507,6 +507,7 @@ html.touch ::-webkit-scrollbar {
 
 /* The sentence being read aloud. */
 ::highlight(pw-speech) {
+	background-color: rgba(43, 110, 102, 0.24);
 	background-color: color-mix(in srgb, var(--accent) 24%, transparent);
 }
 

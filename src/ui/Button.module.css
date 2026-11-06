@@ -48,6 +48,7 @@
 	color: var(--danger);
 }
 .danger:hover:not(:disabled) {
+	background: rgba(194, 65, 45, 0.1);
 	background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 .block {

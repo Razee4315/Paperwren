@@ -1,5 +1,6 @@
 import { isDesktop } from "@/lib/env";
 import type { EpubBook, TocEntry } from "@/lib/epub";
+import { explainFailure } from "@/lib/errors";
 import { t, uiDir } from "@/lib/i18n";
 import { sheet } from "@/lib/print";
 import {
@@ -44,7 +45,7 @@ const TEXT_SIZES = [80, 100, 125, 150, 200];
 
 type Result =
 	| { ok: true; book: EpubBook }
-	| { ok: false; reason: "drm" | "corrupt" };
+	| { ok: false; reason: "drm" | "corrupt"; fault?: unknown };
 
 async function read(data: ArrayBuffer): Promise<Result> {
 	const { parseEpub, EpubError } = await import("@/lib/epub");
@@ -54,6 +55,7 @@ async function read(data: ArrayBuffer): Promise<Result> {
 		return {
 			ok: false,
 			reason: err instanceof EpubError ? err.reason : "corrupt",
+			fault: err,
 		};
 	}
 }
@@ -361,7 +363,10 @@ export default function EpubView(props: ViewerProps) {
 							? t(
 									"It is protected by its store (DRM) and can only be read in that store's app.",
 								)
-							: t("The file is damaged or isn't a valid EPUB book.")}
+							: explainFailure(
+									result.fault,
+									t("The file is damaged or isn't a valid EPUB book."),
+								)}
 					</span>
 				</StateView>
 			)}

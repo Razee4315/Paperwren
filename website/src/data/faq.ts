@@ -28,7 +28,11 @@ export const FAQ = [
 		a: "Paperwren is currently published on GitHub Releases, built automatically from the public source code. Your phone will ask once whether your browser may install apps. Paperwren itself still asks for nothing.",
 	},
 	{
+		q: "Does it work on Huawei phones?",
+		a: "Yes. Phones without Google Play, Huawei's among them, often have an older web engine, and from version 1.6 Paperwren works with it. If a file still won't show, update Huawei WebView in AppGallery, or Android System WebView on other phones.",
+	},
+	{
 		q: "Is there an iPhone version?",
-		a: "Not yet. Paperwren is available for Android and Windows.",
+		a: "Not yet. Paperwren is available for Android, Windows and macOS.",
 	},
 ];

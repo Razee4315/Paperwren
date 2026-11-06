@@ -39,6 +39,8 @@ export interface FileAbilities {
 	share: boolean;
 	/** The share falls back to saving a copy (no share sheet here). */
 	shareIsDownload: boolean;
+	/** Save a copy of it as a new file, where the reader picks. */
+	saveCopy: boolean;
 	/** Open it in another installed app. */
 	openWith: boolean;
 	/** Show it in the system file manager. */
@@ -439,6 +441,8 @@ const browserBackend: Backend = {
 		return {
 			share: true,
 			shareIsDownload: !sheet,
+			// Its share already saves a download where there is no sheet.
+			saveCopy: false,
 			openWith: false,
 			reveal: false,
 			rename: true,
@@ -912,6 +916,7 @@ const tauriBackend: Backend = {
 			return {
 				share: extras,
 				shareIsDownload: false,
+				saveCopy: !!window.__paperwrenAndroidExtras?.saveBegin,
 				openWith: extras,
 				reveal: false,
 				rename: true,
@@ -920,6 +925,7 @@ const tauriBackend: Backend = {
 		return {
 			share: canWebShare(),
 			shareIsDownload: false,
+			saveCopy: true,
 			// Desktop: the OS opens it with whatever app owns the type; a
 			// script is not handed on, as that app might run it.
 			openWith:
@@ -1087,6 +1093,7 @@ export const backend: Backend = {
 		return {
 			share: sheet || !isTauri,
 			shareIsDownload: !sheet,
+			saveCopy: isTauri && raw.abilities(file).saveCopy,
 			openWith: false,
 			reveal: false,
 			rename: false,

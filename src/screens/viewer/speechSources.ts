@@ -4,6 +4,7 @@
  * and kept in view while it is said).
  */
 
+import { markRanges, unmarkRanges } from "@/lib/markRanges";
 import { pieces, runningText } from "@/lib/speech";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { RefObject } from "react";
@@ -22,27 +23,12 @@ export type SpeechSource = () => AsyncGenerator<SpeechPiece>;
 
 // ---------- the marked sentence ----------
 
-interface HighlightRegistry {
-	set(name: string, h: unknown): void;
-	delete(name: string): void;
-}
-declare const Highlight: { new (...ranges: Range[]): unknown } | undefined;
-
-function registry(): HighlightRegistry | null {
-	const css = (globalThis as { CSS?: { highlights?: HighlightRegistry } }).CSS;
-	return css?.highlights && typeof Highlight !== "undefined"
-		? css.highlights
-		: null;
-}
-
 export function unmark() {
-	registry()?.delete("pw-speech");
+	unmarkRanges("pw-speech");
 }
 
 function mark(range: Range, scroller: HTMLElement | null) {
-	const reg = registry();
-	if (reg && typeof Highlight !== "undefined")
-		reg.set("pw-speech", new Highlight(range));
+	markRanges("pw-speech", [range], scroller);
 	if (!scroller) return;
 	const rect = range.getBoundingClientRect();
 	const view = scroller.getBoundingClientRect();

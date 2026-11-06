@@ -43,6 +43,72 @@ export function classifyError(err: unknown): OpenFailure {
 	return "unreadable";
 }
 
+/** The Chromium version of the WebView the app runs in, or null where
+ * it is not Chromium (macOS). */
+export function chromeMajor(
+	agent: string = typeof navigator === "undefined" ? "" : navigator.userAgent,
+): number | null {
+	const m = /\bChrom(?:e|ium)\/(\d+)/.exec(agent);
+	return m ? Number(m[1]) : null;
+}
+
+/** Below this, a failure of the engine itself is put down to the
+ * WebView being out of date rather than to the file. */
+export const OLD_WEBVIEW = 110;
+
+/**
+ * A failure that comes from the phone's web engine, not from the file:
+ * a built-in it lacks ("is not a function", "is not defined"), code it
+ * cannot parse, or WebAssembly it cannot run. Only ever said on an old
+ * WebView: on an up-to-date one the same errors are a reader's bug or a
+ * strange file, and the file's own message stays.
+ */
+export function engineFault(
+	err: unknown,
+	major: number | null = chromeMajor(),
+): boolean {
+	if (major === null || major >= OLD_WEBVIEW) return false;
+	const wasm = (globalThis as { WebAssembly?: Record<string, unknown> })
+		.WebAssembly;
+	for (const kind of ["CompileError", "LinkError", "RuntimeError"]) {
+		const type = wasm?.[kind];
+		if (typeof type === "function" && err instanceof type) return true;
+	}
+	if (
+		err instanceof TypeError ||
+		err instanceof ReferenceError ||
+		err instanceof SyntaxError
+	)
+		return true;
+	// A worker that failed to start reports an event, not an error.
+	const text = String(
+		(err as { message?: unknown })?.message ?? err ?? "",
+	).toLowerCase();
+	return /syntaxerror|referenceerror|is not a function|is not defined|unexpected token|webassembly/.test(
+		text,
+	);
+}
+
+/** What to tell the reader when a viewer could not show a file: the
+ * viewer's own words (`damaged`), or, when the phone's web engine is
+ * what failed, that it needs updating. */
+export function explainFailure(err: unknown, damaged: string): string {
+	return engineFault(err)
+		? t(
+				"This phone's web engine (Android System WebView) is out of date, so this file couldn't be shown. Update it from your app store (on Huawei phones, update Huawei WebView in AppGallery), then try again.",
+			)
+		: damaged;
+}
+
+/** A tool's short word when a file it was given could not be read. */
+export function unreadNote(err: unknown, name: string): string {
+	return engineFault(err)
+		? t(
+				"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.",
+			)
+		: t("{name} couldn't be read", { name });
+}
+
 export interface FailureCopy {
 	title: string;
 	message: string;

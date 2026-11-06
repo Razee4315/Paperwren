@@ -1,5 +1,6 @@
 import { backend } from "@/lib/backend";
 import { isDesktop, isTouch } from "@/lib/env";
+import { unreadNote } from "@/lib/errors";
 import { t, tn } from "@/lib/i18n";
 import { SCAN_MARK, scansToPdf } from "@/lib/pdfTools";
 import { findPage, warmUp } from "@/lib/scan/detect";
@@ -213,7 +214,7 @@ export function ScanTool({
 		backend
 			.read(file.reopen)
 			.then((bytes) => setEditing({ source: new Blob([bytes]) }))
-			.catch(() => toast(t("{name} couldn't be read", { name: file.name })));
+			.catch((err) => toast(unreadNote(err, file.name)));
 	}, [file]);
 
 	useEffect(() => {

@@ -72,6 +72,9 @@
 .paper {
 	--ratio: 0.707;
 	position: relative;
+	/* Sized from the window first, near enough, for a WebView without
+	 * container units (before Chrome 105); the next line wins elsewhere. */
+	width: min(100%, calc((100vh - 240px) * var(--ratio)));
 	width: min(100cqw, calc(100cqh * var(--ratio)));
 	aspect-ratio: var(--ratio);
 	overflow: hidden;
@@ -87,6 +90,7 @@
 	-webkit-user-select: none;
 }
 .waiting {
+	width: min(100%, calc((100vh - 240px) * 0.707));
 	width: min(100cqw, calc(100cqh * 0.707));
 	aspect-ratio: 0.707;
 	background: var(--surface);
@@ -96,6 +100,7 @@
 .swept {
 	position: absolute;
 	inset: 0 0 auto;
+	background: rgba(43, 110, 102, 0.07);
 	background: color-mix(in srgb, var(--accent) 7%, transparent);
 	transition: height 320ms linear;
 	pointer-events: none;
@@ -106,6 +111,8 @@
 	height: 2px;
 	margin-top: -1px;
 	background: var(--accent);
+	box-shadow: 0 0 14px 3px rgba(43, 110, 102, 0.7), 0 -22px 28px 6px
+		rgba(43, 110, 102, 0.16);
 	box-shadow: 0 0 14px 3px color-mix(in srgb, var(--accent) 70%, transparent), 0
 		-22px 28px 6px color-mix(in srgb, var(--accent) 16%, transparent);
 	transition: top 320ms linear;
@@ -124,16 +131,19 @@
 .lineBox {
 	position: absolute;
 	border-radius: 2px;
+	background: rgba(43, 110, 102, 0.12);
 	background: color-mix(in srgb, var(--accent) 12%, transparent);
 	cursor: pointer;
 	animation: read-found 700ms ease-out backwards;
 }
 .lineBox[data-lit] {
+	background: rgba(43, 110, 102, 0.34);
 	background: color-mix(in srgb, var(--accent) 34%, transparent);
 	outline: 1.5px solid var(--accent);
 }
 @keyframes read-found {
 	from {
+		background: rgba(43, 110, 102, 0.6);
 		background: color-mix(in srgb, var(--accent) 60%, transparent);
 		transform: scale(1.02);
 		opacity: 0;
@@ -408,20 +418,21 @@
 .actions > button {
 	flex: 0 1 auto;
 }
-/* On a phone, the choices side by side, so the words keep the screen. */
+/* On a phone, the choices side by side, so the words keep the screen.
+ * A class rather than :has(), which older WebViews lack. */
 @media (max-width: 560px) {
-	.actions:has(.link) {
+	.actions.withLink {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		gap: 6px;
 	}
-	.actions:has(.link) > button {
+	.actions.withLink > button {
 		min-height: 40px;
 		padding-inline: 8px;
 		font-size: 13px;
 		gap: 6px;
 	}
-	.actions:has(.link) > .link {
+	.actions.withLink > .link {
 		grid-column: 1 / -1;
 		min-height: 0;
 		padding: 2px 0;
