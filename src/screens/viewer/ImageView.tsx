@@ -16,6 +16,7 @@ import {
 	ErrorArt,
 	IconButton,
 	SheetItem,
+	Spinner,
 	StateView,
 	toast,
 } from "@/ui";
@@ -181,13 +182,19 @@ export default function ImageView({
 
 	/** The webview cannot draw it (HEIC on Windows or Android): the
 	 * system may, as a JPEG. */
+	const [decoding, setDecoding] = useState(false);
 	const drawElsewhere = async () => {
 		if (decoded.current || !pictures) return setFailed("unshown");
 		decoded.current = true;
-		const blob = await pictures.page(shown);
-		const jpeg = await systemDecode(new Uint8Array(await blob.arrayBuffer()));
-		if (!jpeg) return setFailed("unshown");
-		setUrl(URL.createObjectURL(jpeg));
+		setDecoding(true);
+		try {
+			const blob = await pictures.page(shown);
+			const jpeg = await systemDecode(new Uint8Array(await blob.arrayBuffer()));
+			if (!jpeg) return setFailed("unshown");
+			setUrl(URL.createObjectURL(jpeg));
+		} finally {
+			setDecoding(false);
+		}
 	};
 
 	// The place among several, kept for next time.
@@ -619,7 +626,10 @@ export default function ImageView({
 						{!failed && url && (
 							<img
 								ref={picture}
-								className={`${s.picture} ${turn ? s.turned : ""}`}
+								// Hidden until it has drawn: a picture the webview cannot
+								// draw (HEIC) would show its broken-image sign while it is
+								// decoded another way.
+								className={`${s.picture} ${turn ? s.turned : ""} ${natural ? "" : s.unloaded}`}
 								src={url}
 								alt={several ? t("Page {n}", { n: shown + 1 }) : name}
 								draggable={false}
@@ -653,6 +663,11 @@ export default function ImageView({
 					</div>
 				</div>
 			</div>
+			{decoding && !failed && (
+				<StateView>
+					<Spinner label={t("Opening")} />
+				</StateView>
+			)}
 			{failed && (
 				<StateView
 					icon={<ErrorArt />}

@@ -73,6 +73,8 @@ const LICENSES: Array<[string, string]> = [
 	["scanic", "MIT"],
 	["DocCornerNet (scanic-ml)", "MIT"],
 	["ONNX Runtime", "MIT"],
+	// HEIC photos where the system has no decoder (Windows).
+	["libheif, libde265 (libheif-js)", "LGPL-3.0"],
 	["pako", "MIT / Zlib"],
 	["React", "MIT"],
 	["Lucide icons", "ISC"],
