@@ -9,8 +9,8 @@ export const SITE = {
 	email: "saqlainrazee@gmail.com",
 	security: "https://github.com/Razee4315/Paperwren/security/advisories/new",
 	/** From the v1.6.0 release assets, as GitHub shows them. */
-	androidSize: "73.2 MB",
-	windowsSize: "21.7 MB",
+	androidSize: "74.4 MB",
+	windowsSize: "22.1 MB",
 	version: "1.6.0",
 };
 
