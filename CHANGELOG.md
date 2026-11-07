@@ -1,5 +1,17 @@
 # What's new
 
+## 1.6.1
+
+- Two plain themes, Light and Dark: neutral white and near black, with no paper texture. Paper, Sand and Ink stay.
+- On Windows and macOS everything is sized for a mouse: smaller buttons, fields, rows and tool cards, and tighter corners.
+- Home and Settings line up with the window's own buttons.
+- A long dialog in a short window keeps its buttons in view; only its middle scrolls.
+- Notes have a proper place to write: a roomy box with a hint, the highlighted words above it in their colour, and Ctrl+Enter to keep the note.
+- The bar on a highlight sits above it instead of over its words.
+- Screens change with a short fade on a desktop instead of sliding.
+- File details no longer say "PDF · PDF".
+- Linux (beta): an AppImage and a .deb with every release.
+
 ## 1.6
 
 - PDFs open on phones with an older web engine, such as Huawei phones without Google Play. Menus, search highlights, Read text and Scan work there too.
