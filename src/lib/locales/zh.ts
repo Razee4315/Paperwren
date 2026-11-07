@@ -608,6 +608,8 @@ export const zh: Table = {
 	Original: "原始",
 	Sepia: "棕褐色",
 	Dark: "深色",
+	Light: "浅色",
+	"Write your note here": "在此写下笔记",
 	"Match the theme": "跟随主题",
 	"Scroll pages sideways": "横向滚动页面",
 	"First page on its own": "首页单独显示",

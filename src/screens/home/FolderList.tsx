@@ -6,6 +6,7 @@ import {
 	backend,
 	formatBytes,
 } from "@/lib/backend";
+import { isDesktop } from "@/lib/env";
 import { type FolderNode, folderAt, folderTree } from "@/lib/folderTree";
 import { formatFromName, kindOf } from "@/lib/formats";
 import { isolate, locale, t, tn } from "@/lib/i18n";
@@ -278,7 +279,7 @@ export function FolderList({
 									data-testid="folder-subfolder"
 								>
 									<span className={s.folderIcon} aria-hidden="true">
-										<FolderIcon size={40} strokeWidth={1.5} />
+										<FolderIcon size={isDesktop ? 30 : 40} strokeWidth={1.5} />
 									</span>
 									<span className={s.rowText}>
 										<span className={s.name}>{row.name}</span>
@@ -312,7 +313,10 @@ export function FolderList({
 										onOpen(row.request);
 									}}
 								>
-									<FileBadge format={formatFromName(row.name)} size={46} />
+									<FileBadge
+										format={formatFromName(row.name)}
+										size={isDesktop ? 34 : 46}
+									/>
 									<span className={s.rowText}>
 										<span className={s.name}>{row.name}</span>
 										<span className={s.meta}>

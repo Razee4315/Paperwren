@@ -2,6 +2,7 @@ import { backend } from "@/lib/backend";
 import { isDesktop, isTauri } from "@/lib/env";
 import { loadLanguage, resolveLanguage, setLanguage } from "@/lib/i18n";
 import {
+	isDarkTheme,
 	migrateLegacySettings,
 	normalizeSettings,
 	resolveTheme,
@@ -35,6 +36,8 @@ const THEME_COLOR: Record<ResolvedTheme, string> = {
 	light: "#f3f1ec",
 	sepia: "#ede3d0",
 	dark: "#16181b",
+	"plain-light": "#ffffff",
+	"plain-dark": "#0e0e10",
 };
 
 function systemPrefersDark() {
@@ -119,7 +122,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 		// picks their colour from the phone's own light or dark mode. The
 		// app's theme need not be the phone's: tell the shell which it is.
 		try {
-			window.__paperwrenAndroidExtras?.systemBars?.(theme === "dark");
+			window.__paperwrenAndroidExtras?.systemBars?.(isDarkTheme(theme));
 		} catch {
 			// A shell from before this was added: the phone's choice stands.
 		}

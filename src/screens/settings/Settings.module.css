@@ -254,3 +254,60 @@
 .changes li + li {
 	margin-top: 4px;
 }
+
+/* Desktop: the bar is the window's own row; its title and buttons line
+ * up with the window's buttons. */
+:global(html.desktop) .bar {
+	height: var(--bar-h);
+	min-height: 0;
+	padding-top: 0;
+	padding-bottom: 0;
+}
+:global(html.desktop) .title {
+	font-size: 16px;
+	letter-spacing: -0.01em;
+}
+:global(html.desktop) .group {
+	margin: 18px 2px 8px;
+	font-size: 11.5px;
+}
+:global(html.desktop) .groupIcon {
+	width: 22px;
+	height: 22px;
+	border-radius: var(--r-s);
+}
+:global(html.desktop) .field {
+	padding: 12px 14px;
+}
+:global(html.desktop) .choice {
+	min-height: 34px;
+	padding: 0 12px;
+	border-radius: var(--r-m);
+	font-size: 13.5px;
+}
+:global(html.desktop) .segmented {
+	padding: 3px;
+	border-radius: var(--r-m);
+}
+:global(html.desktop) .thumb {
+	top: 3px;
+	bottom: 3px;
+	inset-inline-start: 3px;
+	width: calc((100% - 6px) / var(--n));
+	border-radius: var(--r-s);
+}
+:global(html.desktop) .segment {
+	min-height: 30px;
+	font-size: 13px;
+	border-radius: var(--r-s);
+}
+:global(html.desktop) .action {
+	min-height: 46px;
+	padding: 8px 14px;
+}
+
+/* Desktop: a window's screens change in place, with a short fade; a
+ * phone's slide reads as the window shaking. */
+:global(html.desktop) .page {
+	animation: pw-fade-in var(--t-fast) var(--ease);
+}

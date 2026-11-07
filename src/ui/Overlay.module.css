@@ -113,28 +113,60 @@
 	justify-content: center;
 	padding: 24px;
 }
+/* Title and buttons stay put; only what is between them scrolls, so a
+ * long dialog in a short window never hides its buttons, and its
+ * scrollbar never runs into the rounded corners. */
 .dialog {
+	--pad-x: 24px;
 	position: relative;
+	display: flex;
+	flex-direction: column;
 	width: 100%;
 	max-width: 400px;
 	max-height: calc(100vh - 48px - var(--safe-top) - var(--safe-bottom));
 	max-height: calc(100dvh - 48px - var(--safe-top) - var(--safe-bottom));
-	overflow-y: auto;
+	overflow: hidden;
 	background: var(--surface);
 	border-radius: var(--r-xl);
 	border: 1px solid var(--line);
-	padding: 24px 24px 16px;
+	padding: 24px var(--pad-x) 16px;
 	text-align: center;
 	animation: pw-rise var(--t-med) var(--ease);
 }
 .dialogTitle {
+	flex-shrink: 0;
 	font-size: 19px;
 	font-weight: 700;
 	margin-bottom: 8px;
 }
 .dialogBody {
+	flex: 0 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	/* Reach the dialog's edges, so the scrollbar sits at its side and a
+	 * field's focus ring is not cut off. */
+	margin: -3px calc(-1 * var(--pad-x)) 17px;
+	padding: 3px var(--pad-x);
 	color: var(--text-2);
-	margin-bottom: 20px;
+	/* A soft shade at an edge with more beyond it, so a cut-off list
+	 * reads as one to scroll. The covers move with the content and hide
+	 * the shades at either end. */
+	background:
+		linear-gradient(var(--surface) 40%, transparent) center top / 100% 28px
+		no-repeat local,
+		linear-gradient(transparent, var(--surface) 60%) center bottom / 100%
+		28px no-repeat local,
+		linear-gradient(
+			color-mix(in srgb, var(--text) 12%, transparent),
+			transparent
+		)
+		center top / 100% 10px no-repeat scroll,
+		linear-gradient(
+			transparent,
+			color-mix(in srgb, var(--text) 12%, transparent)
+		)
+		center bottom / 100% 10px no-repeat scroll;
 }
 /* A value the dialog is about (an address): selectable, wraps anywhere. */
 .dialogNote {
@@ -155,16 +187,42 @@
 	margin-bottom: 12px;
 }
 .dialogActions {
+	flex-shrink: 0;
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: center;
 	gap: 8px;
 }
 
+/* A desktop dialog reads like one: title and text from the start, the
+ * buttons at the end, a lone icon button (Delete) at the far start. */
+:global(html.desktop) .dialog:not(.fullScreen .dialog) {
+	--pad-x: 22px;
+	padding-top: 20px;
+	text-align: start;
+	box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+}
+:global(html.desktop) .dialog {
+	animation: pw-fade-in var(--t-fast) var(--ease);
+}
+:global(html.desktop) .dialogTitle {
+	font-size: 17px;
+	margin-bottom: 10px;
+}
+:global(html.desktop) .dialogActions {
+	justify-content: flex-end;
+}
+:global(html.desktop)
+	.dialogActions
+	> button[aria-label]:first-child:not(:only-child) {
+	margin-inline-end: auto;
+}
+
 /* A dialog to make something in (a signature, a stamp): room for it. */
 .wide .dialog {
+	--pad-x: 28px;
 	max-width: 600px;
-	padding: 26px 28px 20px;
+	padding: 26px var(--pad-x) 20px;
 	animation: pw-pop var(--t-slow) var(--ease);
 	box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
 }
@@ -173,7 +231,8 @@
 		padding: 12px;
 	}
 	.wide .dialog {
-		padding: 20px 16px 14px;
+		--pad-x: 16px;
+		padding: 20px var(--pad-x) 14px;
 	}
 }
 
@@ -181,8 +240,8 @@
 	padding: 0;
 }
 .fullScreen .dialog {
-	display: flex;
-	flex-direction: column;
+	--pad-x: 12px;
+	overflow-y: auto;
 	max-width: none;
 	max-height: none;
 	height: 100%;
@@ -198,7 +257,9 @@
 	flex-direction: column;
 	flex: 1;
 	min-height: 0;
-	margin-bottom: 8px;
+	margin: 0 0 8px;
+	padding: 0;
+	overflow: visible;
 }
 .fullScreen .dialogActions {
 	flex-shrink: 0;
@@ -274,4 +335,20 @@
 	color: var(--accent-soft);
 	padding: 6px 10px;
 	border-radius: var(--r-s);
+}
+/* A desktop's message is a small one at the foot of the window. */
+:global(html.desktop) .toast {
+	bottom: calc(20px + var(--safe-bottom));
+	max-width: 420px;
+	padding: 8px 8px 8px 14px;
+	font-size: 13px;
+	font-weight: 550;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+:global(html.desktop) .toastAction {
+	padding: 4px 10px;
+	font-weight: 700;
+}
+:global(html.desktop) .toastAction:hover {
+	background: rgba(255, 255, 255, 0.12);
 }

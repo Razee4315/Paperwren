@@ -647,6 +647,8 @@ export const ur: Table = {
 	Original: "اصل",
 	Sepia: "سیپیا",
 	Dark: "گہرا",
+	Light: "ہلکا",
+	"Write your note here": "اپنا نوٹ یہاں لکھیں",
 	"Match the theme": "تھیم کے مطابق",
 	"Scroll pages sideways": "صفحات کو افقی طور پر سکرول کریں",
 	"First page on its own": "پہلا صفحہ الگ",

@@ -27,7 +27,7 @@ import {
 import { whole } from "@/screens/viewer/pdfCrop";
 import type { MarkStore } from "@/screens/viewer/useDocMarks";
 import { useBackClose } from "@/state/navigation";
-import { Button, Dialog, IconButton, Spinner, toast } from "@/ui";
+import { Button, Dialog, IconButton, NoteField, Spinner, toast } from "@/ui";
 import { useModalFocus } from "@/ui/Overlay";
 import {
 	ArrowLeft,
@@ -954,16 +954,12 @@ export function MarkUp({
 						</>
 					}
 				>
-					<textarea
-						className={s.field}
-						rows={5}
-						dir="auto"
-						// biome-ignore lint/a11y/noAutofocus: the dialog exists to take these words
-						autoFocus
-						aria-label={writing.kind === "text" ? t("Text") : t("Note")}
+					<NoteField
+						label={writing.kind === "text" ? t("Text") : t("Note")}
 						value={writing.text}
-						onChange={(e) => setWriting({ ...writing, text: e.target.value })}
-						data-testid="mark-note-text"
+						onChange={(text) => setWriting({ ...writing, text })}
+						onSubmit={() => writing.text.trim() && keepNote()}
+						testId="mark-note-text"
 					/>
 				</Dialog>
 			)}

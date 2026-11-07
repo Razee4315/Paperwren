@@ -669,6 +669,8 @@ export const ru: Table = {
 	Original: "Оригинал",
 	Sepia: "Сепия",
 	Dark: "Тёмный",
+	Light: "Светлый",
+	"Write your note here": "Напишите заметку здесь",
 	"Match the theme": "Как в теме",
 	"Scroll pages sideways": "Прокручивать страницы по горизонтали",
 	"First page on its own": "Первая страница отдельно",

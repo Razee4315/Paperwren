@@ -62,8 +62,14 @@ export interface RecentEntry {
 	unavailable?: boolean;
 }
 
-/** Paper (light), Sand (sepia) and Ink (dark). */
-export type ResolvedTheme = "light" | "sepia" | "dark";
+/** Paper (light), Sand (sepia) and Ink (dark), and the plain pair:
+ * Light and Dark, neutral and without a texture. */
+export type ResolvedTheme =
+	| "light"
+	| "sepia"
+	| "dark"
+	| "plain-light"
+	| "plain-dark";
 export type ThemeSetting = "system" | ResolvedTheme;
 export type PdfZoom = "page-width" | "page-fit" | "auto";
 /** The paper a document is read on: as the file has it, warm, dark,

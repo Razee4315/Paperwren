@@ -67,6 +67,12 @@
 html.desktop {
 	--bar-h: 44px;
 	--icon-btn: 36px;
+	/* A pointer needs less room than a finger, and a desktop window's
+	 * corners are tighter than a phone's: big radii read as a phone app. */
+	--r-s: 5px;
+	--r-m: 7px;
+	--r-l: 9px;
+	--r-xl: 12px;
 	/* The webview's own pinch would scale the whole app; inside a
 	 * document the viewer takes the pinch itself (viewer/hooks.ts). */
 	touch-action: pan-x pan-y;
@@ -90,8 +96,10 @@ html.tabbed:not([data-fullscreen]) {
 	--bar-lights: 0px;
 }
 /* Buttons and labels are not text to select; a document is (the
- * viewer turns selection back on for it). */
+ * viewer turns selection back on for it). Text is a size smaller than
+ * a phone's, as desktop apps have it. */
 html.desktop body {
+	font-size: 14px;
 	user-select: none;
 }
 
@@ -215,6 +223,84 @@ html.desktop body {
 	--canvas: #111315;
 }
 
+/* The plain pair: neutral greys, pure white and near black, no texture.
+ * For readers who want the app to stay out of the way. */
+[data-theme="plain-light"] {
+	color-scheme: light;
+	--bg: #ffffff;
+	--surface: #ffffff;
+	--surface-2: #f3f3f4;
+	--surface-3: #e6e6e8;
+	--line: #e4e4e7;
+	--line-strong: #cfcfd4;
+
+	--text: #18181b;
+	--text-2: #4f4f57;
+	--text-3: #63636b;
+
+	--accent: #2b6e66;
+	--accent-hover: #225a53;
+	--accent-soft: #e2efec;
+	--on-accent: #ffffff;
+	--brand-beak: #e07a4f;
+	--brand-eye: #18181b;
+	--brand-dark: #1f5750;
+	--brand-belly: #8fbcb3;
+
+	--danger: #c2412d;
+	--success: #23704a;
+	--highlight: rgba(240, 196, 64, 0.5);
+	--highlight-active: rgba(224, 122, 79, 0.55);
+
+	--fmt-pdf: #d2553f;
+	--fmt-doc: #3c6db4;
+	--fmt-sheet: #2f8a5b;
+	--fmt-slides: #cf8420;
+	--fmt-text: #7d65b0;
+	--fmt-image: #b3567f;
+
+	--scrim: rgba(0, 0, 0, 0.32);
+	--canvas: #ececee;
+}
+
+[data-theme="plain-dark"] {
+	color-scheme: dark;
+	--bg: #0e0e10;
+	--surface: #18181b;
+	--surface-2: #222226;
+	--surface-3: #2d2d32;
+	--line: #26262a;
+	--line-strong: #3a3a40;
+
+	--text: #f2f2f3;
+	--text-2: #a9a9b1;
+	--text-3: #93939b;
+
+	--accent: #7cc2b4;
+	--accent-hover: #98d2c6;
+	--accent-soft: #1c302c;
+	--on-accent: #0c1c19;
+	--brand-beak: #eba27c;
+	--brand-eye: #0e0e10;
+	--brand-dark: #5aa596;
+	--brand-belly: #c6e6de;
+
+	--danger: #ec8a78;
+	--success: #74c095;
+	--highlight: rgba(232, 190, 80, 0.35);
+	--highlight-active: rgba(235, 162, 124, 0.5);
+
+	--fmt-pdf: #e8846f;
+	--fmt-doc: #82a6e0;
+	--fmt-sheet: #74c095;
+	--fmt-slides: #e6b25e;
+	--fmt-text: #ac99d9;
+	--fmt-image: #e39bbd;
+
+	--scrim: rgba(0, 0, 0, 0.6);
+	--canvas: #0a0a0b;
+}
+
 :root,
 [data-theme] {
 	--page-bg: var(--bg);
@@ -252,6 +338,12 @@ html.desktop body {
 		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E %3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='2' stitchTiles='stitch'/%3E %3CfeColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.95 0 0 0 0 0.93 0 0 0 0.08 0'/%3E%3C/filter%3E %3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), var(
 			--bg
 		);
+}
+/* The plain themes have none; this follows the textures so it wins
+ * over the :root default above. */
+[data-theme="plain-light"],
+[data-theme="plain-dark"] {
+	--page-bg: var(--bg);
 }
 /* ---------- /Textures ---------- */
 

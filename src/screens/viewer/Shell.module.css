@@ -257,6 +257,23 @@
 	overflow-wrap: anywhere;
 	user-select: text;
 }
+/* A desktop's details are a two-column table: label, then value. */
+:global(html.desktop) .details > div {
+	display: grid;
+	grid-template-columns: 96px minmax(0, 1fr);
+	gap: 12px;
+	align-items: baseline;
+}
+:global(html.desktop) .details {
+	gap: 9px;
+}
+:global(html.desktop) .details dt {
+	font-weight: 600;
+}
+:global(html.desktop) .details dd {
+	color: var(--text);
+	font-size: 13.5px;
+}
 .hiddenTop {
 	margin-top: calc(-1 * (var(--bar-h) + var(--safe-top) + 1px));
 	opacity: 0;
@@ -665,4 +682,10 @@ button.findCount {
 	margin: 8px 0 0;
 	font-size: 13px;
 	color: var(--danger, #b0312c);
+}
+
+/* Desktop: a window's screens change in place, with a short fade; a
+ * phone's slide reads as the window shaking. */
+:global(html.desktop) .shell {
+	animation: pw-fade-in var(--t-fast) var(--ease);
 }

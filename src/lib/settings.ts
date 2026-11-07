@@ -12,7 +12,14 @@ import {
 	type UpdateChecks,
 } from "./types";
 
-export const THEMES: ThemeSetting[] = ["system", "light", "sepia", "dark"];
+export const THEMES: ThemeSetting[] = [
+	"system",
+	"light",
+	"sepia",
+	"dark",
+	"plain-light",
+	"plain-dark",
+];
 
 /** Themes from v0.10 folded into the three that remain. */
 const RETIRED_THEMES: Record<string, ResolvedTheme> = {
@@ -23,7 +30,7 @@ const RETIRED_THEMES: Record<string, ResolvedTheme> = {
 };
 
 export function isDarkTheme(theme: ResolvedTheme): boolean {
-	return theme === "dark";
+	return theme === "dark" || theme === "plain-dark";
 }
 const ZOOMS: PdfZoom[] = ["page-width", "page-fit", "auto"];
 /** The darkest the screen is made over a document. */
@@ -45,7 +52,8 @@ export function resolvePageColor(
 	theme: ResolvedTheme,
 ): Exclude<PageColor, "theme"> {
 	if (setting !== "theme") return setting;
-	return theme === "dark" ? "dark" : theme === "sepia" ? "sepia" : "original";
+	if (isDarkTheme(theme)) return "dark";
+	return theme === "sepia" ? "sepia" : "original";
 }
 const LIMITS = [20, 50, 100, 500];
 const UPDATE_CHECKS: UpdateChecks[] = ["ask", "auto", "off"];

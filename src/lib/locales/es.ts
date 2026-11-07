@@ -657,6 +657,8 @@ export const es: Table = {
 	Original: "Original",
 	Sepia: "Sepia",
 	Dark: "Oscuro",
+	Light: "Claro",
+	"Write your note here": "Escribe tu nota aquí",
 	"Match the theme": "Según el tema",
 	"Scroll pages sideways": "Desplazar las páginas en horizontal",
 	"First page on its own": "Primera página sola",

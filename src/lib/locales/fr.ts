@@ -664,6 +664,8 @@ export const fr: Table = {
 	Original: "D'origine",
 	Sepia: "Sépia",
 	Dark: "Sombre",
+	Light: "Clair",
+	"Write your note here": "Écrivez votre note ici",
 	"Match the theme": "Selon le thème",
 	"Scroll pages sideways": "Faire défiler les pages horizontalement",
 	"First page on its own": "Première page seule",

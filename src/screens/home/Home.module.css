@@ -609,3 +609,142 @@
 .sample:hover {
 	background: var(--surface-2);
 }
+
+/* ---------- Desktop: a window, not a phone ----------
+ * The same screen, sized for a pointer: the bar is the window's own
+ * row (its buttons line up with the window's), and the shortcuts,
+ * fields and rows take about two thirds of a phone's height. */
+:global(html.desktop) .bar {
+	gap: 10px;
+	height: var(--bar-h);
+	min-height: 0;
+	padding: 0 calc(6px + var(--bar-controls)) 0 calc(12px + var(--bar-lights));
+}
+:global(html.desktop) .logo {
+	width: 30px;
+	height: 30px;
+	border-radius: var(--r-m);
+}
+:global(html.desktop) .brandCol {
+	line-height: 1.1;
+}
+:global(html.desktop) .brand {
+	font-size: 16.5px;
+}
+:global(html.desktop) .greeting {
+	font-size: 10px;
+	letter-spacing: 0.07em;
+}
+:global(html.desktop) .open {
+	height: 30px;
+	padding: 0 12px 0 9px;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: 700;
+}
+:global(html.desktop) .column {
+	padding-top: 14px;
+}
+:global(html.desktop) .tools {
+	margin-bottom: 14px;
+}
+:global(html.desktop) .toolsHeading h2 {
+	font-size: 13px;
+}
+:global(html.desktop) .allTools {
+	min-height: 30px;
+	font-size: 12.5px;
+}
+:global(html.desktop) .toolGrid {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 6px;
+}
+:global(html.desktop) .toolShortcut {
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+	min-height: 44px;
+	padding: 7px 10px;
+	font-size: 13px;
+	font-weight: 650;
+}
+:global(html.desktop) .toolIcon {
+	width: 28px;
+	height: 28px;
+	border-radius: var(--r-s);
+}
+:global(html.desktop) .toolIcon svg {
+	width: 16px;
+	height: 16px;
+}
+:global(html.desktop) .search {
+	height: 36px;
+	padding: 0 4px 0 12px;
+	gap: 8px;
+}
+:global(html.desktop) .search svg {
+	width: 16px;
+	height: 16px;
+}
+:global(html.desktop) .places {
+	margin-bottom: 10px;
+}
+:global(html.desktop) .place {
+	height: 30px;
+	padding: 0 11px;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: 650;
+}
+:global(html.desktop) .place svg {
+	width: 15px;
+	height: 15px;
+}
+:global(html.desktop) .chips {
+	gap: 6px;
+	margin-top: 10px;
+}
+:global(html.desktop) .chip {
+	height: 26px;
+	padding: 0 10px;
+	gap: 6px;
+	font-size: 12.5px;
+	font-weight: 650;
+}
+:global(html.desktop) .section {
+	margin: 18px 2px 8px;
+	font-size: 11px;
+}
+:global(html.desktop) .sectionActions button {
+	width: 30px;
+	height: 30px;
+}
+:global(html.desktop) .row {
+	min-height: 50px;
+	padding: 5px 4px 5px 10px;
+}
+:global(html.desktop) .rowMain {
+	gap: 12px;
+}
+:global(html.desktop) .name {
+	font-size: 13.5px;
+	font-weight: 650;
+}
+:global(html.desktop) .meta {
+	font-size: 12px;
+}
+:global(html.desktop) .rowPicture {
+	width: 34px;
+	height: 34px;
+}
+:global(html.desktop) .rowPicture img {
+	max-width: 34px;
+	max-height: 34px;
+}
+:global(html.desktop) .folderIcon {
+	width: 34px;
+}
+:global(html.desktop) .browse {
+	height: 34px;
+	font-size: 13px;
+}

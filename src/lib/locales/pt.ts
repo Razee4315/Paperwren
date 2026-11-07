@@ -660,6 +660,8 @@ export const pt: Table = {
 	Original: "Original",
 	Sepia: "Sépia",
 	Dark: "Escuro",
+	Light: "Claro",
+	"Write your note here": "Escreva sua nota aqui",
 	"Match the theme": "Seguir o tema",
 	"Scroll pages sideways": "Rolar as páginas na horizontal",
 	"First page on its own": "Primeira página sozinha",
