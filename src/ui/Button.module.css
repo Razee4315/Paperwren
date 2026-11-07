@@ -54,6 +54,23 @@
 .block {
 	width: 100%;
 }
+/* A desktop button is sized for a pointer, not a thumb. */
+:global(html.desktop) .button {
+	min-height: 34px;
+	padding: 0 16px;
+	border-radius: var(--r-m);
+	font-size: 14px;
+	font-weight: 650;
+}
+:global(html.desktop) .button:active:not(:disabled) {
+	transform: none;
+}
+:global(html.desktop) .icon {
+	border-radius: var(--r-m);
+}
+:global(html.desktop) .icon:active:not(:disabled) {
+	transform: none;
+}
 
 .icon {
 	display: inline-flex;

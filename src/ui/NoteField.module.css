@@ -1,0 +1,55 @@
+.quote {
+	margin: 0 0 12px;
+	padding: 8px 12px;
+	border-inline-start: 3px solid var(--accent);
+	border-radius: 0 var(--r-s) var(--r-s) 0;
+	background: var(--surface-2);
+	color: var(--text-2);
+	font-size: 13.5px;
+	line-height: 1.45;
+	text-align: start;
+	overflow-wrap: anywhere;
+}
+:global([dir="rtl"]) .quote {
+	border-radius: var(--r-s) 0 0 var(--r-s);
+}
+
+.wrap {
+	position: relative;
+}
+.field {
+	display: block;
+	width: 100%;
+	min-height: 112px;
+	max-height: 40vh;
+	padding: 10px 12px 22px;
+	resize: none;
+	border-radius: var(--r-m);
+	border: 1px solid var(--line-strong);
+	background: var(--surface);
+	color: var(--text);
+	font: inherit;
+	font-size: 14px;
+	line-height: 1.5;
+	text-align: start;
+	outline: none;
+	transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast)
+		var(--ease);
+}
+.field::placeholder {
+	color: var(--text-3);
+}
+.field:focus,
+.field:focus-visible {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.hint {
+	position: absolute;
+	inset-inline-end: 10px;
+	bottom: 6px;
+	font-size: 11px;
+	color: var(--text-3);
+	pointer-events: none;
+}

@@ -659,6 +659,8 @@ export const ar: Table = {
 	Original: "الأصلي",
 	Sepia: "سيبيا",
 	Dark: "داكن",
+	Light: "فاتح",
+	"Write your note here": "اكتب ملاحظتك هنا",
 	"Match the theme": "حسب السمة",
 	"Scroll pages sideways": "تمرير الصفحات أفقيًا",
 	"First page on its own": "الصفحة الأولى بمفردها",

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	isDarkTheme,
 	migrateLegacySettings,
 	normalizeSettings,
 	resolvePageColor,
@@ -87,5 +88,17 @@ describe("settings", () => {
 		expect(resolveTheme("system", true)).toBe("dark");
 		expect(resolveTheme("system", false)).toBe("light");
 		expect(resolveTheme("sepia", true)).toBe("sepia");
+	});
+
+	it("keeps the plain themes, and treats plain Dark as dark", () => {
+		expect(normalizeSettings({ theme: "plain-light" }).theme).toBe(
+			"plain-light",
+		);
+		expect(normalizeSettings({ theme: "plain-dark" }).theme).toBe("plain-dark");
+		expect(isDarkTheme("plain-dark")).toBe(true);
+		expect(isDarkTheme("plain-light")).toBe(false);
+		// The paper that follows the theme: white for Light, dark for Dark.
+		expect(resolvePageColor("theme", "plain-light")).toBe("original");
+		expect(resolvePageColor("theme", "plain-dark")).toBe("dark");
 	});
 });

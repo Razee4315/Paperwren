@@ -255,3 +255,33 @@
 	cursor: crosshair;
 	touch-action: none;
 }
+
+/* Desktop: the bar is the window's own row; its title and buttons line
+ * up with the window's buttons. */
+:global(html.desktop) .bar {
+	height: var(--bar-h);
+	min-height: 0;
+	padding-top: 0;
+	padding-bottom: 0;
+}
+:global(html.desktop) .title {
+	font-size: 16px;
+	letter-spacing: -0.01em;
+}
+
+/* Desktop: a window's screens change in place, with a short fade; a
+ * phone's slide reads as the window shaking. */
+:global(html.desktop) .screen {
+	animation: none;
+}
+:global(html.desktop) .add {
+	padding: 8px 14px 8px 11px;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: 700;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+}
+:global(html.desktop) .add svg {
+	width: 16px;
+	height: 16px;
+}

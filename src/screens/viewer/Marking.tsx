@@ -7,7 +7,15 @@ import {
 import { isDesktop } from "@/lib/env";
 import { t, uiDir } from "@/lib/i18n";
 import { useBackClose } from "@/state/navigation";
-import { Button, Dialog, IconButton, modalOpen, toast } from "@/ui";
+import {
+	Button,
+	Dialog,
+	IconButton,
+	NoteField,
+	NoteQuote,
+	modalOpen,
+	toast,
+} from "@/ui";
 import {
 	Copy,
 	Expand,
@@ -66,6 +74,22 @@ function tellOnce(message: string, show: () => void, kept: boolean) {
 		return;
 	}
 	toast(message, { label: t("Show"), run: show });
+}
+
+/** Where a mark is drawn on screen, so its bar hangs over the whole
+ * mark and not over the words clicked; the click itself if it is not
+ * drawn. */
+function spotOfMark(id: string, x: number, y: number): Spot {
+	const drawn = document.querySelector(`[data-mark="${CSS.escape(id)}"]`);
+	const box = drawn?.getBoundingClientRect();
+	if (!box || (!box.width && !box.height))
+		return { left: x, right: x, top: y, bottom: y };
+	return {
+		left: box.left,
+		right: box.right,
+		top: box.top,
+		bottom: box.bottom,
+	};
 }
 
 /** What is selected on the pages, once the pointer has let go of it. */
@@ -445,11 +469,7 @@ export const Marking = forwardRef<
 				}
 				// A note on the page has only its words to show.
 				if (hit.kind === "note") openNote(hit);
-				else
-					setMenu({
-						id: hit.id,
-						at: { left: x, right: x, top: y, bottom: y },
-					});
+				else setMenu({ id: hit.id, at: spotOfMark(hit.id, x, y) });
 				return true;
 			},
 			close: () => setMenu(null),
@@ -512,6 +532,12 @@ export const Marking = forwardRef<
 			: noteMark && "boxes" in noteMark
 				? noteMark.text
 				: "";
+	const quoteColor =
+		noteFor?.kind === "picked"
+			? noteFor.color
+			: noteMark && "color" in noteMark
+				? noteMark.color
+				: undefined;
 
 	return (
 		<>
@@ -648,7 +674,15 @@ export const Marking = forwardRef<
 			{noteFor && (
 				<Dialog
 					open
-					title={quote ? t("Add a note") : t("Note")}
+					title={
+						noteMark?.kind === "note"
+							? t("Note")
+							: noteMark && "note" in noteMark && noteMark.note
+								? t("Edit note")
+								: quote
+									? t("Add a note")
+									: t("Note")
+					}
 					onClose={() => setNoteFor(null)}
 					testId="reader-note"
 					actions={
@@ -671,21 +705,13 @@ export const Marking = forwardRef<
 						</>
 					}
 				>
-					{quote && (
-						<blockquote className={s.quote} dir="auto">
-							{quote.length > 160 ? `${quote.slice(0, 160)}…` : quote}
-						</blockquote>
-					)}
-					<textarea
-						className={s.noteField}
-						rows={4}
-						dir="auto"
-						// biome-ignore lint/a11y/noAutofocus: the dialog exists to take these words
-						autoFocus
-						aria-label={t("Note")}
+					{quote && <NoteQuote text={quote} color={quoteColor} />}
+					<NoteField
+						label={t("Note")}
 						value={draft}
-						onChange={(e) => setDraft(e.target.value)}
-						data-testid="reader-note-text"
+						onChange={setDraft}
+						onSubmit={keepNote}
+						testId="reader-note-text"
 					/>
 				</Dialog>
 			)}

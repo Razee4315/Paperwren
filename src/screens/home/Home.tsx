@@ -149,7 +149,7 @@ function RowPicture({ entry }: { entry: RecentEntry }) {
 			{url ? (
 				<img src={url} alt="" draggable={false} />
 			) : (
-				<FileBadge format={entry.format} size={46} />
+				<FileBadge format={entry.format} size={isDesktop ? 34 : 46} />
 			)}
 		</span>
 	);
@@ -318,7 +318,7 @@ export function Home({
 			{/* Where the app draws the window's frame, this bar moves the window. */}
 			<header className={s.bar} data-tauri-drag-region="deep">
 				<span className={s.logo}>
-					<Wren size={30} />
+					<Wren size={isDesktop ? 24 : 30} />
 				</span>
 				<div className={s.brandCol}>
 					<span className={s.greeting}>{greeting()}</span>
@@ -334,7 +334,7 @@ export function Home({
 						title={`${t("Open file")} (${keys("Ctrl+O")})`}
 						data-testid="open-file"
 					>
-						<Plus size={18} strokeWidth={2.5} />
+						<Plus size={16} strokeWidth={2.5} />
 						{t("Open file")}
 					</button>
 				)}
@@ -343,7 +343,7 @@ export function Home({
 					onClick={onSettings}
 					data-testid="open-settings"
 				>
-					<SettingsIcon size={22} />
+					<SettingsIcon size={isDesktop ? 19 : 22} />
 				</IconButton>
 			</header>
 

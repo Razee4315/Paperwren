@@ -1779,3 +1779,114 @@
 		padding-inline: 10px;
 	}
 }
+
+/* Desktop: the bar is the window's own row; its title and buttons line
+ * up with the window's buttons. */
+:global(html.desktop) .screenBar {
+	height: var(--bar-h);
+	min-height: 0;
+	padding-top: 0;
+	padding-bottom: 0;
+}
+:global(html.desktop) .screenTitle {
+	font-size: 16px;
+	letter-spacing: -0.01em;
+}
+
+/* Desktop: a window's screens change in place, with a short fade; a
+ * phone's slide reads as the window shaking. */
+:global(html.desktop) .screen {
+	animation: pw-fade-in var(--t-fast) var(--ease);
+}
+
+/* Desktop: the tool library sized for a window. The two featured tools
+ * are banners, not posters; every other tool is one row: icon, name,
+ * what it does. */
+:global(html.desktop) .column {
+	gap: 18px;
+	padding-top: 14px;
+}
+:global(html.desktop) .intro h2 {
+	font-size: 22px;
+	letter-spacing: -0.03em;
+	margin: 4px 0 6px;
+}
+:global(html.desktop) .lead {
+	font-size: 13px;
+}
+:global(html.desktop) .featuredRow,
+:global(html.desktop) .toolList {
+	gap: 8px;
+}
+:global(html.desktop) .featured {
+	gap: 16px;
+	min-height: 118px;
+	padding: 18px 22px;
+}
+:global(html.desktop) .featured > .toolIcon {
+	width: 44px;
+	height: 44px;
+}
+:global(html.desktop) .featured > .toolText {
+	padding-inline-end: 96px;
+}
+:global(html.desktop) .featured .toolText strong {
+	font-size: 19px;
+	letter-spacing: -0.02em;
+}
+:global(html.desktop) .featured .featuredAction {
+	margin-top: 4px;
+}
+:global(html.desktop) .paperArt {
+	inset-inline-end: 24px;
+	top: 14px;
+	transform: rotate(9deg) scale(0.72);
+	transform-origin: top right;
+}
+:global(html.desktop) .paperArt[data-art="scan"] {
+	transform: rotate(-7deg) scale(0.72);
+}
+:global(html.desktop) .toolGroup h3 {
+	font-size: 12px;
+	margin-bottom: 8px;
+}
+:global(html.desktop) .toolCard,
+:global(html.desktop) .toolGroup:first-of-type .toolCard {
+	position: relative;
+	align-items: center;
+	flex-wrap: nowrap;
+	gap: 12px;
+	min-height: 62px;
+	padding: 10px 14px;
+}
+:global(html.desktop) .toolGroup:first-of-type .toolText {
+	flex-basis: auto;
+}
+:global(html.desktop) .toolGroup:first-of-type .cardArrow {
+	position: static;
+	opacity: 1;
+}
+:global(html.desktop) .toolList .toolIcon {
+	width: 34px;
+	height: 34px;
+	border-radius: var(--r-m);
+}
+:global(html.desktop) .toolList .toolIcon svg {
+	width: 18px;
+	height: 18px;
+}
+:global(html.desktop) .toolText {
+	gap: 2px;
+}
+:global(html.desktop) .toolText strong {
+	font-size: 14px;
+}
+:global(html.desktop) .toolText span {
+	font-size: 12.5px;
+}
+:global(html.desktop) .taskIntro h2 {
+	font-size: 19px;
+}
+:global(html.desktop) .taskPanel {
+	padding: 20px;
+}

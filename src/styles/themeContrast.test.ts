@@ -36,31 +36,34 @@ const contrast = (a: string, b: string) => {
 	return (hi + 0.05) / (lo + 0.05);
 };
 
-describe.each(["light", "sepia", "dark"])("the %s theme", (name) => {
-	const tokens = theme(name);
+describe.each(["light", "sepia", "dark", "plain-light", "plain-dark"])(
+	"the %s theme",
+	(name) => {
+		const tokens = theme(name);
 
-	it.each(["--text", "--text-2", "--text-3", "--accent", "--success"])(
-		"%s reads on its surfaces",
-		(ink) => {
-			for (const surface of ["--bg", "--surface", "--surface-2"]) {
-				expect(tokens[ink], ink).toBeDefined();
-				expect(
-					contrast(tokens[ink], tokens[surface]),
-					`${ink} on ${surface}`,
-				).toBeGreaterThanOrEqual(4.5);
-			}
-		},
-	);
-
-	it("keeps the accent readable on its soft background", () => {
-		expect(
-			contrast(tokens["--accent"], tokens["--accent-soft"]),
-		).toBeGreaterThanOrEqual(4.5);
-	});
-
-	it("keeps faint text fainter than secondary text", () => {
-		expect(contrast(tokens["--text-2"], tokens["--surface"])).toBeGreaterThan(
-			contrast(tokens["--text-3"], tokens["--surface"]),
+		it.each(["--text", "--text-2", "--text-3", "--accent", "--success"])(
+			"%s reads on its surfaces",
+			(ink) => {
+				for (const surface of ["--bg", "--surface", "--surface-2"]) {
+					expect(tokens[ink], ink).toBeDefined();
+					expect(
+						contrast(tokens[ink], tokens[surface]),
+						`${ink} on ${surface}`,
+					).toBeGreaterThanOrEqual(4.5);
+				}
+			},
 		);
-	});
-});
+
+		it("keeps the accent readable on its soft background", () => {
+			expect(
+				contrast(tokens["--accent"], tokens["--accent-soft"]),
+			).toBeGreaterThanOrEqual(4.5);
+		});
+
+		it("keeps faint text fainter than secondary text", () => {
+			expect(contrast(tokens["--text-2"], tokens["--surface"])).toBeGreaterThan(
+				contrast(tokens["--text-3"], tokens["--surface"]),
+			);
+		});
+	},
+);

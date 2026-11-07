@@ -69,6 +69,15 @@ function whereabouts(file: FileRef): string {
 	}
 }
 
+/** "DOCX · Document"; a format named like its family ("PDF") once. */
+function typeLabel(file: FileRef): string {
+	const format = formatLabel(file.format);
+	const kind = kindLabel(kindOf(file.format));
+	return format.toLowerCase() === kind.toLowerCase()
+		? format
+		: `${format} · ${kind}`;
+}
+
 export function FileDetails({
 	file,
 	size,
@@ -83,10 +92,7 @@ export function FileDetails({
 }) {
 	const rows: Array<[string, string]> = [
 		[t("Name"), file.name],
-		[
-			t("Type"),
-			`${formatLabel(file.format)} · ${kindLabel(kindOf(file.format))}`,
-		],
+		[t("Type"), typeLabel(file)],
 		[t("Size"), size > 0 ? formatBytes(size) : t("Unknown")],
 		[t("Location"), whereabouts(file)],
 		...(extra ?? []),

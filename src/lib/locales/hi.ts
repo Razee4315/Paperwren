@@ -638,6 +638,8 @@ export const hi: Table = {
 	Original: "मूल",
 	Sepia: "सीपिया",
 	Dark: "गहरा",
+	Light: "हल्का",
+	"Write your note here": "अपना नोट यहाँ लिखें",
 	"Match the theme": "थीम के अनुसार",
 	"Scroll pages sideways": "पृष्ठों को बगल में स्क्रॉल करें",
 	"First page on its own": "पहला पृष्ठ अलग",

@@ -21,4 +21,5 @@ export {
 export { EmptyScene, ErrorArt, PageLoader, Wren } from "./Art";
 export { FileIcon } from "./FileIcon";
 export { LinkGuard } from "./LinkGuard";
+export { NoteField, NoteQuote } from "./NoteField";
 export { ThemePicker } from "./Pickers";

@@ -10,6 +10,8 @@ const THEME_NAMES: Record<ThemeSetting, string> = {
 	light: msg("Paper"),
 	sepia: msg("Sand"),
 	dark: msg("Ink"),
+	"plain-light": msg("Light"),
+	"plain-dark": msg("Dark"),
 };
 
 /** A tiny Home screen drawn with the theme's own variables. */
