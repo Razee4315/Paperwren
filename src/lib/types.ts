@@ -75,9 +75,10 @@ export type PdfZoom = "page-width" | "page-fit" | "auto";
 /** The paper a document is read on: as the file has it, warm, dark,
  * or whichever of those the app's theme suggests. */
 export type PageColor = "original" | "sepia" | "dark" | "theme";
-/** How a PDF's pages follow one another: down a long scroll, or side
- * by side, a swipe (or a key) to the next. */
-export type PdfFlow = "down" | "across";
+/** How a PDF's pages follow one another: down a long scroll, side by
+ * side, a swipe (or a key) to the next, or one page on its own at a
+ * time. */
+export type PdfFlow = "down" | "across" | "one";
 /** The face books, Markdown and reading view are set in: the one
  * each document has, or one the reader picks. */
 export type ReadingFont = "original" | "serif" | "sans";

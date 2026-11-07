@@ -363,7 +363,7 @@ export const ar: Table = {
 	"The previous and the next page or slide":
 		"الصفحة أو الشريحة السابقة والتالية",
 	"Start a slide show": "بدء عرض الشرائح",
-	"Turn the pages of a PDF": "تدوير صفحات ملف PDF",
+	"Rotate the pages of a PDF": "تدوير صفحات ملف PDF",
 	"The previous and the next sheet": "الورقة السابقة والتالية",
 	"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.":
 		"لفتح المستندات في Paperwren بالنقر المزدوج، اختره في إعدادات Windows ضمن التطبيقات، ثم التطبيقات الافتراضية.",
@@ -665,8 +665,6 @@ export const ar: Table = {
 	"Scroll pages sideways": "تمرير الصفحات أفقيًا",
 	"First page on its own": "الصفحة الأولى بمفردها",
 	"Back to page {n}": "العودة إلى الصفحة {n}",
-	"Pages scroll": "تمرير الصفحات",
-	Down: "للأسفل",
 	Sideways: "أفقيًا",
 	Comments: "التعليقات",
 	Attachments: "المرفقات",
@@ -1174,8 +1172,21 @@ export const ar: Table = {
 	"Draw on a PDF, or add text to it": "ارسم على ملف PDF، أو أضف إليه نصًا",
 	"Undo and redo a mark": "تراجع عن علامة أو أعدها",
 	"Remove the mark you tapped": "أزل العلامة التي نقرت عليها",
-	"Turn the pages, or show two side by side":
-		"اقلب الصفحات، أو اعرض صفحتين جنبًا إلى جنب",
+	"Rotate the pages, or show two side by side":
+		"تدوير الصفحات، أو عرض صفحتين جنبًا إلى جنب",
+	"Page view": "عرض الصفحات",
+	Scroll: "تمرير",
+	"One at a time": "صفحة تلو الأخرى",
+	"One long column of pages": "عمود طويل من الصفحات",
+	"Pages in a row, swiped across": "صفحات في صف، تُسحب أفقيًا",
+	"A single page on screen, nothing to line up":
+		"صفحة واحدة على الشاشة، دون حاجة إلى ضبط موضعها",
+	"Previous page": "الصفحة السابقة",
+	"Next page": "الصفحة التالية",
+	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
+		"اقلب الصفحات بمفاتيح الأسهم أو عجلة الماوس أو الأسهم بجانب الصفحة.",
+	"Swipe, or tap either side of the page, to turn it.":
+		"اسحب، أو انقر على أي من جانبي الصفحة، لقلبها.",
 	"Show this list": "إظهار هذه القائمة",
 	"Ink for text and marks": "حبر النص والعلامات",
 	"Text in blue": "نص أزرق",

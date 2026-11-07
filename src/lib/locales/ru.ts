@@ -370,7 +370,7 @@ export const ru: Table = {
 	"The previous and the next page or slide":
 		"Предыдущая и следующая страница или слайд",
 	"Start a slide show": "Начать показ слайдов",
-	"Turn the pages of a PDF": "Повернуть страницы PDF",
+	"Rotate the pages of a PDF": "Повернуть страницы PDF",
 	"The previous and the next sheet": "Предыдущий и следующий лист",
 	"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.":
 		"Чтобы открывать документы в Paperwren двойным щелчком, выберите его в параметрах Windows: Приложения, Приложения по умолчанию.",
@@ -675,8 +675,6 @@ export const ru: Table = {
 	"Scroll pages sideways": "Прокручивать страницы по горизонтали",
 	"First page on its own": "Первая страница отдельно",
 	"Back to page {n}": "Назад к странице {n}",
-	"Pages scroll": "Прокрутка страниц",
-	Down: "Вниз",
 	Sideways: "По горизонтали",
 	Comments: "Комментарии",
 	Attachments: "Вложения",
@@ -1180,8 +1178,21 @@ export const ru: Table = {
 		"Рисуйте на PDF или добавляйте в него текст",
 	"Undo and redo a mark": "Отменить и повторить пометку",
 	"Remove the mark you tapped": "Убрать пометку, на которую вы нажали",
-	"Turn the pages, or show two side by side":
-		"Листайте страницы или показывайте две рядом",
+	"Rotate the pages, or show two side by side":
+		"Повернуть страницы или показать две рядом",
+	"Page view": "Вид страниц",
+	Scroll: "Прокрутка",
+	"One at a time": "По одной",
+	"One long column of pages": "Все страницы одной длинной лентой",
+	"Pages in a row, swiped across": "Страницы в ряд, листаются вбок",
+	"A single page on screen, nothing to line up":
+		"Одна страница на экране, ничего не нужно подравнивать",
+	"Previous page": "Предыдущая страница",
+	"Next page": "Следующая страница",
+	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
+		"Листайте страницы клавишами со стрелками, колёсиком мыши или стрелками рядом со страницей.",
+	"Swipe, or tap either side of the page, to turn it.":
+		"Чтобы перевернуть страницу, проведите пальцем или коснитесь её края.",
 	"Show this list": "Показать этот список",
 	"Ink for text and marks": "Цвет текста и отметок",
 	"Text in blue": "Синий текст",

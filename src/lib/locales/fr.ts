@@ -373,7 +373,7 @@ export const fr: Table = {
 	"The previous and the next page or slide":
 		"La page ou diapositive précédente et suivante",
 	"Start a slide show": "Lancer un diaporama",
-	"Turn the pages of a PDF": "Faire pivoter les pages d'un PDF",
+	"Rotate the pages of a PDF": "Faire pivoter les pages d'un PDF",
 	"The previous and the next sheet": "La feuille précédente et suivante",
 	"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.":
 		"Pour ouvrir des documents avec Paperwren d'un double-clic, choisissez-le dans les Paramètres de Windows, sous Applications, Applications par défaut.",
@@ -670,8 +670,6 @@ export const fr: Table = {
 	"Scroll pages sideways": "Faire défiler les pages horizontalement",
 	"First page on its own": "Première page seule",
 	"Back to page {n}": "Revenir à la page {n}",
-	"Pages scroll": "Défilement des pages",
-	Down: "Vers le bas",
 	Sideways: "Horizontal",
 	Comments: "Commentaires",
 	Attachments: "Pièces jointes",
@@ -1163,8 +1161,21 @@ export const fr: Table = {
 		"Dessinez sur un PDF ou ajoutez-y du texte",
 	"Undo and redo a mark": "Annuler et rétablir une marque",
 	"Remove the mark you tapped": "Retirer la marque que vous avez touchée",
-	"Turn the pages, or show two side by side":
-		"Tournez les pages ou affichez-en deux côte à côte",
+	"Rotate the pages, or show two side by side":
+		"Faire pivoter les pages, ou en afficher deux côte à côte",
+	"Page view": "Affichage des pages",
+	Scroll: "Défilement",
+	"One at a time": "Une à la fois",
+	"One long column of pages": "Une longue colonne de pages",
+	"Pages in a row, swiped across": "Pages en ligne, qu'on fait glisser de côté",
+	"A single page on screen, nothing to line up":
+		"Une seule page à l'écran, rien à recadrer",
+	"Previous page": "Page précédente",
+	"Next page": "Page suivante",
+	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
+		"Tournez les pages avec les flèches du clavier, la molette de la souris ou les flèches à côté de la page.",
+	"Swipe, or tap either side of the page, to turn it.":
+		"Faites glisser, ou touchez un côté de la page, pour la tourner.",
 	"Show this list": "Afficher cette liste",
 	"Ink for text and marks": "Encre du texte et des marques",
 	"Text in blue": "Texte en bleu",

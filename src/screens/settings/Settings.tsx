@@ -3,6 +3,7 @@ import { clearAllMarks, loadMarkList, restoreMarks } from "@/lib/docMarks";
 import { isDesktop, isTauri, isTouch, ownsFrame, sharesFrame } from "@/lib/env";
 import { LANGUAGES, type LanguageSetting, t, tn } from "@/lib/i18n";
 import { clearReads, readCount } from "@/lib/ocrStore";
+import { PAGE_VIEWS } from "@/lib/pageViews";
 import {
 	SIGNATURES_KEY,
 	STAMPS_KEY,
@@ -97,12 +98,15 @@ const LICENSES: Array<[string, string]> = [
  * (lib/keys.ts); a third entry is what a Mac presses instead. */
 function Segmented<T extends string | number>({
 	label,
+	hint,
 	value,
 	options,
 	onChange,
 	testId,
 }: {
 	label: string;
+	/** A line under the label: what the choice on show does. */
+	hint?: string;
 	value: T;
 	options: Array<[T, string]>;
 	onChange: (v: T) => void;
@@ -113,6 +117,11 @@ function Segmented<T extends string | number>({
 			<span className={s.label} id={`${testId}-label`}>
 				{label}
 			</span>
+			{hint && (
+				<span className={s.fieldHint} data-testid={`${testId}-hint`}>
+					{hint}
+				</span>
+			)}
 			<div
 				className={s.segmented}
 				role="radiogroup"
@@ -283,13 +292,14 @@ export function SettingsScreen() {
 							testId="pdf-zoom"
 						/>
 						<Segmented<PdfFlow>
-							label={t("Pages scroll")}
+							label={t("Page view")}
+							hint={t(
+								PAGE_VIEWS.find((view) => view.value === settings.pdfFlow)
+									?.hint ?? PAGE_VIEWS[0].hint,
+							)}
 							value={settings.pdfFlow}
 							onChange={(v) => update("pdfFlow", v)}
-							options={[
-								["down", t("Down")],
-								["across", t("Sideways")],
-							]}
+							options={PAGE_VIEWS.map(({ value, name }) => [value, t(name)])}
 							testId="pdf-flow"
 						/>
 						<Switch

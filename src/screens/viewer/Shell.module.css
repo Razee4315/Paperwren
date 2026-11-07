@@ -511,6 +511,24 @@ button.findCount {
 .zoomValue:hover {
 	color: var(--accent);
 }
+/* The label and every label it may show share one cell: the widest
+ * sets the width, only the one in use is seen. */
+.zoomValue {
+	display: inline-grid;
+	place-items: center;
+}
+.zoomValue::before,
+.zoomValue::after {
+	content: attr(data-size);
+	visibility: hidden;
+	grid-area: 1 / 1;
+}
+.zoomValue::after {
+	content: attr(data-size2);
+}
+.zoomNow {
+	grid-area: 1 / 1;
+}
 .note {
 	position: absolute;
 	left: 50%;

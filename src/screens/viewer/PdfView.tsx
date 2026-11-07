@@ -1,11 +1,12 @@
 import { backend, requestForBytes } from "@/lib/backend";
 import { type DocMark, contentKey, fileSample } from "@/lib/docMarks";
-import { isDesktop } from "@/lib/env";
+import { isDesktop, isMac } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
 import { copyName, splitName } from "@/lib/fileName";
 import { locale, t, tn } from "@/lib/i18n";
 import { measureLabel as labelOf } from "@/lib/measure";
 import { hasOwnText } from "@/lib/ocr";
+import { pageViewName } from "@/lib/pageViews";
 import { loadEngine, pdfAsset } from "@/lib/pdfEngine";
 import { type TextPicture, addMarkup } from "@/lib/pdfMarkup";
 import { digitallySigned } from "@/lib/pdfTools";
@@ -14,7 +15,7 @@ import { resolvePageColor } from "@/lib/settings";
 import { pageAsksForSignature } from "@/lib/signatureSpots";
 import { textPicture } from "@/lib/textBox";
 import { loadThumb, saveThumb } from "@/lib/thumbs";
-import type { Position } from "@/lib/types";
+import type { PdfFlow, Position } from "@/lib/types";
 import { useBackClose } from "@/state/navigation";
 import { useSettings } from "@/state/settings";
 import {
@@ -35,7 +36,6 @@ import {
 	BookOpenText,
 	Crop,
 	FileDown,
-	GalleryHorizontal,
 	Highlighter,
 	ImageDown,
 	Layers as LayersIcon,
@@ -116,7 +116,9 @@ import {
 	percentPresets,
 	shellStyles,
 } from "./Shell";
+import { TurnArrows } from "./TurnArrows";
 import { useZoom } from "./hooks";
+import { PageViewIcon, PageViewSheet } from "./paged";
 import { canCrop, cropPages, whole } from "./pdfCrop";
 import {
 	type MarkLabel,
@@ -170,8 +172,18 @@ const SCROLL_DOWN = 0;
 const SCROLL_ACROSS = 1;
 const SCROLL_ONE = 3;
 /** pdf.js lays no pairs in a row: pairs are shown one at a time. */
-const scrollMode = (across: boolean, pairs: boolean) =>
-	across ? (pairs ? SCROLL_ONE : SCROLL_ACROSS) : SCROLL_DOWN;
+const scrollMode = (flow: PdfFlow, pairs: boolean) =>
+	flow === "one" || (flow === "across" && pairs)
+		? SCROLL_ONE
+		: flow === "across"
+			? SCROLL_ACROSS
+			: SCROLL_DOWN;
+/** Pages read a whole page at a time, in a row or on their own, open at
+ * the whole page; pages down a scroll at the zoom the reader chose. */
+const turnsPages = (flow: PdfFlow) => flow !== "down";
+/** After a scroll to a page's foot, the wheel turns the page only once
+ * it has been still this long: a flick's glide stops at the foot. */
+const WHEEL_REST = 250;
 /** A swipe this long, mostly sideways, turns a page shown on its own. */
 const SWIPE = 60;
 /** Where a followed link was left from, to go back to. */
@@ -239,7 +251,7 @@ export default function PdfView({
 	onClose,
 	active,
 }: ViewerProps) {
-	const { settings, theme, update } = useSettings();
+	const { settings, theme } = useSettings();
 	const container = useRef<HTMLDivElement>(null);
 	const viewerEl = useRef<HTMLDivElement>(null);
 	const hud = useRef<HTMLDivElement>(null);
@@ -280,7 +292,12 @@ export default function PdfView({
 			position.crop === true,
 	);
 	const [cropAvailable, setCropAvailable] = useState(false);
-	const across = settings.pdfFlow === "across";
+	const flow = settings.pdfFlow;
+	// Pages in a row; pages turned a whole page at a time (in a row, or
+	// one on its own).
+	const across = flow === "across";
+	const one = flow === "one";
+	const paged = turnsPages(flow);
 	// A page that fits the screen snaps into place after a swipe; a
 	// zoomed one is panned freely.
 	const [fits, setFits] = useState(true);
@@ -296,6 +313,7 @@ export default function PdfView({
 	const [rights, setRights] = useState({ mark: true, fill: true });
 	const [filling, setFilling] = useState(false);
 	const [markingUp, setMarkingUp] = useState<MarkTool | null>(null);
+	const [viewOpen, setViewOpen] = useState(false);
 	// The password the reader opened it with, held for saving copies.
 	const passwordRef = useRef<string | undefined>(undefined);
 	const layerConfig = useRef<LayerConfig | null>(null);
@@ -381,8 +399,8 @@ export default function PdfView({
 		scale: string;
 		rotation: number;
 	} | null>(null);
-	const acrossRef = useRef(across);
-	acrossRef.current = across;
+	const flowRef = useRef(flow);
+	flowRef.current = flow;
 	/** Where the reader is now, and the places links were followed from
 	 * (and, after going back, to). */
 	const here = useRef<Spot | null>(null);
@@ -606,7 +624,7 @@ export default function PdfView({
 				const saved = positionRef.current;
 				const again = relaidAt.current;
 				relaidAt.current = null;
-				v.scrollMode = scrollMode(acrossRef.current, spreadRef.current);
+				v.scrollMode = scrollMode(flowRef.current, spreadRef.current);
 				if (spreadRef.current)
 					v.spreadMode = coverRef.current ? SPREAD_EVEN : SPREAD_ODD;
 				if (again) {
@@ -625,8 +643,8 @@ export default function PdfView({
 						allowNegativeOffset: true,
 					});
 				} else {
-					// Pages in a row are read a whole page at a time.
-					v.currentScaleValue = acrossRef.current
+					// Pages turned are read a whole page at a time.
+					v.currentScaleValue = turnsPages(flowRef.current)
 						? "page-fit"
 						: defaultZoom.current;
 				}
@@ -812,8 +830,10 @@ export default function PdfView({
 		const v = pdfViewer.current;
 		if (!v) return;
 		// Pages resize at once and keep their stretched bitmap until the
-		// sharp one is ready, so nothing blanks while it re-renders.
-		v.updateScale({ scaleFactor: z / v.currentScale, drawingDelay: 120 });
+		// sharp one is ready, so nothing blanks while it re-renders. The
+		// zoom commits once, when a gesture ends: the sharp pages are drawn
+		// straight away rather than after a wait.
+		v.updateScale({ scaleFactor: z / v.currentScale });
 	}, []);
 	/** The scale at which the current page (or pair) fills the width. */
 	const fitWidthScale = () => {
@@ -845,10 +865,10 @@ export default function PdfView({
 			null,
 		onTap: (_target, x, y) => {
 			if (marking.current?.tap(x, y)) return;
-			// Pages in a row turn with a tap on either side, and so do pages
-			// down a scroll where the reader asked for it.
+			// Pages turned a page at a time turn with a tap on either side,
+			// and so do pages down a scroll where the reader asked for it.
 			const box = container.current?.getBoundingClientRect();
-			if ((acrossRef.current || settings.tapToTurn) && box) {
+			if ((turnsPages(flowRef.current) || settings.tapToTurn) && box) {
 				const at = (x - box.left) / box.width;
 				if (at < 0.25) return turn(-1);
 				if (at > 0.75) return turn(1);
@@ -905,11 +925,17 @@ export default function PdfView({
 		const v = pdfViewer.current;
 		if (v && n >= 1 && n <= pages) v.currentPageNumber = n;
 	};
-	/** The next or the previous page, or pair of pages. */
-	const turn = (dir: 1 | -1) => {
+	/** The next or the previous page, or pair of pages; `fromFoot` shows
+	 * it from its foot (back a page from the top of one zoomed in). */
+	const turn = (dir: 1 | -1, fromFoot = false) => {
 		const v = pdfViewer.current;
 		if (dir > 0) v?.nextPage();
 		else v?.previousPage();
+		if (fromFoot)
+			requestAnimationFrame(() => {
+				const box = container.current;
+				if (box) box.scrollTop = box.scrollHeight;
+			});
 	};
 	const turnRef = useRef(turn);
 	turnRef.current = turn;
@@ -922,14 +948,16 @@ export default function PdfView({
 		if (!v) return;
 		const next = !spreadRef.current;
 		setSpread(next);
-		v.scrollMode = scrollMode(acrossRef.current, next);
+		v.scrollMode = scrollMode(flowRef.current, next);
 		v.spreadMode = next
 			? coverRef.current
 				? SPREAD_EVEN
 				: SPREAD_ODD
 			: SPREAD_NONE;
 		// A pair needs the width one page had: fit it again.
-		v.currentScaleValue = acrossRef.current ? "page-fit" : "page-width";
+		v.currentScaleValue = turnsPages(flowRef.current)
+			? "page-fit"
+			: "page-width";
 	};
 	const toggleCrop = async () => {
 		if (!doc) return;
@@ -943,7 +971,7 @@ export default function PdfView({
 			cropStop.current = null;
 		}
 		// The point of cropping is a page that fills the screen.
-		relayout.current(acrossRef.current ? "page-fit" : "page-width");
+		relayout.current(turnsPages(flowRef.current) ? "page-fit" : "page-width");
 	};
 	const toggleCover = () => {
 		const v = pdfViewer.current;
@@ -953,17 +981,21 @@ export default function PdfView({
 		v.spreadMode = next ? SPREAD_EVEN : SPREAD_ODD;
 	};
 
-	// The pages change from a scroll to a row, or back, while reading.
-	const shownAcross = useRef(across);
+	// The pages change from a scroll to a row or to one at a time, or
+	// back, while reading.
+	const shownFlow = useRef(flow);
 	useEffect(() => {
 		const v = pdfViewer.current;
-		if (!v || shownAcross.current === across) return;
-		shownAcross.current = across;
+		if (!v || shownFlow.current === flow) return;
+		const was = shownFlow.current;
+		shownFlow.current = flow;
 		const at = v.currentPageNumber;
-		v.scrollMode = scrollMode(across, spreadRef.current);
-		v.currentScaleValue = across ? "page-fit" : defaultZoom.current;
+		v.scrollMode = scrollMode(flow, spreadRef.current);
+		// From a row to one at a time (or back) the whole page stays.
+		if (turnsPages(flow) !== turnsPages(was))
+			v.currentScaleValue = turnsPages(flow) ? "page-fit" : defaultZoom.current;
 		v.currentPageNumber = at;
-	}, [across]);
+	}, [flow]);
 
 	// Whether the page on show fits the screen (then a swipe snaps to
 	// the next one).
@@ -977,6 +1009,20 @@ export default function PdfView({
 		const across = v.spreadMode === SPREAD_NONE ? 1 : 2;
 		setFits(view.width * across <= box.clientWidth + 2);
 	}, []);
+
+	/** Where each page (or pair) begins down the scroll: Space and Page
+	 * Down stop there, so a page is not left part way down the screen. */
+	const pageTops = () => {
+		const box = container.current;
+		if (!box) return [];
+		const origin = box.getBoundingClientRect().top - box.scrollTop;
+		const tops: number[] = [];
+		for (const page of box.querySelectorAll<HTMLElement>(".page")) {
+			const top = page.getBoundingClientRect().top - origin;
+			if (top !== tops[tops.length - 1]) tops.push(top);
+		}
+		return tops;
+	};
 
 	// Back through the links followed, and forward again.
 	const step = (dir: -1 | 1) => {
@@ -1018,7 +1064,8 @@ export default function PdfView({
 		const timer = window.setTimeout(() => setTrailHint(false), TRAIL_HINT_MS);
 		return () => window.clearTimeout(timer);
 	}, [trailHint]);
-	// Alt+Right goes forward again.
+	// Alt+Right goes forward again, and so does a mouse's forward button
+	// (its back button is the browser's Back, above).
 	useEffect(() => {
 		if (!active || !steps.forward) return;
 		const onKey = (e: KeyboardEvent) => {
@@ -1026,28 +1073,52 @@ export default function PdfView({
 			e.preventDefault();
 			stepRef.current(1);
 		};
+		const onMouse = (e: MouseEvent) => {
+			if (e.button !== 4 || modalOpen()) return;
+			e.preventDefault();
+			stepRef.current(1);
+		};
 		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		window.addEventListener("mouseup", onMouse);
+		return () => {
+			window.removeEventListener("keydown", onKey);
+			window.removeEventListener("mouseup", onMouse);
+		};
 	}, [active, steps.forward]);
 
-	// A mouse wheel turns pages in a row when there is nothing to scroll
-	// down to; a trackpad's small steps add up to a page.
+	// A mouse wheel turns pages turned a page at a time when there is
+	// nothing to scroll down to; a trackpad's small steps add up to a page.
 	useEffect(() => {
 		const el = container.current;
-		if (!el || !across || status !== "ready") return;
+		if (!el || !paged || status !== "ready") return;
 		let sum = 0;
 		let last = 0;
+		let scrolled = 0;
 		const onWheel = (e: WheelEvent) => {
 			if (e.ctrlKey || e.metaKey) return;
 			if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
-			// A page taller than the screen scrolls down first.
-			if (el.scrollHeight > el.clientHeight + 8) return;
+			// A page taller than the screen scrolls to its foot first; the
+			// wheel turns it there once the scroll has come to rest.
+			const tall = el.scrollHeight > el.clientHeight + 8;
+			if (tall) {
+				const room =
+					e.deltaY > 0
+						? el.scrollHeight - el.clientHeight - el.scrollTop
+						: el.scrollTop;
+				if (room > 1 || e.timeStamp - scrolled < WHEEL_REST) {
+					scrolled = e.timeStamp;
+					sum = 0;
+					return;
+				}
+			}
 			e.preventDefault();
 			if (e.timeStamp - last > 400) sum = 0;
 			last = e.timeStamp;
 			sum += e.deltaY;
 			if (Math.abs(sum) < 60) return;
-			turnRef.current(Math.sign(sum) as 1 | -1);
+			const dir = Math.sign(sum) as 1 | -1;
+			turnRef.current(dir, tall && dir < 0);
+			scrolled = e.timeStamp;
 			sum = 0;
 		};
 		// Pages shown one (or one pair) at a time do not scroll: a swipe
@@ -1077,7 +1148,7 @@ export default function PdfView({
 			el.removeEventListener("touchstart", onStart);
 			el.removeEventListener("touchend", onEnd);
 		};
-	}, [across, status]);
+	}, [paged, status]);
 
 	// The single keys of a reader, on a desktop. By position, not by
 	// letter, so they work whatever the keyboard's language.
@@ -1087,15 +1158,20 @@ export default function PdfView({
 		canMark: rights.mark,
 		roomForTwo: false,
 	});
-	// Ctrl+] and Ctrl+[ turn the pages, as in other desktop readers.
+	// Ctrl+] and Ctrl+[ rotate the pages, as in Edge and Chrome. A Mac's
+	// ⌘] and ⌘[ are forward and back, so there they turn the pages
+	// (Shell), and ⌘R and ⌘L rotate, as in Preview.
 	const rotateRef = useRef(rotate);
 	rotateRef.current = rotate;
 	useEffect(() => {
 		if (!active || status !== "ready") return;
 		const onKey = (e: KeyboardEvent) => {
 			if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
-			if (e.key === "]") rotateRef.current(90);
-			else if (e.key === "[") rotateRef.current(-90);
+			if (isMac && (e.ctrlKey || e.shiftKey)) return;
+			const right = isMac ? e.code === "KeyR" : e.key === "]";
+			const left = isMac ? e.code === "KeyL" : e.key === "[";
+			if (right) rotateRef.current(90);
+			else if (left) rotateRef.current(-90);
 			else return;
 			e.preventDefault();
 		};
@@ -1576,15 +1652,15 @@ export default function PdfView({
 				</>
 			)}
 			<SheetItem
-				icon={<GalleryHorizontal size={20} />}
-				checked={across}
+				icon={<PageViewIcon flow={flow} />}
+				hint={t(pageViewName(flow))}
 				onClick={() => {
-					update("pdfFlow", across ? "down" : "across");
 					close();
+					setViewOpen(true);
 				}}
-				testId="pdf-across"
+				testId="pdf-page-view"
 			>
-				{t("Scroll pages sideways")}
+				{t("Page view")}
 			</SheetItem>
 			{(roomForTwo || spread) && (
 				<SheetItem
@@ -1627,7 +1703,7 @@ export default function PdfView({
 			)}
 			<SheetItem
 				icon={<RotateCw size={20} />}
-				shortcut="Ctrl+]"
+				shortcut={isMac ? "Ctrl+R" : "Ctrl+]"}
 				onClick={() => {
 					rotate(90);
 					close();
@@ -1638,7 +1714,7 @@ export default function PdfView({
 			{isDesktop && (
 				<SheetItem
 					icon={<RotateCcw size={20} />}
-					shortcut="Ctrl+["
+					shortcut={isMac ? "Ctrl+L" : "Ctrl+["}
 					onClick={() => {
 						rotate(-90);
 						close();
@@ -2086,8 +2162,10 @@ export default function PdfView({
 			onStep={turn}
 			bookmarks={status === "ready" ? places : undefined}
 			speech={speech}
-			turnPages={across}
-			onEdge={across ? (end) => goTo(end ? pages : 1) : undefined}
+			turnPages={paged}
+			onEdge={paged ? (end) => goTo(end ? pages : 1) : undefined}
+			pageTops={paged ? undefined : pageTops}
+			progress={one ? (page - 1) / Math.max(1, pages - 1) : undefined}
 			onFind={status === "ready" ? openFind : undefined}
 			menu={status === "ready" ? pdfMenu : undefined}
 			onPrint={doc ? printPages : undefined}
@@ -2118,8 +2196,8 @@ export default function PdfView({
 			<div
 				ref={holdScroller}
 				className={`${s.container} ${across && fits ? s.snap : ""}`}
-				data-flow={across ? "across" : undefined}
-				data-one={across && spread ? "" : undefined}
+				data-flow={paged ? flow : undefined}
+				data-one={one || (across && spread) ? "" : undefined}
 				data-testid="pdf-scroll"
 				tabIndex={-1}
 			>
@@ -2128,8 +2206,12 @@ export default function PdfView({
 			<Scrubber
 				of={container}
 				label={`${page} / ${pages}`}
-				enabled={status === "ready" && !across}
+				enabled={status === "ready" && !paged}
 			/>
+			{paged && isDesktop && status === "ready" && !markingUp && (
+				<TurnArrows of={container} page={page} pages={pages} onTurn={turn} />
+			)}
+			<PageViewSheet open={viewOpen} onClose={() => setViewOpen(false)} />
 			{steps.back > 0 && trailHint && (
 				<button
 					type="button"

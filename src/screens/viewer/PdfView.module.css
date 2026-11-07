@@ -54,6 +54,19 @@
 	:global(.pdfViewer.removePageBorders > :last-child) {
 	margin-inline-end: auto;
 }
+/* One page (or pair) at a time: it sits in the middle of the screen.
+ * Auto margins give way when it is zoomed past the screen, so all of
+ * it can still be scrolled to. */
+.container[data-flow="one"] :global(.pdfViewer) {
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+	padding: 0;
+}
+.container[data-flow="one"] :global(.pdfViewer.removePageBorders > *) {
+	flex: none;
+	margin: auto;
+}
 /* "Back to page 3", after a link was followed. */
 .trail {
 	position: absolute;

@@ -1,5 +1,20 @@
 # What's new
 
+## 1.6.2
+
+- Page view: read a PDF as one long scroll, as pages in a row turned sideways, or one page at a time on its own. Choose it from the file's menu or in Settings, Reading; each choice says what it does.
+- With pages turned a page at a time, arrows beside the page come with the mouse, and a tip says how to turn them. The keys, the wheel, a swipe or a tap on either side turn them too.
+- Zooming is smoother: when a zoom out leaves the page somewhere the screen cannot follow, it glides there instead of jumping; the page sharpens sooner once the zoom ends; and a turn of the mouse wheel is a gentler step.
+- The bar stays still while zooming: the page number no longer shifts when "Whole page" becomes "137%".
+- The first document after starting the app opens about twice as fast: the reader is made ready while Home is shown.
+- Page Down and Space stop at the top of the next page instead of part way down it. A page that fits the screen turns a page at a time.
+- A page zoomed past the screen is read to its foot before the next page is turned to.
+- The arrow keys keep turning the pages after a click on a PDF.
+- G puts the cursor in the page number, to type a page and press Enter.
+- A mouse's forward button goes forward again after following a link.
+- On a Mac, ⌘[ and ⌘] turn the pages, so a trackpad's swipes work; ⌘R and ⌘L rotate them.
+- The list of keys says Rotate for the keys that rotate the pages.
+
 ## 1.6.1
 
 - Two plain themes, Light and Dark: neutral white and near black, with no paper texture. Paper, Sand and Ink stay.

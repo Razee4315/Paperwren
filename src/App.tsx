@@ -51,6 +51,15 @@ const NotesScreen = lazy(() =>
 // Shown once; never part of a regular launch's bundle.
 const Onboarding = lazy(() => import("@/screens/onboarding/Onboarding"));
 
+/** The reader and pdf.js, fetched and compiled once Home has settled,
+ * so the first document opens without waiting for them (most are PDFs).
+ * Never at cold start: Home is drawn first, then the browser is idle. */
+const WARM_AFTER = 1500;
+function warmReader() {
+	void import("@/screens/viewer/ViewerScreen").catch(() => {});
+	void import("@/lib/pdfEngine").then((m) => m.loadEngine()).catch(() => {});
+}
+
 const ONBOARDED_KEY = "onboarded";
 /** Tabs kept drawn besides the one on show, so a switch back is
  * instant; older ones are read again when shown. */
@@ -282,6 +291,17 @@ function Root() {
 		() => backend.onFileDrop({ hover: setDropping, drop: openGiven }),
 		[openGiven],
 	);
+
+	useEffect(() => {
+		const idle =
+			window.requestIdleCallback ??
+			((run: () => void) => window.setTimeout(run, 1));
+		const timer = window.setTimeout(
+			() => idle(warmReader, { timeout: 4000 }),
+			WARM_AFTER,
+		);
+		return () => window.clearTimeout(timer);
+	}, []);
 
 	const entriesRef = useRef(entries);
 	entriesRef.current = entries;

@@ -369,7 +369,7 @@ export const es: Table = {
 	"The previous and the next page or slide":
 		"La página o diapositiva anterior y la siguiente",
 	"Start a slide show": "Iniciar una presentación",
-	"Turn the pages of a PDF": "Girar las páginas de un PDF",
+	"Rotate the pages of a PDF": "Girar las páginas de un PDF",
 	"The previous and the next sheet": "La hoja anterior y la siguiente",
 	"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.":
 		"Para abrir documentos con Paperwren con un doble clic, elígelo en la Configuración de Windows, en Aplicaciones, Aplicaciones predeterminadas.",
@@ -663,8 +663,6 @@ export const es: Table = {
 	"Scroll pages sideways": "Desplazar las páginas en horizontal",
 	"First page on its own": "Primera página sola",
 	"Back to page {n}": "Volver a la página {n}",
-	"Pages scroll": "Desplazamiento de las páginas",
-	Down: "Hacia abajo",
 	Sideways: "En horizontal",
 	Comments: "Comentarios",
 	Attachments: "Archivos adjuntos",
@@ -1148,8 +1146,21 @@ export const es: Table = {
 	"Draw on a PDF, or add text to it": "Dibuja en un PDF o añade texto",
 	"Undo and redo a mark": "Deshacer y rehacer una marca",
 	"Remove the mark you tapped": "Quita la marca que tocaste",
-	"Turn the pages, or show two side by side":
-		"Pasa las páginas o muestra dos en paralelo",
+	"Rotate the pages, or show two side by side":
+		"Girar las páginas o mostrar dos en paralelo",
+	"Page view": "Vista de página",
+	Scroll: "Desplazar",
+	"One at a time": "De una en una",
+	"One long column of pages": "Una larga columna de páginas",
+	"Pages in a row, swiped across": "Páginas en fila, se pasan de lado",
+	"A single page on screen, nothing to line up":
+		"Una sola página en pantalla, sin tener que encuadrarla",
+	"Previous page": "Página anterior",
+	"Next page": "Página siguiente",
+	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
+		"Pasa las páginas con las flechas del teclado, la rueda del ratón o las flechas junto a la página.",
+	"Swipe, or tap either side of the page, to turn it.":
+		"Desliza o toca cualquier lado de la página para pasarla.",
 	"Show this list": "Mostrar esta lista",
 	"Ink for text and marks": "Tinta del texto y las marcas",
 	"Text in blue": "Texto en azul",

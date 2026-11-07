@@ -362,7 +362,7 @@ export const ur: Table = {
 	"The start and the end of the document": "دستاویز کا آغاز اور اختتام",
 	"The previous and the next page or slide": "پچھلا اور اگلا صفحہ یا سلائیڈ",
 	"Start a slide show": "سلائیڈ شو شروع کریں",
-	"Turn the pages of a PDF": "PDF کے صفحات گھمائیں",
+	"Rotate the pages of a PDF": "PDF کے صفحات گھمائیں",
 	"The previous and the next sheet": "پچھلی اور اگلی شیٹ",
 	"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.":
 		"ڈبل کلک سے دستاویزات Paperwren میں کھولنے کے لیے، اسے Windows کی ترتیبات میں Apps، پھر Default apps کے تحت منتخب کریں۔",
@@ -653,8 +653,6 @@ export const ur: Table = {
 	"Scroll pages sideways": "صفحات کو افقی طور پر سکرول کریں",
 	"First page on its own": "پہلا صفحہ الگ",
 	"Back to page {n}": "صفحہ {n} پر واپس",
-	"Pages scroll": "صفحات کی سکرولنگ",
-	Down: "نیچے",
 	Sideways: "افقی",
 	Comments: "تبصرے",
 	Attachments: "منسلکات",
@@ -1134,8 +1132,21 @@ export const ur: Table = {
 		"PDF پر خاکہ بنائیں، یا اس میں متن شامل کریں",
 	"Undo and redo a mark": "کسی نشان کو واپس لیں یا دوبارہ کریں",
 	"Remove the mark you tapped": "جس نشان پر ٹیپ کیا اسے ہٹائیں",
-	"Turn the pages, or show two side by side":
-		"صفحات پلٹیں، یا دو ساتھ ساتھ دکھائیں",
+	"Rotate the pages, or show two side by side":
+		"صفحات گھمائیں، یا دو ساتھ ساتھ دکھائیں",
+	"Page view": "صفحے کا انداز",
+	Scroll: "سکرول",
+	"One at a time": "ایک ایک کر کے",
+	"One long column of pages": "صفحات کا ایک لمبا کالم",
+	"Pages in a row, swiped across": "صفحات ایک قطار میں، افقی طور پر سوائپ کریں",
+	"A single page on screen, nothing to line up":
+		"اسکرین پر ایک ہی صفحہ، کچھ سیدھا کرنے کی ضرورت نہیں",
+	"Previous page": "پچھلا صفحہ",
+	"Next page": "اگلا صفحہ",
+	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
+		"صفحات تیر والی کلیدوں، ماؤس کے پہیے یا صفحے کے ساتھ والے تیروں سے پلٹیں۔",
+	"Swipe, or tap either side of the page, to turn it.":
+		"صفحہ پلٹنے کے لیے سوائپ کریں، یا اس کے کسی بھی کنارے پر تھپتھپائیں۔",
 	"Show this list": "یہ فہرست دکھائیں",
 	"Ink for text and marks": "متن اور نشانات کی سیاہی",
 	"Text in blue": "نیلا متن",

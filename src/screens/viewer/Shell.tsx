@@ -1,11 +1,12 @@
 import { backend } from "@/lib/backend";
 import type { Bookmark as Mark } from "@/lib/bookmarks";
-import { isDesktop } from "@/lib/env";
+import { isDesktop, isMac } from "@/lib/env";
 import type { FindOptions } from "@/lib/find";
 import type { FileFormat } from "@/lib/formats";
 import { inFullscreen, toggleFullscreen } from "@/lib/fullscreen";
 import { msg, t, uiDir } from "@/lib/i18n";
 import { idForReopen } from "@/lib/recents";
+import { screenStop } from "@/lib/screenStep";
 import { MAX_DIM, PAGE_COLORS, resolvePageColor } from "@/lib/settings";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import { canSpeak } from "@/lib/speech";
@@ -79,12 +80,21 @@ function Title({ name, format }: { name: string; format: FileFormat }) {
 const across = (el: HTMLElement) => el.dataset.flow === "across";
 
 /** How far through the document the reader is: a hairline under the
- * top bar, driven straight from scroll events (no re-renders). */
-function Progress({ of }: { of: RefObject<HTMLElement | null> }) {
+ * top bar, driven straight from scroll events (no re-renders), or from
+ * `value` where scrolling does not say it (one page shown at a time). */
+function Progress({
+	of,
+	value,
+}: { of: RefObject<HTMLElement | null>; value?: number }) {
 	const bar = useRef<HTMLDivElement>(null);
 	useEffect(() => {
+		if (value === undefined || !bar.current) return;
+		bar.current.style.transform = `scaleX(${Math.min(1, Math.max(0, value))})`;
+	}, [value]);
+	const given = value !== undefined;
+	useEffect(() => {
 		const el = of.current;
-		if (!el) return;
+		if (!el || given) return;
 		const update = () => {
 			const sideways = across(el);
 			const range = sideways
@@ -97,7 +107,7 @@ function Progress({ of }: { of: RefObject<HTMLElement | null> }) {
 		update();
 		el.addEventListener("scroll", update, { passive: true });
 		return () => el.removeEventListener("scroll", update);
-	}, [of]);
+	}, [of, given]);
 	return <div ref={bar} className={s.progress} aria-hidden="true" />;
 }
 
@@ -285,6 +295,8 @@ export function Shell({
 	onStep,
 	turnPages = false,
 	onEdge,
+	pageTops,
+	progress,
 	side,
 	sideFocus,
 	paper = false,
@@ -319,14 +331,22 @@ export function Shell({
 	active: boolean;
 	/** False when the viewer turns pages itself with Page Up / Down. */
 	pageKeys?: boolean;
-	/** Left and Right turn a whole page, when the page fits the width. */
-	onStep?: (dir: 1 | -1) => void;
+	/** Left and Right turn a whole page, when the page fits the width.
+	 * `fromFoot`: show the page turned to from its foot (Page Up at the
+	 * top of a page shown on its own). */
+	onStep?: (dir: 1 | -1, fromFoot?: boolean) => void;
 	/** Space, Page Up and Page Down turn a page too (`onStep`), for
 	 * pages laid in a row. */
 	turnPages?: boolean;
 	/** Home and End (and Ctrl with them) go to the first or the last
 	 * page this way, where scrolling does not reach them. */
 	onEdge?: (end: boolean) => void;
+	/** Where each page begins, in the scroller's positions, in order:
+	 * Space and Page Up / Down stop there (`screenStop`). */
+	pageTops?: () => readonly number[];
+	/** How far through the document the reader is (0 to 1), where the
+	 * scroll does not tell (pages shown one at a time). */
+	progress?: number;
 	/** Lists for the panel beside the document (desktop). */
 	side?: SideTab[];
 	/** Open the panel at one of its lists. */
@@ -589,6 +609,26 @@ export function Shell({
 			held.blur();
 	}, [active]);
 
+	// G goes to a page: the page number in the bar takes the keyboard,
+	// to type one and press Enter.
+	useEffect(() => {
+		if (!active || !isDesktop) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (modalOpen() || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey)
+				return;
+			if (e.code !== "KeyG" || e.defaultPrevented) return;
+			const at = e.target as HTMLElement | null;
+			if (at?.closest?.("input, textarea, select, [contenteditable]")) return;
+			const field =
+				shell.current?.querySelector<HTMLInputElement>("[data-page-field]");
+			if (!field) return;
+			e.preventDefault();
+			field.focus();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [active]);
+
 	// The keyboard scrolls the document from the moment it opens, without
 	// a click into it first: Space, Page Up / Down, Home, End, the arrows.
 	const stepRef = useRef(onStep);
@@ -597,22 +637,46 @@ export function Shell({
 	turnRef.current = turnPages;
 	const edgeRef = useRef(onEdge);
 	edgeRef.current = onEdge;
+	const stopsRef = useRef(pageTops);
+	stopsRef.current = pageTops;
 	useEffect(() => {
 		if (!active) return;
 		const onKey = (e: KeyboardEvent) => {
 			if (e.defaultPrevented || modalOpen() || e.altKey) return;
-			// Only when nothing else wants the keys: a field does, and so does
-			// the document once it has the keyboard (it scrolls on its own).
-			// A button in the bars that was just clicked does not.
+			// Only when nothing else wants the keys: a field does. A button in
+			// the bars that was just clicked does not.
 			const at = document.activeElement;
 			const onBar =
 				at instanceof HTMLElement &&
 				!!at.closest("header, footer") &&
 				!at.matches("input, textarea, select");
-			if (at && at !== document.body && !onBar) return;
 			const el = progressOf?.current ?? null;
+			// A click on the page leaves the keyboard on it (pdf.js's text
+			// layer takes the focus): the keys still turn and scroll, unless
+			// a field, a button or a link in the page has them.
+			const inPage =
+				at instanceof HTMLElement &&
+				!!el?.contains(at) &&
+				!at.closest(
+					'input, textarea, select, button, a[href], [contenteditable]:not([contenteditable="false"])',
+				);
+			if (at && at !== document.body && !onBar && !inPage) return;
 
 			if (e.ctrlKey || e.metaKey) {
+				// ⌘[ and ⌘] are a Mac's back and forward: here the previous
+				// and the next page (a trackpad's swipes often send them).
+				const bracket =
+					e.code === "BracketLeft" || e.key === "["
+						? -1
+						: e.code === "BracketRight" || e.key === "]"
+							? 1
+							: 0;
+				if (isMac && e.metaKey && !e.ctrlKey && !e.shiftKey && bracket) {
+					if (!stepRef.current) return;
+					stepRef.current(bracket);
+					e.preventDefault();
+					return;
+				}
 				// Ctrl+Home and Ctrl+End: the first and the last page. A Mac's
 				// keyboard has neither key: there it is ⌘↑ and ⌘↓.
 				const end =
@@ -642,29 +706,58 @@ export function Shell({
 										: 1
 									: 0;
 			if (turn && stepRef.current) {
+				const arrow = e.key.startsWith("Arrow");
 				// Sideways keys pan a page wider than the screen instead
 				// (pages in a row turn whatever their size).
 				const pans = el && !across(el) && el.scrollWidth > el.clientWidth + 1;
-				if (pans && e.key.startsWith("Arrow")) return;
-				stepRef.current(turn);
+				if (pans && arrow) return;
+				// A page shown on its own but taller than the screen (zoomed
+				// in) is read to its foot before the next is turned to, and
+				// the previous one is shown from its foot.
+				if (!arrow && el && el.scrollHeight > el.clientHeight + 8) {
+					const room =
+						turn > 0
+							? el.scrollHeight - el.clientHeight - el.scrollTop
+							: el.scrollTop;
+					if (room > 1) {
+						el.scrollTop += turn * Math.min(room, el.clientHeight * 0.9);
+						e.preventDefault();
+						return;
+					}
+					stepRef.current(turn, turn < 0);
+				} else stepRef.current(turn);
 				e.preventDefault();
 				return;
 			}
 			if (!el) return;
-			const page = el.clientHeight * 0.9;
-			const by: Record<string, number> = {
-				ArrowDown: 48,
-				ArrowUp: -48,
-				// Space presses the button that has the focus.
-				...(onBar ? {} : { " ": e.shiftKey ? -page : page }),
-				...(pageKeys ? { PageDown: page, PageUp: -page } : {}),
-			};
-			if (e.key === "Home" || e.key === "End") {
+			// Space, Page Up and Page Down: a screen on, stopping at the top
+			// of the next page where the viewer says where pages begin.
+			const screen =
+				e.key === "PageDown"
+					? 1
+					: e.key === "PageUp"
+						? -1
+						: e.key === " "
+							? e.shiftKey
+								? -1
+								: 1
+							: 0;
+			const keyed = screen !== 0 && (e.key === " " ? !onBar : pageKeys);
+			if (keyed) {
+				const tops = stopsRef.current?.() ?? [];
+				el.scrollTop = screenStop(
+					el.scrollTop,
+					el.clientHeight,
+					screen as 1 | -1,
+					tops,
+				);
+			} else if (e.key === "ArrowDown") el.scrollTop += 48;
+			else if (e.key === "ArrowUp") el.scrollTop -= 48;
+			else if (e.key === "Home" || e.key === "End") {
 				const end = e.key === "End";
 				if (edgeRef.current) edgeRef.current(end);
 				else toEnd(el, end);
-			} else if (e.key in by) el.scrollTop += by[e.key];
-			else return;
+			} else return;
 			e.preventDefault();
 		};
 		window.addEventListener("keydown", onKey);
@@ -786,7 +879,7 @@ export function Shell({
 					/>
 				</div>
 				{find}
-				{progressOf && <Progress of={progressOf} />}
+				{progressOf && <Progress of={progressOf} value={progress} />}
 			</header>
 			<div className={s.body}>
 				{sideOpen && (
@@ -910,6 +1003,13 @@ export function ZoomControl({
 }) {
 	const [open, setOpen] = useState(false);
 	const menu = isDesktop && !!presets?.length;
+	// The two longest labels: letters are not all as wide, so the longer
+	// of two is very nearly always the widest.
+	const sizes = [
+		...new Set([label, "888%", ...(presets ?? []).map((p) => p.label)]),
+	]
+		.sort((a, b) => b.length - a.length)
+		.concat("");
 	return (
 		<div className={s.zoom}>
 			<IconButton
@@ -928,8 +1028,13 @@ export function ZoomControl({
 				title={menu ? t("Zoom") : resetLabel}
 				aria-haspopup={menu ? "menu" : undefined}
 				data-testid={`${testId}-scale`}
+				// As wide as the longest things it can say (drawn unseen by the
+				// stylesheet), so the bar does not shift when "Whole page"
+				// becomes "137%" under a zoom.
+				data-size={sizes[0]}
+				data-size2={sizes[1]}
 			>
-				{label}
+				<span className={s.zoomNow}>{label}</span>
 			</button>
 			<IconButton
 				label={t("Zoom in")}
