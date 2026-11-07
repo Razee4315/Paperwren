@@ -1183,6 +1183,13 @@ export const ar: Table = {
 		"صفحة واحدة على الشاشة، دون حاجة إلى ضبط موضعها",
 	"Previous page": "الصفحة السابقة",
 	"Next page": "الصفحة التالية",
+	"While reading": "أثناء القراءة",
+	"Saved on this device": "محفوظ على هذا الجهاز",
+	"Keyboard shortcuts": "اختصارات لوحة المفاتيح",
+	"Press ? while reading to see them there": "اضغط ? أثناء القراءة لعرضها هناك",
+	"Moving around": "التنقل",
+	"Reading and marking": "القراءة ووضع العلامات",
+	"Slides and sheets": "الشرائح والأوراق",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"اقلب الصفحات بمفاتيح الأسهم أو عجلة الماوس أو الأسهم بجانب الصفحة.",
 	"Swipe, or tap either side of the page, to turn it.":

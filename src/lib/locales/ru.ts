@@ -1189,6 +1189,14 @@ export const ru: Table = {
 		"Одна страница на экране, ничего не нужно подравнивать",
 	"Previous page": "Предыдущая страница",
 	"Next page": "Следующая страница",
+	"While reading": "Во время чтения",
+	"Saved on this device": "Сохранено на этом устройстве",
+	"Keyboard shortcuts": "Сочетания клавиш",
+	"Press ? while reading to see them there":
+		"Нажмите ? во время чтения, чтобы увидеть их там",
+	"Moving around": "Перемещение",
+	"Reading and marking": "Чтение и пометки",
+	"Slides and sheets": "Слайды и листы",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"Листайте страницы клавишами со стрелками, колёсиком мыши или стрелками рядом со страницей.",
 	"Swipe, or tap either side of the page, to turn it.":

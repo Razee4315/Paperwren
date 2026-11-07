@@ -1172,6 +1172,14 @@ export const fr: Table = {
 		"Une seule page à l'écran, rien à recadrer",
 	"Previous page": "Page précédente",
 	"Next page": "Page suivante",
+	"While reading": "Pendant la lecture",
+	"Saved on this device": "Enregistré sur cet appareil",
+	"Keyboard shortcuts": "Raccourcis clavier",
+	"Press ? while reading to see them there":
+		"Appuyez sur ? pendant la lecture pour les y voir",
+	"Moving around": "Se déplacer",
+	"Reading and marking": "Lire et annoter",
+	"Slides and sheets": "Diapositives et feuilles",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"Tournez les pages avec les flèches du clavier, la molette de la souris ou les flèches à côté de la page.",
 	"Swipe, or tap either side of the page, to turn it.":

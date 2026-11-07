@@ -1143,6 +1143,14 @@ export const ur: Table = {
 		"اسکرین پر ایک ہی صفحہ، کچھ سیدھا کرنے کی ضرورت نہیں",
 	"Previous page": "پچھلا صفحہ",
 	"Next page": "اگلا صفحہ",
+	"While reading": "پڑھتے وقت",
+	"Saved on this device": "اس ڈیوائس پر محفوظ",
+	"Keyboard shortcuts": "کی بورڈ شارٹ کٹس",
+	"Press ? while reading to see them there":
+		"پڑھتے وقت انہیں دیکھنے کے لیے ? دبائیں",
+	"Moving around": "گھومنا پھرنا",
+	"Reading and marking": "پڑھنا اور نشان لگانا",
+	"Slides and sheets": "سلائیڈز اور شیٹس",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"صفحات تیر والی کلیدوں، ماؤس کے پہیے یا صفحے کے ساتھ والے تیروں سے پلٹیں۔",
 	"Swipe, or tap either side of the page, to turn it.":

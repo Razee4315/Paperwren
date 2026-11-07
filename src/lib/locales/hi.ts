@@ -1120,6 +1120,13 @@ export const hi: Table = {
 		"स्क्रीन पर एक ही पृष्ठ, कुछ भी ठीक करने की ज़रूरत नहीं",
 	"Previous page": "पिछला पृष्ठ",
 	"Next page": "अगला पृष्ठ",
+	"While reading": "पढ़ते समय",
+	"Saved on this device": "इस डिवाइस पर सहेजा गया",
+	"Keyboard shortcuts": "कीबोर्ड शॉर्टकट",
+	"Press ? while reading to see them there": "पढ़ते समय वहीं देखने के लिए ? दबाएँ",
+	"Moving around": "इधर-उधर जाना",
+	"Reading and marking": "पढ़ना और चिह्नित करना",
+	"Slides and sheets": "स्लाइड और शीट",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"तीर कुंजियों, माउस व्हील या पृष्ठ के बगल वाले तीरों से पृष्ठ पलटें।",
 	"Swipe, or tap either side of the page, to turn it.":

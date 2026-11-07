@@ -10,4 +10,7 @@ export interface ViewerProps {
 	onClose: () => void;
 	/** False while another viewer is stacked above this one. */
 	active: boolean;
+	/** The file turned out not to open (a damaged PDF). Opened for the
+	 * first time, it is then left out of Recent files. */
+	onBroken?: () => void;
 }

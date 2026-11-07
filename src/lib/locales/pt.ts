@@ -1160,6 +1160,14 @@ export const pt: Table = {
 		"Uma única página na tela, sem precisar ajustar",
 	"Previous page": "Página anterior",
 	"Next page": "Próxima página",
+	"While reading": "Durante a leitura",
+	"Saved on this device": "Salvo neste dispositivo",
+	"Keyboard shortcuts": "Atalhos de teclado",
+	"Press ? while reading to see them there":
+		"Pressione ? durante a leitura para vê-los lá",
+	"Moving around": "Navegação",
+	"Reading and marking": "Leitura e marcações",
+	"Slides and sheets": "Slides e planilhas",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"Vire as páginas com as setas do teclado, a roda do mouse ou as setas ao lado da página.",
 	"Swipe, or tap either side of the page, to turn it.":

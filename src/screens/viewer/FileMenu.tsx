@@ -3,11 +3,21 @@ import { isDesktop } from "@/lib/env";
 import { formatLabel, kindLabel, kindOf, mimeOf } from "@/lib/formats";
 import { inFullscreen, toggleFullscreen } from "@/lib/fullscreen";
 import { t } from "@/lib/i18n";
-import { FULLSCREEN_KEYS } from "@/lib/keys";
+import { FULLSCREEN_KEYS, keys } from "@/lib/keys";
 import { printDocument } from "@/lib/print";
 import type { OpenRequest, Reopen } from "@/lib/types";
 import { announceSaved } from "@/screens/tools/saved";
-import { Button, Dialog, IconButton, Sheet, SheetItem, toast } from "@/ui";
+import {
+	Button,
+	Dialog,
+	IconButton,
+	Sheet,
+	SheetDivider,
+	SheetItem,
+	SheetTile,
+	SheetTiles,
+	toast,
+} from "@/ui";
 import {
 	AppWindow,
 	Download,
@@ -129,6 +139,15 @@ async function saveCopyOf(file: FileRef) {
 	if (saved) announceSaved(saved, undefined, bytes.length);
 }
 
+type ItemProps = {
+	icon: ReactNode;
+	children: ReactNode;
+	onClick: () => void;
+	testId?: string;
+};
+const RowItem = (props: ItemProps) => <SheetItem {...props} />;
+const TileItem = (props: ItemProps) => <SheetTile {...props} />;
+
 /**
  * Share, save a copy, open in another app, show in folder: the ways a
  * file leaves the app, as menu items. Those the platform cannot do for this file
@@ -138,21 +157,25 @@ export function HandOffItems({
 	file,
 	onDone,
 	testPrefix,
+	tiles = false,
 }: {
 	file: FileRef;
 	/** Runs as soon as one is chosen (close the menu). */
 	onDone: () => void;
 	testPrefix: string;
+	/** As tiles (inside `SheetTiles`) rather than rows. */
+	tiles?: boolean;
 }) {
 	const can = backend.abilities(file);
 	const run = (action: Promise<void>, failure: string) => {
 		onDone();
 		action.catch(() => toast(failure));
 	};
+	const Item = tiles ? TileItem : RowItem;
 	return (
 		<>
 			{can.share && (
-				<SheetItem
+				<Item
 					icon={
 						can.shareIsDownload ? <Download size={20} /> : <Share2 size={20} />
 					}
@@ -162,19 +185,19 @@ export function HandOffItems({
 					testId={`${testPrefix}-share`}
 				>
 					{can.shareIsDownload ? t("Save a copy") : t("Share")}
-				</SheetItem>
+				</Item>
 			)}
 			{can.saveCopy && (
-				<SheetItem
+				<Item
 					icon={<Download size={20} />}
 					onClick={() => run(saveCopyOf(file), t("Couldn't save a copy"))}
 					testId={`${testPrefix}-save-copy`}
 				>
 					{t("Save a copy")}
-				</SheetItem>
+				</Item>
 			)}
 			{can.openWith && (
-				<SheetItem
+				<Item
 					icon={<AppWindow size={20} />}
 					onClick={() =>
 						run(backend.openWith(file), t("No other app can open this file"))
@@ -182,10 +205,10 @@ export function HandOffItems({
 					testId={`${testPrefix}-open-with`}
 				>
 					{t("Open in another app")}
-				</SheetItem>
+				</Item>
 			)}
 			{can.reveal && (
-				<SheetItem
+				<Item
 					icon={<FolderOpen size={20} />}
 					onClick={() =>
 						run(backend.reveal(file), t("Couldn't show the folder"))
@@ -193,7 +216,7 @@ export function HandOffItems({
 					testId={`${testPrefix}-reveal`}
 				>
 					{t("Show in folder")}
-				</SheetItem>
+				</Item>
 			)}
 		</>
 	);
@@ -262,7 +285,12 @@ export function FileMenu({
 				<MoreVertical size={20} />
 			</IconButton>
 			<Sheet open={open} title={file.name} onClose={close} testId="file-menu">
-				{extra?.(close)}
+				{extra && (
+					<>
+						{extra(close)}
+						<SheetDivider />
+					</>
+				)}
 				{isDesktop && (
 					<SheetItem
 						icon={
@@ -278,39 +306,42 @@ export function FileMenu({
 						{inFullscreen() ? t("Leave full screen") : t("Full screen")}
 					</SheetItem>
 				)}
-				<HandOffItems file={file} onDone={close} testPrefix="file" />
-				{backend.abilities(file).rename && context.onRenamed && (
-					<SheetItem
-						icon={<PencilLine size={20} />}
+				{/* The file itself: tiles, so the menu stays short. */}
+				<SheetTiles>
+					{onPrint && (
+						<SheetTile
+							icon={<Printer size={20} />}
+							hint={isDesktop ? keys("Ctrl+P") : undefined}
+							onClick={print}
+							testId="file-print"
+						>
+							{t("Print")}
+						</SheetTile>
+					)}
+					<HandOffItems file={file} onDone={close} testPrefix="file" tiles />
+					{backend.abilities(file).rename && context.onRenamed && (
+						<SheetTile
+							icon={<PencilLine size={20} />}
+							onClick={() => {
+								setOpen(false);
+								setRenaming(true);
+							}}
+							testId="file-rename"
+						>
+							{t("Rename")}
+						</SheetTile>
+					)}
+					<SheetTile
+						icon={<Info size={20} />}
 						onClick={() => {
 							setOpen(false);
-							setRenaming(true);
+							setDetails(true);
 						}}
-						testId="file-rename"
+						testId="file-details-open"
 					>
-						{t("Rename")}
-					</SheetItem>
-				)}
-				{onPrint && (
-					<SheetItem
-						icon={<Printer size={20} />}
-						shortcut="Ctrl+P"
-						onClick={print}
-						testId="file-print"
-					>
-						{t("Print")}
-					</SheetItem>
-				)}
-				<SheetItem
-					icon={<Info size={20} />}
-					onClick={() => {
-						setOpen(false);
-						setDetails(true);
-					}}
-					testId="file-details-open"
-				>
-					{t("Details")}
-				</SheetItem>
+						{t("Details")}
+					</SheetTile>
+				</SheetTiles>
 			</Sheet>
 			{details && (
 				<FileDetails

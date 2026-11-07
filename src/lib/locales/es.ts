@@ -1157,6 +1157,14 @@ export const es: Table = {
 		"Una sola página en pantalla, sin tener que encuadrarla",
 	"Previous page": "Página anterior",
 	"Next page": "Página siguiente",
+	"While reading": "Mientras lees",
+	"Saved on this device": "Guardado en este dispositivo",
+	"Keyboard shortcuts": "Atajos de teclado",
+	"Press ? while reading to see them there":
+		"Pulsa ? mientras lees para verlos allí",
+	"Moving around": "Moverse",
+	"Reading and marking": "Leer y marcar",
+	"Slides and sheets": "Diapositivas y hojas",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"Pasa las páginas con las flechas del teclado, la rueda del ratón o las flechas junto a la página.",
 	"Swipe, or tap either side of the page, to turn it.":

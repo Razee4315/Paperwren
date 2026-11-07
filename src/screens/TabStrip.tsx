@@ -1,3 +1,4 @@
+import { splitName } from "@/lib/fileName";
 import { formatFromName } from "@/lib/formats";
 import { t, uiDir } from "@/lib/i18n";
 import type { OpenRequest } from "@/lib/types";
@@ -66,7 +67,12 @@ export function TabStrip({
 									aria-hidden="true"
 								/>
 								<span className={s.name} dir="auto">
-									{tab.request.name}
+									<span className={s.stem}>
+										{splitName(tab.request.name)[0]}
+									</span>
+									<span className={s.ext}>
+										{splitName(tab.request.name)[1]}
+									</span>
 								</span>
 							</button>
 							<button

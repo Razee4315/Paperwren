@@ -154,6 +154,9 @@ export default function ViewerScreen({
 		busy: boolean;
 	} | null>(null);
 	const unlocking = useRef<AbortController | null>(null);
+	// Whether this file was new to Recent files when it was opened: one
+	// that then fails to open is taken out again, an old one is kept.
+	const firstOpen = useRef(false);
 	useEffect(() => () => unlocking.current?.abort(), []);
 
 	/** Show what the bytes turned out to be. `size` is the file's own
@@ -165,6 +168,7 @@ export default function ViewerScreen({
 			return;
 		}
 		const { name, verified } = displayName(request, format);
+		firstOpen.current = !entries.some((e) => e.id === request.id);
 		// A file inside another one has no place to reopen it from.
 		if (request.reopen.kind !== "memory")
 			record({
@@ -380,6 +384,9 @@ export default function ViewerScreen({
 						onPosition={onPosition}
 						onClose={onClose}
 						active={active}
+						onBroken={() => {
+							if (firstOpen.current) remove(request.id);
+						}}
 					/>
 				</Suspense>
 			</ViewerBoundary>

@@ -1050,6 +1050,13 @@ export const zh: Table = {
 	"A single page on screen, nothing to line up": "屏幕上只显示一页，无需对齐",
 	"Previous page": "上一页",
 	"Next page": "下一页",
+	"While reading": "阅读时",
+	"Saved on this device": "保存在此设备上",
+	"Keyboard shortcuts": "键盘快捷键",
+	"Press ? while reading to see them there": "阅读时按 ? 即可在那里查看",
+	"Moving around": "浏览与跳转",
+	"Reading and marking": "阅读与标记",
+	"Slides and sheets": "幻灯片和工作表",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"使用方向键、鼠标滚轮或页面两侧的箭头翻页。",
 	"Swipe, or tap either side of the page, to turn it.":

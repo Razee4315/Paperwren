@@ -7,6 +7,11 @@
 - Zooming is smoother: when a zoom out leaves the page somewhere the screen cannot follow, it glides there instead of jumping; the page sharpens sooner once the zoom ends; and a turn of the mouse wheel is a gentler step.
 - The bar stays still while zooming: the page number no longer shifts when "Whole page" becomes "137%".
 - The first document after starting the app opens about twice as fast: the reader is made ready while Home is shown.
+- A shorter menu: the tools and the file's own actions are tiles, Rotate left and Add bookmark sit at the end of their rows, and the groups are set apart.
+- Settings lists its sections beside it on a computer, and as a row at the top on a phone; the one you are in is marked. Reading and Files are split into shorter groups, the keyboard shortcuts open in a list of their own, grouped by what they do, and Esc leaves Settings.
+- Tabs of files with the same name keep their type in sight: "Quarterly re….docx", "Quarterly re….xlsx".
+- A PDF that turns out to be damaged is not added to Recent files.
+- Find, the laser pointer and other on-and-off buttons say whether they are on to screen readers.
 - Page Down and Space stop at the top of the next page instead of part way down it. A page that fits the screen turns a page at a time.
 - A page zoomed past the screen is read to its foot before the next page is turned to.
 - The arrow keys keep turning the pages after a click on a PDF.

@@ -316,6 +316,7 @@ export function SheetItem({
 	onClick,
 	disabled,
 	testId,
+	extra,
 }: {
 	icon?: ReactNode;
 	children: ReactNode;
@@ -328,7 +329,28 @@ export function SheetItem({
 	onClick: () => void;
 	disabled?: boolean;
 	testId?: string;
+	/** A small button of its own at the end of the row (Bookmarks: add
+	 * one), so two actions that belong together take one row. */
+	extra?: ReactNode;
 }) {
+	if (extra)
+		return (
+			<div className={s.itemRow}>
+				<SheetItem
+					icon={icon}
+					hint={hint}
+					shortcut={shortcut}
+					checked={checked}
+					danger={danger}
+					onClick={onClick}
+					disabled={disabled}
+					testId={testId}
+				>
+					{children}
+				</SheetItem>
+				{extra}
+			</div>
+		);
 	return (
 		<button
 			type="button"
@@ -348,6 +370,53 @@ export function SheetItem({
 			)}
 		</button>
 	);
+}
+
+/** Actions as small tiles, several to a row, so a menu of many stays
+ * short: a picture and a word or two each, the longer line kept for the
+ * tooltip and screen readers. */
+export function SheetTiles({ children }: { children: ReactNode }) {
+	return <div className={s.tiles}>{children}</div>;
+}
+
+export function SheetTile({
+	icon,
+	children,
+	hint,
+	onClick,
+	disabled,
+	checked,
+	testId,
+}: {
+	icon: ReactNode;
+	children: ReactNode;
+	/** What it does, or why it can't (shown on hover, read aloud). */
+	hint?: string;
+	onClick: () => void;
+	disabled?: boolean;
+	checked?: boolean;
+	testId?: string;
+}) {
+	return (
+		<button
+			type="button"
+			className={`${s.tile} ${checked ? s.itemOn : ""}`}
+			onClick={onClick}
+			disabled={disabled}
+			title={hint}
+			aria-pressed={checked}
+			data-testid={testId}
+		>
+			{icon}
+			<span className={s.tileText}>{children}</span>
+			{hint && <span className="visually-hidden">{`. ${hint}`}</span>}
+		</button>
+	);
+}
+
+/** A thin line between the groups of a menu. */
+export function SheetDivider() {
+	return <hr className={s.divider} />;
 }
 
 export function Dialog({

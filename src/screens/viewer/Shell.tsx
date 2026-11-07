@@ -16,6 +16,7 @@ import { useSettings } from "@/state/settings";
 import {
 	IconButton,
 	Sheet,
+	SheetDivider,
 	SheetItem,
 	formatColor,
 	modalOpen,
@@ -505,7 +506,12 @@ export function Shell({
 
 	const fileMenu = (close: () => void) => (
 		<>
-			{menu?.(close)}
+			{menu && (
+				<>
+					{menu(close)}
+					<SheetDivider />
+				</>
+			)}
 			{canScroll && (
 				<SheetItem
 					icon={<ScrollText size={20} />}
@@ -551,30 +557,30 @@ export function Shell({
 				</SheetItem>
 			)}
 			{fileId && (
-				<>
-					<SheetItem
-						icon={<BookmarkPlus size={20} />}
-						shortcut="Ctrl+D"
-						onClick={() => {
-							close();
-							addMark();
-						}}
-						testId="bookmark-add"
-					>
-						{t("Add bookmark")}
-					</SheetItem>
-					<SheetItem
-						icon={<Bookmark size={20} />}
-						hint={marks.list.length ? String(marks.list.length) : undefined}
-						onClick={() => {
-							close();
-							setMarksOpen(true);
-						}}
-						testId="bookmarks"
-					>
-						{t("Bookmarks")}
-					</SheetItem>
-				</>
+				<SheetItem
+					icon={<Bookmark size={20} />}
+					hint={marks.list.length ? String(marks.list.length) : undefined}
+					onClick={() => {
+						close();
+						setMarksOpen(true);
+					}}
+					testId="bookmarks"
+					extra={
+						<IconButton
+							label={t("Add bookmark")}
+							shortcut="Ctrl+D"
+							onClick={() => {
+								close();
+								addMark();
+							}}
+							data-testid="bookmark-add"
+						>
+							<BookmarkPlus size={18} />
+						</IconButton>
+					}
+				>
+					{t("Bookmarks")}
+				</SheetItem>
 			)}
 			{paper && (
 				<SheetItem
@@ -924,7 +930,7 @@ export function Shell({
 			)}
 			<Sheet
 				open={keysOpen}
-				title={t("Keyboard")}
+				title={t("Keyboard shortcuts")}
 				onClose={() => setKeysOpen(false)}
 				wide
 				testId="keys-sheet"

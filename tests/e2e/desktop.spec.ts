@@ -409,12 +409,28 @@ test.describe("the desktop layout", () => {
 		await expect.poll(async () => (await bar.boundingBox())?.y ?? -99).toBe(0);
 	});
 
-	test("Settings lists the keyboard shortcuts", async ({ page }) => {
+	test("Settings lists the keyboard shortcuts, and Esc leaves it", async ({
+		page,
+	}) => {
 		await boot(page, {}, DESKTOP);
 		await page.getByTestId("open-settings").click();
+		// The sections are listed beside it, and go where they say.
+		await page.getByTestId("section-about").click();
+		await expect(page.getByTestId("section-about")).toHaveAttribute(
+			"aria-current",
+			"true",
+		);
+		await page.getByTestId("shortcuts-open").click();
 		const keys = page.getByTestId("shortcuts");
 		await expect(keys).toContainText("Ctrl+O");
 		await expect(keys).toContainText("F11");
+		// Esc closes the list first, then Settings.
+		await page.keyboard.press("Escape");
+		await expect(keys).toHaveCount(0);
+		await expect(page.getByTestId("settings")).toBeVisible();
+		await page.keyboard.press("Escape");
+		await expect(page.getByTestId("settings")).toHaveCount(0);
+		await expect(page.getByTestId("home")).toBeVisible();
 	});
 });
 
@@ -452,12 +468,14 @@ test.describe("the desktop layout on a Mac", () => {
 	test("the keys are the Mac's", async ({ page }) => {
 		await boot(page, {}, MAC);
 		await page.getByTestId("open-settings").click();
+		await page.getByTestId("shortcuts-open").click();
 		const keys = page.getByTestId("shortcuts");
 		await expect(keys).toContainText("⌘O");
 		await expect(keys).toContainText("⌃⌘F");
 		await expect(keys).toContainText("⌘↑ · ⌘↓");
 		await expect(keys).not.toContainText("Ctrl");
 		await expect(keys).not.toContainText("F11");
+		await page.keyboard.press("Escape");
 		await page.getByTestId("settings-back").click();
 
 		await openFixture(page, "sample.pdf");

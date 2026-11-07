@@ -24,7 +24,10 @@ import {
 	ErrorArt,
 	IconButton,
 	Sheet,
+	SheetDivider,
 	SheetItem,
+	SheetTile,
+	SheetTiles,
 	Spinner,
 	StateView,
 	modalOpen,
@@ -250,7 +253,10 @@ export default function PdfView({
 	onPosition,
 	onClose,
 	active,
+	onBroken,
 }: ViewerProps) {
+	const brokenRef = useRef(onBroken);
+	brokenRef.current = onBroken;
 	const { settings, theme } = useSettings();
 	const container = useRef<HTMLDivElement>(null);
 	const viewerEl = useRef<HTMLDivElement>(null);
@@ -546,6 +552,7 @@ export default function PdfView({
 				if (!alive) return;
 				setFault(err);
 				setStatus("error");
+				brokenRef.current?.();
 			});
 		return () => {
 			alive = false;
@@ -1533,124 +1540,194 @@ export default function PdfView({
 
 	const pdfMenu = (close: () => void) => (
 		<>
-			<SheetItem
-				icon={<PenLine size={20} />}
-				disabled={!rights.fill}
-				hint={
-					rights.fill
-						? t("Fill in its form, sign it, add text or a date")
-						: t("Its author doesn't allow changes")
-				}
-				onClick={() => {
-					close();
-					setFillFrom(page - 1);
-					setFilling(true);
-				}}
-				testId="pdf-fill-sign"
-			>
-				{t("Fill & sign")}
-			</SheetItem>
-			<SheetItem
-				icon={<Highlighter size={20} />}
-				disabled={!rights.mark}
-				hint={
-					rights.mark
-						? t("Write on it, highlight words, add notes")
-						: t("Its author doesn't allow changes")
-				}
-				onClick={() => {
-					close();
-					setMarkingUp("pen");
-				}}
-				testId="pdf-mark-up"
-			>
-				{t("Mark up")}
-			</SheetItem>
-			<SheetItem
-				icon={<MessageSquareText size={20} />}
-				hint={
-					marks.list.length
-						? String(marks.list.length)
-						: t("Everything you marked, in one list")
-				}
-				onClick={() => {
-					close();
-					setMarksOpen(true);
-				}}
-				testId="pdf-highlights"
-			>
-				{t("Highlights and notes")}
-			</SheetItem>
-			{marks.list.length > 0 && (
-				<SheetItem
-					icon={<FileDown size={20} />}
-					hint={t("A new PDF other apps can show them in")}
+			{/* What can be done with it: tiles, so the menu stays short. */}
+			<SheetTiles>
+				<SheetTile
+					icon={<PenLine size={20} />}
+					disabled={!rights.fill}
+					hint={
+						rights.fill
+							? t("Fill in its form, sign it, add text or a date")
+							: t("Its author doesn't allow changes")
+					}
 					onClick={() => {
 						close();
-						askSaveMarks();
+						setFillFrom(page - 1);
+						setFilling(true);
 					}}
-					testId="pdf-save-marks"
+					testId="pdf-fill-sign"
 				>
-					{t("Save a copy with my marks")}
-				</SheetItem>
-			)}
-			<SheetItem
-				icon={<ScanText size={20} />}
-				hint={t("Copy its words, even from a scan")}
-				onClick={() => {
-					close();
-					setReadingText(true);
-				}}
-				testId="pdf-read-text"
-			>
-				{t("Read text")}
-			</SheetItem>
-			{file?.openTools && (
-				<SheetItem
-					icon={<Wrench size={20} />}
-					hint={t("Merge, split, organize pages, number them, add a password")}
+					{t("Fill & sign")}
+				</SheetTile>
+				<SheetTile
+					icon={<Highlighter size={20} />}
+					disabled={!rights.mark}
+					hint={
+						rights.mark
+							? t("Write on it, highlight words, add notes")
+							: t("Its author doesn't allow changes")
+					}
 					onClick={() => {
 						close();
-						file.openTools?.();
+						setMarkingUp("pen");
 					}}
-					testId="pdf-tools"
+					testId="pdf-mark-up"
 				>
-					{t("More PDF tools")}
-				</SheetItem>
-			)}
-			<SheetItem
-				icon={<ImageDown size={20} />}
-				hint={t("Page {n}, as a picture of its own", { n: page })}
-				onClick={() => {
-					close();
-					void savePage();
-				}}
-				testId="pdf-save-page"
-			>
-				{t("Save page as picture")}
-			</SheetItem>
+					{t("Mark up")}
+				</SheetTile>
+				<SheetTile
+					icon={<ScanText size={20} />}
+					hint={t("Copy its words, even from a scan")}
+					onClick={() => {
+						close();
+						setReadingText(true);
+					}}
+					testId="pdf-read-text"
+				>
+					{t("Read text")}
+				</SheetTile>
+				<SheetTile
+					icon={<MessageSquareText size={20} />}
+					hint={t("Everything you marked, in one list")}
+					onClick={() => {
+						close();
+						setMarksOpen(true);
+					}}
+					testId="pdf-highlights"
+				>
+					{marks.list.length
+						? `${t("Highlights and notes")} (${marks.list.length})`
+						: t("Highlights and notes")}
+				</SheetTile>
+				{file?.openTools && (
+					<SheetTile
+						icon={<Wrench size={20} />}
+						hint={t(
+							"Merge, split, organize pages, number them, add a password",
+						)}
+						onClick={() => {
+							close();
+							file.openTools?.();
+						}}
+						testId="pdf-tools"
+					>
+						{t("More PDF tools")}
+					</SheetTile>
+				)}
+				<SheetTile
+					icon={<ImageDown size={20} />}
+					hint={t("Page {n}, as a picture of its own", { n: page })}
+					onClick={() => {
+						close();
+						void savePage();
+					}}
+					testId="pdf-save-page"
+				>
+					{t("Save page as picture")}
+				</SheetTile>
+				{marks.list.length > 0 && (
+					<SheetTile
+						icon={<FileDown size={20} />}
+						hint={t("A new PDF other apps can show them in")}
+						onClick={() => {
+							close();
+							askSaveMarks();
+						}}
+						testId="pdf-save-marks"
+					>
+						{t("Save a copy with my marks")}
+					</SheetTile>
+				)}
+			</SheetTiles>
 			{!isDesktop && (
 				<>
-					<SheetItem
-						icon={<StretchHorizontal size={20} />}
-						onClick={() => {
-							setPreset("page-width");
-							close();
-						}}
-					>
-						{t("Fit width")}
-					</SheetItem>
-					<SheetItem
-						icon={<Maximize size={20} />}
-						onClick={() => {
-							setPreset("page-fit");
-							close();
-						}}
-					>
-						{t("Whole page")}
-					</SheetItem>
+					<SheetDivider />
+					{/* A phone has no side panel: its lists are here. */}
+					<SheetTiles>
+						<SheetTile
+							icon={<LayoutGrid size={20} />}
+							onClick={() => {
+								close();
+								setThumbsOpen(true);
+							}}
+							testId="pdf-pages"
+						>
+							{t("Pages")}
+						</SheetTile>
+						<SheetTile
+							icon={<ListTree size={20} />}
+							disabled={!outline?.length}
+							hint={
+								outline && !outline.length
+									? t("This PDF has no outline")
+									: undefined
+							}
+							onClick={() => {
+								close();
+								setOutlineOpen(true);
+							}}
+						>
+							{t("Contents")}
+						</SheetTile>
+						<SheetTile
+							icon={<MessageSquare size={20} />}
+							onClick={() => {
+								close();
+								setExtra("comments");
+							}}
+							testId="pdf-comments"
+						>
+							{t("Comments")}
+						</SheetTile>
+						{attachments.length > 0 && (
+							<SheetTile
+								icon={<Paperclip size={20} />}
+								onClick={() => {
+									close();
+									setExtra("attachments");
+								}}
+								testId="pdf-attachments"
+							>
+								{`${t("Attachments")} (${attachments.length})`}
+							</SheetTile>
+						)}
+						{layers.length > 0 && (
+							<SheetTile
+								icon={<LayersIcon size={20} />}
+								onClick={() => {
+									close();
+									setExtra("layers");
+								}}
+								testId="pdf-layers"
+							>
+								{t("Layers")}
+							</SheetTile>
+						)}
+						<SheetTile
+							icon={<StretchHorizontal size={20} />}
+							onClick={() => {
+								setPreset("page-width");
+								close();
+							}}
+							testId="pdf-fit-width"
+						>
+							{t("Fit width")}
+						</SheetTile>
+						<SheetTile
+							icon={<Maximize size={20} />}
+							onClick={() => {
+								setPreset("page-fit");
+								close();
+							}}
+							testId="pdf-whole-page"
+						>
+							{t("Whole page")}
+						</SheetTile>
+					</SheetTiles>
 				</>
 			)}
+			<SheetDivider />
+			{/* How it is shown. */}
 			<SheetItem
 				icon={<PageViewIcon flow={flow} />}
 				hint={t(pageViewName(flow))}
@@ -1703,90 +1780,28 @@ export default function PdfView({
 			)}
 			<SheetItem
 				icon={<RotateCw size={20} />}
-				shortcut={isMac ? "Ctrl+R" : "Ctrl+]"}
+				shortcut={isDesktop ? (isMac ? "Ctrl+R" : "Ctrl+]") : undefined}
 				onClick={() => {
 					rotate(90);
 					close();
 				}}
+				testId="pdf-rotate"
+				extra={
+					<IconButton
+						label={t("Rotate left")}
+						shortcut={isMac ? "Ctrl+L" : "Ctrl+["}
+						onClick={() => {
+							rotate(-90);
+							close();
+						}}
+						data-testid="pdf-rotate-left"
+					>
+						<RotateCcw size={18} />
+					</IconButton>
+				}
 			>
 				{t("Rotate")}
 			</SheetItem>
-			{isDesktop && (
-				<SheetItem
-					icon={<RotateCcw size={20} />}
-					shortcut={isMac ? "Ctrl+L" : "Ctrl+["}
-					onClick={() => {
-						rotate(-90);
-						close();
-					}}
-				>
-					{t("Rotate left")}
-				</SheetItem>
-			)}
-			{!isDesktop && (
-				<>
-					<SheetItem
-						icon={<LayoutGrid size={20} />}
-						onClick={() => {
-							close();
-							setThumbsOpen(true);
-						}}
-						testId="pdf-pages"
-					>
-						{t("Pages")}
-					</SheetItem>
-					<SheetItem
-						icon={<ListTree size={20} />}
-						disabled={!outline?.length}
-						hint={
-							outline && !outline.length
-								? t("This PDF has no outline")
-								: undefined
-						}
-						onClick={() => {
-							close();
-							setOutlineOpen(true);
-						}}
-					>
-						{t("Contents")}
-					</SheetItem>
-					<SheetItem
-						icon={<MessageSquare size={20} />}
-						onClick={() => {
-							close();
-							setExtra("comments");
-						}}
-						testId="pdf-comments"
-					>
-						{t("Comments")}
-					</SheetItem>
-					{attachments.length > 0 && (
-						<SheetItem
-							icon={<Paperclip size={20} />}
-							hint={String(attachments.length)}
-							onClick={() => {
-								close();
-								setExtra("attachments");
-							}}
-							testId="pdf-attachments"
-						>
-							{t("Attachments")}
-						</SheetItem>
-					)}
-					{layers.length > 0 && (
-						<SheetItem
-							icon={<LayersIcon size={20} />}
-							onClick={() => {
-								close();
-								setExtra("layers");
-							}}
-							testId="pdf-layers"
-						>
-							{t("Layers")}
-						</SheetItem>
-					)}
-				</>
-			)}
 		</>
 	);
 
