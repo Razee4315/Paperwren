@@ -145,7 +145,7 @@ jobs:
           releaseBody: |
             Paperwren v__VERSION__. Open anything. Instantly.
 
-            Downloads for Windows, macOS and Android are attached below. See the README for what Paperwren is and is not.
+            Downloads for Windows, macOS, Linux (beta: AppImage and .deb) and Android are attached below. See the README for what Paperwren is and is not.
           releaseDraft: false
           prerelease: false
 
@@ -209,6 +209,75 @@ jobs:
         with:
           tauriScript: npx tauri
           args: --target universal-apple-darwin ${{ steps.updater.outputs.args }}
+          tagName: v__VERSION__
+          releaseCommitish: ${{ needs.check-and-bump.outputs.commit }}
+          releaseName: Paperwren v__VERSION__
+          releaseDraft: false
+          prerelease: false
+
+  # Linux (beta): an AppImage that runs on most distributions and a .deb
+  # for Debian and Ubuntu. Built on the oldest supported Ubuntu so the
+  # AppImage's glibc floor stays low. After macOS: each job adds its
+  # platforms to the release's latest.json, so they must not race.
+  linux:
+    name: Linux (AppImage + deb)
+    needs: [check-and-bump, macos]
+    if: needs.check-and-bump.outputs.should_release == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-and-bump.outputs.commit }}
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential file             libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Generate app icons
+        run: npx tauri icon assets/brand/app-icon.svg --output src-tauri/icons
+
+      # The updater's feed, as for Windows and macOS: the AppImage updates
+      # itself; a .deb is updated by reinstalling it.
+      - name: Sign updates when the key is set
+        id: updater
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo 'args=--config {"bundle":{"createUpdaterArtifacts":true}}' >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No TAURI_SIGNING_PRIVATE_KEY secret: this release carries no update for installed copies."
+          fi
+
+      - name: Build and add to the release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tauriScript: npx tauri
+          args: --bundles appimage,deb ${{ steps.updater.outputs.args }}
           tagName: v__VERSION__
           releaseCommitish: ${{ needs.check-and-bump.outputs.commit }}
           releaseName: Paperwren v__VERSION__
