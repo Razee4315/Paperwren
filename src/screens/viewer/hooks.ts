@@ -1,6 +1,7 @@
 import type { FileFormat } from "@/lib/formats";
 import { locale, t } from "@/lib/i18n";
 import { readOfficeMeta } from "@/lib/officeMeta";
+import { matches } from "@/lib/shortcuts";
 import type { Position } from "@/lib/types";
 import { useSettings } from "@/state/settings";
 import {
@@ -61,10 +62,13 @@ export interface ZoomApi {
 }
 
 const ZOOM_MS = 170;
+/** How long the document glides to where a zoom really left it. */
+const SETTLE_MS = 220;
 const EASE = "cubic-bezier(0.2, 0, 0, 1)";
 /** One wheel notch on a mouse is deltaY 100; a trackpad pinch sends
- * single digits. Capping keeps a notch to a gentle step. */
-const WHEEL_CAP = 26;
+ * single digits. Capping keeps a notch to a gentle step, about 17%, as
+ * in other readers (a bigger one feels like a jump). */
+const WHEEL_CAP = 16;
 
 type GestureKind = "pinch" | "wheel" | "magnify" | "glide";
 
@@ -120,12 +124,33 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 		const calm = () =>
 			window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-		/** Set the zoom so the content at (fx, fy) lands on (tx, ty). */
-		const apply = (z: number, fx: number, fy: number, tx = fx, ty = fy) => {
+		let settling = 0;
+		/** Stop a glide that is under way (a new gesture takes over). */
+		const unsettle = () => {
+			if (!settling || !layer) return;
+			window.clearTimeout(settling);
+			settling = 0;
+			layer.style.transition = "";
+			layer.style.transform = "";
+		};
+		/** Set the zoom so the content at (fx, fy) lands on (tx, ty). With
+		 * `glide`, what the scroll cannot reach (above the top of the
+		 * document, or a page that centres itself once it is narrower than
+		 * the screen) glides there from where the gesture left it, instead
+		 * of jumping in one frame. */
+		const apply = (
+			z: number,
+			fx: number,
+			fy: number,
+			tx = fx,
+			ty = fy,
+			glide = false,
+		) => {
 			const el = o.current.anchor?.(fx, fy) ?? body;
 			const before = el.getBoundingClientRect();
 			const u = before.width ? (fx - before.left) / before.width : 0;
 			const v = before.height ? (fy - before.top) / before.height : 0;
+			unsettle();
 			if (layer) {
 				layer.style.transition = "";
 				layer.style.transform = "";
@@ -137,6 +162,21 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 			const after = el.getBoundingClientRect();
 			box.scrollLeft += after.left + u * after.width - tx;
 			box.scrollTop += after.top + v * after.height - ty;
+			if (glide && layer && !calm()) {
+				const now = el.getBoundingClientRect();
+				const ex = now.left + u * now.width - tx;
+				const ey = now.top + v * now.height - ty;
+				if (Math.hypot(ex, ey) > 1) {
+					layer.style.transform = `translate(${-ex}px, ${-ey}px)`;
+					layer.getBoundingClientRect(); // start the glide from there
+					layer.style.transition = `transform ${SETTLE_MS}ms ${EASE}`;
+					layer.style.transform = "";
+					settling = window.setTimeout(() => {
+						settling = 0;
+						layer.style.transition = "";
+					}, SETTLE_MS + 30);
+				}
+			}
 			o.current.onSettle?.();
 		};
 
@@ -172,7 +212,7 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 			g = null;
 			const z = clamp(done.base * (done.goal ?? done.f));
 			flash(z);
-			if (layer) apply(z, done.x, done.y);
+			if (layer) apply(z, done.x, done.y, done.x, done.y, true);
 			else apply(z, done.px, done.py, done.x, done.y);
 			done.after?.();
 		};
@@ -191,6 +231,7 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 				raf: 0,
 			};
 			g = next;
+			unsettle();
 			if (layer) {
 				const r = layer.getBoundingClientRect();
 				layer.style.transformOrigin = `${x - r.left}px ${y - r.top}px`;
@@ -359,6 +400,7 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 		box.addEventListener("wheel", onWheel, { passive: false });
 		return () => {
 			finish();
+			unsettle();
 			window.clearTimeout(tapTimer);
 			window.clearTimeout(hudTimer);
 			api.current = null;
@@ -377,12 +419,11 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 	useEffect(() => {
 		if (!enabled || !active) return;
 		const onKey = (e: KeyboardEvent) => {
-			if ((!e.ctrlKey && !e.metaKey) || e.altKey) return;
 			const z = api.current;
 			if (!z) return;
-			if (e.key === "=" || e.key === "+") z.zoomBy(1.25);
-			else if (e.key === "-" || e.key === "_") z.zoomBy(1 / 1.25);
-			else if (e.key === "0") {
+			if (matches(e, "zoomIn")) z.zoomBy(1.25);
+			else if (matches(e, "zoomOut")) z.zoomBy(1 / 1.25);
+			else if (matches(e, "zoomReset")) {
 				if (o.current.onReset) o.current.onReset();
 				else z.zoomTo(o.current.home ?? 1);
 			} else return;

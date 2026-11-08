@@ -129,7 +129,8 @@ test.describe("PDF pages and links", () => {
 		const counter = page.getByTestId("pdf-page");
 		await expect(counter).toHaveText("1 / 3", { timeout: 20_000 });
 		await page.getByTestId("file-more").click();
-		await page.getByTestId("pdf-across").click();
+		await page.getByTestId("pdf-page-view").click();
+		await page.getByTestId("page-view-across").click();
 		const scroller = page.getByTestId("pdf-scroll");
 		await expect(scroller).toHaveAttribute("data-flow", "across");
 		await expect(page.getByTestId("pdf-scale")).toHaveText("Whole page");
@@ -170,7 +171,8 @@ test.describe("PDF pages and links", () => {
 			timeout: 20_000,
 		});
 		await page.getByTestId("file-more").click();
-		await page.getByTestId("pdf-across").click();
+		await page.getByTestId("pdf-page-view").click();
+		await page.getByTestId("page-view-across").click();
 		await expect(page.getByTestId("pdf-scale")).toHaveText("Whole page");
 		// A whole portrait page is as wide as the phone and shorter than it.
 		const middles = () =>
@@ -253,6 +255,75 @@ test.describe("a page as a picture", () => {
 test.describe("PDF pages on a desktop", () => {
 	test.use({ viewport: { width: 1280, height: 800 } });
 
+	test("one page at a time: keys, the wheel, and a page zoomed past the screen", async ({
+		page,
+	}) => {
+		await boot(page, { settings_v2: { pdfFlow: "one" } }, "?desktop");
+		await openFixture(page, "sample.pdf");
+		const field = page.getByTestId("pdf-page-field");
+		await expect(field).toHaveValue("1", { timeout: 20_000 });
+		const box = page.getByTestId("pdf-scroll");
+		const fits = () =>
+			box.evaluate((el) => el.scrollHeight <= el.clientHeight + 8);
+		const top = () => box.evaluate((el) => el.scrollTop);
+		// Only the page on show, and all of it.
+		await expect(box.locator(".page")).toHaveCount(1);
+		expect(await fits()).toBe(true);
+		await page.keyboard.press("PageDown");
+		await expect(field).toHaveValue("2");
+		await page.keyboard.press("Space");
+		await expect(field).toHaveValue("3");
+		await page.keyboard.press("Shift+Space");
+		await expect(field).toHaveValue("2");
+		await page.keyboard.press("Home");
+		await expect(field).toHaveValue("1");
+		await page.mouse.move(640, 400);
+		await page.mouse.wheel(0, 120);
+		await expect(field).toHaveValue("2");
+		await page.keyboard.press("End");
+		await expect(field).toHaveValue("3");
+		await page.keyboard.press("Home");
+		await expect(field).toHaveValue("1");
+		// The arrows beside the page come with the mouse, for whoever does
+		// not know the keys.
+		await page.mouse.move(500, 300);
+		await page.mouse.move(520, 320);
+		await expect(page.getByTestId("pdf-prev")).toBeDisabled();
+		await page.getByTestId("pdf-next").click();
+		await expect(field).toHaveValue("2");
+		await page.getByTestId("pdf-prev").click();
+		await expect(field).toHaveValue("1");
+
+		// Zoomed past the screen: Page Down reads down the page, then turns
+		// to the top of the next.
+		for (let i = 0; i < 4; i++) await page.getByTestId("pdf-zoom-in").click();
+		await expect.poll(fits).toBe(false);
+		await box.evaluate((el) => {
+			el.scrollTop = 0;
+		});
+		await page.keyboard.press("PageDown");
+		await expect.poll(top).toBeGreaterThan(100);
+		await expect(field).toHaveValue("1");
+		for (let i = 0; i < 12 && (await field.inputValue()) === "1"; i++)
+			await page.keyboard.press("PageDown");
+		await expect(field).toHaveValue("2");
+		await expect.poll(top).toBe(0);
+		// Back from the top of a page: the one before, from its foot.
+		await page.keyboard.press("PageUp");
+		await expect(field).toHaveValue("1");
+		await expect
+			.poll(() =>
+				box.evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop),
+			)
+			.toBeLessThan(2);
+
+		// The menu goes back to one long scroll.
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("pdf-page-view").click();
+		await page.getByTestId("page-view-down").click();
+		await expect(box.locator(".page")).toHaveCount(3);
+	});
+
 	test("keys, the wheel and a book's cover turn pages laid sideways", async ({
 		page,
 	}) => {
@@ -287,7 +358,8 @@ test.describe("PDF pages on a desktop", () => {
 		await page.getByTestId("file-more").click();
 		await page.getByTestId("pdf-spread").click();
 		await page.getByTestId("file-more").click();
-		await page.getByTestId("pdf-across").click();
+		await page.getByTestId("pdf-page-view").click();
+		await page.getByTestId("page-view-down").click();
 		await page.keyboard.press("Home");
 		await page.locator(".annotationLayer a").first().click();
 		await expect(field).toHaveValue("3");
@@ -687,8 +759,13 @@ function fakeSpeech() {
 	};
 	w.__spoken = [];
 	let current: Record<string, unknown> | null = null;
+	// No `constructor(public text)`: Node's own TypeScript stripping
+	// (Node 22.6+) refuses parameter properties.
 	w.SpeechSynthesisUtterance = class {
-		constructor(public text: string) {}
+		text: string;
+		constructor(text: string) {
+			this.text = text;
+		}
 	};
 	const synth = {
 		getVoices: () => [

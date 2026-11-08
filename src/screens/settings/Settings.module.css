@@ -38,6 +38,93 @@
 	padding: 4px calc(16px + var(--safe-right)) calc(40px + var(--safe-bottom))
 		calc(16px + var(--safe-left));
 }
+/* The sections: a row of chips that stays above the page while it
+ * scrolls; on a wide window, a list beside it. */
+.sections {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	display: flex;
+	gap: 6px;
+	overflow-x: auto;
+	padding: 4px calc(16px + var(--safe-right)) 10px calc(16px + var(--safe-left));
+	background: var(--bg);
+	border-bottom: 1px solid var(--line);
+	scrollbar-width: none;
+}
+.sections::-webkit-scrollbar {
+	display: none;
+}
+.sectionLink {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 32px;
+	padding: 0 12px;
+	border-radius: 999px;
+	border: 1px solid var(--line);
+	background: var(--surface);
+	color: var(--text-2);
+	font-size: 13px;
+	font-weight: 650;
+	white-space: nowrap;
+	transition: background-color var(--t-fast) var(--ease), color var(--t-fast)
+		var(--ease);
+}
+.sectionLink svg {
+	flex-shrink: 0;
+}
+.sectionLink:hover {
+	color: var(--text);
+}
+.sectionLink[aria-current="true"] {
+	border-color: transparent;
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+/* A heading the chips jumped to clears the row of chips. */
+.group[data-section] {
+	scroll-margin-top: 60px;
+}
+@media (min-width: 900px) {
+	.layout {
+		display: grid;
+		grid-template-columns: 196px minmax(0, 640px);
+		justify-content: center;
+		gap: 24px;
+		padding: 0 24px;
+	}
+	.sections {
+		flex-direction: column;
+		align-self: start;
+		gap: 2px;
+		overflow: visible;
+		padding: 22px 0 24px;
+		background: none;
+		border: 0;
+	}
+	.sectionLink {
+		height: 36px;
+		padding: 0 10px;
+		border: 0;
+		border-radius: var(--r-s);
+		background: none;
+		font-size: 14px;
+	}
+	.sectionLink:hover {
+		background: var(--surface-2);
+	}
+	.column {
+		width: 100%;
+		margin: 0;
+		padding-left: 0;
+		padding-right: 0;
+	}
+	.group[data-section] {
+		scroll-margin-top: 8px;
+	}
+}
 .group {
 	display: flex;
 	align-items: center;
@@ -206,30 +293,114 @@
 	font-variant-numeric: tabular-nums;
 }
 /* The keyboard shortcuts: keys, then what they do. */
+.keyGroups {
+	display: grid;
+	gap: 6px;
+	padding-bottom: 6px;
+}
+.keyGroup {
+	margin: 10px 16px 0;
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--accent);
+}
 .keys {
 	display: grid;
-	padding: 6px 16px;
+	padding: 2px 16px;
 }
 .keys > div {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	justify-content: space-between;
-	gap: 16px;
-	padding: 7px 0;
+	gap: 12px;
+	min-height: 40px;
+	padding: 4px 0;
 }
 .keys > div + div {
 	border-top: 1px solid var(--line);
 }
 .keys dt {
-	flex-shrink: 0;
-	font-family: var(--mono);
-	font-size: 12.5px;
-	font-weight: 700;
-	color: var(--text-2);
+	font-size: 14px;
 }
 .keys dd {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	gap: 2px;
+}
+/* Keys as key caps. */
+.caps {
+	display: inline-flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 4px;
+}
+.caps kbd {
+	display: inline-block;
+	min-width: 24px;
+	padding: 2px 7px;
+	border: 1px solid var(--line-strong);
+	border-bottom-width: 2px;
+	border-radius: 6px;
+	background: var(--surface);
+	font-family: var(--mono);
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 18px;
+	text-align: center;
+	color: var(--text-2);
+}
+.caps .fixedCaps {
+	border-style: dashed;
+	border-bottom-width: 1px;
+	background: none;
+}
+.noKeys {
+	font-size: 13px;
+	color: var(--text-3);
+}
+/* A shortcut to change: its keys, as a button. */
+.combo {
+	display: inline-flex;
+	align-items: center;
+	min-height: 32px;
+	padding: 3px 6px;
+	border-radius: var(--r-s);
+	border: 1px solid transparent;
+}
+.combo:hover {
+	background: var(--surface-2);
+}
+.combo[data-recording] {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+}
+.listening {
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--accent);
+}
+.keysHelp {
+	margin: 8px 16px 0;
+	font-size: 13px;
+	color: var(--text-3);
+}
+.keysReset {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	justify-self: start;
+	margin: 6px 16px 4px;
+	padding: 8px 12px;
+	border-radius: var(--r-s);
 	font-size: 14px;
-	text-align: end;
+	font-weight: 650;
+	color: var(--accent);
+}
+.keysReset:hover {
+	background: var(--surface-2);
 }
 
 /* What's new, version by version. */

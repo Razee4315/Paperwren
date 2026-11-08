@@ -95,6 +95,24 @@
 	width: 18px;
 	height: 18px;
 }
+/* A menu with tiles keeps one width, three tiles to a row. */
+.menu:has(.tiles) {
+	width: 312px;
+}
+.menu .tiles {
+	padding: 2px 0;
+}
+.menu .tile {
+	min-height: 62px;
+	padding: 8px 4px 6px;
+	gap: 5px;
+	border-radius: var(--r-s);
+	font-size: 12px;
+}
+.menu .tile svg {
+	width: 18px;
+	height: 18px;
+}
 .itemKeys {
 	flex-shrink: 0;
 	margin-inline-start: 16px;
@@ -305,8 +323,76 @@
 	font-size: 13px;
 	color: var(--text-3);
 }
+/* A row with a small button of its own at its end. */
+.itemRow {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+.itemRow > .item {
+	flex: 1;
+	min-width: 0;
+}
+/* Tiles: a picture over a word or two, four to a row on a phone,
+ * three in a desktop menu. */
+.tiles {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 4px;
+	padding: 4px 0;
+}
+/* Rows come out even: four to a row when there are four, seven or
+ * eight, three otherwise (never one tile left alone on a row of four). */
+.tiles:has(> :nth-child(4):last-child),
+.tiles:has(> :nth-child(7):last-child),
+.tiles:has(> :nth-child(8):last-child) {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.tile {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 6px;
+	min-height: 72px;
+	padding: 10px 4px 8px;
+	border-radius: var(--r-m);
+	color: var(--text);
+	font-size: 12.5px;
+	line-height: 1.25;
+	text-align: center;
+}
+.tile svg {
+	flex-shrink: 0;
+	color: var(--text-2);
+}
+.tile:hover:not(:disabled),
+.tile:active:not(:disabled) {
+	background: var(--surface-2);
+}
+.tile:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+.tileText {
+	overflow-wrap: anywhere;
+}
+.divider {
+	height: 1px;
+	margin: 6px 4px;
+	border: 0;
+	background: var(--line);
+}
 
+/* Holds the message; takes no room and no clicks of its own. */
+.toastRegion {
+	position: fixed;
+	inset: auto 0 0;
+	z-index: 120;
+	pointer-events: none;
+}
 .toast {
+	pointer-events: auto;
 	position: fixed;
 	left: 16px;
 	right: 16px;

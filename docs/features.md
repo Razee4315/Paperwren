@@ -18,7 +18,7 @@ The long version. The short one is in the [README](../README.md).
 
 | Format | How it is shown |
 |---|---|
-| PDF | pdf.js viewer: fast virtualised pages, text selection, find with highlights, contents, rotate, two pages side by side, password-protected files. Its character maps and standard fonts ship with the app, so Chinese, Japanese and Korean files that name a font without carrying it still read. Go to a page by number (or by the document's own label, such as "iv"), pick one from the page thumbnails, or drag the handle on the right edge. A form is shown as it was saved; nothing can be typed into it and lost. A long file asks which pages to print before it draws any. Pages can turn sideways, one (or two) at a time, by swipe, wheel or a tap on either side. **Crop margins** trims the empty edges every page shares. A link to another page leaves a "Back to page n" chip, and Back and Alt+Right walk that trail. The side panel lists a file's comments and highlights, its attached files (which open in the app) and its layers, which can be switched off. Details give the page size, the PDF version and whether its author forbids copying |
+| PDF | pdf.js viewer: fast virtualised pages, text selection, find with highlights, contents, rotate, two pages side by side, password-protected files. Its character maps and standard fonts ship with the app, so Chinese, Japanese and Korean files that name a font without carrying it still read. Go to a page by number (or by the document's own label, such as "iv"), pick one from the page thumbnails, or drag the handle on the right edge. A form is shown as it was saved; nothing can be typed into it and lost. A long file asks which pages to print before it draws any. **Page view** lays the pages down one long scroll, in a row turned sideways, or one (or two) at a time on their own, turned by key, swipe, wheel, a tap on either side or, with a mouse, arrows beside the page; a page zoomed past the screen is read to its foot first. Down a scroll, Page Down and Space stop at the top of each new page. **Crop margins** trims the empty edges every page shares. A link to another page leaves a "Back to page n" chip, and Back and Alt+Right walk that trail. The side panel lists a file's comments and highlights, its attached files (which open in the app) and its layers, which can be switched off. Details give the page size, the PDF version and whether its author forbids copying |
 | Word `.docx` | The document's own page layout (docx-preview), fit to width, find, "3 / 12" page counter and go to page, and a list of its headings to jump by. **Reading view** lets the text flow to the width of the screen instead, for a phone. Comments can be shown when a document has them. Long documents only lay out the pages near the screen. Details show its title, author, dates, who changed it last and its word count, for every Office and OpenDocument file |
 | Excel `.xlsx` `.xlsm` `.xlsb`, `.xls`, `.ods`, `.csv` `.tsv` | Virtualised grid: frozen rows and columns, merged cells, sheet tabs, find across every sheet, go to a cell by its address, zoom that keeps the headers pinned. Select a range (drag, shift-click, or the corner grip on touch) to copy it and see its sum, average and count. Drag a column edge to resize, double-click to fit. `.xlsx` cells keep their bold/italic, text colours, fills, borders and alignment; long text runs over empty neighbours; charts and pictures on a sheet are drawn where the file puts them. A cell's link and its note are shown beside the cell. Sheets a workbook hides stay hidden, and so do the gridlines of a sheet drawn without them (a switch brings them back). **Conditional formatting** is applied to the values the file saved: highlight rules that compare with a number or text, text rules, and colour scales. A column can be **sorted or filtered** for reading; the file is not changed, the header stays put and each row keeps its address. A CSV can be read in another text encoding |
 | PowerPoint `.pptx` | Slides drawn from their own shapes, theme colours, layouts, freeform outlines, gradients, shadows, cropped pictures and tables, plus speaker notes. Bar, line, area, pie, doughnut and scatter charts are drawn from the numbers stored in the file; SmartArt is drawn from the shapes the file saved for it. Jump to a slide by its number or pick it from a grid of small slides. The slide show takes the whole screen, one slide at a time (on a phone it hides the status bar and turns the screen sideways): swipe, tap a side, click, or use the arrow keys; it passes over slides the author hid, and can show the speaker notes. **Presenter view** (P) shows the slide, the next one, the notes, a stopwatch and the time; the **laser pointer** (L) turns the pointer or a finger into a red dot |
@@ -117,7 +117,7 @@ On Windows the keyboard works from the moment a file opens, and keeps working af
 | Keys | What they do |
 |---|---|
 | Ctrl+O | Open a file |
-| Ctrl+W, Alt+Left | Close the document (or the tab). After a link in a PDF, Alt+Left goes back to where it was, Alt+Right forward again |
+| Ctrl+W, Alt+Left | Close the document (or the tab). After a link in a PDF, Alt+Left (or a mouse's back button) goes back to where it was, Alt+Right (or its forward button) forward again |
 | Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+1 to Ctrl+9 | The next, the previous or a given tab |
 | Ctrl+D | Bookmark this place |
 | Ctrl+Shift+U | Read aloud |
@@ -130,13 +130,14 @@ On Windows the keyboard works from the moment a file opens, and keeps working af
 | D, T | PDF: draw on it, or add text |
 | Ctrl+Z, Ctrl+Y | Undo and redo a mark |
 | Delete | Remove the mark you clicked |
-| R, 2 | PDF: turn the pages, or show two side by side |
+| R, 2 | PDF: rotate the pages, or show two side by side |
 | ? | The list of keys |
-| Space, Shift+Space, Page Up, Page Down, arrows | Scroll |
+| Space, Shift+Space, Page Up, Page Down, arrows | Scroll. Page Down and Space stop at the top of each new page |
 | Home, End (also with Ctrl) | The start and the end of the document |
-| Left, Right | The previous and the next page, slide or picture |
+| Left, Right (on a Mac also ⌘[, ⌘]) | The previous and the next page, slide or picture |
+| G | Go to a page: type its number, press Enter |
 | Ctrl+A | Select the whole document |
-| Ctrl `]`, Ctrl `[` | PDF: turn the pages |
+| Ctrl `]`, Ctrl `[` (on a Mac ⌘R, ⌘L) | PDF: rotate the pages |
 | F5 | Slides: start the slide show. A click or the wheel goes on, a right click goes back, Esc leaves |
 | P, L | In a slide show: presenter view, the laser pointer |
 | Arrows, Shift+arrows, Home, End, Page Up, Page Down, Enter | Sheets: move the selection (Shift extends it) |

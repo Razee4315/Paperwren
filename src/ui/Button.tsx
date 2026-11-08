@@ -30,7 +30,7 @@ export function Button({
 export function IconButton({
 	label,
 	shortcut,
-	active = false,
+	active,
 	className,
 	children,
 	type = "button",
@@ -39,6 +39,8 @@ export function IconButton({
 	label: string;
 	/** The keys that do the same, named in the tooltip on a desktop. */
 	shortcut?: string;
+	/** A button that is on or off (Find, Laser): said aloud, and drawn
+	 * pressed while on. Left out, it is a plain button. */
 	active?: boolean;
 	children: ReactNode;
 }) {
@@ -50,6 +52,7 @@ export function IconButton({
 			type={type}
 			className={cls}
 			aria-label={label}
+			aria-pressed={active}
 			title={shortcut && isDesktop ? `${label} (${keys(shortcut)})` : label}
 			{...rest}
 		>

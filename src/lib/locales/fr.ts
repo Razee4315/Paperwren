@@ -366,14 +366,9 @@ export const fr: Table = {
 	"Close the document": "Fermer le document",
 	"Find in the document": "Rechercher dans le document",
 	"Next and previous match": "Résultat suivant et précédent",
-	"Zoom in, zoom out, back to the fit":
-		"Zoom avant, zoom arrière, retour à l'ajustement",
 	"Scroll a screen at a time": "Faire défiler un écran à la fois",
 	"The start and the end of the document": "Le début et la fin du document",
-	"The previous and the next page or slide":
-		"La page ou diapositive précédente et suivante",
 	"Start a slide show": "Lancer un diaporama",
-	"Turn the pages of a PDF": "Faire pivoter les pages d'un PDF",
 	"The previous and the next sheet": "La feuille précédente et suivante",
 	"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.":
 		"Pour ouvrir des documents avec Paperwren d'un double-clic, choisissez-le dans les Paramètres de Windows, sous Applications, Applications par défaut.",
@@ -670,8 +665,6 @@ export const fr: Table = {
 	"Scroll pages sideways": "Faire défiler les pages horizontalement",
 	"First page on its own": "Première page seule",
 	"Back to page {n}": "Revenir à la page {n}",
-	"Pages scroll": "Défilement des pages",
-	Down: "Vers le bas",
 	Sideways: "Horizontal",
 	Comments: "Commentaires",
 	Attachments: "Pièces jointes",
@@ -1157,14 +1150,54 @@ export const fr: Table = {
 	"What's new": "Nouveautés",
 	"Press Esc to leave full screen":
 		"Appuyez sur Échap pour quitter le plein écran",
-	"Highlight the selected words, or add a note to them":
-		"Surlignez les mots sélectionnés ou ajoutez-y une note",
-	"Draw on a PDF, or add text to it":
-		"Dessinez sur un PDF ou ajoutez-y du texte",
 	"Undo and redo a mark": "Annuler et rétablir une marque",
 	"Remove the mark you tapped": "Retirer la marque que vous avez touchée",
-	"Turn the pages, or show two side by side":
-		"Tournez les pages ou affichez-en deux côte à côte",
+	"Page view": "Affichage des pages",
+	Scroll: "Défilement",
+	"One at a time": "Une à la fois",
+	"One long column of pages": "Une longue colonne de pages",
+	"Pages in a row, swiped across": "Pages en ligne, qu'on fait glisser de côté",
+	"A single page on screen, nothing to line up":
+		"Une seule page à l'écran, rien à recadrer",
+	"Previous page": "Page précédente",
+	"Next page": "Page suivante",
+	"While reading": "Pendant la lecture",
+	"Saved on this device": "Enregistré sur cet appareil",
+	"Keyboard shortcuts": "Raccourcis clavier",
+	"Moving around": "Se déplacer",
+	"Reading and marking": "Lire et annoter",
+	"Slides and sheets": "Diapositives et feuilles",
+	"Back to the fit": "Revenir à l'ajustement",
+	"Highlight the selected words": "Surligner les mots sélectionnés",
+	"Add a note to the selected words": "Ajouter une note aux mots sélectionnés",
+	"Draw on a PDF": "Dessiner sur un PDF",
+	"Add text to a PDF": "Ajouter du texte à un PDF",
+	"Change any of them, or press ? while reading to see them":
+		"Modifiez-en un, ou appuyez sur ? pendant la lecture pour les voir",
+	"No keys": "Aucune touche",
+	"{keys} is kept for scrolling, typing or closing. Try other keys.":
+		"{keys} sert à faire défiler, saisir ou fermer. Essayez d'autres touches.",
+	"{keys} now does this instead of: {what}":
+		"{keys} fait maintenant ceci au lieu de : {what}",
+	"Click a shortcut, then press the keys you want for it. Keys in dashed boxes stay as they are.":
+		"Cliquez sur un raccourci, puis appuyez sur les touches voulues. Les touches en pointillés ne changent pas.",
+	"Change the keys for {what}": "Modifier les touches de {what}",
+	"Press the new keys": "Appuyez sur les nouvelles touches",
+	"Remove the keys for {what}": "Retirer les touches de {what}",
+	"Reset {what}": "Réinitialiser {what}",
+	"Every shortcut has its own keys again":
+		"Chaque raccourci a retrouvé ses touches",
+	"Reset all shortcuts": "Réinitialiser tous les raccourcis",
+	"Move it with the arrow keys, change its size with + and −, or remove it with Delete.":
+		"Déplacez-le avec les flèches, changez sa taille avec + et −, ou retirez-le avec Suppr.",
+	"Page {n}: place it here": "Page {n} : le placer ici",
+	"Use the arrow keys to move between cells, and Shift to select several.":
+		"Utilisez les flèches pour passer d'une cellule à l'autre, et Maj pour en sélectionner plusieurs.",
+	Spreadsheet: "Feuille de calcul",
+	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
+		"Tournez les pages avec les flèches du clavier, la molette de la souris ou les flèches à côté de la page.",
+	"Swipe, or tap either side of the page, to turn it.":
+		"Faites glisser, ou touchez un côté de la page, pour la tourner.",
 	"Show this list": "Afficher cette liste",
 	"Ink for text and marks": "Encre du texte et des marques",
 	"Text in blue": "Texte en bleu",

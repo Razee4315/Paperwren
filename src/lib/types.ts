@@ -1,5 +1,6 @@
 import type { FileFormat } from "./formats";
 import type { LanguageSetting } from "./i18n";
+import type { ShortcutId } from "./shortcuts";
 
 /** How a file can be read again after the app restarts. */
 export type Reopen =
@@ -75,9 +76,10 @@ export type PdfZoom = "page-width" | "page-fit" | "auto";
 /** The paper a document is read on: as the file has it, warm, dark,
  * or whichever of those the app's theme suggests. */
 export type PageColor = "original" | "sepia" | "dark" | "theme";
-/** How a PDF's pages follow one another: down a long scroll, or side
- * by side, a swipe (or a key) to the next. */
-export type PdfFlow = "down" | "across";
+/** How a PDF's pages follow one another: down a long scroll, side by
+ * side, a swipe (or a key) to the next, or one page on its own at a
+ * time. */
+export type PdfFlow = "down" | "across" | "one";
 /** The face books, Markdown and reading view are set in: the one
  * each document has, or one the reader picks. */
 export type ReadingFont = "original" | "serif" | "sans";
@@ -120,6 +122,9 @@ export interface Settings {
 	/** A computer: check for a new version when the app starts ("auto"),
 	 * never ("off"), or ask the reader first ("ask", until answered). */
 	updates: UpdateChecks;
+	/** Keyboard shortcuts the reader changed, by name; a shortcut not
+	 * here keeps its own keys, and an empty list has none. */
+	shortcuts: Partial<Record<ShortcutId, string[]>>;
 }
 
 export type UpdateChecks = "ask" | "auto" | "off";
@@ -148,6 +153,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	dim: 0,
 	scrollSpeed: 40,
 	updates: "ask",
+	shortcuts: {},
 };
 
 export const STORAGE_KEYS = {

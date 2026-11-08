@@ -6,7 +6,9 @@ import type { FileFormat } from "@/lib/formats";
 import { inFullscreen, toggleFullscreen } from "@/lib/fullscreen";
 import { msg, t, uiDir } from "@/lib/i18n";
 import { idForReopen } from "@/lib/recents";
+import { screenStop } from "@/lib/screenStep";
 import { MAX_DIM, PAGE_COLORS, resolvePageColor } from "@/lib/settings";
+import { hintFor, matches } from "@/lib/shortcuts";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import { canSpeak } from "@/lib/speech";
 import type { PageColor, Position } from "@/lib/types";
@@ -15,6 +17,7 @@ import { useSettings } from "@/state/settings";
 import {
 	IconButton,
 	Sheet,
+	SheetDivider,
 	SheetItem,
 	formatColor,
 	modalOpen,
@@ -79,12 +82,21 @@ function Title({ name, format }: { name: string; format: FileFormat }) {
 const across = (el: HTMLElement) => el.dataset.flow === "across";
 
 /** How far through the document the reader is: a hairline under the
- * top bar, driven straight from scroll events (no re-renders). */
-function Progress({ of }: { of: RefObject<HTMLElement | null> }) {
+ * top bar, driven straight from scroll events (no re-renders), or from
+ * `value` where scrolling does not say it (one page shown at a time). */
+function Progress({
+	of,
+	value,
+}: { of: RefObject<HTMLElement | null>; value?: number }) {
 	const bar = useRef<HTMLDivElement>(null);
 	useEffect(() => {
+		if (value === undefined || !bar.current) return;
+		bar.current.style.transform = `scaleX(${Math.min(1, Math.max(0, value))})`;
+	}, [value]);
+	const given = value !== undefined;
+	useEffect(() => {
 		const el = of.current;
-		if (!el) return;
+		if (!el || given) return;
 		const update = () => {
 			const sideways = across(el);
 			const range = sideways
@@ -97,7 +109,7 @@ function Progress({ of }: { of: RefObject<HTMLElement | null> }) {
 		update();
 		el.addEventListener("scroll", update, { passive: true });
 		return () => el.removeEventListener("scroll", update);
-	}, [of]);
+	}, [of, given]);
 	return <div ref={bar} className={s.progress} aria-hidden="true" />;
 }
 
@@ -285,6 +297,8 @@ export function Shell({
 	onStep,
 	turnPages = false,
 	onEdge,
+	pageTops,
+	progress,
 	side,
 	sideFocus,
 	paper = false,
@@ -319,14 +333,22 @@ export function Shell({
 	active: boolean;
 	/** False when the viewer turns pages itself with Page Up / Down. */
 	pageKeys?: boolean;
-	/** Left and Right turn a whole page, when the page fits the width. */
-	onStep?: (dir: 1 | -1) => void;
+	/** Left and Right turn a whole page, when the page fits the width.
+	 * `fromFoot`: show the page turned to from its foot (Page Up at the
+	 * top of a page shown on its own). */
+	onStep?: (dir: 1 | -1, fromFoot?: boolean) => void;
 	/** Space, Page Up and Page Down turn a page too (`onStep`), for
 	 * pages laid in a row. */
 	turnPages?: boolean;
 	/** Home and End (and Ctrl with them) go to the first or the last
 	 * page this way, where scrolling does not reach them. */
 	onEdge?: (end: boolean) => void;
+	/** Where each page begins, in the scroller's positions, in order:
+	 * Space and Page Up / Down stop there (`screenStop`). */
+	pageTops?: () => readonly number[];
+	/** How far through the document the reader is (0 to 1), where the
+	 * scroll does not tell (pages shown one at a time). */
+	progress?: number;
 	/** Lists for the panel beside the document (desktop). */
 	side?: SideTab[];
 	/** Open the panel at one of its lists. */
@@ -344,15 +366,14 @@ export function Shell({
 	useEffect(() => {
 		if (sideFocus) update("sidePanel", true);
 	}, [sideFocus, update]);
-	// F for full screen and ? for the list of keys, on a keyboard.
+	// F for full screen and ? for the list of keys, on a keyboard (or
+	// whatever keys the reader gave them).
 	useEffect(() => {
 		if (!active || !isDesktop) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
-			const at = e.target as HTMLElement | null;
-			if (at?.closest?.("input, textarea, select, [contenteditable]")) return;
-			if (e.key === "?") setKeysOpen(true);
-			else if (e.code === "KeyF" && !e.shiftKey) {
+			if (modalOpen() || e.defaultPrevented) return;
+			if (matches(e, "keys")) setKeysOpen(true);
+			else if (matches(e, "fullscreen")) {
 				if (!inFullscreen()) toast(t("Press Esc to leave full screen"));
 				toggleFullscreen();
 			} else return;
@@ -394,8 +415,7 @@ export function Shell({
 	useEffect(() => {
 		if (!active || !fileId) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.altKey || e.shiftKey) return;
-			if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "d") return;
+			if (modalOpen() || !matches(e, "bookmark")) return;
 			e.preventDefault();
 			addRef.current();
 		};
@@ -415,8 +435,7 @@ export function Shell({
 		if (!active || !canRead) return;
 		// Ctrl+Shift+U, as in Edge.
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.altKey || !e.shiftKey) return;
-			if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "u") return;
+			if (modalOpen() || !matches(e, "readAloud")) return;
 			e.preventDefault();
 			setReading((r) => !r);
 		};
@@ -485,7 +504,12 @@ export function Shell({
 
 	const fileMenu = (close: () => void) => (
 		<>
-			{menu?.(close)}
+			{menu && (
+				<>
+					{menu(close)}
+					<SheetDivider />
+				</>
+			)}
 			{canScroll && (
 				<SheetItem
 					icon={<ScrollText size={20} />}
@@ -519,7 +543,7 @@ export function Shell({
 			{canRead && (
 				<SheetItem
 					icon={<Volume2 size={20} />}
-					shortcut="Ctrl+Shift+U"
+					shortcut={hintFor("readAloud")}
 					checked={reading}
 					onClick={() => {
 						close();
@@ -531,30 +555,30 @@ export function Shell({
 				</SheetItem>
 			)}
 			{fileId && (
-				<>
-					<SheetItem
-						icon={<BookmarkPlus size={20} />}
-						shortcut="Ctrl+D"
-						onClick={() => {
-							close();
-							addMark();
-						}}
-						testId="bookmark-add"
-					>
-						{t("Add bookmark")}
-					</SheetItem>
-					<SheetItem
-						icon={<Bookmark size={20} />}
-						hint={marks.list.length ? String(marks.list.length) : undefined}
-						onClick={() => {
-							close();
-							setMarksOpen(true);
-						}}
-						testId="bookmarks"
-					>
-						{t("Bookmarks")}
-					</SheetItem>
-				</>
+				<SheetItem
+					icon={<Bookmark size={20} />}
+					hint={marks.list.length ? String(marks.list.length) : undefined}
+					onClick={() => {
+						close();
+						setMarksOpen(true);
+					}}
+					testId="bookmarks"
+					extra={
+						<IconButton
+							label={t("Add bookmark")}
+							shortcut={hintFor("bookmark")}
+							onClick={() => {
+								close();
+								addMark();
+							}}
+							data-testid="bookmark-add"
+						>
+							<BookmarkPlus size={18} />
+						</IconButton>
+					}
+				>
+					{t("Bookmarks")}
+				</SheetItem>
 			)}
 			{paper && (
 				<SheetItem
@@ -589,6 +613,22 @@ export function Shell({
 			held.blur();
 	}, [active]);
 
+	// G goes to a page: the page number in the bar takes the keyboard,
+	// to type one and press Enter.
+	useEffect(() => {
+		if (!active || !isDesktop) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (modalOpen() || e.defaultPrevented || !matches(e, "goToPage")) return;
+			const field =
+				shell.current?.querySelector<HTMLInputElement>("[data-page-field]");
+			if (!field) return;
+			e.preventDefault();
+			field.focus();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [active]);
+
 	// The keyboard scrolls the document from the moment it opens, without
 	// a click into it first: Space, Page Up / Down, Home, End, the arrows.
 	const stepRef = useRef(onStep);
@@ -597,21 +637,40 @@ export function Shell({
 	turnRef.current = turnPages;
 	const edgeRef = useRef(onEdge);
 	edgeRef.current = onEdge;
+	const stopsRef = useRef(pageTops);
+	stopsRef.current = pageTops;
 	useEffect(() => {
 		if (!active) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (e.defaultPrevented || modalOpen() || e.altKey) return;
-			// Only when nothing else wants the keys: a field does, and so does
-			// the document once it has the keyboard (it scrolls on its own).
-			// A button in the bars that was just clicked does not.
+			if (e.defaultPrevented || modalOpen()) return;
+			// The next or the previous page, by whatever keys the reader gave
+			// them (an arrow, or a Mac's ⌘] that a trackpad swipe sends).
+			const step = matches(e, "nextPage") ? 1 : matches(e, "prevPage") ? -1 : 0;
+			if (e.altKey && !step) return;
+			// Only when nothing else wants the keys: a field does. A button in
+			// the bars that was just clicked does not.
 			const at = document.activeElement;
 			const onBar =
 				at instanceof HTMLElement &&
 				!!at.closest("header, footer") &&
 				!at.matches("input, textarea, select");
-			if (at && at !== document.body && !onBar) return;
 			const el = progressOf?.current ?? null;
+			// A click on the page leaves the keyboard on it (pdf.js's text
+			// layer takes the focus): the keys still turn and scroll, unless
+			// a field, a button or a link in the page has them.
+			const inPage =
+				at instanceof HTMLElement &&
+				!!el?.contains(at) &&
+				!at.closest(
+					'input, textarea, select, button, a[href], [contenteditable]:not([contenteditable="false"])',
+				);
+			if (at && at !== document.body && !onBar && !inPage) return;
 
+			if (step && !e.key.startsWith("Arrow") && stepRef.current) {
+				stepRef.current(step);
+				e.preventDefault();
+				return;
+			}
 			if (e.ctrlKey || e.metaKey) {
 				// Ctrl+Home and Ctrl+End: the first and the last page. A Mac's
 				// keyboard has neither key: there it is ⌘↑ and ⌘↓.
@@ -628,43 +687,70 @@ export function Shell({
 				return;
 			}
 			const turn =
-				e.key === "ArrowRight"
-					? 1
-					: e.key === "ArrowLeft"
-						? -1
-						: turnRef.current && e.key === "PageDown"
-							? 1
-							: turnRef.current && e.key === "PageUp"
-								? -1
-								: turnRef.current && e.key === " " && !onBar
-									? e.shiftKey
-										? -1
-										: 1
-									: 0;
+				step !== 0
+					? step
+					: turnRef.current && e.key === "PageDown"
+						? 1
+						: turnRef.current && e.key === "PageUp"
+							? -1
+							: turnRef.current && e.key === " " && !onBar
+								? e.shiftKey
+									? -1
+									: 1
+								: 0;
 			if (turn && stepRef.current) {
+				const arrow = e.key.startsWith("Arrow");
 				// Sideways keys pan a page wider than the screen instead
 				// (pages in a row turn whatever their size).
 				const pans = el && !across(el) && el.scrollWidth > el.clientWidth + 1;
-				if (pans && e.key.startsWith("Arrow")) return;
-				stepRef.current(turn);
+				if (pans && arrow) return;
+				// A page shown on its own but taller than the screen (zoomed
+				// in) is read to its foot before the next is turned to, and
+				// the previous one is shown from its foot.
+				if (!arrow && el && el.scrollHeight > el.clientHeight + 8) {
+					const room =
+						turn > 0
+							? el.scrollHeight - el.clientHeight - el.scrollTop
+							: el.scrollTop;
+					if (room > 1) {
+						el.scrollTop += turn * Math.min(room, el.clientHeight * 0.9);
+						e.preventDefault();
+						return;
+					}
+					stepRef.current(turn, turn < 0);
+				} else stepRef.current(turn);
 				e.preventDefault();
 				return;
 			}
 			if (!el) return;
-			const page = el.clientHeight * 0.9;
-			const by: Record<string, number> = {
-				ArrowDown: 48,
-				ArrowUp: -48,
-				// Space presses the button that has the focus.
-				...(onBar ? {} : { " ": e.shiftKey ? -page : page }),
-				...(pageKeys ? { PageDown: page, PageUp: -page } : {}),
-			};
-			if (e.key === "Home" || e.key === "End") {
+			// Space, Page Up and Page Down: a screen on, stopping at the top
+			// of the next page where the viewer says where pages begin.
+			const screen =
+				e.key === "PageDown"
+					? 1
+					: e.key === "PageUp"
+						? -1
+						: e.key === " "
+							? e.shiftKey
+								? -1
+								: 1
+							: 0;
+			const keyed = screen !== 0 && (e.key === " " ? !onBar : pageKeys);
+			if (keyed) {
+				const tops = stopsRef.current?.() ?? [];
+				el.scrollTop = screenStop(
+					el.scrollTop,
+					el.clientHeight,
+					screen as 1 | -1,
+					tops,
+				);
+			} else if (e.key === "ArrowDown") el.scrollTop += 48;
+			else if (e.key === "ArrowUp") el.scrollTop -= 48;
+			else if (e.key === "Home" || e.key === "End") {
 				const end = e.key === "End";
 				if (edgeRef.current) edgeRef.current(end);
 				else toEnd(el, end);
-			} else if (e.key in by) el.scrollTop += by[e.key];
-			else return;
+			} else return;
 			e.preventDefault();
 		};
 		window.addEventListener("keydown", onKey);
@@ -681,7 +767,7 @@ export function Shell({
 			if (modalOpen() || (e.ctrlKey && e.metaKey)) return;
 			const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
 			const key = e.key.toLowerCase();
-			if (mod && key === "f") {
+			if (matches(e, "find")) {
 				if (!findRef.current) return;
 				e.preventDefault();
 				findRef.current();
@@ -759,7 +845,7 @@ export function Shell({
 				<div className={s.row} data-tauri-drag-region="deep">
 					<IconButton
 						label={t("Back")}
-						shortcut="Ctrl+W"
+						shortcut={hintFor("close")}
 						onClick={onClose}
 						data-testid="viewer-back"
 					>
@@ -786,7 +872,7 @@ export function Shell({
 					/>
 				</div>
 				{find}
-				{progressOf && <Progress of={progressOf} />}
+				{progressOf && <Progress of={progressOf} value={progress} />}
 			</header>
 			<div className={s.body}>
 				{sideOpen && (
@@ -831,7 +917,7 @@ export function Shell({
 			)}
 			<Sheet
 				open={keysOpen}
-				title={t("Keyboard")}
+				title={t("Keyboard shortcuts")}
 				onClose={() => setKeysOpen(false)}
 				wide
 				testId="keys-sheet"
@@ -910,11 +996,18 @@ export function ZoomControl({
 }) {
 	const [open, setOpen] = useState(false);
 	const menu = isDesktop && !!presets?.length;
+	// The two longest labels: letters are not all as wide, so the longer
+	// of two is very nearly always the widest.
+	const sizes = [
+		...new Set([label, "888%", ...(presets ?? []).map((p) => p.label)]),
+	]
+		.sort((a, b) => b.length - a.length)
+		.concat("");
 	return (
 		<div className={s.zoom}>
 			<IconButton
 				label={t("Zoom out")}
-				shortcut="Ctrl+-"
+				shortcut={hintFor("zoomOut")}
 				onClick={onOut}
 				data-testid={`${testId}-zoom-out`}
 			>
@@ -928,12 +1021,17 @@ export function ZoomControl({
 				title={menu ? t("Zoom") : resetLabel}
 				aria-haspopup={menu ? "menu" : undefined}
 				data-testid={`${testId}-scale`}
+				// As wide as the longest things it can say (drawn unseen by the
+				// stylesheet), so the bar does not shift when "Whole page"
+				// becomes "137%" under a zoom.
+				data-size={sizes[0]}
+				data-size2={sizes[1]}
 			>
-				{label}
+				<span className={s.zoomNow}>{label}</span>
 			</button>
 			<IconButton
 				label={t("Zoom in")}
-				shortcut="Ctrl++"
+				shortcut={hintFor("zoomIn")}
 				onClick={onIn}
 				data-testid={`${testId}-zoom-in`}
 			>
@@ -1012,7 +1110,7 @@ export function FindBar({
 			if (e.key === "Escape") closeRef.current();
 			else if (e.key === "F3" || (mod && key === "g"))
 				stepRef.current(e.shiftKey ? -1 : 1);
-			else if (mod && key === "f") {
+			else if (matches(e, "find")) {
 				input.current?.focus();
 				input.current?.select();
 			} else return;

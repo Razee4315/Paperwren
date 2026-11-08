@@ -7,6 +7,7 @@ import {
 	normalizeSettings,
 	resolveTheme,
 } from "@/lib/settings";
+import { setCustomShortcuts } from "@/lib/shortcuts";
 import {
 	DEFAULT_SETTINGS,
 	type ResolvedTheme,
@@ -64,6 +65,9 @@ export async function loadSettings(): Promise<Settings> {
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
 	const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+	// The keys every handler checks: set as the settings are read, so a
+	// change applies to the very next key press.
+	setCustomShortcuts(settings.shortcuts);
 	const [ready, setReady] = useState(false);
 	const [systemDark, setSystemDark] = useState(systemPrefersDark);
 

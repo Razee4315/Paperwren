@@ -4,6 +4,7 @@ import { explainFailure } from "@/lib/errors";
 import { ANY_MATCH, type FindOptions, matches } from "@/lib/find";
 import { locale, t } from "@/lib/i18n";
 import { type Chart, readChart } from "@/lib/pptx/chart";
+import { hintFor } from "@/lib/shortcuts";
 
 import {
 	DEFAULT_COL_WIDTH,
@@ -42,6 +43,7 @@ import {
 	type CSSProperties,
 	useCallback,
 	useEffect,
+	useId,
 	useLayoutEffect,
 	useMemo,
 	useRef,
@@ -155,6 +157,7 @@ export default function SheetView({
 	// The selection: where it started and (for a range) where it reaches.
 	const [anchor, setAnchor] = useState<Point | null>(null);
 	const [focus, setFocus] = useState<Point | null>(null);
+	const hintId = useId();
 	const [view, setView] = useState({ top: 0, left: 0, w: 400, h: 600 });
 	// Column widths the reader dragged, per sheet.
 	const [resized, setResized] = useState<Record<number, number[]>>({});
@@ -993,6 +996,38 @@ export default function SheetView({
 			? sheet.cells.get(key(range.r0, range.c0))
 			: undefined;
 	const stats = sheet && range && !single ? rangeStats(sheet, range) : null;
+	// What a screen reader says as the selection moves. The grid is drawn
+	// a window at a time, so its cells can't be walked one by one: the
+	// cell (or range) the keys reach is said instead, as the bar shows it.
+	const spoken =
+		!range || !sheet
+			? ""
+			: single
+				? [
+						rangeLabel(sheet, range),
+						cell?.noCachedResult
+							? t("No saved result")
+							: cell?.value || t("Empty"),
+						cell?.formula,
+						cell?.note,
+					]
+						.filter(Boolean)
+						.join(", ")
+				: [
+						rangeLabel(sheet, range),
+						t("{rows} × {cols} cells", {
+							rows: range.r1 - range.r0 + 1,
+							cols: range.c1 - range.c0 + 1,
+						}),
+						stats &&
+							t("Sum {sum} · Average {average} · Count {count}", {
+								sum: format(stats.sum),
+								average: format(stats.sum / stats.count),
+								count: stats.count,
+							}),
+					]
+						.filter(Boolean)
+						.join(", ");
 
 	// What the sheet has more of than is shown, said where it is seen.
 	const limited = [
@@ -1313,7 +1348,7 @@ export default function SheetView({
 			actions={
 				<IconButton
 					label={t("Find")}
-					shortcut="Ctrl+F"
+					shortcut={hintFor("find")}
 					onClick={() => setFindOpen(true)}
 					active={findOpen}
 					disabled={!sheets}
@@ -1339,6 +1374,18 @@ export default function SheetView({
 			}
 			bottom={bottom}
 		>
+			<p id={hintId} className="visually-hidden">
+				{t(
+					"Use the arrow keys to move between cells, and Shift to select several.",
+				)}
+			</p>
+			<p
+				className="visually-hidden"
+				aria-live="polite"
+				data-testid="sheet-said"
+			>
+				{spoken}
+			</p>
 			{sheet && (
 				<div
 					ref={scroller}
@@ -1350,11 +1397,15 @@ export default function SheetView({
 					onPointerUp={onPointerUp}
 					onPointerCancel={onPointerUp}
 					onClick={onClick}
-					// biome-ignore lint/a11y/noNoninteractiveTabindex: role=grid is focusable for arrow-key navigation
+					// biome-ignore lint/a11y/noNoninteractiveTabindex: role=application is focusable for arrow-key navigation
 					tabIndex={0}
-					// biome-ignore lint/a11y/useSemanticElements: virtualised grid; a <table> can't be windowed
-					role="grid"
+					// A virtualised grid has no cells to hand a screen reader:
+					// an application takes the arrow keys itself, and the cell
+					// they reach is said by the live region below.
+					role="application"
+					aria-roledescription={t("Spreadsheet")}
 					aria-label={sheet.name}
+					aria-describedby={hintId}
 					data-testid="sheet-grid"
 				>
 					<div

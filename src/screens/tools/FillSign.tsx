@@ -1,4 +1,5 @@
 import { type SavedFile, backend } from "@/lib/backend";
+import { isDesktop } from "@/lib/env";
 import { copyName } from "@/lib/fileName";
 import { locale, t } from "@/lib/i18n";
 import {
@@ -46,6 +47,7 @@ import {
 	type CSSProperties,
 	useCallback,
 	useEffect,
+	useId,
 	useLayoutEffect,
 	useMemo,
 	useRef,
@@ -394,7 +396,39 @@ export function FillSign({
 		return () => window.removeEventListener("keydown", onKey, true);
 	});
 
-	const pick = (next: Tool) => {
+	// A tool chosen from the keyboard has no spot tapped for it: it is put
+	// in the middle of the page on screen, to be moved with the arrows.
+	const byKeys = useRef(false);
+	/** The page most in view, and the middle of what is seen of it. */
+	const spotInView = () => {
+		const box = scroller.current;
+		if (!box) return null;
+		const view = box.getBoundingClientRect();
+		let best: { page: number; v: number } | null = null;
+		let most = 0;
+		for (const el of box.querySelectorAll<HTMLElement>("[data-page]")) {
+			const r = el.getBoundingClientRect();
+			const top = Math.max(r.top, view.top);
+			const bottom = Math.min(r.bottom, view.bottom);
+			if (bottom - top <= most || !r.height) continue;
+			most = bottom - top;
+			best = {
+				page: Number(el.dataset.page),
+				v: ((top + bottom) / 2 - r.top) / r.height,
+			};
+		}
+		return best;
+	};
+	// biome-ignore lint/correctness/useExhaustiveDependencies: placed once, when the tool chosen from the keyboard is ready
+	useEffect(() => {
+		if (!tool || !byKeys.current) return;
+		byKeys.current = false;
+		const spot = spotInView();
+		if (spot) place(spot.page, tool === "text" ? 0.3 : 0.5, spot.v);
+	}, [tool]);
+
+	const pick = (next: Tool, keyboard = false) => {
+		byKeys.current = keyboard;
 		setSelected(null);
 		setEditing(null);
 		if (tool === next) {
@@ -601,6 +635,7 @@ export function FillSign({
 		["cross", t("Cross"), <X key="x" size={20} />],
 	];
 	const pageWidth = Math.max(200, width) * ZOOMS[zoom];
+	const keysHint = useId();
 
 	return createPortal(
 		<div
@@ -636,7 +671,8 @@ export function FillSign({
 							className={s.tool}
 							title={label}
 							aria-pressed={tool === kind}
-							onClick={() => pick(kind)}
+							// From the keyboard (no pointer: detail 0) it is placed at once.
+							onClick={(e) => pick(kind, e.detail === 0)}
 							data-testid={`fill-tool-${kind}`}
 						>
 							{icon}
@@ -672,22 +708,31 @@ export function FillSign({
 				</Button>
 			</div>
 
+			<p id={keysHint} className="visually-hidden">
+				{t(
+					"Move it with the arrow keys, change its size with + and −, or remove it with Delete.",
+				)}
+			</p>
 			<div className={s.fillHint} data-testid="fill-guidance">
 				<Info size={17} aria-hidden="true" />
 				<p aria-live="polite" data-testid="fill-hint">
-					{tool
-						? t("{tool}: select a spot on the page to place it.", {
-								tool: tools.find(([kind]) => kind === tool)?.[1] ?? "",
-							})
-						: fields?.length
-							? t(
-									"Type into the form's fields, or add to the page from the tools",
-								)
-							: canMark
+					{selected && !editing && isDesktop
+						? t(
+								"Move it with the arrow keys, change its size with + and −, or remove it with Delete.",
+							)
+						: tool
+							? t("{tool}: select a spot on the page to place it.", {
+									tool: tools.find(([kind]) => kind === tool)?.[1] ?? "",
+								})
+							: fields?.length
 								? t(
-										"Choose Text or Signature above, then select a spot on the page.",
+										"Type into the form's fields, or add to the page from the tools",
 									)
-								: t("Type into the form's fields")}
+								: canMark
+									? t(
+											"Choose Text or Signature above, then select a spot on the page.",
+										)
+									: t("Type into the form's fields")}
 				</p>
 				{/* Here rather than in the tool bar, which a phone already fills:
 				 * the ink for typed text, the date, ticks and crosses. */}
@@ -761,6 +806,7 @@ export function FillSign({
 						width={pageWidth}
 						height={(pageWidth * ph) / pw}
 						placing={!!tool}
+						label={t("Page {n}: place it here", { n: page + 1 })}
 						onTap={(u, v) => {
 							if (tool) place(page, u, v);
 							else {
@@ -796,6 +842,12 @@ export function FillSign({
 									pageWidth={pageWidth}
 									pageHeight={(pageWidth * ph) / pw}
 									ink={INKS[ink]}
+									label={
+										item.kind === "text"
+											? item.text || t("Text")
+											: (tools.find(([kind]) => kind === item.kind)?.[1] ?? "")
+									}
+									describedBy={keysHint}
 									selected={selected === item.id}
 									editing={editing === item.id}
 									onSelect={() => {
@@ -803,6 +855,7 @@ export function FillSign({
 										if (editing !== item.id) setEditing(null);
 									}}
 									onEdit={() => setEditing(item.id)}
+									onEdited={() => setEditing(null)}
 									onChange={(change) => update(item.id, change)}
 									onText={(text) =>
 										update(item.id, {
@@ -1029,6 +1082,7 @@ export function FillPage({
 	height,
 	onTap,
 	placing,
+	label,
 	children,
 }: {
 	doc: PDFDocumentProxy;
@@ -1037,6 +1091,8 @@ export function FillPage({
 	height: number;
 	/** A tool is chosen: a tap puts something here. */
 	placing: boolean;
+	/** What Enter does on the page while placing, said aloud. */
+	label?: string;
 	onTap: (u: number, v: number) => void;
 	children: React.ReactNode;
 }) {
@@ -1090,6 +1146,20 @@ export function FillPage({
 			style={{ width, height }}
 			data-testid="fill-page"
 			data-page={page}
+			// While a tool is in hand, Enter puts it on the page, in the
+			// middle of what is seen of it.
+			tabIndex={placing ? 0 : undefined}
+			role={placing ? "button" : undefined}
+			aria-label={placing ? label : undefined}
+			onKeyDown={(e) => {
+				if (!placing || e.target !== e.currentTarget) return;
+				if (e.key !== "Enter" && e.key !== " ") return;
+				e.preventDefault();
+				const r = e.currentTarget.getBoundingClientRect();
+				const top = Math.max(r.top, 0);
+				const bottom = Math.min(r.bottom, window.innerHeight);
+				onTap(0.5, ((top + bottom) / 2 - r.top) / r.height);
+			}}
 			onPointerDown={(e) => {
 				if (e.target !== e.currentTarget && e.target !== canvas.current) return;
 				// The text placed here takes the keyboard: the tap must not
@@ -1206,6 +1276,8 @@ function FieldInput({
 /** A mark on a page: dragged to move, by its corner to resize. */
 function PlacedItem({
 	item,
+	label,
+	describedBy,
 	pageWidth,
 	pageHeight,
 	ink,
@@ -1213,11 +1285,16 @@ function PlacedItem({
 	editing,
 	onSelect,
 	onEdit,
+	onEdited,
 	onChange,
 	onText,
 	onRemove,
 }: {
 	item: Item;
+	/** What it is, said aloud ("Signature", the words typed). */
+	label: string;
+	/** The keys that move it, said aloud. */
+	describedBy: string;
 	pageWidth: number;
 	pageHeight: number;
 	/** The colour of typed text and marks. */
@@ -1226,6 +1303,8 @@ function PlacedItem({
 	editing: boolean;
 	onSelect: () => void;
 	onEdit: () => void;
+	/** Typing is over (Enter or Esc in the text). */
+	onEdited: () => void;
 	onChange: (change: Partial<Item>) => void;
 	onText: (text: string) => void;
 	onRemove: () => void;
@@ -1238,9 +1317,49 @@ function PlacedItem({
 		moved: boolean;
 	} | null>(null);
 	const input = useRef<HTMLInputElement>(null);
+	const self = useRef<HTMLDivElement>(null);
 	useEffect(() => {
 		if (editing) input.current?.focus();
 	}, [editing]);
+	// Picked, it takes the keyboard, so the arrows move it at once.
+	useEffect(() => {
+		if (selected && !editing && !self.current?.contains(document.activeElement))
+			self.current?.focus({ preventScroll: true });
+	}, [selected, editing]);
+
+	/** The arrows move it (Shift: further); + and - resize it, keeping
+	 * its shape; Enter edits typed text. Delete and Escape are the
+	 * editor's (they work on whatever is picked). */
+	const onKey = (e: React.KeyboardEvent) => {
+		if (editing || e.target !== e.currentTarget) return;
+		const step = e.shiftKey ? 0.05 : 0.005;
+		const by: Record<string, [number, number]> = {
+			ArrowLeft: [-step, 0],
+			ArrowRight: [step, 0],
+			ArrowUp: [0, -step * (pageWidth / pageHeight)],
+			ArrowDown: [0, step * (pageWidth / pageHeight)],
+		};
+		if (e.key in by) {
+			const [du, dv] = by[e.key];
+			onChange({
+				x: Math.min(1 - item.w, Math.max(0, item.x + du)),
+				y: Math.min(1 - item.h, Math.max(0, item.y + dv)),
+			});
+		} else if (["+", "=", "-", "_"].includes(e.key)) {
+			const want = e.key === "+" || e.key === "=" ? 1.1 : 1 / 1.1;
+			const grow = Math.max(
+				0.02 / item.w,
+				Math.min(want, (1 - item.x) / item.w, (1 - item.y) / item.h),
+			);
+			onChange({ w: item.w * grow, h: item.h * grow });
+		} else if (
+			(e.key === "Enter" || e.key === "F2") &&
+			(item.kind === "text" || item.kind === "date")
+		)
+			onEdit();
+		else return;
+		e.preventDefault();
+	};
 
 	const start = (mode: "move" | "size") => (e: React.PointerEvent) => {
 		if (editing && mode === "move") return;
@@ -1294,10 +1413,21 @@ function PlacedItem({
 	const fontPx = (item.h * pageHeight) / 1.2;
 	return (
 		<div
+			ref={self}
 			className={s.item}
 			style={at(item)}
 			data-selected={selected ? "" : undefined}
 			data-kind={item.kind}
+			// biome-ignore lint/a11y/noNoninteractiveTabindex: a mark is moved and sized from the keyboard
+			tabIndex={0}
+			// biome-ignore lint/a11y/useSemanticElements: a mark on the page, not a form group
+			role="group"
+			aria-label={label}
+			aria-describedby={describedBy}
+			onFocus={(e) => {
+				if (e.target === e.currentTarget && !selected) onSelect();
+			}}
+			onKeyDown={onKey}
 			onPointerDown={start("move")}
 			onPointerMove={move}
 			onPointerUp={end}
@@ -1326,7 +1456,13 @@ function PlacedItem({
 					placeholder={t("Type here")}
 					onChange={(e) => onText(e.target.value)}
 					onKeyDown={(e) => {
-						if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur();
+						if (e.key !== "Enter" && e.key !== "Escape") return;
+						e.preventDefault();
+						e.stopPropagation();
+						// Typing is over; the mark keeps the keyboard, to be moved
+						// on with the arrows.
+						self.current?.focus({ preventScroll: true });
+						onEdited();
 					}}
 					onPointerDown={(e) => e.stopPropagation()}
 					data-testid="fill-item-text"

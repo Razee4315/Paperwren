@@ -31,6 +31,7 @@ describe("settings", () => {
 
 	it("keeps how PDF pages follow one another", () => {
 		expect(normalizeSettings({ pdfFlow: "across" }).pdfFlow).toBe("across");
+		expect(normalizeSettings({ pdfFlow: "one" }).pdfFlow).toBe("one");
 		expect(normalizeSettings({ pdfFlow: "sideways" }).pdfFlow).toBe("down");
 	});
 

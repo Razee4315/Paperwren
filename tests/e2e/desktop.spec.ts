@@ -118,6 +118,49 @@ test.describe("the desktop layout", () => {
 		await expect.poll(() => scrollTop(page, "pdf-scroll")).toBe(0);
 	});
 
+	test("a click on the page keeps the keys, and Page Down stops at each page", async ({
+		page,
+	}) => {
+		await boot(page, {}, DESKTOP);
+		await openFixture(page, "sample.pdf");
+		const field = page.getByTestId("pdf-page-field");
+		await expect(field).toHaveValue("1", { timeout: 20_000 });
+		// The click leaves the keyboard on the page's text: the arrows still
+		// turn the pages.
+		await page.mouse.click(640, 450);
+		await page.keyboard.press("ArrowRight");
+		await expect(field).toHaveValue("2");
+		await page.keyboard.press("ArrowLeft");
+		await expect(field).toHaveValue("1");
+		await expect.poll(() => scrollTop(page, "pdf-scroll")).toBe(0);
+
+		// A page taller than the screen: most of a screen, then the top of
+		// the next page, not part way down it.
+		const pageTop = (n: number) =>
+			page.getByTestId("pdf-scroll").evaluate((box, i) => {
+				const p = box.querySelectorAll(".page")[i] as HTMLElement;
+				return p.getBoundingClientRect().top - box.getBoundingClientRect().top;
+			}, n - 1);
+		await page.keyboard.press("PageDown");
+		await expect.poll(() => scrollTop(page, "pdf-scroll")).toBeGreaterThan(300);
+		expect(await pageTop(2)).toBeGreaterThan(0);
+		await page.keyboard.press("PageDown");
+		await expect.poll(async () => Math.round(await pageTop(2))).toBe(0);
+		await expect(field).toHaveValue("2");
+		// Space goes the same way, and Shift+Space back.
+		await page.keyboard.press("Shift+Space");
+		await page.keyboard.press("Shift+Space");
+		await expect.poll(() => scrollTop(page, "pdf-scroll")).toBe(0);
+
+		// G: type a page number and press Enter.
+		await page.keyboard.press("g");
+		await expect(field).toBeFocused();
+		await page.keyboard.type("3");
+		await page.keyboard.press("Enter");
+		await expect(field).toHaveValue("3");
+		await expect(field).not.toBeFocused();
+	});
+
 	test("find steps with F3 and closes with Escape from anywhere", async ({
 		page,
 	}) => {
@@ -299,6 +342,12 @@ test.describe("the desktop layout", () => {
 		await page.keyboard.press("ArrowDown");
 		await page.keyboard.press("Control+Home");
 		await expect(at).toContainText("A1");
+		// A screen reader hears where the keys went: the cell and its value.
+		await expect(grid).toHaveAttribute("role", "application");
+		await expect(page.getByTestId("sheet-said")).toContainText("A1");
+		await page.keyboard.press("Shift+ArrowRight");
+		await expect(page.getByTestId("sheet-said")).toContainText("cells");
+		await page.keyboard.press("ArrowLeft");
 		// Ctrl+Down: the end of the run of filled cells.
 		await page.keyboard.press("Control+ArrowDown");
 		await expect(at).toContainText("A4");
@@ -366,12 +415,109 @@ test.describe("the desktop layout", () => {
 		await expect.poll(async () => (await bar.boundingBox())?.y ?? -99).toBe(0);
 	});
 
-	test("Settings lists the keyboard shortcuts", async ({ page }) => {
+	test("a shortcut is changed in Settings, and the reader follows it", async ({
+		page,
+	}) => {
 		await boot(page, {}, DESKTOP);
 		await page.getByTestId("open-settings").click();
+		await page.getByTestId("shortcuts-open").click();
+		const next = page.getByTestId("shortcut-nextPage");
+		await expect(next).toContainText("→");
+
+		// Click, press the new keys: J turns the page now, the arrow no more.
+		await page.getByTestId("shortcut-nextPage-change").click();
+		await expect(next).toContainText("Press the new keys");
+		await page.keyboard.press("j");
+		await expect(next).toContainText("J");
+		await expect(next).not.toContainText("→");
+		await expect(page.getByTestId("shortcut-nextPage-reset")).toBeVisible();
+
+		// Keys kept for scrolling are refused, said in a message that shows
+		// over the open list (the app behind it is inert).
+		await page.getByTestId("shortcut-prevPage-change").click();
+		await page.keyboard.press("Space");
+		const toast = page.getByTestId("toast");
+		await expect(toast).toContainText("kept for scrolling");
+		expect(await toast.evaluate((el) => !!el.closest("#root"))).toBe(false);
+		// Esc gives up listening, and leaves the list open.
+		await page.keyboard.press("Escape");
+		await expect(page.getByTestId("shortcuts")).toBeVisible();
+		await expect(page.getByTestId("shortcut-prevPage")).toContainText("←");
+
+		// Keys another shortcut had move over, with Undo.
+		await page.getByTestId("shortcut-goToPage-change").click();
+		await page.keyboard.press("f");
+		await expect(toast).toContainText("instead of: Full screen");
+		await expect(page.getByTestId("shortcut-fullscreen")).toContainText(
+			"No keys",
+		);
+		await toast.getByRole("button", { name: "Undo" }).click();
+		await expect(page.getByTestId("shortcut-fullscreen")).toContainText("F");
+		await expect(page.getByTestId("shortcut-goToPage")).toContainText("G");
+
+		// In a document, the new keys work and the old ones do not.
+		await page.keyboard.press("Escape");
+		await page.keyboard.press("Escape");
+		await openFixture(page, "sample.pdf");
+		const field = page.getByTestId("pdf-page-field");
+		await expect(field).toHaveValue("1", { timeout: 20_000 });
+		await page.keyboard.press("ArrowRight");
+		await expect(field).toHaveValue("1");
+		await page.keyboard.press("j");
+		await expect(field).toHaveValue("2");
+		// The list in the document shows them too.
+		await page.keyboard.press("Shift+Slash");
+		await expect(page.getByTestId("shortcut-nextPage")).toContainText("J");
+		await page.keyboard.press("Escape");
+
+		// Reset all: the arrow again.
+		await page.keyboard.press("Control+w");
+		await page.getByTestId("open-settings").click();
+		await page.getByTestId("shortcuts-open").click();
+		await page.getByTestId("shortcuts-reset-all").click();
+		await expect(next).toContainText("→");
+		await expect(page.getByTestId("shortcuts-reset-all")).toHaveCount(0);
+	});
+
+	test("the close button of a sheet closes it (#55)", async ({ page }) => {
+		await boot(page, {}, DESKTOP);
+		await page.getByTestId("open-settings").click();
+		// What's new and the keyboard shortcuts open as sheets with a handle
+		// to pull them down; their Close button must still be a button.
+		await page.getByTestId("whats-new-open").click();
+		const news = page.getByTestId("whats-new");
+		await expect(news).toBeVisible();
+		await news.getByRole("button", { name: "Close", exact: true }).click();
+		await expect(news).toHaveCount(0);
+		await page.getByTestId("shortcuts-open").click();
+		const list = page.getByTestId("shortcuts-sheet");
+		await list.getByRole("button", { name: "Close", exact: true }).click();
+		await expect(list).toHaveCount(0);
+		await expect(page.getByTestId("settings")).toBeVisible();
+	});
+
+	test("Settings lists the keyboard shortcuts, and Esc leaves it", async ({
+		page,
+	}) => {
+		await boot(page, {}, DESKTOP);
+		await page.getByTestId("open-settings").click();
+		// The sections are listed beside it, and go where they say.
+		await page.getByTestId("section-about").click();
+		await expect(page.getByTestId("section-about")).toHaveAttribute(
+			"aria-current",
+			"true",
+		);
+		await page.getByTestId("shortcuts-open").click();
 		const keys = page.getByTestId("shortcuts");
 		await expect(keys).toContainText("Ctrl+O");
 		await expect(keys).toContainText("F11");
+		// Esc closes the list first, then Settings.
+		await page.keyboard.press("Escape");
+		await expect(keys).toHaveCount(0);
+		await expect(page.getByTestId("settings")).toBeVisible();
+		await page.keyboard.press("Escape");
+		await expect(page.getByTestId("settings")).toHaveCount(0);
+		await expect(page.getByTestId("home")).toBeVisible();
 	});
 });
 
@@ -409,12 +555,14 @@ test.describe("the desktop layout on a Mac", () => {
 	test("the keys are the Mac's", async ({ page }) => {
 		await boot(page, {}, MAC);
 		await page.getByTestId("open-settings").click();
+		await page.getByTestId("shortcuts-open").click();
 		const keys = page.getByTestId("shortcuts");
 		await expect(keys).toContainText("⌘O");
 		await expect(keys).toContainText("⌃⌘F");
 		await expect(keys).toContainText("⌘↑ · ⌘↓");
 		await expect(keys).not.toContainText("Ctrl");
 		await expect(keys).not.toContainText("F11");
+		await page.keyboard.press("Escape");
 		await page.getByTestId("settings-back").click();
 
 		await openFixture(page, "sample.pdf");
@@ -426,6 +574,22 @@ test.describe("the desktop layout on a Mac", () => {
 		await expect.poll(() => scrollTop(page, "pdf-scroll")).toBeGreaterThan(500);
 		await page.keyboard.press("Meta+ArrowUp");
 		await expect.poll(() => scrollTop(page, "pdf-scroll")).toBe(0);
+		// ⌘] and ⌘[ turn the pages (a trackpad's swipes send them); ⌘R and
+		// ⌘L rotate, as in Preview.
+		const field = page.getByTestId("pdf-page-field");
+		await page.keyboard.press("Meta+]");
+		await expect(field).toHaveValue("2");
+		await page.keyboard.press("Meta+[");
+		await expect(field).toHaveValue("1");
+		const rotation = () =>
+			page
+				.locator(".pdfViewer .textLayer")
+				.first()
+				.getAttribute("data-main-rotation");
+		await page.keyboard.press("Meta+r");
+		await expect.poll(rotation).toBe("90");
+		await page.keyboard.press("Meta+l");
+		await expect.poll(rotation).toBe("0");
 		// ⌘F finds; ⌃⌘F is full screen and opens no search.
 		await page.keyboard.press("Control+Meta+f");
 		await expect(page.getByRole("search")).toHaveCount(0);

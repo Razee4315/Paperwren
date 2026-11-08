@@ -41,6 +41,21 @@ test("Word finds text on a page that is not on screen", async ({ page }) => {
 	await expect(page.getByTestId("doc-page")).toHaveText("3 / 3");
 });
 
+test("a phone's menu sheet closes from its Close button (#55)", async ({
+	page,
+}) => {
+	await boot(page);
+	await openFixture(page, "sample.pdf");
+	await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+		timeout: 20_000,
+	});
+	await page.getByTestId("file-more").click();
+	const menu = page.getByTestId("file-menu");
+	await expect(menu).toBeVisible();
+	await menu.getByRole("button", { name: "Close", exact: true }).click();
+	await expect(menu).toHaveCount(0);
+});
+
 test("PDF pages sheet shows every page and goes to the one picked", async ({
 	page,
 }) => {

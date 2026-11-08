@@ -2,7 +2,10 @@ export { Button, IconButton } from "./Button";
 export {
 	Dialog,
 	Sheet,
+	SheetDivider,
 	SheetItem,
+	SheetTile,
+	SheetTiles,
 	ToastHost,
 	modalOpen,
 	toast,

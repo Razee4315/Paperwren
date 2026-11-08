@@ -1,4 +1,5 @@
 import { LANGUAGES, type LanguageSetting } from "./i18n";
+import { normalizeShortcuts } from "./shortcuts";
 import { SPEECH_RATES } from "./speech";
 import {
 	DEFAULT_SETTINGS,
@@ -41,7 +42,7 @@ const range = (v: unknown, min: number, max: number, fallback: number) =>
 	typeof v === "number" && Number.isFinite(v)
 		? Math.min(max, Math.max(min, v))
 		: fallback;
-const FLOWS: PdfFlow[] = ["down", "across"];
+const FLOWS: PdfFlow[] = ["down", "across", "one"];
 const FONTS: ReadingFont[] = ["original", "serif", "sans"];
 export const PAGE_COLORS: PageColor[] = ["original", "sepia", "dark", "theme"];
 
@@ -111,6 +112,7 @@ export function normalizeSettings(value: unknown): Settings {
 			DEFAULT_SETTINGS.scrollSpeed,
 		),
 		updates: pick(raw.updates, UPDATE_CHECKS, DEFAULT_SETTINGS.updates),
+		shortcuts: normalizeShortcuts(raw.shortcuts),
 	};
 }
 

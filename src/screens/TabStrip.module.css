@@ -55,10 +55,20 @@
 	height: 8px;
 	border-radius: 50%;
 }
+/* The name is cut in its middle, so three tabs of "sample" still say
+ * which is the .docx and which the .xlsx. */
 .name {
+	display: flex;
+	min-width: 0;
+	white-space: nowrap;
+}
+.stem {
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	white-space: nowrap;
+}
+.ext {
+	flex-shrink: 0;
 }
 .close {
 	display: grid;

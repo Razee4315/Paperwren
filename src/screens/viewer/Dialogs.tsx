@@ -92,6 +92,8 @@ function PageField({
 				}}
 				aria-label={t(words.field, { pages })}
 				title={t(words.go)}
+				// G puts the keyboard here (Shell).
+				data-page-field=""
 				data-testid={`${testId}-page-field`}
 			/>
 			<span data-testid={counterTestId ?? `${testId}-page`}>

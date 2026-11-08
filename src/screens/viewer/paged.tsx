@@ -11,10 +11,17 @@
  * the same text in both layouts.
  */
 
+import { isDesktop } from "@/lib/env";
 import { t } from "@/lib/i18n";
+import { PAGE_VIEWS } from "@/lib/pageViews";
+import type { PdfFlow } from "@/lib/types";
 import { useSettings } from "@/state/settings";
-import { SheetItem } from "@/ui";
-import { GalleryHorizontal } from "lucide-react";
+import { Sheet, SheetItem, toast } from "@/ui";
+import {
+	GalleryHorizontal,
+	GalleryVertical,
+	RectangleVertical,
+} from "lucide-react";
 import {
 	type RefObject,
 	useCallback,
@@ -301,11 +308,12 @@ export function usePaged({
 }
 
 /** Whether the reader turns pages sideways: one choice for every
- * document, a PDF's too (Settings, Reading: "Pages scroll"). */
+ * document, a PDF's too (Settings, Reading: "Page view"). A PDF's
+ * "One page" turns these a page at a time as well. */
 export function useSideways(): [on: boolean, set: (on: boolean) => void] {
 	const { settings, update } = useSettings();
 	return [
-		settings.pdfFlow === "across",
+		settings.pdfFlow !== "down",
 		(on) => update("pdfFlow", on ? "across" : "down"),
 	];
 }
@@ -349,5 +357,67 @@ export function PageCount({ paged }: { paged: Paged }) {
 		>
 			{t("{n} of {total}", { n: paged.page + 1, total: paged.pages })}
 		</span>
+	);
+}
+
+const VIEW_ICONS = {
+	down: GalleryVertical,
+	across: GalleryHorizontal,
+	one: RectangleVertical,
+} as const;
+
+/** The picture of a page view: a column, a row or a single page. */
+export function PageViewIcon({
+	flow,
+	size = 20,
+}: { flow: PdfFlow; size?: number }) {
+	const Icon = VIEW_ICONS[flow];
+	return <Icon size={size} />;
+}
+
+/** How to turn pages, said once a reader picks a view that turns them:
+ * a mouse and keyboard on a computer, a finger on a phone. */
+export function sayHowToTurn() {
+	toast(
+		isDesktop
+			? t(
+					"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.",
+				)
+			: t("Swipe, or tap either side of the page, to turn it."),
+	);
+}
+
+/** The choice of page view, from a PDF's menu. It is the same setting
+ * as in Settings (Reading, "Page view"). */
+export function PageViewSheet({
+	open,
+	onClose,
+}: { open: boolean; onClose: () => void }) {
+	const { settings, update } = useSettings();
+	return (
+		<Sheet
+			open={open}
+			title={t("Page view")}
+			onClose={onClose}
+			testId="page-view-menu"
+		>
+			{PAGE_VIEWS.map(({ value, name, hint }) => (
+				<SheetItem
+					key={value}
+					icon={<PageViewIcon flow={value} />}
+					hint={t(hint)}
+					checked={settings.pdfFlow === value}
+					onClick={() => {
+						onClose();
+						if (value === settings.pdfFlow) return;
+						update("pdfFlow", value);
+						if (value !== "down") sayHowToTurn();
+					}}
+					testId={`page-view-${value}`}
+				>
+					{t(name)}
+				</SheetItem>
+			))}
+		</Sheet>
 	);
 }
