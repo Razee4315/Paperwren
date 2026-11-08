@@ -9,7 +9,7 @@ import {
 import { isDesktop } from "@/lib/env";
 import { type FolderNode, folderAt, folderTree } from "@/lib/folderTree";
 import { formatFromName, kindOf } from "@/lib/formats";
-import { isolate, locale, t, tn } from "@/lib/i18n";
+import { compareNames, formatDate, isolate, t, tn } from "@/lib/i18n";
 import { rememberPictures } from "@/lib/siblings";
 import type { OpenRequest } from "@/lib/types";
 import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
@@ -39,7 +39,7 @@ import {
 function dated(ms: number): string {
 	if (!ms) return "";
 	const d = new Date(ms);
-	return d.toLocaleDateString(locale(), {
+	return formatDate(d, {
 		month: "short",
 		day: "numeric",
 		year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
@@ -55,6 +55,10 @@ const refOf = (f: FolderFile): FileRef => ({
 /** Rows drawn at a time: a folder can hold two thousand documents, and
  * a phone should not lay out all of them to show the first screen. */
 const PAGE = 200;
+/** Rows drawn at once when a folder opens; the rest of the page follows
+ * a moment later, so a big folder shows its first screen straight away
+ * on a slower web engine (Linux's) too. */
+const FIRST = 40;
 
 /** How a folder is shown: its own folders to go into, or every document
  * in it at once, newest first. Kept for the next folder, and next time. */
@@ -87,7 +91,7 @@ export function FolderList({
 	const [listing, setListing] = useState<Listing>({ state: "loading" });
 	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState<KindFilter>("all");
-	const [shownRows, setShownRows] = useState(PAGE);
+	const [shownRows, setShownRows] = useState(FIRST);
 	const [menuFor, setMenuFor] = useState<FolderFile | null>(null);
 	const [detailsFor, setDetailsFor] = useState<FolderFile | null>(null);
 	const [view, setView] = useState<View>(storedView);
@@ -95,7 +99,7 @@ export function FolderList({
 	const [path, setPath] = useState("");
 	const changeView = (next: View) => {
 		setView(next);
-		setShownRows(PAGE);
+		setShownRows(FIRST);
 		try {
 			localStorage.setItem(VIEW_KEY, next);
 		} catch {
@@ -104,7 +108,7 @@ export function FolderList({
 	};
 	const goTo = (next: string) => {
 		setPath(next);
-		setShownRows(PAGE);
+		setShownRows(FIRST);
 	};
 
 	const load = useCallback(() => {
@@ -115,7 +119,7 @@ export function FolderList({
 			.then((files) => {
 				if (!alive) return;
 				files.sort(
-					(a, b) => b.modified - a.modified || a.name.localeCompare(b.name),
+					(a, b) => b.modified - a.modified || compareNames(a.name, b.name),
 				);
 				setListing({ state: "ready", files });
 			})
@@ -125,6 +129,15 @@ export function FolderList({
 		};
 	}, [folder]);
 	useEffect(() => load(), [load]);
+	// The first rows are on screen: the rest of the page, a frame later.
+	const ready = listing.state === "ready";
+	useEffect(() => {
+		if (!ready || shownRows >= PAGE) return;
+		const frame = requestAnimationFrame(() =>
+			setShownRows((n) => Math.max(n, PAGE)),
+		);
+		return () => cancelAnimationFrame(frame);
+	}, [ready, shownRows]);
 
 	const files = listing.state === "ready" ? listing.files : [];
 	const counts = useMemo(

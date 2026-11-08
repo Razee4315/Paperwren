@@ -11,9 +11,13 @@
 //! only if it is an existing file of a document type the app opens.
 //! The two desktop writes (`save.rs`) are asked for by the reader: a
 //! copy saved where the system's save dialog says, and a rename of the
-//! document on show within its folder.
+//! document on show within its folder. Listing a folder the reader chose
+//! (`folder.rs`) reads names, sizes and dates only, as the fs plugin's
+//! read-dir and stat permissions already allow, in one call instead of
+//! one per file.
 
 mod error;
+mod folder;
 mod imports;
 mod open;
 mod save;
@@ -125,6 +129,23 @@ async fn imports_prune(
         ))
     })
     .await
+}
+
+/// The documents in a folder the reader chose to browse, with the
+/// sub-folder each is in and its size and date: one answer, read off the
+/// main thread (folder.rs). `extensions` are the types the app opens.
+#[tauri::command]
+async fn list_folder(
+    path: String,
+    extensions: Vec<String>,
+    limits: folder::Limits,
+) -> AppResult<Vec<folder::Found>> {
+    let extensions: Vec<String> = extensions
+        .into_iter()
+        .take(500)
+        .map(|e| e.to_ascii_lowercase())
+        .collect();
+    blocking(move || folder::list(&PathBuf::from(path), &extensions, limits)).await
 }
 
 /// Documents the app was asked to open (a double-clicked file, "Open
@@ -279,6 +300,7 @@ pub fn run() {
             imports_clear,
             imports_remove,
             imports_prune,
+            list_folder,
             launch_files,
             open_external,
             reveal_in_folder,
