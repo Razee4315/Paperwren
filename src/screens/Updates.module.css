@@ -1,9 +1,0 @@
-/* A release's notes, as the release page wrote them. */
-.notes {
-	max-height: 40vh;
-	overflow-y: auto;
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
-	font-size: 0.875rem;
-	line-height: 1.5;
-}

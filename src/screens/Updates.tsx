@@ -9,7 +9,6 @@ import {
 import { useSettings } from "@/state/settings";
 import { Button, Dialog, toast } from "@/ui";
 import { useEffect, useRef, useState } from "react";
-import s from "./Updates.module.css";
 
 /** The first screen settles before anything is asked or checked. */
 const ASK_AFTER_MS = 2500;
@@ -115,9 +114,8 @@ export function UpdateHost({ paused }: { paused: boolean }) {
 									percent: status.percent,
 								})}
 					</p>
-				) : status.phase === "available" && status.notes ? (
-					<div className={s.notes}>{status.notes}</div>
 				) : (
+					// One line: what changed is in What's new, once it is installed.
 					<p>{t("A new version of Paperwren is ready to install.")}</p>
 				)}
 			</Dialog>

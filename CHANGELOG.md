@@ -2,29 +2,11 @@
 
 ## 1.6.2
 
-- Page view: read a PDF as one long scroll, as pages in a row turned sideways, or one page at a time on its own. Choose it from the file's menu or in Settings, Reading; each choice says what it does.
-- With pages turned a page at a time, arrows beside the page come with the mouse, and a tip says how to turn them. The keys, the wheel, a swipe or a tap on either side turn them too.
-- Zooming is smoother: when a zoom out leaves the page somewhere the screen cannot follow, it glides there instead of jumping; the page sharpens sooner once the zoom ends; and a turn of the mouse wheel is a gentler step.
-- The bar stays still while zooming: the page number no longer shifts when "Whole page" becomes "137%".
-- The first document after starting the app opens about twice as fast: the reader is made ready while Home is shown.
-- A shorter menu: the tools and the file's own actions are tiles, Rotate left and Add bookmark sit at the end of their rows, and the groups are set apart.
-- Settings lists its sections beside it on a computer, and as a row at the top on a phone; the one you are in is marked. Reading and Files are split into shorter groups, the keyboard shortcuts open in a list of their own, grouped by what they do, and Esc leaves Settings.
-- Tabs of files with the same name keep their type in sight: "Quarterly re….docx", "Quarterly re….xlsx".
-- A PDF that turns out to be damaged is not added to Recent files.
-- Find, the laser pointer and other on-and-off buttons say whether they are on to screen readers.
-- Change any keyboard shortcut in Settings, Keyboard shortcuts: click it and press the new keys, or take its keys away. Keys another shortcut had move over, with Undo, and Reset all brings every one back.
-- The Close button of What's new, the list of keys, Bookmarks and every menu on a phone works again: it did nothing, and only a tap outside closed them.
-- Text is crisper on Windows and Linux, and grey text is darker in every theme.
-- Fill & sign works from the keyboard: a tool chosen with Enter is placed in the middle of the page, the arrows move it, + and − resize it, Delete removes it.
-- Spreadsheets tell a screen reader which cell the keys reached, with its value.
-- Messages and their Undo are seen, heard and clickable while a dialog is open, and wait while the pointer is on them.
-- Page Down and Space stop at the top of the next page instead of part way down it. A page that fits the screen turns a page at a time.
-- A page zoomed past the screen is read to its foot before the next page is turned to.
-- The arrow keys keep turning the pages after a click on a PDF.
-- G puts the cursor in the page number, to type a page and press Enter.
-- A mouse's forward button goes forward again after following a link.
-- On a Mac, ⌘[ and ⌘] turn the pages, so a trackpad's swipes work; ⌘R and ⌘L rotate them.
-- The list of keys says Rotate for the keys that rotate the pages.
+- Read a PDF one page at a time: Page view, in the file's menu or in Settings.
+- Change any keyboard shortcut in Settings.
+- Smoother zoom, crisper text, and the first file opens twice as fast.
+- A shorter menu, and Settings in sections.
+- Fixed: the Close button of What's new and of menus on a phone, and the arrow keys after a click on a PDF.
 
 ## 1.6.1
 
