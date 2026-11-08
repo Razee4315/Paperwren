@@ -1,3 +1,4 @@
+import { type Cells, cellKey } from "@/lib/cellPack";
 import { t } from "@/lib/i18n";
 import type { ChartColors } from "@/lib/pptx/chart";
 import { attrOf, kid } from "@/lib/pptx/xml";
@@ -7,12 +8,13 @@ import type { CellStyle, GridCell, GridSheet } from "@/lib/workbookModel";
 import type { CSSProperties } from "react";
 import s from "./Sheet.module.css";
 
-/** A parsed sheet with its cells indexed for the grid. */
+/** A parsed sheet with its cells indexed for the grid: packed as they
+ * came from the worker, or a Map once sorted or filtered. */
 export interface Sheet extends Omit<GridSheet, "cells"> {
-	cells: Map<number, GridCell>;
+	cells: Cells;
 }
 
-export const key = (r: number, c: number) => r * 1024 + c;
+export const key = cellKey;
 
 /** Looks like a number, as a person would type one (right-aligned). */
 export const NUMERIC = /^[-+(]?[$€£¥]?\s?[\d.,]+%?\)?$/;

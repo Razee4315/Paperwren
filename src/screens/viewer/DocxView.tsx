@@ -12,6 +12,7 @@ import {
 	SheetItem,
 	Spinner,
 	StateView,
+	toast,
 } from "@/ui";
 import {
 	BookOpenText,
@@ -375,6 +376,10 @@ export default function DocxView({
 			onPrint={
 				status === "ready"
 					? async (root) => {
+							// A long document takes a moment to lay out again: the
+							// reader is told it is coming, as a long PDF tells them.
+							if (pageCount > 20)
+								toast(t("Preparing {n} pages for printing…", { n: pageCount }));
 							// Re-render with the file's paper dimensions even in Reading view.
 							const source = document.createElement("div");
 							source.className = s.docx;

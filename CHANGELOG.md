@@ -1,5 +1,12 @@
 # What's new
 
+## 1.6.3
+
+- Files open faster: PDFs show their first page sooner, and big spreadsheets, text files and Markdown no longer freeze the screen.
+- A loading screen while Tools and Notes open, and a word of reassurance when a big file takes a while.
+- Big folders open without freezing.
+- Linux: an .rpm for Fedora.
+
 ## 1.6.2
 
 - Read a PDF one page at a time: Page view, in the file's menu or in Settings.

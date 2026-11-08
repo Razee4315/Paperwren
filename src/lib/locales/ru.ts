@@ -1216,6 +1216,8 @@ export const ru: Table = {
 	"Swipe, or tap either side of the page, to turn it.":
 		"Чтобы перевернуть страницу, проведите пальцем или коснитесь её края.",
 	"Show this list": "Показать этот список",
+	Loading: "Загрузка",
+	"Big files take a little longer": "Большие файлы открываются чуть дольше",
 	"Ink for text and marks": "Цвет текста и отметок",
 	"Text in blue": "Синий текст",
 	"Text in black": "Чёрный текст",

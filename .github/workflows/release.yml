@@ -145,7 +145,7 @@ jobs:
           releaseBody: |
             Paperwren v__VERSION__. Open anything. Instantly.
 
-            Downloads for Windows, macOS, Linux (beta: AppImage and .deb) and Android are attached below. See the README for what Paperwren is and is not.
+            Downloads for Windows, macOS, Linux (beta: AppImage, .deb for Debian and Ubuntu, .rpm for Fedora) and Android are attached below. See the README for what Paperwren is and is not.
           releaseDraft: false
           prerelease: false
 
@@ -215,12 +215,15 @@ jobs:
           releaseDraft: false
           prerelease: false
 
-  # Linux (beta): an AppImage that runs on most distributions and a .deb
-  # for Debian and Ubuntu. Built on the oldest supported Ubuntu so the
-  # AppImage's glibc floor stays low. After macOS: each job adds its
-  # platforms to the release's latest.json, so they must not race.
+  # Linux (beta): an AppImage that runs on most distributions, a .deb
+  # for Debian and Ubuntu and an .rpm for Fedora. Built on the oldest
+  # supported Ubuntu so the AppImage's glibc floor stays low. The .deb
+  # and .rpm use the system's own WebKitGTK, which on a current
+  # distribution is far newer (and draws far faster) than the one the
+  # AppImage carries (#49). After macOS: each job adds its platforms to
+  # the release's latest.json, so they must not race.
   linux:
-    name: Linux (AppImage + deb)
+    name: Linux (AppImage + deb + rpm)
     needs: [check-and-bump, macos]
     if: needs.check-and-bump.outputs.should_release == 'true'
     runs-on: ubuntu-22.04
@@ -256,7 +259,7 @@ jobs:
         run: npx tauri icon assets/brand/app-icon.svg --output src-tauri/icons
 
       # The updater's feed, as for Windows and macOS: the AppImage updates
-      # itself; a .deb is updated by reinstalling it.
+      # itself; a .deb or .rpm is updated by installing the new one.
       - name: Sign updates when the key is set
         id: updater
         shell: bash
@@ -277,7 +280,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tauriScript: npx tauri
-          args: --bundles appimage,deb ${{ steps.updater.outputs.args }}
+          args: --bundles appimage,deb,rpm ${{ steps.updater.outputs.args }}
           tagName: v__VERSION__
           releaseCommitish: ${{ needs.check-and-bump.outputs.commit }}
           releaseName: Paperwren v__VERSION__

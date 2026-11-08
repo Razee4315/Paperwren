@@ -1,4 +1,5 @@
 import { t } from "@/lib/i18n";
+import { useEffect, useState } from "react";
 import s from "./Art.module.css";
 
 /**
@@ -168,8 +169,47 @@ export function EmptyScene() {
 	);
 }
 
+/** After this long a wait gets a word of reassurance: the app is
+ * working, not stuck (a big file on a slow computer). */
+const SLOW_MS = 4000;
+/** A file opening passes from one loader to the next (the file read,
+ * then its viewer, then its pages). They are one wait to the reader:
+ * a loader that follows another within this long goes on counting
+ * from when the first appeared. */
+const SAME_WAIT_MS = 500;
+const waiting = { live: 0, since: 0, gone: 0 };
+
+function useWaitedSince(): number {
+	const [since] = useState(() => {
+		const now = performance.now();
+		return waiting.live > 0 || now - waiting.gone < SAME_WAIT_MS
+			? waiting.since
+			: now;
+	});
+	useEffect(() => {
+		if (waiting.live === 0) waiting.since = since;
+		waiting.live++;
+		return () => {
+			waiting.live--;
+			if (waiting.live === 0) waiting.gone = performance.now();
+		};
+	}, [since]);
+	return since;
+}
+
 /** Loading: a still page with a calm indeterminate bar under it. */
 export function PageLoader({ label = t("Opening") }: { label?: string }) {
+	const since = useWaitedSince();
+	const [slow, setSlow] = useState(() => performance.now() - since >= SLOW_MS);
+	useEffect(() => {
+		const left = SLOW_MS - (performance.now() - since);
+		if (left <= 0) {
+			setSlow(true);
+			return;
+		}
+		const timer = window.setTimeout(() => setSlow(true), left);
+		return () => window.clearTimeout(timer);
+	}, [since]);
 	return (
 		<div
 			className={s.loader}
@@ -202,6 +242,9 @@ export function PageLoader({ label = t("Opening") }: { label?: string }) {
 				<i />
 			</span>
 			<span>{label}…</span>
+			{slow && (
+				<span className={s.slow}>{t("Big files take a little longer")}</span>
+			)}
 		</div>
 	);
 }

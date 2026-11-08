@@ -18,6 +18,7 @@ import {
 	DropHint,
 	LinkGuard,
 	OpeningView,
+	ScreenLoading,
 	Sheet,
 	SheetItem,
 	ToastHost,
@@ -39,15 +40,13 @@ import {
 // The viewer engines (pdf.js, docx-preview, the grid) are the bulk of
 // the code; Home must not pay for them at cold start.
 const ViewerScreen = lazy(() => import("@/screens/viewer/ViewerScreen"));
+const loadTools = () => import("@/screens/tools/ToolsScreen");
+const loadNotes = () => import("@/screens/notes/NotesScreen");
 const ToolsScreen = lazy(() =>
-	import("@/screens/tools/ToolsScreen").then((m) => ({
-		default: m.ToolsScreen,
-	})),
+	loadTools().then((m) => ({ default: m.ToolsScreen })),
 );
 const NotesScreen = lazy(() =>
-	import("@/screens/notes/NotesScreen").then((m) => ({
-		default: m.NotesScreen,
-	})),
+	loadNotes().then((m) => ({ default: m.NotesScreen })),
 );
 // Shown once; never part of a regular launch's bundle.
 const Onboarding = lazy(() => import("@/screens/onboarding/Onboarding"));
@@ -59,7 +58,17 @@ const WARM_AFTER = 1500;
 function warmReader() {
 	void import("@/screens/viewer/ViewerScreen").catch(() => {});
 	void import("@/lib/pdfEngine").then((m) => m.loadEngine()).catch(() => {});
+	// Then Tools and Notes, at the next quiet moment: each is opened
+	// from Home, and should come up as quickly as the reader does.
+	idle(() => {
+		void loadTools().catch(() => {});
+		void loadNotes().catch(() => {});
+	});
 }
+const idle = (run: () => void) =>
+	window.requestIdleCallback
+		? window.requestIdleCallback(run, { timeout: 4000 })
+		: window.setTimeout(run, 1);
 
 const ONBOARDED_KEY = "onboarded";
 /** Tabs kept drawn besides the one on show, so a switch back is
@@ -294,13 +303,7 @@ function Root() {
 	);
 
 	useEffect(() => {
-		const idle =
-			window.requestIdleCallback ??
-			((run: () => void) => window.setTimeout(run, 1));
-		const timer = window.setTimeout(
-			() => idle(warmReader, { timeout: 4000 }),
-			WARM_AFTER,
-		);
+		const timer = window.setTimeout(() => idle(warmReader), WARM_AFTER);
 		return () => window.clearTimeout(timer);
 	}, []);
 
@@ -506,13 +509,13 @@ function Root() {
 					return <SettingsScreen key="settings" />;
 				if (screen.kind === "notes")
 					return (
-						<Suspense key="notes" fallback={null}>
+						<Suspense key="notes" fallback={<ScreenLoading />}>
 							<NotesScreen />
 						</Suspense>
 					);
 				if (screen.kind === "tools")
 					return (
-						<Suspense key={`tools-${i}`} fallback={null}>
+						<Suspense key={`tools-${i}`} fallback={<ScreenLoading />}>
 							<ToolsScreen
 								start={screen.tool as ToolId | undefined}
 								file={screen.file}

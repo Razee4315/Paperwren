@@ -7,7 +7,7 @@ import { locale, t, tn } from "@/lib/i18n";
 import { measureLabel as labelOf } from "@/lib/measure";
 import { hasOwnText } from "@/lib/ocr";
 import { pageViewName } from "@/lib/pageViews";
-import { loadEngine, pdfAsset } from "@/lib/pdfEngine";
+import { documentWorker, loadEngine, pdfAsset } from "@/lib/pdfEngine";
 import { type TextPicture, addMarkup } from "@/lib/pdfMarkup";
 import { digitallySigned } from "@/lib/pdfTools";
 import { PrintCancelled } from "@/lib/print";
@@ -440,6 +440,7 @@ export default function PdfView({
 	useEffect(() => {
 		let alive = true;
 		let task: PDFDocumentLoadingTask | null = null;
+		let release = () => {};
 		setStatus("loading");
 		loadEngine()
 			.then(({ pdfjs }) => {
@@ -453,7 +454,10 @@ export default function PdfView({
 				// Read before pdf.js takes the bytes away to its worker.
 				const sample = fileSample(new Uint8Array(data));
 				setSigned(digitallySigned(new Uint8Array(data)));
+				const started = documentWorker(pdfjs);
+				release = started.release;
 				task = pdfjs.getDocument({
+					worker: started.worker,
 					data: new Uint8Array(data),
 					isEvalSupported: false,
 					cMapUrl: pdfAsset("cmaps"),
@@ -557,8 +561,14 @@ export default function PdfView({
 			});
 		return () => {
 			alive = false;
-			// Ends the load and frees the document, whichever it reached.
-			task?.destroy();
+			// Ends the load and frees the document, whichever it reached,
+			// then the worker that read it.
+			if (task)
+				task
+					.destroy()
+					.catch(() => {})
+					.finally(release);
+			else release();
 		};
 	}, [data]);
 
@@ -1210,8 +1220,15 @@ export default function PdfView({
 		if (!doc || !thumbFor || !markDoc?.persist || !thumbFile) return;
 		if (!settings.keepRecents) return;
 		let live = true;
+		// When the pages on screen are drawn and the reader is reading:
+		// it is never worth slowing the first page down for.
 		const timer = window.setTimeout(async () => {
-			if ((await loadThumb(thumbFor)) || !live) return;
+			await new Promise<void>((done) =>
+				window.requestIdleCallback
+					? window.requestIdleCallback(() => done(), { timeout: 3000 })
+					: done(),
+			);
+			if (!live || (await loadThumb(thumbFor)) || !live) return;
 			const first = await doc.getPage(1);
 			const { bytes } = await drawPage(first, {
 				dpi: 32,
@@ -1221,7 +1238,7 @@ export default function PdfView({
 			let text = "";
 			for (const byte of bytes) text += String.fromCharCode(byte);
 			if (live) saveThumb(thumbFor, `data:image/jpeg;base64,${btoa(text)}`);
-		}, 500);
+		}, 1500);
 		return () => {
 			live = false;
 			window.clearTimeout(timer);

@@ -6,6 +6,7 @@
  */
 
 import * as XLSX from "xlsx";
+import { type PackedCells, packCells } from "./cellPack";
 import { decryptPackage } from "./office/crypto";
 import { textDeck } from "./office/deck";
 import { parseDoc } from "./office/doc";
@@ -14,7 +15,11 @@ import type { Extracted } from "./office/model";
 import { type RawDeck, parsePpt } from "./office/ppt";
 import { extractRtf } from "./office/rtf";
 import { readXlsxStyles } from "./sheetStyles";
-import { parseWorkbook } from "./workbookModel";
+import {
+	type GridSheet,
+	type ParseResult,
+	parseWorkbook,
+} from "./workbookModel";
 
 export type WorkerRequest =
 	| { type: "workbook"; buffer: ArrayBuffer | string }
@@ -22,6 +27,16 @@ export type WorkerRequest =
 	| { type: "decrypt"; buffer: ArrayBuffer; password: string };
 
 /** A protected file, unlocked: the bytes of the real one. */
+/** A workbook as it reaches the screen: each sheet's cells packed
+ * (lib/cellPack.ts), so a big one is not hundreds of thousands of
+ * objects to unpack. */
+export type PackedParseResult =
+	| (Omit<Extract<ParseResult, { ok: true }>, "sheets"> & {
+			ok: true;
+			sheets: Array<Omit<GridSheet, "cells"> & { packed: PackedCells }>;
+	  })
+	| Extract<ParseResult, { ok: false }>;
+
 export type DecryptResult =
 	| { ok: true; data: ArrayBuffer }
 	| { ok: false; reason: "password" | "unsupported" | "corrupt" };
@@ -91,7 +106,25 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 				typeof msg.buffer === "string"
 					? null
 					: readXlsxStyles(new Uint8Array(msg.buffer));
-			self.postMessage(parseWorkbook(XLSX, msg.buffer, styles));
+			const result = parseWorkbook(XLSX, msg.buffer, styles);
+			if (!result.ok) {
+				self.postMessage(result satisfies PackedParseResult);
+				return;
+			}
+			// The lists of places and styles are handed over, not copied.
+			const moved: ArrayBuffer[] = [];
+			const sheets = result.sheets.map(({ cells, ...sheet }) => {
+				const packed = packCells(cells);
+				moved.push(
+					packed.keys.buffer as ArrayBuffer,
+					packed.styles.buffer as ArrayBuffer,
+				);
+				return { ...sheet, packed };
+			});
+			(self as unknown as Worker).postMessage(
+				{ ...result, sheets } satisfies PackedParseResult,
+				moved,
+			);
 		} else if (msg.type === "rtf") {
 			self.postMessage({
 				ok: true,

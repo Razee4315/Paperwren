@@ -6,6 +6,8 @@ import { locale, t } from "@/lib/i18n";
 import { type Chart, readChart } from "@/lib/pptx/chart";
 import { hintFor } from "@/lib/shortcuts";
 
+import { CellStore } from "@/lib/cellPack";
+import type { PackedParseResult } from "@/lib/parseWorker";
 import {
 	DEFAULT_COL_WIDTH,
 	HEADER_HEIGHT,
@@ -15,7 +17,7 @@ import {
 	computeVisibleWindow,
 } from "@/lib/sheetLayout";
 import { ENCODINGS, decodeText } from "@/lib/text";
-import type { CellStyle, GridObject, ParseResult } from "@/lib/workbookModel";
+import type { CellStyle, GridObject } from "@/lib/workbookModel";
 import { useSettings } from "@/state/settings";
 import {
 	Button,
@@ -193,17 +195,18 @@ export default function SheetView({
 		const abort = new AbortController();
 		let urls: string[] = [];
 		const input = fileFormat === "csv" ? decodeText(data, encoding) : data;
-		runWorker<ParseResult>({ type: "workbook", buffer: input }, abort.signal)
+		runWorker<PackedParseResult>(
+			{ type: "workbook", buffer: input },
+			abort.signal,
+		)
 			.then((result) => {
 				if (!result.ok) {
 					setError(t("The file is damaged or isn't a valid spreadsheet."));
 					return;
 				}
-				const list = result.sheets.map((sh) => ({
+				const list: Sheet[] = result.sheets.map(({ packed, ...sh }) => ({
 					...sh,
-					cells: new Map(
-						sh.cells.map(([r, c, cell]) => [key(r, c), cell] as const),
-					),
+					cells: new CellStore(packed),
 				}));
 				if (!list.length) {
 					setError(t("This workbook has no sheets."));
