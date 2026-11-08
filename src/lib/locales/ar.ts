@@ -357,13 +357,9 @@ export const ar: Table = {
 	"Close the document": "إغلاق المستند",
 	"Find in the document": "البحث في المستند",
 	"Next and previous match": "النتيجة التالية والسابقة",
-	"Zoom in, zoom out, back to the fit": "تكبير، تصغير، العودة إلى الملاءمة",
 	"Scroll a screen at a time": "التمرير شاشة في كل مرة",
 	"The start and the end of the document": "بداية المستند ونهايته",
-	"The previous and the next page or slide":
-		"الصفحة أو الشريحة السابقة والتالية",
 	"Start a slide show": "بدء عرض الشرائح",
-	"Rotate the pages of a PDF": "تدوير صفحات ملف PDF",
 	"The previous and the next sheet": "الورقة السابقة والتالية",
 	"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.":
 		"لفتح المستندات في Paperwren بالنقر المزدوج، اختره في إعدادات Windows ضمن التطبيقات، ثم التطبيقات الافتراضية.",
@@ -1167,13 +1163,8 @@ export const ar: Table = {
 		"تُقرأ الملفات على هذا الجهاز. قائمة الملفات الأخيرة وتمييزاتك وملاحظاتك وإعداداتك ونسخ الملفات التي تفتحها تبقى في تخزين التطبيق الخاص ويمكن حذفها من الأعلى. كلمات المرور تُستخدم مرة واحدة ولا تُحفظ أبدًا.",
 	"What's new": "ما الجديد",
 	"Press Esc to leave full screen": "اضغط Esc للخروج من ملء الشاشة",
-	"Highlight the selected words, or add a note to them":
-		"ميّز الكلمات المحددة، أو أضف ملاحظة إليها",
-	"Draw on a PDF, or add text to it": "ارسم على ملف PDF، أو أضف إليه نصًا",
 	"Undo and redo a mark": "تراجع عن علامة أو أعدها",
 	"Remove the mark you tapped": "أزل العلامة التي نقرت عليها",
-	"Rotate the pages, or show two side by side":
-		"تدوير الصفحات، أو عرض صفحتين جنبًا إلى جنب",
 	"Page view": "عرض الصفحات",
 	Scroll: "تمرير",
 	"One at a time": "صفحة تلو الأخرى",
@@ -1186,10 +1177,35 @@ export const ar: Table = {
 	"While reading": "أثناء القراءة",
 	"Saved on this device": "محفوظ على هذا الجهاز",
 	"Keyboard shortcuts": "اختصارات لوحة المفاتيح",
-	"Press ? while reading to see them there": "اضغط ? أثناء القراءة لعرضها هناك",
 	"Moving around": "التنقل",
 	"Reading and marking": "القراءة ووضع العلامات",
 	"Slides and sheets": "الشرائح والأوراق",
+	"Back to the fit": "العودة إلى الملاءمة",
+	"Highlight the selected words": "تمييز الكلمات المحددة",
+	"Add a note to the selected words": "إضافة ملاحظة إلى الكلمات المحددة",
+	"Draw on a PDF": "الرسم على ملف PDF",
+	"Add text to a PDF": "إضافة نص إلى ملف PDF",
+	"Change any of them, or press ? while reading to see them":
+		"غيّر أيًا منها، أو اضغط ? أثناء القراءة لعرضها",
+	"No keys": "بلا مفاتيح",
+	"{keys} is kept for scrolling, typing or closing. Try other keys.":
+		"{keys} مخصص للتمرير أو الكتابة أو الإغلاق. جرّب مفاتيح أخرى.",
+	"{keys} now does this instead of: {what}":
+		"{keys} يؤدي هذا الآن بدلًا من: {what}",
+	"Click a shortcut, then press the keys you want for it. Keys in dashed boxes stay as they are.":
+		"انقر على اختصار، ثم اضغط المفاتيح التي تريدها له. المفاتيح في المربعات المتقطعة لا تتغير.",
+	"Change the keys for {what}": "تغيير مفاتيح {what}",
+	"Press the new keys": "اضغط المفاتيح الجديدة",
+	"Remove the keys for {what}": "إزالة مفاتيح {what}",
+	"Reset {what}": "إعادة تعيين {what}",
+	"Every shortcut has its own keys again": "عاد لكل اختصار مفاتيحه الأصلية",
+	"Reset all shortcuts": "إعادة تعيين كل الاختصارات",
+	"Move it with the arrow keys, change its size with + and −, or remove it with Delete.":
+		"حرّكه بمفاتيح الأسهم، وغيّر حجمه بـ + و −، أو احذفه بـ Delete.",
+	"Page {n}: place it here": "الصفحة {n}: ضعه هنا",
+	"Use the arrow keys to move between cells, and Shift to select several.":
+		"استخدم مفاتيح الأسهم للتنقل بين الخلايا، وShift لتحديد عدة خلايا.",
+	Spreadsheet: "جدول بيانات",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"اقلب الصفحات بمفاتيح الأسهم أو عجلة الماوس أو الأسهم بجانب الصفحة.",
 	"Swipe, or tap either side of the page, to turn it.":

@@ -312,24 +312,95 @@
 }
 .keys > div {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	justify-content: space-between;
-	gap: 16px;
-	padding: 7px 0;
+	gap: 12px;
+	min-height: 40px;
+	padding: 4px 0;
 }
 .keys > div + div {
 	border-top: 1px solid var(--line);
 }
 .keys dt {
-	flex-shrink: 0;
-	font-family: var(--mono);
-	font-size: 12.5px;
-	font-weight: 700;
-	color: var(--text-2);
+	font-size: 14px;
 }
 .keys dd {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	gap: 2px;
+}
+/* Keys as key caps. */
+.caps {
+	display: inline-flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 4px;
+}
+.caps kbd {
+	display: inline-block;
+	min-width: 24px;
+	padding: 2px 7px;
+	border: 1px solid var(--line-strong);
+	border-bottom-width: 2px;
+	border-radius: 6px;
+	background: var(--surface);
+	font-family: var(--mono);
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 18px;
+	text-align: center;
+	color: var(--text-2);
+}
+.caps .fixedCaps {
+	border-style: dashed;
+	border-bottom-width: 1px;
+	background: none;
+}
+.noKeys {
+	font-size: 13px;
+	color: var(--text-3);
+}
+/* A shortcut to change: its keys, as a button. */
+.combo {
+	display: inline-flex;
+	align-items: center;
+	min-height: 32px;
+	padding: 3px 6px;
+	border-radius: var(--r-s);
+	border: 1px solid transparent;
+}
+.combo:hover {
+	background: var(--surface-2);
+}
+.combo[data-recording] {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+}
+.listening {
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--accent);
+}
+.keysHelp {
+	margin: 8px 16px 0;
+	font-size: 13px;
+	color: var(--text-3);
+}
+.keysReset {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	justify-self: start;
+	margin: 6px 16px 4px;
+	padding: 8px 12px;
+	border-radius: var(--r-s);
 	font-size: 14px;
-	text-align: end;
+	font-weight: 650;
+	color: var(--accent);
+}
+.keysReset:hover {
+	background: var(--surface-2);
 }
 
 /* What's new, version by version. */

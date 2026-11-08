@@ -6,6 +6,7 @@ import {
 } from "@/lib/docMarks";
 import { isDesktop } from "@/lib/env";
 import { t, uiDir } from "@/lib/i18n";
+import { hintFor, matches } from "@/lib/shortcuts";
 import { useBackClose } from "@/state/navigation";
 import {
 	Button,
@@ -483,10 +484,21 @@ export const Marking = forwardRef<
 	useEffect(() => {
 		if (!active || !isDesktop) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.altKey) return;
+			if (modalOpen()) return;
 			const at = e.target as HTMLElement | null;
 			if (at?.closest?.("input, textarea, select, [contenteditable]")) return;
 			const now = latest.current;
+			if (now.selected && canMark && matches(e, "highlight")) {
+				e.preventDefault();
+				now.mark("highlight", now.color);
+				return;
+			}
+			if (now.selected && canMark && matches(e, "note")) {
+				e.preventDefault();
+				now.writeNote();
+				return;
+			}
+			if (e.altKey) return;
 			const mod = e.ctrlKey || e.metaKey;
 			if (mod) {
 				const key = e.code;
@@ -496,13 +508,7 @@ export const Marking = forwardRef<
 				e.preventDefault();
 				return;
 			}
-			if (now.selected && canMark && e.code === "KeyH") {
-				e.preventDefault();
-				now.mark("highlight", now.color);
-			} else if (now.selected && canMark && e.code === "KeyN") {
-				e.preventDefault();
-				now.writeNote();
-			} else if (now.menu && (e.key === "Delete" || e.key === "Backspace")) {
+			if (now.menu && (e.key === "Delete" || e.key === "Backspace")) {
 				e.preventDefault();
 				now.remove(now.menu.id);
 			} else if (now.menu && e.key === "Escape") {
@@ -575,7 +581,7 @@ export const Marking = forwardRef<
 							</IconButton>
 							<IconButton
 								label={t("Add a note")}
-								shortcut="N"
+								shortcut={hintFor("note")}
 								onClick={writeNote}
 								data-testid="selection-note"
 							>

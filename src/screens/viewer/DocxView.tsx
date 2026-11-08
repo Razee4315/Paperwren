@@ -2,6 +2,7 @@ import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
 import { t } from "@/lib/i18n";
 import { fitted } from "@/lib/print";
+import { hintFor } from "@/lib/shortcuts";
 import { useSettings } from "@/state/settings";
 import {
 	Button,
@@ -409,7 +410,7 @@ export default function DocxView({
 			actions={
 				<IconButton
 					label={t("Find")}
-					shortcut="Ctrl+F"
+					shortcut={hintFor("find")}
 					onClick={() => find.start()}
 					active={find.open}
 					disabled={status !== "ready"}

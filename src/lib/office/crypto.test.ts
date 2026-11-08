@@ -51,13 +51,20 @@ describe("password-protected Office files", () => {
 				plain.endsWith("xlsx") ? "xlsx" : "docx",
 			);
 		},
+		30_000,
 	);
 
-	it.each(cases)("%s: a wrong password is refused", async (_, locked) => {
-		const streams = lookup(read(`viewer-regressions/${locked}`));
-		await expect(decryptPackage(streams, "Wren")).rejects.toThrow("password");
-		await expect(decryptPackage(streams, "")).rejects.toThrow("password");
-	});
+	// Each try derives a key from the password (100 000 rounds of
+	// SHA-512): slow while the whole suite runs at once.
+	it.each(cases)(
+		"%s: a wrong password is refused",
+		async (_, locked) => {
+			const streams = lookup(read(`viewer-regressions/${locked}`));
+			await expect(decryptPackage(streams, "Wren")).rejects.toThrow("password");
+			await expect(decryptPackage(streams, "")).rejects.toThrow("password");
+		},
+		30_000,
+	);
 
 	it("says so when the scheme is one it does not read", async () => {
 		// Extensible encryption: version 4.3.

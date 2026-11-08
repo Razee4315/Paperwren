@@ -93,8 +93,10 @@
 	position: absolute;
 	z-index: 5;
 	bottom: 16px;
-	left: 50%;
-	transform: translateX(-50%);
+	left: 0;
+	right: 0;
+	margin-inline: auto;
+	width: fit-content;
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -251,9 +253,11 @@ button.extra[aria-pressed="false"] {
 }
 /* On a phone it sits above the page counter, in reach of a thumb. */
 .floatBar[data-docked] {
-	left: 50%;
+	left: 0;
+	right: 0;
+	margin-inline: auto;
+	width: fit-content;
 	bottom: calc(var(--safe-bottom) + 68px);
-	transform: translateX(-50%);
 	animation: none;
 	overflow-x: auto;
 	scrollbar-width: none;

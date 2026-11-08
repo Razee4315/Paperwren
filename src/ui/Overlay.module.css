@@ -384,7 +384,15 @@
 	background: var(--line);
 }
 
+/* Holds the message; takes no room and no clicks of its own. */
+.toastRegion {
+	position: fixed;
+	inset: auto 0 0;
+	z-index: 120;
+	pointer-events: none;
+}
 .toast {
+	pointer-events: auto;
 	position: fixed;
 	left: 16px;
 	right: 16px;

@@ -1,6 +1,6 @@
 import { backend, requestForBytes } from "@/lib/backend";
 import { type DocMark, contentKey, fileSample } from "@/lib/docMarks";
-import { isDesktop, isMac } from "@/lib/env";
+import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
 import { copyName, splitName } from "@/lib/fileName";
 import { locale, t, tn } from "@/lib/i18n";
@@ -12,6 +12,7 @@ import { type TextPicture, addMarkup } from "@/lib/pdfMarkup";
 import { digitallySigned } from "@/lib/pdfTools";
 import { PrintCancelled } from "@/lib/print";
 import { resolvePageColor } from "@/lib/settings";
+import { hintFor, matches } from "@/lib/shortcuts";
 import { pageAsksForSignature } from "@/lib/signatureSpots";
 import { textPicture } from "@/lib/textBox";
 import { loadThumb, saveThumb } from "@/lib/thumbs";
@@ -1022,10 +1023,17 @@ export default function PdfView({
 	const pageTops = () => {
 		const box = container.current;
 		if (!box) return [];
-		const origin = box.getBoundingClientRect().top - box.scrollTop;
 		const tops: number[] = [];
 		for (const page of box.querySelectorAll<HTMLElement>(".page")) {
-			const top = page.getBoundingClientRect().top - origin;
+			// From the layout, not the screen: a zoom that is still gliding
+			// into place moves the pages on screen, not where they are.
+			let top = 0;
+			for (
+				let at: HTMLElement | null = page;
+				at && at !== box;
+				at = at.offsetParent as HTMLElement | null
+			)
+				top += at.offsetTop;
 			if (top !== tops[tops.length - 1]) tops.push(top);
 		}
 		return tops;
@@ -1165,20 +1173,17 @@ export default function PdfView({
 		canMark: rights.mark,
 		roomForTwo: false,
 	});
-	// Ctrl+] and Ctrl+[ rotate the pages, as in Edge and Chrome. A Mac's
-	// ⌘] and ⌘[ are forward and back, so there they turn the pages
-	// (Shell), and ⌘R and ⌘L rotate, as in Preview.
+	// Rotate: R and Shift+R, and Ctrl+] and Ctrl+[ as in Edge and Chrome
+	// (on a Mac ⌘R and ⌘L, as in Preview: ⌘] and ⌘[ turn the pages
+	// there). Whatever keys the reader gave them (lib/shortcuts).
 	const rotateRef = useRef(rotate);
 	rotateRef.current = rotate;
 	useEffect(() => {
 		if (!active || status !== "ready") return;
 		const onKey = (e: KeyboardEvent) => {
-			if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
-			if (isMac && (e.ctrlKey || e.shiftKey)) return;
-			const right = isMac ? e.code === "KeyR" : e.key === "]";
-			const left = isMac ? e.code === "KeyL" : e.key === "[";
-			if (right) rotateRef.current(90);
-			else if (left) rotateRef.current(-90);
+			if (modalOpen()) return;
+			if (matches(e, "rotate")) rotateRef.current(90);
+			else if (matches(e, "rotateLeft")) rotateRef.current(-90);
 			else return;
 			e.preventDefault();
 		};
@@ -1478,15 +1483,11 @@ export default function PdfView({
 	useEffect(() => {
 		if (!active || status !== "ready" || !isDesktop) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
-			const at = e.target as HTMLElement | null;
-			if (at?.closest?.("input, textarea, select, [contenteditable]")) return;
+			if (modalOpen() || e.defaultPrevented) return;
 			const now = keyRef.current;
-			if (e.code === "KeyR") now.rotate(e.shiftKey ? -90 : 90);
-			else if (e.code === "Digit2" && !e.shiftKey && now.roomForTwo)
-				now.toggleSpread();
-			else if (e.code === "KeyD" && now.canMark) setMarkingUp("pen");
-			else if (e.code === "KeyT" && now.canMark) setMarkingUp("text");
+			if (matches(e, "twoPages") && now.roomForTwo) now.toggleSpread();
+			else if (matches(e, "draw") && now.canMark) setMarkingUp("pen");
+			else if (matches(e, "addText") && now.canMark) setMarkingUp("text");
 			else return;
 			e.preventDefault();
 		};
@@ -1780,7 +1781,7 @@ export default function PdfView({
 			)}
 			<SheetItem
 				icon={<RotateCw size={20} />}
-				shortcut={isDesktop ? (isMac ? "Ctrl+R" : "Ctrl+]") : undefined}
+				shortcut={isDesktop ? hintFor("rotate") : undefined}
 				onClick={() => {
 					rotate(90);
 					close();
@@ -1789,7 +1790,7 @@ export default function PdfView({
 				extra={
 					<IconButton
 						label={t("Rotate left")}
-						shortcut={isMac ? "Ctrl+L" : "Ctrl+["}
+						shortcut={hintFor("rotateLeft")}
 						onClick={() => {
 							rotate(-90);
 							close();
@@ -2118,7 +2119,7 @@ export default function PdfView({
 			)}
 			<IconButton
 				label={t("Find")}
-				shortcut="Ctrl+F"
+				shortcut={hintFor("find")}
 				onClick={() => setFindOpen(true)}
 				active={findOpen}
 				data-testid="pdf-find"

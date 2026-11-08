@@ -4,6 +4,7 @@ import { t, uiDir } from "@/lib/i18n";
 import type { Block } from "@/lib/office/model";
 import type { DocResult } from "@/lib/parseWorker";
 import { sheet } from "@/lib/print";
+import { hintFor } from "@/lib/shortcuts";
 import {
 	Button,
 	ErrorArt,
@@ -269,7 +270,7 @@ export default function ReflowView(props: ViewerProps) {
 			actions={
 				<IconButton
 					label={t("Find")}
-					shortcut="Ctrl+F"
+					shortcut={hintFor("find")}
 					onClick={() => find.start()}
 					active={find.open}
 					disabled={!doc}

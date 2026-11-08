@@ -362,14 +362,10 @@ export const es: Table = {
 	"Close the document": "Cerrar el documento",
 	"Find in the document": "Buscar en el documento",
 	"Next and previous match": "Coincidencia siguiente y anterior",
-	"Zoom in, zoom out, back to the fit": "Acercar, alejar y volver al ajuste",
 	"Scroll a screen at a time": "Desplazarse una pantalla cada vez",
 	"The start and the end of the document":
 		"El principio y el final del documento",
-	"The previous and the next page or slide":
-		"La página o diapositiva anterior y la siguiente",
 	"Start a slide show": "Iniciar una presentación",
-	"Rotate the pages of a PDF": "Girar las páginas de un PDF",
 	"The previous and the next sheet": "La hoja anterior y la siguiente",
 	"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.":
 		"Para abrir documentos con Paperwren con un doble clic, elígelo en la Configuración de Windows, en Aplicaciones, Aplicaciones predeterminadas.",
@@ -1141,13 +1137,8 @@ export const es: Table = {
 		"Los archivos se leen en este dispositivo. La lista de recientes, tus resaltados y notas, tus ajustes y las copias de los archivos que abres se guardan en el almacenamiento privado de la aplicación y pueden eliminarse arriba. Las contraseñas se usan una vez y nunca se guardan.",
 	"What's new": "Novedades",
 	"Press Esc to leave full screen": "Pulsa Esc para salir de pantalla completa",
-	"Highlight the selected words, or add a note to them":
-		"Resalta las palabras seleccionadas o añade una nota",
-	"Draw on a PDF, or add text to it": "Dibuja en un PDF o añade texto",
 	"Undo and redo a mark": "Deshacer y rehacer una marca",
 	"Remove the mark you tapped": "Quita la marca que tocaste",
-	"Rotate the pages, or show two side by side":
-		"Girar las páginas o mostrar dos en paralelo",
 	"Page view": "Vista de página",
 	Scroll: "Desplazar",
 	"One at a time": "De una en una",
@@ -1160,11 +1151,37 @@ export const es: Table = {
 	"While reading": "Mientras lees",
 	"Saved on this device": "Guardado en este dispositivo",
 	"Keyboard shortcuts": "Atajos de teclado",
-	"Press ? while reading to see them there":
-		"Pulsa ? mientras lees para verlos allí",
 	"Moving around": "Moverse",
 	"Reading and marking": "Leer y marcar",
 	"Slides and sheets": "Diapositivas y hojas",
+	"Back to the fit": "Volver al ajuste",
+	"Highlight the selected words": "Resaltar las palabras seleccionadas",
+	"Add a note to the selected words":
+		"Añadir una nota a las palabras seleccionadas",
+	"Draw on a PDF": "Dibujar en un PDF",
+	"Add text to a PDF": "Añadir texto a un PDF",
+	"Change any of them, or press ? while reading to see them":
+		"Cambia cualquiera, o pulsa ? mientras lees para verlos",
+	"No keys": "Sin teclas",
+	"{keys} is kept for scrolling, typing or closing. Try other keys.":
+		"{keys} se reserva para desplazarse, escribir o cerrar. Prueba otras teclas.",
+	"{keys} now does this instead of: {what}":
+		"{keys} ahora hace esto en lugar de: {what}",
+	"Click a shortcut, then press the keys you want for it. Keys in dashed boxes stay as they are.":
+		"Haz clic en un atajo y pulsa las teclas que quieras para él. Las teclas en recuadros discontinuos no cambian.",
+	"Change the keys for {what}": "Cambiar las teclas de {what}",
+	"Press the new keys": "Pulsa las nuevas teclas",
+	"Remove the keys for {what}": "Quitar las teclas de {what}",
+	"Reset {what}": "Restablecer {what}",
+	"Every shortcut has its own keys again":
+		"Cada atajo vuelve a tener sus teclas",
+	"Reset all shortcuts": "Restablecer todos los atajos",
+	"Move it with the arrow keys, change its size with + and −, or remove it with Delete.":
+		"Muévelo con las flechas, cambia su tamaño con + y −, o quítalo con Supr.",
+	"Page {n}: place it here": "Página {n}: colocarlo aquí",
+	"Use the arrow keys to move between cells, and Shift to select several.":
+		"Usa las flechas para moverte entre celdas y Mayús para seleccionar varias.",
+	Spreadsheet: "Hoja de cálculo",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"Pasa las páginas con las flechas del teclado, la rueda del ratón o las flechas junto a la página.",
 	"Swipe, or tap either side of the page, to turn it.":

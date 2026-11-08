@@ -760,7 +760,9 @@ export function SettingsScreen() {
 										<span className={s.actionText}>
 											{t("Keyboard shortcuts")}
 											<span className={s.hint}>
-												{t("Press ? while reading to see them there")}
+												{t(
+													"Change any of them, or press ? while reading to see them",
+												)}
 											</span>
 										</span>
 										<ChevronRight size={18} className="pw-flip" />
@@ -947,7 +949,7 @@ export function SettingsScreen() {
 				wide
 				testId="shortcuts-sheet"
 			>
-				<ShortcutList />
+				<ShortcutList editable />
 			</Sheet>
 		</div>
 	);

@@ -11,6 +11,7 @@ import { prettyJson } from "@/lib/json";
 import { jsonTree } from "@/lib/jsonTree";
 import { drawMaths, markdownMath } from "@/lib/markdownMath";
 import { sheet } from "@/lib/print";
+import { hintFor } from "@/lib/shortcuts";
 import { ENCODINGS, decodeText } from "@/lib/text";
 import { prettyXml } from "@/lib/xml";
 import { useSettings } from "@/state/settings";
@@ -412,7 +413,7 @@ export default function TextView({
 			actions={
 				<IconButton
 					label={t("Find")}
-					shortcut="Ctrl+F"
+					shortcut={hintFor("find")}
 					onClick={() => startFind()}
 					active={find.open}
 					data-testid="text-find"

@@ -3,6 +3,7 @@ import { isDesktop, isMac, isTauri, sharesFrame } from "@/lib/env";
 import { toggleFullscreen, watchFullscreen } from "@/lib/fullscreen";
 import { language, subscribe, t } from "@/lib/i18n";
 import { isFullscreenKey } from "@/lib/keys";
+import { matches } from "@/lib/shortcuts";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { type Tab, TabStrip } from "@/screens/TabStrip";
@@ -322,10 +323,10 @@ function Root() {
 			if (isDesktop && isFullscreenKey(e)) {
 				e.preventDefault();
 				toggleFullscreen();
-			} else if (mod && !e.shiftKey && key === "o") {
+			} else if (matches(e, "open")) {
 				e.preventDefault();
 				pick();
-			} else if (mod && !e.shiftKey && key === "w" && deep) {
+			} else if (matches(e, "close") && deep) {
 				e.preventDefault();
 				if (shownKey.current !== null) closeTab(shownKey.current);
 				else close();
@@ -365,7 +366,7 @@ function Root() {
 				// belongs to the document: a viewer hears these keys itself
 				// (viewer/hooks.ts), and nothing else may act on them.
 				e.preventDefault();
-			} else if (mod && key === "f") {
+			} else if (matches(e, "find") && !(e.ctrlKey && e.metaKey)) {
 				if (isTauri) e.preventDefault();
 				if (!deep) {
 					e.preventDefault();

@@ -1,6 +1,7 @@
 import type { FileFormat } from "@/lib/formats";
 import { locale, t } from "@/lib/i18n";
 import { readOfficeMeta } from "@/lib/officeMeta";
+import { matches } from "@/lib/shortcuts";
 import type { Position } from "@/lib/types";
 import { useSettings } from "@/state/settings";
 import {
@@ -418,12 +419,11 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 	useEffect(() => {
 		if (!enabled || !active) return;
 		const onKey = (e: KeyboardEvent) => {
-			if ((!e.ctrlKey && !e.metaKey) || e.altKey) return;
 			const z = api.current;
 			if (!z) return;
-			if (e.key === "=" || e.key === "+") z.zoomBy(1.25);
-			else if (e.key === "-" || e.key === "_") z.zoomBy(1 / 1.25);
-			else if (e.key === "0") {
+			if (matches(e, "zoomIn")) z.zoomBy(1.25);
+			else if (matches(e, "zoomOut")) z.zoomBy(1 / 1.25);
+			else if (matches(e, "zoomReset")) {
 				if (o.current.onReset) o.current.onReset();
 				else z.zoomTo(o.current.home ?? 1);
 			} else return;

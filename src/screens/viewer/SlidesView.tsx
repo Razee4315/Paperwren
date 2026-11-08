@@ -12,6 +12,7 @@ import {
 	parsePptxAsync,
 } from "@/lib/pptx/parse";
 import { fitted } from "@/lib/print";
+import { hintFor, matches } from "@/lib/shortcuts";
 import { useSettings } from "@/state/settings";
 import {
 	Button,
@@ -815,11 +816,13 @@ export default function SlidesView({
 	useEffect(() => {
 		if (!active || presenting) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (e.ctrlKey || e.metaKey || e.altKey) return;
 			if ((e.target as HTMLElement).closest?.("input, textarea")) return;
-			if (e.key === "ArrowRight" || e.key === "PageDown") stepRef.current(1);
-			else if (e.key === "ArrowLeft" || e.key === "PageUp") stepRef.current(-1);
-			else if (e.key === "F5") setPresenting(true);
+			const plain = !e.ctrlKey && !e.metaKey && !e.altKey;
+			if (matches(e, "nextPage") || (plain && e.key === "PageDown"))
+				stepRef.current(1);
+			else if (matches(e, "prevPage") || (plain && e.key === "PageUp"))
+				stepRef.current(-1);
+			else if (matches(e, "slideShow")) setPresenting(true);
 			else return;
 			e.preventDefault();
 		};
@@ -924,7 +927,7 @@ export default function SlidesView({
 					)}
 					<IconButton
 						label={t("Slide show")}
-						shortcut="F5"
+						shortcut={hintFor("slideShow")}
 						onClick={() => setPresenting(true)}
 						disabled={!total}
 						data-testid="slides-present"
@@ -933,7 +936,7 @@ export default function SlidesView({
 					</IconButton>
 					<IconButton
 						label={t("Find")}
-						shortcut="Ctrl+F"
+						shortcut={hintFor("find")}
 						onClick={() => find.start()}
 						active={find.open}
 						disabled={!deck}

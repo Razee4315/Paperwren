@@ -3,6 +3,7 @@ import type { EpubBook, TocEntry } from "@/lib/epub";
 import { explainFailure } from "@/lib/errors";
 import { t, uiDir } from "@/lib/i18n";
 import { sheet } from "@/lib/print";
+import { hintFor } from "@/lib/shortcuts";
 import {
 	Button,
 	ErrorArt,
@@ -296,7 +297,7 @@ export default function EpubView(props: ViewerProps) {
 			actions={
 				<IconButton
 					label={t("Find")}
-					shortcut="Ctrl+F"
+					shortcut={hintFor("find")}
 					onClick={() => find.start()}
 					active={find.open}
 					disabled={!book}

@@ -136,9 +136,10 @@
 /* Speaker notes, over the foot of the slide while asked for. */
 .presentNotes {
 	position: absolute;
-	left: 50%;
+	left: 0;
+	right: 0;
+	margin-inline: auto;
 	bottom: calc(76px + var(--safe-bottom));
-	transform: translateX(-50%);
 	width: min(720px, calc(100% - 32px));
 	max-height: 34%;
 	overflow-y: auto;
@@ -256,9 +257,11 @@
 }
 .presentBar {
 	position: absolute;
-	left: 50%;
+	left: 0;
+	right: 0;
+	margin-inline: auto;
+	width: fit-content;
 	bottom: calc(16px + var(--safe-bottom));
-	transform: translateX(-50%);
 	display: flex;
 	align-items: center;
 	gap: 2px;

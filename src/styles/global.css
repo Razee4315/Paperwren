@@ -119,8 +119,8 @@ html.desktop body {
 	--line-strong: #cbc6bb;
 
 	--text: #23221f;
-	--text-2: #5b5952;
-	--text-3: #696760;
+	--text-2: #4f4d47;
+	--text-3: #5d5b55;
 
 	--accent: #2b6e66;
 	--accent-hover: #225a53;
@@ -157,8 +157,8 @@ html.desktop body {
 	--line-strong: #c6b396;
 
 	--text: #3a2e22;
-	--text-2: #56483a;
-	--text-3: #695c4d;
+	--text-2: #4c3f32;
+	--text-3: #5e5244;
 
 	--accent: #94482a;
 	--accent-hover: #8a4226;
@@ -195,8 +195,8 @@ html.desktop body {
 	--line-strong: #3d4349;
 
 	--text: #e6e2da;
-	--text-2: #aaa69e;
-	--text-3: #95938d;
+	--text-2: #b6b2aa;
+	--text-3: #a3a19b;
 
 	--accent: #7cc2b4;
 	--accent-hover: #98d2c6;
@@ -235,8 +235,8 @@ html.desktop body {
 	--line-strong: #cfcfd4;
 
 	--text: #18181b;
-	--text-2: #4f4f57;
-	--text-3: #63636b;
+	--text-2: #46464d;
+	--text-3: #56565e;
 
 	--accent: #2b6e66;
 	--accent-hover: #225a53;
@@ -273,8 +273,8 @@ html.desktop body {
 	--line-strong: #3a3a40;
 
 	--text: #f2f2f3;
-	--text-2: #a9a9b1;
-	--text-3: #93939b;
+	--text-2: #b5b5bd;
+	--text-3: #a1a1a9;
 
 	--accent: #7cc2b4;
 	--accent-hover: #98d2c6;
@@ -374,6 +374,14 @@ body {
 	overflow: hidden;
 	overscroll-behavior: none;
 	transition: background-color var(--t-med) var(--ease);
+}
+
+/* Windows and Linux draw Manrope lighter and softer than a Mac does
+ * (it is a variable font, without the hinting their system fonts have):
+ * a little more weight gives its strokes the contrast of the text in
+ * other apps beside it (#50). A Mac draws it as it should look. */
+html.desktop:not(.mac) body {
+	font-weight: 450;
 }
 
 button,

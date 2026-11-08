@@ -5,6 +5,7 @@ import { exifDate, readExif } from "@/lib/exif";
 import { formatNumber, locale, t, tn } from "@/lib/i18n";
 import { type Pictures, readPictures, systemDecode } from "@/lib/pictures";
 import { idForReopen } from "@/lib/recents";
+import { hintFor } from "@/lib/shortcuts";
 import { picturesAround } from "@/lib/siblings";
 import type { OpenRequest } from "@/lib/types";
 import { ReadText } from "@/screens/tools/ReadText";
@@ -516,7 +517,7 @@ export default function ImageView({
 						<>
 							<IconButton
 								label={t("Previous picture")}
-								shortcut="←"
+								shortcut={hintFor("prevPage")}
 								disabled={at <= 0}
 								onClick={() => stepFolder(-1)}
 								data-testid="image-prev"
@@ -525,7 +526,7 @@ export default function ImageView({
 							</IconButton>
 							<IconButton
 								label={t("Next picture")}
-								shortcut="→"
+								shortcut={hintFor("nextPage")}
 								disabled={at >= beside.length - 1}
 								onClick={() => stepFolder(1)}
 								data-testid="image-next"

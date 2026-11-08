@@ -1,5 +1,6 @@
 import { isDesktop } from "@/lib/env";
 import { locale, t } from "@/lib/i18n";
+import { hintFor, matches } from "@/lib/shortcuts";
 import { holdScreen } from "@/lib/wake";
 import { useBackClose } from "@/state/navigation";
 import { IconButton } from "@/ui";
@@ -278,8 +279,8 @@ export function Present({
 			else if (e.key === "Home") setIndex(Math.max(0, beyond(-1, 1)));
 			else if (e.key === "End") setIndex(Math.max(0, beyond(total, -1)));
 			else if (e.key === "Escape") close();
-			else if (e.key === "p" || e.key === "P") setPresenter((v) => !v);
-			else if (e.key === "l" || e.key === "L") {
+			else if (matches(e, "presenter")) setPresenter((v) => !v);
+			else if (matches(e, "laser")) {
 				setLaser((v) => !v);
 				setDot(null);
 			} else return;
@@ -494,7 +495,7 @@ export function Present({
 				</IconButton>
 				<IconButton
 					label={t("Laser pointer")}
-					shortcut="L"
+					shortcut={hintFor("laser")}
 					active={laser}
 					className={laser ? s.presentOn : undefined}
 					onClick={() => {
@@ -507,7 +508,7 @@ export function Present({
 				</IconButton>
 				<IconButton
 					label={t("Presenter view")}
-					shortcut="P"
+					shortcut={hintFor("presenter")}
 					active={presenter}
 					className={presenter ? s.presentOn : undefined}
 					onClick={() => setPresenter((v) => !v)}

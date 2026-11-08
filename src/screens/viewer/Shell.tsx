@@ -1,6 +1,6 @@
 import { backend } from "@/lib/backend";
 import type { Bookmark as Mark } from "@/lib/bookmarks";
-import { isDesktop, isMac } from "@/lib/env";
+import { isDesktop } from "@/lib/env";
 import type { FindOptions } from "@/lib/find";
 import type { FileFormat } from "@/lib/formats";
 import { inFullscreen, toggleFullscreen } from "@/lib/fullscreen";
@@ -8,6 +8,7 @@ import { msg, t, uiDir } from "@/lib/i18n";
 import { idForReopen } from "@/lib/recents";
 import { screenStop } from "@/lib/screenStep";
 import { MAX_DIM, PAGE_COLORS, resolvePageColor } from "@/lib/settings";
+import { hintFor, matches } from "@/lib/shortcuts";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import { canSpeak } from "@/lib/speech";
 import type { PageColor, Position } from "@/lib/types";
@@ -365,15 +366,14 @@ export function Shell({
 	useEffect(() => {
 		if (sideFocus) update("sidePanel", true);
 	}, [sideFocus, update]);
-	// F for full screen and ? for the list of keys, on a keyboard.
+	// F for full screen and ? for the list of keys, on a keyboard (or
+	// whatever keys the reader gave them).
 	useEffect(() => {
 		if (!active || !isDesktop) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
-			const at = e.target as HTMLElement | null;
-			if (at?.closest?.("input, textarea, select, [contenteditable]")) return;
-			if (e.key === "?") setKeysOpen(true);
-			else if (e.code === "KeyF" && !e.shiftKey) {
+			if (modalOpen() || e.defaultPrevented) return;
+			if (matches(e, "keys")) setKeysOpen(true);
+			else if (matches(e, "fullscreen")) {
 				if (!inFullscreen()) toast(t("Press Esc to leave full screen"));
 				toggleFullscreen();
 			} else return;
@@ -415,8 +415,7 @@ export function Shell({
 	useEffect(() => {
 		if (!active || !fileId) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.altKey || e.shiftKey) return;
-			if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "d") return;
+			if (modalOpen() || !matches(e, "bookmark")) return;
 			e.preventDefault();
 			addRef.current();
 		};
@@ -436,8 +435,7 @@ export function Shell({
 		if (!active || !canRead) return;
 		// Ctrl+Shift+U, as in Edge.
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.altKey || !e.shiftKey) return;
-			if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "u") return;
+			if (modalOpen() || !matches(e, "readAloud")) return;
 			e.preventDefault();
 			setReading((r) => !r);
 		};
@@ -545,7 +543,7 @@ export function Shell({
 			{canRead && (
 				<SheetItem
 					icon={<Volume2 size={20} />}
-					shortcut="Ctrl+Shift+U"
+					shortcut={hintFor("readAloud")}
 					checked={reading}
 					onClick={() => {
 						close();
@@ -568,7 +566,7 @@ export function Shell({
 					extra={
 						<IconButton
 							label={t("Add bookmark")}
-							shortcut="Ctrl+D"
+							shortcut={hintFor("bookmark")}
 							onClick={() => {
 								close();
 								addMark();
@@ -620,11 +618,7 @@ export function Shell({
 	useEffect(() => {
 		if (!active || !isDesktop) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey)
-				return;
-			if (e.code !== "KeyG" || e.defaultPrevented) return;
-			const at = e.target as HTMLElement | null;
-			if (at?.closest?.("input, textarea, select, [contenteditable]")) return;
+			if (modalOpen() || e.defaultPrevented || !matches(e, "goToPage")) return;
 			const field =
 				shell.current?.querySelector<HTMLInputElement>("[data-page-field]");
 			if (!field) return;
@@ -648,7 +642,11 @@ export function Shell({
 	useEffect(() => {
 		if (!active) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (e.defaultPrevented || modalOpen() || e.altKey) return;
+			if (e.defaultPrevented || modalOpen()) return;
+			// The next or the previous page, by whatever keys the reader gave
+			// them (an arrow, or a Mac's ⌘] that a trackpad swipe sends).
+			const step = matches(e, "nextPage") ? 1 : matches(e, "prevPage") ? -1 : 0;
+			if (e.altKey && !step) return;
 			// Only when nothing else wants the keys: a field does. A button in
 			// the bars that was just clicked does not.
 			const at = document.activeElement;
@@ -668,21 +666,12 @@ export function Shell({
 				);
 			if (at && at !== document.body && !onBar && !inPage) return;
 
+			if (step && !e.key.startsWith("Arrow") && stepRef.current) {
+				stepRef.current(step);
+				e.preventDefault();
+				return;
+			}
 			if (e.ctrlKey || e.metaKey) {
-				// ⌘[ and ⌘] are a Mac's back and forward: here the previous
-				// and the next page (a trackpad's swipes often send them).
-				const bracket =
-					e.code === "BracketLeft" || e.key === "["
-						? -1
-						: e.code === "BracketRight" || e.key === "]"
-							? 1
-							: 0;
-				if (isMac && e.metaKey && !e.ctrlKey && !e.shiftKey && bracket) {
-					if (!stepRef.current) return;
-					stepRef.current(bracket);
-					e.preventDefault();
-					return;
-				}
 				// Ctrl+Home and Ctrl+End: the first and the last page. A Mac's
 				// keyboard has neither key: there it is ⌘↑ and ⌘↓.
 				const end =
@@ -698,19 +687,17 @@ export function Shell({
 				return;
 			}
 			const turn =
-				e.key === "ArrowRight"
-					? 1
-					: e.key === "ArrowLeft"
-						? -1
-						: turnRef.current && e.key === "PageDown"
-							? 1
-							: turnRef.current && e.key === "PageUp"
-								? -1
-								: turnRef.current && e.key === " " && !onBar
-									? e.shiftKey
-										? -1
-										: 1
-									: 0;
+				step !== 0
+					? step
+					: turnRef.current && e.key === "PageDown"
+						? 1
+						: turnRef.current && e.key === "PageUp"
+							? -1
+							: turnRef.current && e.key === " " && !onBar
+								? e.shiftKey
+									? -1
+									: 1
+								: 0;
 			if (turn && stepRef.current) {
 				const arrow = e.key.startsWith("Arrow");
 				// Sideways keys pan a page wider than the screen instead
@@ -780,7 +767,7 @@ export function Shell({
 			if (modalOpen() || (e.ctrlKey && e.metaKey)) return;
 			const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
 			const key = e.key.toLowerCase();
-			if (mod && key === "f") {
+			if (matches(e, "find")) {
 				if (!findRef.current) return;
 				e.preventDefault();
 				findRef.current();
@@ -858,7 +845,7 @@ export function Shell({
 				<div className={s.row} data-tauri-drag-region="deep">
 					<IconButton
 						label={t("Back")}
-						shortcut="Ctrl+W"
+						shortcut={hintFor("close")}
 						onClick={onClose}
 						data-testid="viewer-back"
 					>
@@ -1020,7 +1007,7 @@ export function ZoomControl({
 		<div className={s.zoom}>
 			<IconButton
 				label={t("Zoom out")}
-				shortcut="Ctrl+-"
+				shortcut={hintFor("zoomOut")}
 				onClick={onOut}
 				data-testid={`${testId}-zoom-out`}
 			>
@@ -1044,7 +1031,7 @@ export function ZoomControl({
 			</button>
 			<IconButton
 				label={t("Zoom in")}
-				shortcut="Ctrl++"
+				shortcut={hintFor("zoomIn")}
 				onClick={onIn}
 				data-testid={`${testId}-zoom-in`}
 			>
@@ -1123,7 +1110,7 @@ export function FindBar({
 			if (e.key === "Escape") closeRef.current();
 			else if (e.key === "F3" || (mod && key === "g"))
 				stepRef.current(e.shiftKey ? -1 : 1);
-			else if (mod && key === "f") {
+			else if (matches(e, "find")) {
 				input.current?.focus();
 				input.current?.select();
 			} else return;

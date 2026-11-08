@@ -3,8 +3,9 @@ import { isDesktop } from "@/lib/env";
 import { formatLabel, kindLabel, kindOf, mimeOf } from "@/lib/formats";
 import { inFullscreen, toggleFullscreen } from "@/lib/fullscreen";
 import { t } from "@/lib/i18n";
-import { FULLSCREEN_KEYS, keys } from "@/lib/keys";
+import { FULLSCREEN_KEYS } from "@/lib/keys";
 import { printDocument } from "@/lib/print";
+import { hintFor, matches } from "@/lib/shortcuts";
 import type { OpenRequest, Reopen } from "@/lib/types";
 import { announceSaved } from "@/screens/tools/saved";
 import {
@@ -263,7 +264,7 @@ export function FileMenu({
 		// With nothing to print the shortcut is left alone.
 		if (!active || !printable) return;
 		const onKey = (e: KeyboardEvent) => {
-			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+			if (matches(e, "print")) {
 				e.preventDefault();
 				printRef.current();
 			}
@@ -311,7 +312,7 @@ export function FileMenu({
 					{onPrint && (
 						<SheetTile
 							icon={<Printer size={20} />}
-							hint={isDesktop ? keys("Ctrl+P") : undefined}
+							hint={isDesktop ? hintFor("print") : undefined}
 							onClick={print}
 							testId="file-print"
 						>

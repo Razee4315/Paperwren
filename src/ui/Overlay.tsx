@@ -115,6 +115,10 @@ export function useModalFocus(
 		const onKey = (e: KeyboardEvent) => {
 			// Only the top dialog handles keys (for example Save over the editor).
 			if (modals !== depth) return;
+			// A field recording a new shortcut owns every key, Esc and Tab
+			// included (Settings, Keyboard shortcuts).
+			if ((e.target as Element | null)?.closest?.("[data-records-keys]"))
+				return;
 			if (e.key === "Escape") {
 				e.stopPropagation();
 				closeRef.current();
@@ -181,7 +185,12 @@ function SheetPanel({ title, onClose, children, testId }: PanelProps) {
 	const start = useRef<number | null>(null);
 	useModalFocus(ref, onClose);
 
+	// The handle and the title pull the sheet down to close it. Not the
+	// buttons beside the title: holding the pointer for the drag would
+	// take their click away, and Close would do nothing (#55).
 	const onDown = (e: React.PointerEvent) => {
+		if ((e.target as Element).closest("button, a, input, select, textarea"))
+			return;
 		start.current = e.clientY;
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 	};
@@ -533,8 +542,18 @@ export function toast(message: string, action?: ToastState["action"]) {
 	pushToast?.({ message, action });
 }
 
+/**
+ * The messages at the foot of the screen ("Bookmark added", Undo).
+ *
+ * Drawn beside the app, not inside it: a dialog makes the app inert, and
+ * a message shown while one is open must still be seen, heard and
+ * clicked. The live region stays in place and only its words change, so
+ * a screen reader announces each message. A message waits while the
+ * pointer or the keyboard is on it, so Undo can be reached in time.
+ */
 export function ToastHost() {
 	const [current, setCurrent] = useState<ToastState | null>(null);
+	const [held, setHeld] = useState(false);
 	const show = useCallback(
 		(t: Omit<ToastState, "key">) => setCurrent({ ...t, key: Date.now() }),
 		[],
@@ -546,30 +565,46 @@ export function ToastHost() {
 		};
 	}, [show]);
 	useEffect(() => {
-		if (!current) return;
+		if (!current || held) return;
 		const t = window.setTimeout(
 			() => setCurrent(null),
-			current.action ? 5000 : 3000,
+			current.action ? 6000 : 3000,
 		);
 		return () => window.clearTimeout(t);
+	}, [current, held]);
+	// A message gone from under the pointer no longer holds the next one.
+	useEffect(() => {
+		if (!current) setHeld(false);
 	}, [current]);
-	if (!current) return null;
-	return (
+	return createPortal(
 		// biome-ignore lint/a11y/useSemanticElements: a live region, not form output
-		<div className={s.toast} role="status" key={current.key}>
-			<span>{current.message}</span>
-			{current.action && (
-				<button
-					type="button"
-					className={s.toastAction}
-					onClick={() => {
-						current.action?.run();
-						setCurrent(null);
-					}}
+		<div className={s.toastRegion} role="status" aria-live="polite">
+			{current && (
+				<div
+					className={s.toast}
+					key={current.key}
+					onPointerEnter={() => setHeld(true)}
+					onPointerLeave={() => setHeld(false)}
+					onFocus={() => setHeld(true)}
+					onBlur={() => setHeld(false)}
+					data-testid="toast"
 				>
-					{current.action.label}
-				</button>
+					<span>{current.message}</span>
+					{current.action && (
+						<button
+							type="button"
+							className={s.toastAction}
+							onClick={() => {
+								current.action?.run();
+								setCurrent(null);
+							}}
+						>
+							{current.action.label}
+						</button>
+					)}
+				</div>
 			)}
-		</div>
+		</div>,
+		document.body,
 	);
 }

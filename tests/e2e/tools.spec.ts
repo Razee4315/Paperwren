@@ -423,6 +423,55 @@ test.describe("fill & sign", () => {
 		await doc.destroy();
 	});
 
+	test("marks are placed, moved, resized and removed from the keyboard", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await boot(page, {}, "?desktop");
+		await openFixture(page, "features/form.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("pdf-fill-sign").click();
+		const editor = page.getByTestId("fill-sign");
+		await expect(editor.getByTestId("fill-field")).toHaveCount(5);
+
+		// A tool chosen from the keyboard is placed at once, in the middle
+		// of the page on screen; typed text goes into it.
+		await editor.getByTestId("fill-tool-text").focus();
+		await page.keyboard.press("Enter");
+		const item = editor.getByTestId("fill-item");
+		await expect(item).toHaveCount(1);
+		await expect(editor.getByTestId("fill-item-text")).toBeFocused();
+		await page.keyboard.type("Hello");
+		await page.keyboard.press("Enter");
+		// The mark keeps the keyboard: the arrows move it, + makes it larger.
+		await expect(item).toBeFocused();
+		await expect(editor.getByTestId("fill-hint")).toContainText("arrow keys");
+		const box = () =>
+			item.evaluate((el) => ({
+				left: Number.parseFloat((el as HTMLElement).style.left),
+				width: Number.parseFloat((el as HTMLElement).style.width),
+			}));
+		const from = await box();
+		await page.keyboard.press("ArrowRight");
+		await page.keyboard.press("Shift+ArrowRight");
+		expect((await box()).left).toBeGreaterThan(from.left + 4);
+		await page.keyboard.press("+");
+		expect((await box()).width).toBeGreaterThan(from.width);
+		await expect(item).toHaveAttribute("aria-label", "Hello");
+
+		// A tick, chosen with Space; Delete takes it away again.
+		await editor.getByTestId("fill-tool-check").focus();
+		await page.keyboard.press("Space");
+		await expect(item).toHaveCount(2);
+		await expect(item.nth(1)).toBeFocused();
+		await expect(item.nth(1)).toHaveAttribute("aria-label", "Tick");
+		await page.keyboard.press("Delete");
+		await expect(item).toHaveCount(1);
+	});
+
 	test("a form is filled in and signed, and saved as a copy", async ({
 		page,
 	}) => {

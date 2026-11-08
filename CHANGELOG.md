@@ -12,6 +12,12 @@
 - Tabs of files with the same name keep their type in sight: "Quarterly re….docx", "Quarterly re….xlsx".
 - A PDF that turns out to be damaged is not added to Recent files.
 - Find, the laser pointer and other on-and-off buttons say whether they are on to screen readers.
+- Change any keyboard shortcut in Settings, Keyboard shortcuts: click it and press the new keys, or take its keys away. Keys another shortcut had move over, with Undo, and Reset all brings every one back.
+- The Close button of What's new, the list of keys, Bookmarks and every menu on a phone works again: it did nothing, and only a tap outside closed them.
+- Text is crisper on Windows and Linux, and grey text is darker in every theme.
+- Fill & sign works from the keyboard: a tool chosen with Enter is placed in the middle of the page, the arrows move it, + and − resize it, Delete removes it.
+- Spreadsheets tell a screen reader which cell the keys reached, with its value.
+- Messages and their Undo are seen, heard and clickable while a dialog is open, and wait while the pointer is on them.
 - Page Down and Space stop at the top of the next page instead of part way down it. A page that fits the screen turns a page at a time.
 - A page zoomed past the screen is read to its foot before the next page is turned to.
 - The arrow keys keep turning the pages after a click on a PDF.

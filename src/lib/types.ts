@@ -1,5 +1,6 @@
 import type { FileFormat } from "./formats";
 import type { LanguageSetting } from "./i18n";
+import type { ShortcutId } from "./shortcuts";
 
 /** How a file can be read again after the app restarts. */
 export type Reopen =
@@ -121,6 +122,9 @@ export interface Settings {
 	/** A computer: check for a new version when the app starts ("auto"),
 	 * never ("off"), or ask the reader first ("ask", until answered). */
 	updates: UpdateChecks;
+	/** Keyboard shortcuts the reader changed, by name; a shortcut not
+	 * here keeps its own keys, and an empty list has none. */
+	shortcuts: Partial<Record<ShortcutId, string[]>>;
 }
 
 export type UpdateChecks = "ask" | "auto" | "off";
@@ -149,6 +153,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	dim: 0,
 	scrollSpeed: 40,
 	updates: "ask",
+	shortcuts: {},
 };
 
 export const STORAGE_KEYS = {

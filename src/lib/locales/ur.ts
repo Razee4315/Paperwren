@@ -356,13 +356,9 @@ export const ur: Table = {
 	"Close the document": "دستاویز بند کریں",
 	"Find in the document": "دستاویز میں تلاش کریں",
 	"Next and previous match": "اگلا اور پچھلا نتیجہ",
-	"Zoom in, zoom out, back to the fit":
-		"بڑا کریں، چھوٹا کریں، اصل حالت میں واپس",
 	"Scroll a screen at a time": "ایک وقت میں ایک اسکرین سکرول کریں",
 	"The start and the end of the document": "دستاویز کا آغاز اور اختتام",
-	"The previous and the next page or slide": "پچھلا اور اگلا صفحہ یا سلائیڈ",
 	"Start a slide show": "سلائیڈ شو شروع کریں",
-	"Rotate the pages of a PDF": "PDF کے صفحات گھمائیں",
 	"The previous and the next sheet": "پچھلی اور اگلی شیٹ",
 	"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.":
 		"ڈبل کلک سے دستاویزات Paperwren میں کھولنے کے لیے، اسے Windows کی ترتیبات میں Apps، پھر Default apps کے تحت منتخب کریں۔",
@@ -1126,14 +1122,8 @@ export const ur: Table = {
 		"فائلیں اسی آلے پر پڑھی جاتی ہیں۔ حالیہ فہرست، آپ کے نمایاں اور نوٹس، آپ کی ترتیبات اور کھولی گئی فائلوں کی نقلیں ایپ کے نجی ذخیرے میں رہتی ہیں اور اوپر سے حذف کی جا سکتی ہیں۔ پاس ورڈ ایک بار استعمال ہوتے ہیں اور کبھی محفوظ نہیں کیے جاتے۔",
 	"What's new": "نیا کیا ہے",
 	"Press Esc to leave full screen": "پوری اسکرین سے نکلنے کے لیے Esc دبائیں",
-	"Highlight the selected words, or add a note to them":
-		"منتخب الفاظ کو نمایاں کریں، یا ان میں نوٹ شامل کریں",
-	"Draw on a PDF, or add text to it":
-		"PDF پر خاکہ بنائیں، یا اس میں متن شامل کریں",
 	"Undo and redo a mark": "کسی نشان کو واپس لیں یا دوبارہ کریں",
 	"Remove the mark you tapped": "جس نشان پر ٹیپ کیا اسے ہٹائیں",
-	"Rotate the pages, or show two side by side":
-		"صفحات گھمائیں، یا دو ساتھ ساتھ دکھائیں",
 	"Page view": "صفحے کا انداز",
 	Scroll: "سکرول",
 	"One at a time": "ایک ایک کر کے",
@@ -1146,11 +1136,36 @@ export const ur: Table = {
 	"While reading": "پڑھتے وقت",
 	"Saved on this device": "اس ڈیوائس پر محفوظ",
 	"Keyboard shortcuts": "کی بورڈ شارٹ کٹس",
-	"Press ? while reading to see them there":
-		"پڑھتے وقت انہیں دیکھنے کے لیے ? دبائیں",
 	"Moving around": "گھومنا پھرنا",
 	"Reading and marking": "پڑھنا اور نشان لگانا",
 	"Slides and sheets": "سلائیڈز اور شیٹس",
+	"Back to the fit": "واپس فٹ پر",
+	"Highlight the selected words": "منتخب الفاظ کو نمایاں کریں",
+	"Add a note to the selected words": "منتخب الفاظ پر نوٹ شامل کریں",
+	"Draw on a PDF": "PDF پر ڈرا کریں",
+	"Add text to a PDF": "PDF میں متن شامل کریں",
+	"Change any of them, or press ? while reading to see them":
+		"ان میں سے کوئی بھی بدلیں، یا پڑھتے وقت انہیں دیکھنے کے لیے ? دبائیں",
+	"No keys": "کوئی کلید نہیں",
+	"{keys} is kept for scrolling, typing or closing. Try other keys.":
+		"{keys} سکرول کرنے، ٹائپ کرنے یا بند کرنے کے لیے مخصوص ہے۔ دوسری کلیدیں آزمائیں۔",
+	"{keys} now does this instead of: {what}":
+		"{keys} اب یہ کرتی ہے، اس کے بجائے: {what}",
+	"Click a shortcut, then press the keys you want for it. Keys in dashed boxes stay as they are.":
+		"کسی شارٹ کٹ پر کلک کریں، پھر اس کے لیے اپنی پسند کی کلیدیں دبائیں۔ ڈیش والے خانوں کی کلیدیں نہیں بدلتیں۔",
+	"Change the keys for {what}": "{what} کی کلیدیں بدلیں",
+	"Press the new keys": "نئی کلیدیں دبائیں",
+	"Remove the keys for {what}": "{what} کی کلیدیں ہٹائیں",
+	"Reset {what}": "{what} کو دوبارہ ترتیب دیں",
+	"Every shortcut has its own keys again":
+		"ہر شارٹ کٹ کی اپنی کلیدیں واپس آ گئیں",
+	"Reset all shortcuts": "تمام شارٹ کٹس دوبارہ ترتیب دیں",
+	"Move it with the arrow keys, change its size with + and −, or remove it with Delete.":
+		"اسے تیر والی کلیدوں سے ہلائیں، + اور − سے اس کا سائز بدلیں، یا Delete سے ہٹا دیں۔",
+	"Page {n}: place it here": "صفحہ {n}: یہاں رکھیں",
+	"Use the arrow keys to move between cells, and Shift to select several.":
+		"خانوں کے درمیان جانے کے لیے تیر والی کلیدیں استعمال کریں، اور کئی منتخب کرنے کے لیے Shift۔",
+	Spreadsheet: "اسپریڈ شیٹ",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"صفحات تیر والی کلیدوں، ماؤس کے پہیے یا صفحے کے ساتھ والے تیروں سے پلٹیں۔",
 	"Swipe, or tap either side of the page, to turn it.":

@@ -339,12 +339,9 @@ export const zh: Table = {
 	"Close the document": "关闭文档",
 	"Find in the document": "在文档中查找",
 	"Next and previous match": "下一个和上一个匹配项",
-	"Zoom in, zoom out, back to the fit": "放大、缩小、恢复适合大小",
 	"Scroll a screen at a time": "一次滚动一屏",
 	"The start and the end of the document": "文档的开头和结尾",
-	"The previous and the next page or slide": "上一页和下一页或幻灯片",
 	"Start a slide show": "开始幻灯片放映",
-	"Rotate the pages of a PDF": "旋转 PDF 页面",
 	"The previous and the next sheet": "上一个和下一个工作表",
 	"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.":
 		"要通过双击用 Paperwren 打开文档，请在 Windows 设置的“应用”>“默认应用”中选择它。",
@@ -1036,12 +1033,8 @@ export const zh: Table = {
 		"文件在此设备上读取。最近列表、你的高亮和注释、你的设置以及你打开的文件的副本保存在应用的私有存储中，可在上方删除。密码只使用一次，绝不保存。",
 	"What's new": "新功能",
 	"Press Esc to leave full screen": "按 Esc 退出全屏",
-	"Highlight the selected words, or add a note to them":
-		"高亮所选文字，或为其添加注释",
-	"Draw on a PDF, or add text to it": "在 PDF 上绘制，或为其添加文字",
 	"Undo and redo a mark": "撤销和重做标记",
 	"Remove the mark you tapped": "移除你轻点的标记",
-	"Rotate the pages, or show two side by side": "旋转页面，或双页并排显示",
 	"Page view": "页面视图",
 	Scroll: "滚动",
 	"One at a time": "逐页",
@@ -1053,10 +1046,35 @@ export const zh: Table = {
 	"While reading": "阅读时",
 	"Saved on this device": "保存在此设备上",
 	"Keyboard shortcuts": "键盘快捷键",
-	"Press ? while reading to see them there": "阅读时按 ? 即可在那里查看",
 	"Moving around": "浏览与跳转",
 	"Reading and marking": "阅读与标记",
 	"Slides and sheets": "幻灯片和工作表",
+	"Back to the fit": "恢复适合大小",
+	"Highlight the selected words": "高亮所选文字",
+	"Add a note to the selected words": "为所选文字添加笔记",
+	"Draw on a PDF": "在 PDF 上绘图",
+	"Add text to a PDF": "向 PDF 添加文字",
+	"Change any of them, or press ? while reading to see them":
+		"可以更改任意一个，或在阅读时按 ? 查看",
+	"No keys": "无按键",
+	"{keys} is kept for scrolling, typing or closing. Try other keys.":
+		"{keys} 保留用于滚动、输入或关闭。请换其他按键。",
+	"{keys} now does this instead of: {what}":
+		"{keys} 现在执行此操作，而不再是：{what}",
+	"Click a shortcut, then press the keys you want for it. Keys in dashed boxes stay as they are.":
+		"点击一个快捷键，然后按下你想用的按键。虚线框中的按键不可更改。",
+	"Change the keys for {what}": "更改“{what}”的按键",
+	"Press the new keys": "请按下新按键",
+	"Remove the keys for {what}": "移除“{what}”的按键",
+	"Reset {what}": "重置“{what}”",
+	"Every shortcut has its own keys again": "所有快捷键都已恢复默认按键",
+	"Reset all shortcuts": "重置所有快捷键",
+	"Move it with the arrow keys, change its size with + and −, or remove it with Delete.":
+		"用方向键移动，用 + 和 − 调整大小，或按 Delete 删除。",
+	"Page {n}: place it here": "第 {n} 页：放在这里",
+	"Use the arrow keys to move between cells, and Shift to select several.":
+		"用方向键在单元格间移动，按住 Shift 可选择多个。",
+	Spreadsheet: "电子表格",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"使用方向键、鼠标滚轮或页面两侧的箭头翻页。",
 	"Swipe, or tap either side of the page, to turn it.":

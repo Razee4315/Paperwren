@@ -363,14 +363,9 @@ export const ru: Table = {
 	"Close the document": "Закрыть документ",
 	"Find in the document": "Найти в документе",
 	"Next and previous match": "Следующее и предыдущее совпадение",
-	"Zoom in, zoom out, back to the fit":
-		"Увеличить, уменьшить, вернуть по размеру",
 	"Scroll a screen at a time": "Прокрутка на один экран",
 	"The start and the end of the document": "Начало и конец документа",
-	"The previous and the next page or slide":
-		"Предыдущая и следующая страница или слайд",
 	"Start a slide show": "Начать показ слайдов",
-	"Rotate the pages of a PDF": "Повернуть страницы PDF",
 	"The previous and the next sheet": "Предыдущий и следующий лист",
 	"To open documents with Paperwren by a double-click, choose it in Windows Settings, under Apps, Default apps.":
 		"Чтобы открывать документы в Paperwren двойным щелчком, выберите его в параметрах Windows: Приложения, Приложения по умолчанию.",
@@ -1172,14 +1167,8 @@ export const ru: Table = {
 	"What's new": "Что нового",
 	"Press Esc to leave full screen":
 		"Нажмите Esc, чтобы выйти из полноэкранного режима",
-	"Highlight the selected words, or add a note to them":
-		"Выделите выбранные слова или добавьте к ним заметку",
-	"Draw on a PDF, or add text to it":
-		"Рисуйте на PDF или добавляйте в него текст",
 	"Undo and redo a mark": "Отменить и повторить пометку",
 	"Remove the mark you tapped": "Убрать пометку, на которую вы нажали",
-	"Rotate the pages, or show two side by side":
-		"Повернуть страницы или показать две рядом",
 	"Page view": "Вид страниц",
 	Scroll: "Прокрутка",
 	"One at a time": "По одной",
@@ -1192,11 +1181,36 @@ export const ru: Table = {
 	"While reading": "Во время чтения",
 	"Saved on this device": "Сохранено на этом устройстве",
 	"Keyboard shortcuts": "Сочетания клавиш",
-	"Press ? while reading to see them there":
-		"Нажмите ? во время чтения, чтобы увидеть их там",
 	"Moving around": "Перемещение",
 	"Reading and marking": "Чтение и пометки",
 	"Slides and sheets": "Слайды и листы",
+	"Back to the fit": "Вернуть по размеру",
+	"Highlight the selected words": "Выделить выбранные слова",
+	"Add a note to the selected words": "Добавить заметку к выбранным словам",
+	"Draw on a PDF": "Рисовать на PDF",
+	"Add text to a PDF": "Добавить текст в PDF",
+	"Change any of them, or press ? while reading to see them":
+		"Измените любое или нажмите ? во время чтения, чтобы увидеть их",
+	"No keys": "Без клавиш",
+	"{keys} is kept for scrolling, typing or closing. Try other keys.":
+		"{keys} используется для прокрутки, ввода или закрытия. Попробуйте другие клавиши.",
+	"{keys} now does this instead of: {what}":
+		"{keys} теперь делает это вместо: {what}",
+	"Click a shortcut, then press the keys you want for it. Keys in dashed boxes stay as they are.":
+		"Нажмите на сочетание, затем нажмите нужные клавиши. Клавиши в пунктирных рамках не меняются.",
+	"Change the keys for {what}": "Изменить клавиши для «{what}»",
+	"Press the new keys": "Нажмите новые клавиши",
+	"Remove the keys for {what}": "Убрать клавиши для «{what}»",
+	"Reset {what}": "Сбросить «{what}»",
+	"Every shortcut has its own keys again":
+		"Всем сочетаниям возвращены их клавиши",
+	"Reset all shortcuts": "Сбросить все сочетания",
+	"Move it with the arrow keys, change its size with + and −, or remove it with Delete.":
+		"Перемещайте стрелками, меняйте размер клавишами + и − или удалите клавишей Delete.",
+	"Page {n}: place it here": "Страница {n}: поместить сюда",
+	"Use the arrow keys to move between cells, and Shift to select several.":
+		"Используйте стрелки для перехода между ячейками и Shift, чтобы выделить несколько.",
+	Spreadsheet: "Таблица",
 	"Turn pages with the arrow keys, the mouse wheel or the arrows beside the page.":
 		"Листайте страницы клавишами со стрелками, колёсиком мыши или стрелками рядом со страницей.",
 	"Swipe, or tap either side of the page, to turn it.":
