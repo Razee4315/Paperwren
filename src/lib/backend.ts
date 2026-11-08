@@ -16,7 +16,7 @@ import {
 	formatFromName,
 	mimeOf,
 } from "./formats";
-import { formatNumber, msg, t } from "./i18n";
+import { compareNames, formatNumber, msg, t } from "./i18n";
 import { idForReopen, managedRelPath } from "./recents";
 import { createSerializedWriter } from "./serializedWriter";
 import type { OpenRequest, Reopen } from "./types";
@@ -625,87 +625,42 @@ function androidCall<T>(
 	});
 }
 
-/** Walk a desktop folder breadth-first, within FOLDER_LIMITS. */
+/**
+ * A desktop folder's documents, within FOLDER_LIMITS: one call to the
+ * shell (folder.rs), which walks it and reads every size and date off
+ * the main thread. Asking for them one file at a time froze the window
+ * on Linux, where the fs plugin answers on the thread that draws it.
+ */
 async function listDesktopFolder(root: string): Promise<FolderFile[]> {
-	const { readDir, stat } = await import("@tauri-apps/plugin-fs");
-	const separator = root.includes("\\") && !root.includes("/") ? "\\" : "/";
-	const join = (dir: string, name: string) =>
-		dir.endsWith(separator) ? `${dir}${name}` : `${dir}${separator}${name}`;
-	const found: Array<{ path: string; name: string; folder: string }> = [];
-	const queue: Array<{ dir: string; label: string; depth: number }> = [
-		{ dir: root, label: "", depth: 0 },
-	];
-	let visited = 0;
-	let first = true;
-	while (
-		queue.length &&
-		found.length < FOLDER_LIMITS.files &&
-		visited < FOLDER_LIMITS.folders
-	) {
-		const { dir, label, depth } = queue.shift() as (typeof queue)[number];
-		visited++;
-		let entries: Awaited<ReturnType<typeof readDir>>;
-		try {
-			entries = await readDir(dir);
-		} catch (err) {
-			// The chosen folder itself must be readable; deeper ones may not be.
-			if (first) throw new OpenError(classifyError(err), String(err));
-			continue;
-		} finally {
-			first = false;
-		}
-		for (const entry of entries) {
-			if (entry.name.startsWith(".")) continue;
-			if (entry.isDirectory) {
-				if (depth < FOLDER_LIMITS.depth)
-					queue.push({
-						dir: join(dir, entry.name),
-						label: label ? `${label}/${entry.name}` : entry.name,
-						depth: depth + 1,
-					});
-			} else if (
-				entry.isFile &&
-				formatFromName(entry.name) !== "unknown" &&
-				found.length < FOLDER_LIMITS.files
-			) {
-				found.push({
-					path: join(dir, entry.name),
-					name: entry.name,
-					folder: label,
-				});
-			}
-		}
+	let found: Array<{
+		path: string;
+		name: string;
+		folder: string;
+		size: number;
+		modified: number;
+	}>;
+	try {
+		found = await invoke("list_folder", {
+			path: root,
+			extensions: PICKER_EXTENSIONS,
+			limits: FOLDER_LIMITS,
+		});
+	} catch (err) {
+		throw new OpenError(
+			classifyError(err),
+			String((err as { message?: string })?.message ?? err),
+		);
 	}
-	// Size and date are a nicety: a refused stat still lists the file.
-	const out: FolderFile[] = new Array(found.length);
-	let next = 0;
-	const worker = async () => {
-		while (next < found.length) {
-			const i = next++;
-			const file = found[i];
-			let size = 0;
-			let modified = 0;
-			try {
-				const info = await stat(file.path);
-				size = info.size;
-				modified = info.mtime ? info.mtime.getTime() : 0;
-			} catch {
-				// Leave them unknown.
-			}
-			out[i] = {
-				name: file.name,
-				size,
-				modified,
-				folder: file.folder,
-				request: request(file.name, true, size, {
-					kind: "path",
-					path: file.path,
-				}),
-			};
-		}
-	};
-	await Promise.all(Array.from({ length: 12 }, worker));
-	return out;
+	return found.map((file) => ({
+		name: file.name,
+		size: file.size,
+		modified: file.modified,
+		folder: file.folder,
+		request: request(file.name, true, file.size, {
+			kind: "path",
+			path: file.path,
+		}),
+	}));
 }
 
 /** The shell's word that files are waiting to be opened (lib.rs). */
@@ -899,9 +854,7 @@ const tauriBackend: Backend = {
 			return (await readDir(folder))
 				.filter((e) => e.isFile && formatFromName(e.name) === "image")
 				.map((e) => e.name)
-				.sort((a, b) =>
-					a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
-				)
+				.sort(compareNames)
 				.slice(0, FOLDER_LIMITS.files)
 				.map((name) =>
 					request(name, true, 0, { kind: "path", path: folder + name }),

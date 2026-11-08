@@ -2,8 +2,8 @@ name: Test builds
 
 # Non-release validation for working branches and PRs (audit
 # section 17.4): frontend lint/type/test, Rust checks, browser
-# integration tests, Windows installers, an Android APK and a macOS disk image
-# uploaded as artifacts. Never bumps versions, tags, or publishes
+# integration tests, Windows installers, Linux packages, an Android APK
+# and a macOS disk image uploaded as artifacts. Never bumps versions, tags, or publishes
 # releases.
 on:
   pull_request:
@@ -145,6 +145,57 @@ jobs:
           path: |
             src-tauri/target/release/bundle/nsis/*-setup.exe
             src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error
+
+  # The Linux packages, built as a release builds them, to try before
+  # anything is published. The .rpm must ask for the WebKitGTK it runs
+  # on, or a Fedora without it installs an app that cannot start.
+  linux:
+    name: Linux packages (test build)
+    runs-on: ubuntu-22.04
+    needs: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Generate app icons
+        run: npx tauri icon assets/brand/app-icon.svg --output src-tauri/icons
+
+      - name: Build AppImage, .deb and .rpm
+        run: npx tauri build --bundles appimage,deb,rpm
+
+      - name: Check what the .rpm asks for
+        run: |
+          rpm -qp --requires src-tauri/target/release/bundle/rpm/*.rpm | tee requires.txt
+          grep -q '^webkit2gtk4.1' requires.txt
+          grep -q '^gtk3' requires.txt
+
+      - name: Upload Linux packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: Paperwren-linux-test
+          path: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
           if-no-files-found: error
 
   # A disk image to try on a Mac before anything is published.

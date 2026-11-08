@@ -21,11 +21,63 @@ export const pdfAsset = (dir: string) =>
 export async function loadEngine() {
 	const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 	pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+	startSpare();
 	// pdf_viewer.mjs reads the core library from this global.
 	(globalThis as { pdfjsLib?: unknown }).pdfjsLib = pdfjs;
 	const viewer = await import("pdfjs-dist/legacy/web/pdf_viewer.mjs");
 	return { pdfjs, viewer };
 }
+
+/**
+ * A worker started before it is needed. Starting one (fetching and
+ * compiling pdf.js's worker script) is a good part of the wait for a
+ * first page; with one ready, the document chosen next skips it. Each
+ * document still has a worker of its own, ended with it.
+ */
+let spare: Worker | null = null;
+let refill = 0;
+function startSpare() {
+	if (spare || typeof Worker === "undefined") return;
+	try {
+		spare = new Worker(workerUrl, { type: "module" });
+	} catch {
+		spare = null;
+	}
+}
+
+type Engine = Awaited<ReturnType<typeof loadEngine>>["pdfjs"];
+type PdfWorker = InstanceType<Engine["PDFWorker"]>;
+
+/** The worker for a document the viewer opens: the spare when there is
+ * one (`worker` for getDocument; `release` ends it with the document),
+ * else nothing, and pdf.js starts its own as usual. */
+export function documentWorker(pdfjs: Engine): {
+	worker?: PdfWorker;
+	release: () => void;
+} {
+	const port = spare;
+	spare = null;
+	// The next one, once this document has had the computer to itself.
+	window.clearTimeout(refill);
+	refill = window.setTimeout(startSpare, SPARE_AFTER);
+	if (!port) return { release: () => {} };
+	let worker: PdfWorker;
+	try {
+		// (pdf.js types the port as never given; it takes a Worker.)
+		worker = new pdfjs.PDFWorker({ port: port as never });
+	} catch {
+		port.terminate();
+		return { release: () => {} };
+	}
+	return {
+		worker,
+		release: () => {
+			worker.destroy();
+			port.terminate();
+		},
+	};
+}
+const SPARE_AFTER = 5000;
 
 /** A PDF opened for drawing its pages (a tool's thumbnails, Fill &
  * sign from a tool). pdf.js is handed a copy: the bytes stay usable. */

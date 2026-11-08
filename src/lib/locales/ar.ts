@@ -1211,6 +1211,8 @@ export const ar: Table = {
 	"Swipe, or tap either side of the page, to turn it.":
 		"اسحب، أو انقر على أي من جانبي الصفحة، لقلبها.",
 	"Show this list": "إظهار هذه القائمة",
+	Loading: "جارٍ التحميل",
+	"Big files take a little longer": "تستغرق الملفات الكبيرة وقتًا أطول قليلًا",
 	"Ink for text and marks": "حبر النص والعلامات",
 	"Text in blue": "نص أزرق",
 	"Text in black": "نص أسود",

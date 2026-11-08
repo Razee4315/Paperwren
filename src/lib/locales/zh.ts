@@ -1080,6 +1080,8 @@ export const zh: Table = {
 	"Swipe, or tap either side of the page, to turn it.":
 		"滑动，或轻点页面任一侧来翻页。",
 	"Show this list": "显示此列表",
+	Loading: "正在加载",
+	"Big files take a little longer": "大文件需要稍长一点的时间",
 	"Ink for text and marks": "文字和标记的颜色",
 	"Text in blue": "蓝色文字",
 	"Text in black": "黑色文字",

@@ -162,6 +162,45 @@ export function formatNumber(
 	return format.format(value);
 }
 
+/*
+ * Dates, plurals and the order of names, each from one formatter kept per
+ * language. WebKit's engine (Linux, macOS) builds a new one for every
+ * toLocaleDateString, PluralRules or localeCompare with options: over a
+ * folder of hundreds of files that is seconds of work, a sort alone
+ * thousands of them.
+ */
+const dates = new Map<string, Intl.DateTimeFormat>();
+const plurals = new Map<string, Intl.PluralRules>();
+const collators = new Map<string, Intl.Collator>();
+
+/** A date or a time the way the reader writes it. */
+export function formatDate(
+	date: Date | number,
+	options: Intl.DateTimeFormatOptions,
+): string {
+	const id = `${current}|${JSON.stringify(options)}`;
+	let format = dates.get(id);
+	if (!format) {
+		format = new Intl.DateTimeFormat(locale(), options);
+		dates.set(id, format);
+	}
+	return format.format(date);
+}
+
+/** Two names in the order a person counts them ("2" before "10"),
+ * whatever their case or accents. */
+export function compareNames(a: string, b: string): number {
+	let collator = collators.get(current);
+	if (!collator) {
+		collator = new Intl.Collator(locale(), {
+			numeric: true,
+			sensitivity: "base",
+		});
+		collators.set(current, collator);
+	}
+	return collator.compare(a, b);
+}
+
 const fill = (text: string, vars?: Vars) =>
 	vars
 		? text.replace(/\{(\w+)\}/g, (whole, name) => {
@@ -187,7 +226,12 @@ export function tn(count: number, one: string, other: string, vars?: Vars) {
 	const entry = TABLES[current]?.[other];
 	if (entry === undefined) return fill(count === 1 ? one : other, all);
 	if (typeof entry === "string") return fill(entry, all);
-	const category = new Intl.PluralRules(current).select(count) as Category;
+	let rules = plurals.get(current);
+	if (!rules) {
+		rules = new Intl.PluralRules(current);
+		plurals.set(current, rules);
+	}
+	const category = rules.select(count) as Category;
 	return fill(entry[category] ?? entry.other, all);
 }
 

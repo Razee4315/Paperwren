@@ -12,6 +12,11 @@
 	unicode-bidi: plaintext;
 	text-align: start;
 }
+/* A block of a long text (lib/textBlocks.ts): laid out only near the
+ * screen, its guessed height kept until then. */
+.block {
+	content-visibility: auto;
+}
 .md p,
 .md li,
 .md h1,

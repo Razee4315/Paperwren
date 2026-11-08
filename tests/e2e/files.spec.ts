@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, mkdtempSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type Page, expect, test } from "@playwright/test";
@@ -159,6 +159,33 @@ test("a picture with the wrong extension is still a picture", async ({
 });
 
 // ---------- folders ----------
+
+test("a folder of hundreds of documents opens a page of them at a time", async ({
+	page,
+}) => {
+	const folder = join(mkdtempSync(join(tmpdir(), "paperwren-")), "Scans");
+	mkdirSync(folder);
+	for (let i = 1; i <= 300; i++)
+		writeFileSync(join(folder, `scan ${i}.txt`), `page ${i}`);
+	await boot(page);
+	const [chooser] = await Promise.all([
+		page.waitForEvent("filechooser"),
+		page.getByTestId("browse-folder").click(),
+	]);
+	await chooser.setFiles(folder);
+	// The first rows at once, the rest of the page a moment later; more on
+	// asking.
+	const files = page.getByTestId("folder-file");
+	await expect(files).toHaveCount(200);
+	const more = page.getByTestId("folder-more");
+	await expect(more).toContainText("100");
+	await more.click();
+	await expect(files).toHaveCount(300);
+	await expect(more).toHaveCount(0);
+	// Named the way a person counts: scan 2 before scan 10.
+	await page.getByTestId("folder-search").fill("scan 1");
+	await expect(files.first()).toContainText("scan 1");
+});
 
 test("a folder's documents are listed, searched and opened", async ({
 	page,

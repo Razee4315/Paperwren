@@ -73,6 +73,13 @@
 	z-index: 30;
 	background: var(--canvas);
 }
+.screenLoading {
+	position: fixed;
+	inset: var(--tab-strip, 0px) 0 0;
+	z-index: 20;
+	background: var(--page-bg, var(--canvas));
+	animation: pw-screen-side var(--t-med) var(--ease);
+}
 .stateTitle {
 	font-size: 17px;
 	font-weight: 700;

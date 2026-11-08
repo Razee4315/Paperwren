@@ -1150,6 +1150,8 @@ export const hi: Table = {
 	"Swipe, or tap either side of the page, to turn it.":
 		"पृष्ठ पलटने के लिए स्वाइप करें, या उसके किसी भी किनारे पर टैप करें।",
 	"Show this list": "यह सूची दिखाएँ",
+	Loading: "लोड हो रहा है",
+	"Big files take a little longer": "बड़ी फ़ाइलों में थोड़ा ज़्यादा समय लगता है",
 	"Ink for text and marks": "टेक्स्ट और निशानों की स्याही",
 	"Text in blue": "नीला टेक्स्ट",
 	"Text in black": "काला टेक्स्ट",

@@ -1187,6 +1187,8 @@ export const es: Table = {
 	"Swipe, or tap either side of the page, to turn it.":
 		"Desliza o toca cualquier lado de la página para pasarla.",
 	"Show this list": "Mostrar esta lista",
+	Loading: "Cargando",
+	"Big files take a little longer": "Los archivos grandes tardan un poco más",
 	"Ink for text and marks": "Tinta del texto y las marcas",
 	"Text in blue": "Texto en azul",
 	"Text in black": "Texto en negro",

@@ -1199,6 +1199,9 @@ export const fr: Table = {
 	"Swipe, or tap either side of the page, to turn it.":
 		"Faites glisser, ou touchez un côté de la page, pour la tourner.",
 	"Show this list": "Afficher cette liste",
+	Loading: "Chargement",
+	"Big files take a little longer":
+		"Les gros fichiers prennent un peu plus de temps",
 	"Ink for text and marks": "Encre du texte et des marques",
 	"Text in blue": "Texte en bleu",
 	"Text in black": "Texte en noir",

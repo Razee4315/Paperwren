@@ -21,6 +21,11 @@
 	font-size: 13px;
 	font-weight: 600;
 }
+.slow {
+	max-width: 260px;
+	font-weight: 500;
+	animation: pw-fade-in var(--t-med) var(--ease);
+}
 .loader svg {
 	width: 48px;
 	height: 58px;

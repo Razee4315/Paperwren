@@ -9,10 +9,11 @@ import {
 import { t } from "@/lib/i18n";
 import { prettyJson } from "@/lib/json";
 import { jsonTree } from "@/lib/jsonTree";
-import { drawMaths, markdownMath } from "@/lib/markdownMath";
+import { drawMaths, markdownFor } from "@/lib/markdownMath";
 import { sheet } from "@/lib/print";
 import { hintFor } from "@/lib/shortcuts";
 import { ENCODINGS, decodeText } from "@/lib/text";
+import { textBlocks } from "@/lib/textBlocks";
 import { prettyXml } from "@/lib/xml";
 import { useSettings } from "@/state/settings";
 import { Button, IconButton, Sheet, SheetItem } from "@/ui";
@@ -28,7 +29,6 @@ import {
 	Search,
 	WrapText,
 } from "lucide-react";
-import { Marked } from "marked";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { JsonTree, foldAll } from "./JsonTree";
 import {
@@ -68,9 +68,13 @@ const PRETTY_MAX = 2_000_000;
  * page would be too heavy to scroll. */
 const NUMBERED_MAX = 20_000;
 const TEXT_SIZES = [80, 100, 125, 150, 200];
-
-/** Markdown as GitHub reads it, with maths in TeX. */
-const markdown = new Marked(markdownMath);
+/** Plain text longer than this is drawn in blocks of lines (lib/
+ * textBlocks.ts), and the browser lays out only the blocks near the
+ * screen: a long log opens at once instead of after all of it has
+ * been measured. */
+const BLOCKED_MIN = 150_000;
+/** Its line height, as Text.module.css sets it. */
+const LINE_PX = 14 * 1.6;
 
 export default function TextView({
 	data,
@@ -129,7 +133,8 @@ export default function TextView({
 		if (format !== "md" || source) return null;
 		// File content is untrusted: sanitize before it reaches the DOM.
 		return DOMPurify.sanitize(
-			markdown.parse(text, { async: false }) as string,
+			// Markdown as GitHub reads it, with maths in TeX.
+			markdownFor(text).parse(text, { async: false }) as string,
 			{
 				FORBID_TAGS: ["style", "script", "iframe", "form", "object", "embed"],
 				FORBID_ATTR: ["style"],
@@ -186,6 +191,21 @@ export default function TextView({
 		relayout: `${html?.length}|${code?.length}|${lines?.length}|${shown.length}|${settings.wrapText}|${source}`,
 	});
 	const turnPage = paged.pages ? paged.turn : undefined;
+	// Plain text that is long, in blocks the browser may skip while they
+	// are off screen. Not while pages are turned sideways: those are
+	// columns of the whole text.
+	const blocks = useMemo(
+		() =>
+			html === null &&
+			!treeShown &&
+			!lines &&
+			code === null &&
+			!sideways &&
+			shown.length > BLOCKED_MIN
+				? textBlocks(shown, settings.wrapText)
+				: null,
+		[html, treeShown, lines, code, sideways, shown, settings.wrapText],
+	);
 	const tapTurn = useTapToTurn(scroller, turnPage);
 	const canNumber = useMemo(() => {
 		let count = 1;
@@ -476,6 +496,21 @@ export default function TextView({
 									// biome-ignore lint/security/noDangerouslySetInnerHtml: highlight.js escapes the text it colours
 									dangerouslySetInnerHTML={{ __html: code }}
 								/>
+							</pre>
+						) : blocks ? (
+							<pre className={`${s.plain} ${wrap ? "" : s.nowrap}`}>
+								{blocks.map((block, i) => (
+									<div
+										// The blocks only change all together, with the text.
+										key={i}
+										className={s.block}
+										style={{
+											containIntrinsicSize: `auto ${Math.round(block.rows * LINE_PX)}px`,
+										}}
+									>
+										{block.text}
+									</div>
+								))}
 							</pre>
 						) : (
 							<pre className={`${s.plain} ${wrap ? "" : s.nowrap}`}>

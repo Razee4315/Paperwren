@@ -15,6 +15,7 @@ export {
 	DropHint,
 	FileBadge,
 	OpeningView,
+	ScreenLoading,
 	Spinner,
 	StateView,
 	Switch,

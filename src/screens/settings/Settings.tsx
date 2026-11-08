@@ -235,7 +235,9 @@ function SectionList({
 		const onScroll = () => {
 			if (!frame) frame = requestAnimationFrame(read);
 		};
-		read();
+		// The first section is the one on show; read the page once it is
+		// drawn, rather than making the browser lay it out early for this.
+		onScroll();
 		box.addEventListener("scroll", onScroll, { passive: true });
 		return () => {
 			cancelAnimationFrame(frame);

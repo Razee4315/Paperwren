@@ -1171,6 +1171,8 @@ export const ur: Table = {
 	"Swipe, or tap either side of the page, to turn it.":
 		"صفحہ پلٹنے کے لیے سوائپ کریں، یا اس کے کسی بھی کنارے پر تھپتھپائیں۔",
 	"Show this list": "یہ فہرست دکھائیں",
+	Loading: "لوڈ ہو رہا ہے",
+	"Big files take a little longer": "بڑی فائلوں میں تھوڑا زیادہ وقت لگتا ہے",
 	"Ink for text and marks": "متن اور نشانات کی سیاہی",
 	"Text in blue": "نیلا متن",
 	"Text in black": "سیاہ متن",

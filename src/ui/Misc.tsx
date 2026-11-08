@@ -1,7 +1,7 @@
 import { type FileFormat, type FormatKind, kindOf } from "@/lib/formats";
 import { t, uiDir } from "@/lib/i18n";
 import { FileDown } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { PageLoader } from "./Art";
 import { FileIcon } from "./FileIcon";
 import s from "./Misc.module.css";
@@ -108,6 +108,27 @@ export function OpeningView({ name }: { name?: string }) {
 			<StateView>
 				<Spinner label={name ? t("Opening {name}", { name }) : t("Opening")} />
 			</StateView>
+		</div>
+	);
+}
+
+/** A screen whose code is still on its way (Tools, Notes, the first
+ * time they are opened on a slow computer). Its surface comes in at
+ * once, as the screen would; the loader only if the wait is long
+ * enough to see, so a quick one does not flash. */
+export function ScreenLoading() {
+	const [shown, setShown] = useState(false);
+	useEffect(() => {
+		const timer = window.setTimeout(() => setShown(true), 200);
+		return () => window.clearTimeout(timer);
+	}, []);
+	return (
+		<div className={s.screenLoading} data-testid="screen-loading">
+			{shown && (
+				<StateView>
+					<PageLoader label={t("Loading")} />
+				</StateView>
+			)}
 		</div>
 	);
 }

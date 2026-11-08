@@ -6,7 +6,7 @@ import {
 } from "@/lib/backend";
 import { isDesktop } from "@/lib/env";
 import { type FormatKind, kindOf } from "@/lib/formats";
-import { isolate, locale, msg, t } from "@/lib/i18n";
+import { compareNames, formatDate, isolate, locale, msg, t } from "@/lib/i18n";
 import { keys } from "@/lib/keys";
 import { samplePdf } from "@/lib/sample";
 import { loadThumb, watchThumb } from "@/lib/thumbs";
@@ -99,13 +99,10 @@ export function relativeTime(ts: number, now = Date.now()): string {
 	const d = new Date(ts);
 	const today = new Date(now);
 	if (d.toDateString() === today.toDateString())
-		return d.toLocaleTimeString(locale(), {
-			hour: "numeric",
-			minute: "2-digit",
-		});
+		return formatDate(d, { hour: "numeric", minute: "2-digit" });
 	const yesterday = new Date(now - 86_400_000);
 	if (d.toDateString() === yesterday.toDateString()) return t("Yesterday");
-	return d.toLocaleDateString(locale(), {
+	return formatDate(d, {
 		month: "short",
 		day: "numeric",
 		year: d.getFullYear() === today.getFullYear() ? undefined : "numeric",
@@ -234,11 +231,7 @@ export function Home({
 			? visible
 			: [...visible].sort(
 					sort === "name"
-						? (a, b) =>
-								a.name.localeCompare(b.name, locale(), {
-									numeric: true,
-									sensitivity: "base",
-								})
+						? (a, b) => compareNames(a.name, b.name)
 						: (a, b) => b.size - a.size,
 				);
 	const pinned = ordered.filter((e) => e.pinned);
