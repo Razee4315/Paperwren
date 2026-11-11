@@ -89,15 +89,25 @@ function paint(
  */
 export function SignaturePad({
 	initials = false,
+	ink: startInk = INKS[1],
+	onInk,
 	onDone,
 	onClose,
 }: {
 	initials?: boolean;
+	/** The ink it starts with: the one for all that is added. */
+	ink?: string;
+	/** The ink picked here becomes that one too. */
+	onInk?: (ink: string) => void;
 	onDone: (signature: Signature) => void;
 	onClose: () => void;
 }) {
 	const [way, setWay] = useState<Way>("draw");
-	const [ink, setInk] = useState(INKS[0]);
+	const [ink, pickInk] = useState(startInk);
+	const setInk = (next: string) => {
+		pickInk(next);
+		onInk?.(next);
+	};
 	const [penWidth, setPenWidth] = useState(2.6);
 	const [typed, setTyped] = useState("");
 	const [hand, setHand] = useState(0);

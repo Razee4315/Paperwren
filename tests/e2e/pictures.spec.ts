@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { type Page, expect, test } from "@playwright/test";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import { boot, openFixture } from "./helpers";
+import { boot, openFixture, pickTool } from "./helpers";
 
 type Paper = "clear" | "white" | "photo";
 
@@ -185,7 +185,7 @@ test("a picture with nothing on it says so, and Use it is never silent", async (
 test.describe("stamps", () => {
 	test("a stamp is made, placed twice, kept, and saved", async ({ page }) => {
 		const editor = await openEditor(page);
-		await editor.getByTestId("fill-tool-stamp").click();
+		await pickTool(page, "stamp");
 		const pad = page.getByTestId("stamp-pad");
 		await expect(pad).toBeVisible();
 		await expect(page.getByTestId("stamp-done")).toBeDisabled();
@@ -208,7 +208,7 @@ test.describe("stamps", () => {
 			editor.locator('[data-testid="fill-item"][data-kind="stamp"]'),
 		).toHaveCount(2);
 		// Kept: the next stamp is a tap away.
-		await editor.getByTestId("fill-tool-stamp").click();
+		await pickTool(page, "stamp");
 		await expect(page.getByTestId("stamp-kept")).toHaveCount(1);
 		await page.getByTestId("stamp-kept").click();
 		await tapPage(page, 0.5, 0.5);
@@ -220,7 +220,7 @@ test.describe("stamps", () => {
 
 	test("a stamp from a clear PNG keeps its colour", async ({ page }) => {
 		const editor = await openEditor(page);
-		await editor.getByTestId("fill-tool-stamp").click();
+		await pickTool(page, "stamp");
 		await page.getByTestId("stamp-upload").click();
 		await nextPicture(page, "clear", "#c62828");
 		await page.getByTestId("stamp-pick").click();
@@ -253,7 +253,7 @@ test.describe("stamps", () => {
 		page,
 	}) => {
 		const editor = await openEditor(page);
-		await editor.getByTestId("fill-tool-stamp").click();
+		await pickTool(page, "stamp");
 		await page.getByTestId("stamp-upload").click();
 		await nextPicture(page, "white", "#1a3c8c");
 		await page.getByTestId("stamp-pick").click();
@@ -297,7 +297,7 @@ test("on a desktop the signature and stamp dialogs have room", async ({
 	const pad = await page.getByTestId("signature-canvas").boundingBox();
 	expect(pad?.width).toBeGreaterThan(500);
 	await page.keyboard.press("Escape");
-	await editor.getByTestId("fill-tool-stamp").click();
+	await pickTool(page, "stamp");
 	const stamp = await page.getByTestId("stamp-pad").boundingBox();
 	expect(stamp?.width).toBeGreaterThan(560);
 });

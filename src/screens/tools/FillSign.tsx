@@ -23,6 +23,7 @@ import {
 	Dialog,
 	IconButton,
 	Sheet,
+	SheetDivider,
 	SheetItem,
 	Spinner,
 	toast,
@@ -32,6 +33,7 @@ import {
 	ArrowLeft,
 	CalendarDays,
 	Check,
+	Ellipsis,
 	Info,
 	Minus,
 	PenLine,
@@ -52,6 +54,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
 import { whole } from "../viewer/pdfCrop";
@@ -97,7 +100,7 @@ interface Item extends Box {
 	text?: string;
 }
 
-/** The inks for typed text, the date, ticks and crosses: blue unless
+/** The one ink for all that is added, the signature too: blue unless
  * the reader picks black. */
 const INKS = { blue: "#1a3c8c", black: "#111111" } as const;
 type Ink = keyof typeof INKS;
@@ -105,6 +108,15 @@ type Ink = keyof typeof INKS;
  * page's height (about 12 points on A4). */
 const LINE = 0.021;
 const ZOOMS = [1, 1.5, 2, 3];
+
+/** A screen wide enough for every tool in one row. */
+const ROOMY = "(min-width: 700px)";
+function onRoomyChange(then: () => void) {
+	const query = window.matchMedia?.(ROOMY);
+	query?.addEventListener("change", then);
+	return () => query?.removeEventListener("change", then);
+}
+const roomyScreen = () => !!window.matchMedia?.(ROOMY).matches;
 
 let made = 0;
 const newId = () => `m${++made}`;
@@ -313,6 +325,10 @@ export function FillSign({
 	const [saving, setSaving] = useState<"ask" | "busy" | null>(null);
 	const [flatten, setFlatten] = useState(false);
 	const [ink, setInk] = useState<Ink>("blue");
+	const [moreOpen, setMoreOpen] = useState(false);
+	// A phone's narrow screen: Save on top, four tools at the foot.
+	const roomy = useSyncExternalStore(onRoomyChange, roomyScreen);
+	const compact = !isDesktop && !roomy;
 	const [zoom, setZoom] = useState(0);
 	const [width, setWidth] = useState(0);
 	const [sizes, setSizes] = useState<Array<[number, number]>>([]);
@@ -664,20 +680,35 @@ export function FillSign({
 		["check", t("Tick"), <Check key="c" size={20} />],
 		["cross", t("Cross"), <X key="x" size={20} />],
 	];
+	/** On a phone, the tools few forms need wait in More. */
+	const rare: Tool[] = ["initials", "stamp", "cross"];
+	const atHand = compact
+		? tools.filter(([kind]) => !rare.includes(kind))
+		: tools;
 	const pageWidth = Math.max(200, width) * ZOOMS[zoom];
 	const keysHint = useId();
+	const saveButton = (
+		<Button
+			onClick={() => setSaving("ask")}
+			disabled={!dirty || saving === "busy"}
+			data-testid="fill-save"
+		>
+			{t("Save a copy")}
+		</Button>
+	);
 
 	return createPortal(
 		<div
 			ref={editor}
 			tabIndex={-1}
-			className={s.fill}
+			className={`${s.fill} ${s.signFill}`}
 			// biome-ignore lint/a11y/useSemanticElements: a full-screen surface, not a native dialog
 			role="dialog"
 			aria-modal="true"
 			aria-label={t("Fill & sign")}
 			data-testid="fill-sign"
 			data-can-mark={canMark || undefined}
+			data-compact={compact || undefined}
 		>
 			<header className={s.fillBar} data-tauri-drag-region="deep">
 				<IconButton label={t("Close")} onClick={close} data-testid="fill-close">
@@ -687,6 +718,7 @@ export function FillSign({
 					<strong>{t("Fill & sign")}</strong>
 					<span dir="auto">{name}</span>
 				</div>
+				{compact && saveButton}
 			</header>
 			{canMark && (
 				<div
@@ -694,7 +726,7 @@ export function FillSign({
 					role="toolbar"
 					aria-label={t("Add to the page")}
 				>
-					{tools.map(([kind, label, icon]) => (
+					{atHand.map(([kind, label, icon]) => (
 						<button
 							key={kind}
 							type="button"
@@ -709,133 +741,144 @@ export function FillSign({
 							<span>{label}</span>
 						</button>
 					))}
+					{compact && (
+						<button
+							type="button"
+							className={s.tool}
+							title={t("More")}
+							aria-haspopup="dialog"
+							aria-pressed={!!tool && rare.includes(tool)}
+							onClick={() => setMoreOpen(true)}
+							data-testid="fill-tool-more"
+						>
+							<Ellipsis size={20} />
+							<span>{t("More")}</span>
+						</button>
+					)}
 				</div>
 			)}
-			<div className={s.fillActions} data-testid="fill-actions">
-				<div className={s.zoom}>
-					<IconButton
-						label={t("Zoom out")}
-						disabled={zoom === 0}
-						onClick={() => setZoom((z) => Math.max(0, z - 1))}
-					>
-						<Minus size={18} />
-					</IconButton>
-					<span>{Math.round(ZOOMS[zoom] * 100)}%</span>
-					<IconButton
-						label={t("Zoom in")}
-						disabled={zoom === ZOOMS.length - 1}
-						onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))}
-					>
-						<Plus size={18} />
-					</IconButton>
+			{!compact && (
+				<div className={s.fillActions} data-testid="fill-actions">
+					<div className={s.zoom}>
+						<IconButton
+							label={t("Zoom out")}
+							disabled={zoom === 0}
+							onClick={() => setZoom((z) => Math.max(0, z - 1))}
+						>
+							<Minus size={18} />
+						</IconButton>
+						<span>{Math.round(ZOOMS[zoom] * 100)}%</span>
+						<IconButton
+							label={t("Zoom in")}
+							disabled={zoom === ZOOMS.length - 1}
+							onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))}
+						>
+							<Plus size={18} />
+						</IconButton>
+					</div>
+					{saveButton}
 				</div>
-				<Button
-					onClick={() => setSaving("ask")}
-					disabled={!dirty || saving === "busy"}
-					data-testid="fill-save"
-				>
-					{t("Save a copy")}
-				</Button>
-			</div>
+			)}
 
 			<p id={keysHint} className="visually-hidden">
 				{t(
 					"Move it with the arrow keys, change its size with + and −, or remove it with Delete.",
 				)}
 			</p>
-			<div className={s.fillHint} data-testid="fill-guidance">
-				<Info size={17} aria-hidden="true" />
-				<p aria-live="polite" data-testid="fill-hint">
-					{selected && !editing && isDesktop
-						? t(
-								"Move it with the arrow keys, change its size with + and −, or remove it with Delete.",
-							)
-						: tool
-							? t("{tool}: select a spot on the page to place it.", {
-									tool: tools.find(([kind]) => kind === tool)?.[1] ?? "",
-								})
-							: fields?.length
-								? t(
-										"Type into the form's fields, or add to the page from the tools",
-									)
-								: canMark
+			{(!compact || tool || again) && (
+				<div className={s.fillHint} data-testid="fill-guidance">
+					<Info size={17} aria-hidden="true" />
+					<p aria-live="polite" data-testid="fill-hint">
+						{selected && !editing && isDesktop
+							? t(
+									"Move it with the arrow keys, change its size with + and −, or remove it with Delete.",
+								)
+							: tool
+								? t("{tool}: select a spot on the page to place it.", {
+										tool: tools.find(([kind]) => kind === tool)?.[1] ?? "",
+									})
+								: fields?.length
 									? t(
-											"Choose Text or Signature above, then select a spot on the page.",
+											"Type into the form's fields, or add to the page from the tools",
 										)
-									: t("Type into the form's fields")}
-				</p>
-				{/* Here rather than in the tool bar, which a phone already fills:
-				 * the ink for typed text, the date, ticks and crosses. */}
-				{canMark && (
-					<div
-						className={s.fillInk}
-						role="radiogroup"
-						aria-label={t("Ink for text and marks")}
-					>
-						{(["blue", "black"] as const).map((colour) => (
-							<button
-								key={colour}
-								type="button"
-								// biome-ignore lint/a11y/useSemanticElements: a pair of buttons with radio semantics
-								role="radio"
-								aria-checked={ink === colour}
-								aria-label={
-									colour === "blue" ? t("Text in blue") : t("Text in black")
-								}
-								title={
-									colour === "blue" ? t("Text in blue") : t("Text in black")
-								}
-								// One stop for the pair; the arrows switch between them.
-								tabIndex={ink === colour ? 0 : -1}
-								onClick={() => setInk(colour)}
-								onKeyDown={(e) => {
-									if (!/^Arrow(Left|Right|Up|Down)$/.test(e.key)) return;
-									e.preventDefault();
-									const next = colour === "blue" ? "black" : "blue";
-									setInk(next);
-									(
-										e.currentTarget.parentElement?.querySelector(
-											`[data-testid="fill-ink-${next}"]`,
-										) as HTMLElement | null
-									)?.focus();
-								}}
-								data-testid={`fill-ink-${colour}`}
-							>
-								<span style={{ background: INKS[colour] }} aria-hidden="true" />
-							</button>
-						))}
-					</div>
-				)}
-				{tool && (
-					<button
-						type="button"
-						className={s.cancelTool}
-						onClick={() => setTool(null)}
-					>
-						{t("Cancel")}
-					</button>
-				)}
-				{!tool && again && (
-					<button
-						type="button"
-						className={s.cancelTool}
-						onClick={() => {
-							setSelected(null);
-							setEditing(null);
-							setTool(again);
-							setAgain(null);
-						}}
-						data-testid="fill-again"
-					>
-						{t("Place another")}
-					</button>
-				)}
-				<p className={s.saveStatus} aria-live="polite">
-					{dirty
-						? t("Changes ready to save")
-						: t("Add your details to get started")}
-				</p>
-			</div>
+									: canMark
+										? t(
+												"Choose Text or Signature above, then select a spot on the page.",
+											)
+										: t("Type into the form's fields")}
+					</p>
+					{/* Here rather than in the tool bar: the ink for everything
+					 * added, the signature too. A phone has it in More. */}
+					{canMark && !compact && (
+						<div className={s.fillInk} role="radiogroup" aria-label={t("Ink")}>
+							{(["blue", "black"] as const).map((colour) => (
+								<button
+									key={colour}
+									type="button"
+									// biome-ignore lint/a11y/useSemanticElements: a pair of buttons with radio semantics
+									role="radio"
+									aria-checked={ink === colour}
+									aria-label={
+										colour === "blue" ? t("Blue ink") : t("Black ink")
+									}
+									title={colour === "blue" ? t("Blue ink") : t("Black ink")}
+									// One stop for the pair; the arrows switch between them.
+									tabIndex={ink === colour ? 0 : -1}
+									onClick={() => setInk(colour)}
+									onKeyDown={(e) => {
+										if (!/^Arrow(Left|Right|Up|Down)$/.test(e.key)) return;
+										e.preventDefault();
+										const next = colour === "blue" ? "black" : "blue";
+										setInk(next);
+										(
+											e.currentTarget.parentElement?.querySelector(
+												`[data-testid="fill-ink-${next}"]`,
+											) as HTMLElement | null
+										)?.focus();
+									}}
+									data-testid={`fill-ink-${colour}`}
+								>
+									<span
+										style={{ background: INKS[colour] }}
+										aria-hidden="true"
+									/>
+								</button>
+							))}
+						</div>
+					)}
+					{tool && (
+						<button
+							type="button"
+							className={s.cancelTool}
+							onClick={() => setTool(null)}
+						>
+							{t("Cancel")}
+						</button>
+					)}
+					{!tool && again && (
+						<button
+							type="button"
+							className={s.cancelTool}
+							onClick={() => {
+								setSelected(null);
+								setEditing(null);
+								setTool(again);
+								setAgain(null);
+							}}
+							data-testid="fill-again"
+						>
+							{t("Place another")}
+						</button>
+					)}
+					{!compact && (
+						<p className={s.saveStatus} aria-live="polite">
+							{dirty
+								? t("Changes ready to save")
+								: t("Add your details to get started")}
+						</p>
+					)}
+				</div>
+			)}
 			<div
 				ref={scroller}
 				className={s.fillPages}
@@ -919,6 +962,73 @@ export function FillSign({
 				))}
 			</div>
 
+			<Sheet
+				open={moreOpen}
+				title={t("More")}
+				onClose={() => setMoreOpen(false)}
+				testId="fill-more"
+			>
+				{tools
+					.filter(([kind]) => rare.includes(kind))
+					.map(([kind, label, icon]) => (
+						<SheetItem
+							key={kind}
+							icon={icon}
+							checked={tool === kind}
+							onClick={() => {
+								setMoreOpen(false);
+								pick(kind, false);
+							}}
+							testId={`fill-tool-${kind}`}
+						>
+							{label}
+						</SheetItem>
+					))}
+				<SheetDivider />
+				{(["blue", "black"] as const).map((colour) => (
+					<SheetItem
+						key={colour}
+						icon={
+							<svg viewBox="0 0 20 20" aria-hidden="true">
+								<circle
+									cx="10"
+									cy="10"
+									r="8"
+									fill={INKS[colour]}
+									className={s.inkSwatch}
+								/>
+							</svg>
+						}
+						checked={ink === colour}
+						onClick={() => {
+							setInk(colour);
+							setMoreOpen(false);
+						}}
+						testId={`fill-ink-${colour}`}
+					>
+						{colour === "blue" ? t("Blue ink") : t("Black ink")}
+					</SheetItem>
+				))}
+				<SheetDivider />
+				<SheetItem
+					icon={<Plus size={20} />}
+					hint={`${Math.round(ZOOMS[zoom] * 100)}%`}
+					disabled={zoom === ZOOMS.length - 1}
+					onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))}
+					testId="fill-zoom-in"
+				>
+					{t("Zoom in")}
+				</SheetItem>
+				<SheetItem
+					icon={<Minus size={20} />}
+					disabled={zoom === 0}
+					onClick={() => setZoom((z) => Math.max(0, z - 1))}
+					testId="fill-zoom-out"
+				>
+					{t("Zoom out")}
+				</SheetItem>
+			</Sheet>
+
 			{chooser && (
 				<Sheet
 					open
@@ -998,6 +1108,8 @@ export function FillSign({
 			{padFor && (
 				<SignaturePad
 					initials={shownKind === "initials"}
+					ink={INKS[ink]}
+					onInk={(hex) => setInk(hex === INKS.black ? "black" : "blue")}
 					onClose={() => {
 						target.current = null;
 						setPadFor(null);

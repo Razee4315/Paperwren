@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { PDFDocument } from "@cantoo/pdf-lib";
 import { type Page, expect, test } from "@playwright/test";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import { boot, openFixture } from "./helpers";
+import { boot, openFixture, pickTool } from "./helpers";
 
 test.describe("rename", () => {
 	test("a file is renamed from its menu, keeping its extension", async ({
@@ -175,7 +175,7 @@ test.describe("fill & sign", () => {
 		await page.getByTestId("home-tool-sign").click();
 		await addFile(page, "features/form.pdf");
 		await page.getByTestId("tool-go").click();
-		await page.getByTestId("fill-tool-initials").click();
+		await pickTool(page, "initials");
 		const canvas = page.getByTestId("signature-canvas");
 		const drawLine = async (x: number) => {
 			const box = await canvas.boundingBox();
@@ -274,7 +274,7 @@ test.describe("fill & sign", () => {
 		await page.getByTestId("home-tool-sign").click();
 		await addFile(page, "features/form.pdf");
 		await page.getByTestId("tool-go").click();
-		await page.getByTestId("fill-tool-initials").click();
+		await pickTool(page, "initials");
 		// A phone draws on the whole screen: no toggle, nothing to scroll.
 		await expect(page.getByTestId("signature-fullscreen")).toHaveCount(0);
 		await expect(page.getByTestId("signature-done")).toBeInViewport();
@@ -657,6 +657,62 @@ test.describe("fill & sign by touch", () => {
 		viewport: { width: 390, height: 844 },
 		isMobile: true,
 		hasTouch: true,
+	});
+
+	test("a phone keeps the page first: Save on top, four tools and More, one ink", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 360, height: 640 });
+		await boot(page);
+		await page.getByTestId("home-tool-sign").click();
+		await addFile(page, "features/form.pdf");
+		await page.getByTestId("tool-go").click();
+		const editor = page.getByTestId("fill-sign");
+		await expect(editor.getByTestId("fill-field")).toHaveCount(5);
+		// Save in the top bar, above the page; the tools below it.
+		const pages = await page.getByTestId("fill-pages").boundingBox();
+		const save = await page.getByTestId("fill-save").boundingBox();
+		expect((save?.y ?? 999) + (save?.height ?? 0)).toBeLessThanOrEqual(
+			pages?.y ?? 0,
+		);
+		const bar = editor.locator("[role=toolbar] button");
+		await expect(bar).toHaveCount(5);
+		for (const box of await bar.evaluateAll((els) =>
+			els.map((el) => el.getBoundingClientRect().toJSON()),
+		)) {
+			expect(box.left).toBeGreaterThanOrEqual(0);
+			expect(box.right).toBeLessThanOrEqual(360);
+			expect(box.top).toBeGreaterThanOrEqual(
+				(pages?.y ?? 0) + (pages?.height ?? 0) - 1,
+			);
+		}
+		// No hint until there is a next step.
+		await expect(page.getByTestId("fill-guidance")).toHaveCount(0);
+		await page.getByTestId("fill-tool-text").click();
+		await expect(page.getByTestId("fill-hint")).toContainText("Text:");
+		await page
+			.getByTestId("fill-guidance")
+			.getByRole("button", { name: "Cancel", exact: true })
+			.click();
+		await expect(page.getByTestId("fill-guidance")).toHaveCount(0);
+		// The rarer tools, the ink and the zoom are in More.
+		await page.getByTestId("fill-tool-more").click();
+		const more = page.getByTestId("fill-more");
+		for (const id of [
+			"fill-tool-initials",
+			"fill-tool-stamp",
+			"fill-tool-cross",
+			"fill-zoom-in",
+		])
+			await expect(more.getByTestId(id)).toBeVisible();
+		await more.getByTestId("fill-ink-black").click();
+		// The signature takes the same ink.
+		await page.getByTestId("fill-tool-sign").click();
+		await expect(
+			page
+				.getByTestId("signature-pad")
+				.getByRole("button", { name: "Black ink" }),
+		).toHaveAttribute("aria-pressed", "true");
 	});
 
 	test("a finger scroll places nothing; one tap places one mark", async ({
