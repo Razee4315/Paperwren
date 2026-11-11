@@ -9,6 +9,44 @@ test("empty Home explains what the app opens", async ({ page }) => {
 	);
 });
 
+test("a phone's Open file covers nothing on Home", async ({ page }) => {
+	const covered = () =>
+		page.evaluate(() => {
+			const fab = document
+				.querySelector("[data-testid=open-file]")
+				?.getBoundingClientRect();
+			if (!fab) return ["no button"];
+			return [...document.querySelectorAll("main p, main button")]
+				.filter((el) => !el.matches("[data-testid=open-file]"))
+				.filter((el) => {
+					const r = el.getBoundingClientRect();
+					return (
+						r.height > 0 &&
+						r.bottom > fab.top &&
+						r.top < fab.bottom &&
+						r.right > fab.left &&
+						r.left < fab.right
+					);
+				})
+				.map((el) => el.textContent?.trim());
+		});
+	for (const size of [
+		{ width: 360, height: 640 },
+		{ width: 390, height: 844 },
+	]) {
+		await page.setViewportSize(size);
+		await boot(page);
+		// Empty, the button sits among the words.
+		await expect(page.getByTestId("empty-state")).toBeVisible();
+		expect(await covered()).toEqual([]);
+	}
+	// With files to scroll past, it floats at the foot again.
+	await openFixture(page, "sample.pdf");
+	await page.getByTestId("viewer-back").click();
+	await expect(page.getByTestId("recent").first()).toBeVisible();
+	await expect(page.getByTestId("open-file")).toHaveCSS("position", "fixed");
+});
+
 test("recents survive a reload and reopen", async ({ page }) => {
 	await boot(page);
 	await openFixture(page, "sample.pdf", "2026 tax return.pdf");
