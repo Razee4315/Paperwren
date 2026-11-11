@@ -94,6 +94,26 @@ test("Word documents zoom and return to fit width", async ({ page }) => {
 	await expect(scale).toHaveText("Fit width");
 });
 
+test("a Word file with no page settings is read on a whole page", async ({
+	page,
+}) => {
+	await boot(page, {}, "?desktop");
+	// sample.docx names no page size or margins, as some exports write.
+	await openFixture(page, "sample.docx");
+	const sheet = page.locator("section.docx").first();
+	await expect(sheet).toBeVisible({ timeout: 20_000 });
+	const laid = await sheet.evaluate((el) => {
+		const style = getComputedStyle(el);
+		return {
+			width: Number.parseFloat(style.width),
+			margin: Number.parseFloat(style.paddingLeft),
+		};
+	});
+	// Letter or A4 (816 or 794 CSS pixels), with inch margins.
+	expect(laid.width).toBeGreaterThan(780);
+	expect(laid.margin).toBe(96);
+});
+
 test("slide charts are drawn from the file's own numbers", async ({ page }) => {
 	await boot(page);
 	await openFixture(page, "viewer-regressions/charts.pptx");

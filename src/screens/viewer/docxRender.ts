@@ -8,6 +8,9 @@
  *   starts at the margin and runs off the page's right edge.
  * - A picture kept as EMF shows as a broken image. Most are a wrapper
  *   around one bitmap, which is shown instead (lib/office/emf.ts).
+ * - A file with no page settings (some scripts and web exports write
+ *   none) shows as a small box around its text. Word gives it its
+ *   default page, and so does this.
  */
 import { emfPicture } from "@/lib/office/emf";
 import type { Options } from "docx-preview";
@@ -20,8 +23,16 @@ interface Parsed {
 	children?: Parsed[];
 }
 
+interface PageProps {
+	pageSize?: { width?: string; height?: string; orientation?: string };
+	pageMargins?: Record<string, string | undefined>;
+}
+
 interface ParsedDocument {
-	documentPart?: { body?: Parsed; _xmlDocument?: Document };
+	documentPart?: {
+		body?: Parsed & { props?: PageProps };
+		_xmlDocument?: Document;
+	};
 	blobToURL?: (blob: Blob | null, path?: string) => unknown;
 }
 
@@ -64,6 +75,53 @@ export function indentTables(doc: ParsedDocument): number {
 	return moved;
 }
 
+/** Where people print on Letter paper; everywhere else uses A4. */
+const LETTER = /-(US|CA|MX|PH|CL|CO|VE|GT|CR|PA|DO|PR|SV|NI|HN|BO)$/i;
+
+/** Word's own page for a document that names none: Letter or A4, as
+ * the reader's region prints, with inch margins. In points. */
+export function defaultPage(locale: string): Required<PageProps> {
+	const letter = LETTER.test(locale);
+	return {
+		pageSize: {
+			width: letter ? "612.00pt" : "595.30pt",
+			height: letter ? "792.00pt" : "841.90pt",
+		},
+		pageMargins: {
+			left: "72.00pt",
+			right: "72.00pt",
+			top: "72.00pt",
+			bottom: "72.00pt",
+			header: "36.00pt",
+			footer: "36.00pt",
+		},
+	};
+}
+
+/** The document's page, where the file gives none (or only part of
+ * one): Word's default. Returns whether anything was filled in. */
+export function fillPage(doc: ParsedDocument, locale: string): boolean {
+	const body = doc.documentPart?.body;
+	if (!body) return false;
+	const props = body.props ?? {};
+	body.props = props;
+	const page = defaultPage(locale);
+	let filled = false;
+	if (!props.pageSize?.width) {
+		props.pageSize = { ...page.pageSize, ...props.pageSize };
+		props.pageSize.width = page.pageSize.width;
+		props.pageSize.height ||= page.pageSize.height;
+		filled = true;
+	}
+	if (!props.pageMargins?.left) {
+		props.pageMargins = { ...page.pageMargins, ...props.pageMargins };
+		for (const [side, length] of Object.entries(page.pageMargins))
+			props.pageMargins[side] ||= length;
+		filled = true;
+	}
+	return filled;
+}
+
 /** Pictures stored as EMF shown from the bitmap inside, where there
  * is one. */
 function showEmf(doc: ParsedDocument) {
@@ -99,7 +157,10 @@ export async function renderDocx(
 	const docx = await import("docx-preview");
 	const settings = { ...options, keepOrigin: true } as Partial<Options>;
 	const doc = (await docx.parseAsync(data, settings)) as ParsedDocument;
-	if (paper) indentTables(doc);
+	if (paper) {
+		indentTables(doc);
+		fillPage(doc, navigator.language || "en");
+	}
 	showEmf(doc);
 	const nodes = await docx.renderDocument(doc, settings);
 	into.innerHTML = "";
