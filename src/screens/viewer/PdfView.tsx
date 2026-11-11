@@ -809,7 +809,7 @@ export default function PdfView({
 			// A document read with its margins cropped opens that way.
 			if (cropRef.current)
 				cropPages(doc)
-					.then((stop) => {
+					.then(({ stop }) => {
 						if (cancelled) return stop();
 						cropStop.current = stop;
 						show();
@@ -983,7 +983,7 @@ export default function PdfView({
 		cropRef.current = next;
 		setCrop(next);
 		if (next) {
-			cropStop.current = await cropPages(doc);
+			cropStop.current = (await cropPages(doc)).stop;
 		} else {
 			cropStop.current?.();
 			cropStop.current = null;
