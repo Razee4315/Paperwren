@@ -304,8 +304,8 @@ export const ar: Table = {
 		"الطريقة الصغيرة الهادئة لفتح كل مستند على جهازك.",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"لا إنترنت ولا حسابات ولا إعلانات. ملفاتك لا تغادر جهازك أبدًا.",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"لكل سمة لونها الهادئ. «تلقائي» يتبع جهازك: ورق نهارًا وحبر ليلًا.",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"لكل سمة لونها الهادئ. «تلقائي» يتبع جهازك: فاتح نهارًا وداكن ليلًا.",
 	"Same as the device": "مثل الجهاز",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"يحتفظ Paperwren بما يصل إلى {n} مجلدًا. أزل واحدًا لإضافة آخر.",

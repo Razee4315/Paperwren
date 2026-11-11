@@ -300,8 +300,8 @@ export const ur: Table = {
 		"اپنے ڈیوائس پر ہر دستاویز کھولنے کا چھوٹا اور پرسکون طریقہ۔",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"نہ انٹرنیٹ، نہ اکاؤنٹ، نہ اشتہار۔ آپ کی فائلیں کبھی آپ کے ڈیوائس سے باہر نہیں جاتیں۔",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"ہر تھیم کا اپنا پرسکون رنگ ہے۔ خودکار آپ کے ڈیوائس کے مطابق چلتا ہے: دن میں کاغذ، رات میں سیاہی۔",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"ہر تھیم کا اپنا پرسکون رنگ ہے۔ خودکار آپ کے ڈیوائس کے مطابق چلتا ہے: دن میں ہلکا، رات میں گہرا۔",
 	"Same as the device": "ڈیوائس کے مطابق",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren زیادہ سے زیادہ {n} فولڈر رکھتا ہے۔ نیا شامل کرنے کے لیے ایک ہٹائیں۔",

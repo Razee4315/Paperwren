@@ -146,6 +146,25 @@ test("settings change the theme and system Back closes layers in order", async (
 	await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
+test("Auto, the first theme, is plain white or dark as the device is", async ({
+	page,
+}) => {
+	await page.emulateMedia({ colorScheme: "light" });
+	await boot(page);
+	const html = page.locator("html");
+	await expect(html).toHaveAttribute("data-theme", "plain-light");
+	await page.emulateMedia({ colorScheme: "dark" });
+	await expect(html).toHaveAttribute("data-theme", "plain-dark");
+	// Paper and Ink are still there to pick.
+	await page.getByTestId("open-settings").click();
+	await expect(page.getByTestId("theme-system")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await page.getByTestId("theme-light").click();
+	await expect(html).toHaveAttribute("data-theme", "light");
+});
+
 test("legacy settings from the previous version are migrated", async ({
 	page,
 }) => {

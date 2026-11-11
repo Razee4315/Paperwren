@@ -310,8 +310,8 @@ export const fr: Table = {
 		"La façon simple et discrète d'ouvrir tous les documents sur votre appareil.",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"Pas d'internet, pas de compte, pas de publicité. Vos fichiers ne quittent jamais votre appareil.",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"Chaque thème a sa propre couleur apaisante. Auto suit votre appareil : Papier le jour, Encre la nuit.",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"Chaque thème a sa propre couleur apaisante. Auto suit votre appareil : Clair le jour, Sombre la nuit.",
 	"Same as the device": "Comme l'appareil",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren garde jusqu'à {n} dossiers. Retirez-en un pour en ajouter un autre.",

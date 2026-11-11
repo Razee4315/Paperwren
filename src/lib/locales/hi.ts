@@ -298,8 +298,8 @@ export const hi: Table = {
 		"अपने डिवाइस पर हर दस्तावेज़ खोलने का छोटा और शांत तरीका।",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"न इंटरनेट, न खाता, न विज्ञापन। आपकी फ़ाइलें कभी आपके डिवाइस से बाहर नहीं जातीं।",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"हर थीम का अपना शांत रंग है। स्वचालित आपके डिवाइस के अनुसार चलता है: दिन में काग़ज़, रात में स्याही।",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"हर थीम का अपना शांत रंग है। स्वचालित आपके डिवाइस के अनुसार चलता है: दिन में हल्का, रात में गहरा।",
 	"Same as the device": "डिवाइस के अनुसार",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren अधिकतम {n} फ़ोल्डर रखता है। नया जोड़ने के लिए एक हटाएँ।",

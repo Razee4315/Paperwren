@@ -144,10 +144,13 @@ export function migrateLegacySettings(value: unknown): Settings {
 	});
 }
 
+/** The theme drawn. Auto, the default, follows the device's light or
+ * dark with the plain white and dark themes; Paper, Sand and Ink are
+ * there to pick. */
 export function resolveTheme(
 	theme: ThemeSetting,
 	systemDark: boolean,
 ): ResolvedTheme {
-	if (theme === "system") return systemDark ? "dark" : "light";
-	return theme;
+	if (theme !== "system") return theme;
+	return systemDark ? "plain-dark" : "plain-light";
 }

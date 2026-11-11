@@ -309,8 +309,8 @@ export const ru: Table = {
 		"Небольшой и тихий способ открыть любой документ на вашем устройстве.",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"Без интернета, без аккаунтов, без рекламы. Ваши файлы никогда не покидают устройство.",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"У каждой темы свой спокойный цвет. Авто следует за устройством: Бумага днём, Чернила ночью.",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"У каждой темы свой спокойный цвет. Авто следует за устройством: Светлый днём, Тёмный ночью.",
 	"Same as the device": "Как на устройстве",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren хранит не более {n} папок. Уберите одну, чтобы добавить другую.",

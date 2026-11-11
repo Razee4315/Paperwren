@@ -286,8 +286,8 @@ export const zh: Table = {
 		"在设备上打开每一份文档的小巧、安静的方式。",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"不联网、无账号、无广告。你的文件永远不会离开设备。",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"每个主题都有自己柔和的颜色。“自动”跟随设备：白天用纸，夜晚用墨。",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"每个主题都有自己柔和的颜色。“自动”跟随设备：白天浅色，夜晚深色。",
 	"Same as the device": "跟随设备",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren 最多保留 {n} 个文件夹。请先移除一个再添加。",

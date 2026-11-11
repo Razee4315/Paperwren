@@ -307,8 +307,8 @@ export const es: Table = {
 		"La forma pequeña y tranquila de abrir cualquier documento en tu dispositivo.",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"Sin internet, sin cuentas, sin anuncios. Tus archivos nunca salen de tu dispositivo.",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"Cada tema tiene su propio color sereno. Automático sigue a tu dispositivo: Papel de día, Tinta de noche.",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"Cada tema tiene su propio color sereno. Automático sigue a tu dispositivo: Claro de día, Oscuro de noche.",
 	"Same as the device": "Igual que el dispositivo",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren guarda hasta {n} carpetas. Quita una para añadir otra.",
