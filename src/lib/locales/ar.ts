@@ -1262,4 +1262,5 @@ export const ar: Table = {
 		"محرّك الويب في هذا الهاتف (Android System WebView) قديم، لذا تعذّر عرض هذا الملف. حدّثه من متجر التطبيقات (على هواتف Huawei حدّث Huawei WebView من AppGallery)، ثم حاول مجددًا.",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"محرّك الويب في هذا الهاتف قديم. حدّث Android System WebView (أو Huawei WebView على هواتف Huawei)، ثم حاول مجددًا.",
+	"Place another": "ضع واحدًا آخر",
 };

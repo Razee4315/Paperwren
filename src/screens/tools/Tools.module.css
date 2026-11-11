@@ -153,6 +153,7 @@
 	text-decoration: underline;
 	font-weight: 750;
 	padding: 6px;
+	white-space: nowrap;
 }
 .fillActions {
 	grid-area: actions;
@@ -372,7 +373,9 @@
 	display: flex;
 	align-items: center;
 	cursor: grab;
-	touch-action: none;
+	/* A finger on a mark not picked yet scrolls the page; once picked,
+	 * it drags the mark. */
+	touch-action: pan-x pan-y;
 	user-select: none;
 	animation: pw-settle var(--t-slow) var(--ease);
 }
@@ -382,6 +385,7 @@
 .item[data-selected] {
 	outline: 1.5px dashed var(--accent);
 	outline-offset: 2px;
+	touch-action: none;
 }
 .item img {
 	width: 100%;

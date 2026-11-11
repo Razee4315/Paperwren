@@ -271,6 +271,9 @@ export function FillSign({
 	const [values, setValues] = useState<Record<string, string | boolean>>({});
 	const [items, setItems] = useState<Item[]>([]);
 	const [tool, setTool] = useState<Tool | null>(null);
+	// A signature, initials or a stamp was just placed: the same one can
+	// be placed again from the hint.
+	const [again, setAgain] = useState<Kept | null>(null);
 	const [selected, setSelected] = useState<string | null>(null);
 	const [editing, setEditing] = useState<string | null>(null);
 	const [signatures, setSignatures] = useState<Signature[]>([]);
@@ -429,6 +432,7 @@ export function FillSign({
 
 	const pick = (next: Tool, keyboard = false) => {
 		byKeys.current = keyboard;
+		setAgain(null);
 		setSelected(null);
 		setEditing(null);
 		if (tool === next) {
@@ -546,10 +550,12 @@ export function FillSign({
 		setItems((list) => [...list, item]);
 		setSelected(item.id);
 		if (tool === "text") setEditing(item.id);
-		// Signing or stamping again is one more tap; the other tools are one
-		// at a time.
-		if (tool !== "sign" && tool !== "initials" && tool !== "stamp")
-			setTool(null);
+		// One at a time, so a later touch on the page can't add another by
+		// mistake; signing more pages is one tap on "Place another".
+		setTool(null);
+		setAgain(
+			tool === "sign" || tool === "initials" || tool === "stamp" ? tool : null,
+		);
 	};
 
 	const save = async () => {
@@ -783,6 +789,21 @@ export function FillSign({
 						onClick={() => setTool(null)}
 					>
 						{t("Cancel")}
+					</button>
+				)}
+				{!tool && again && (
+					<button
+						type="button"
+						className={s.cancelTool}
+						onClick={() => {
+							setSelected(null);
+							setEditing(null);
+							setTool(again);
+							setAgain(null);
+						}}
+						data-testid="fill-again"
+					>
+						{t("Place another")}
 					</button>
 				)}
 				<p className={s.saveStatus} aria-live="polite">
@@ -1073,6 +1094,27 @@ function textWidth(text: string, h: number, pw: number, ph: number): number {
 	return (ctx.measureText(text || "M").width + size * 0.4) / pw;
 }
 
+/** Where and when a press on a page began. */
+export interface Press {
+	id: number;
+	x: number;
+	y: number;
+	at: number;
+}
+
+/** Whether a press that ended here was a tap: it hardly moved and was
+ * short. A press that scrolled ends in `pointercancel` instead, or moves
+ * further than this. */
+export function isTap(
+	from: Press,
+	to: { clientX: number; clientY: number; timeStamp: number },
+): boolean {
+	return (
+		Math.hypot(to.clientX - from.x, to.clientY - from.y) < 8 &&
+		to.timeStamp - from.at < 500
+	);
+}
+
 /** One page: its picture, drawn once it is near the screen, under the
  * fields and marks laid over it. */
 export function FillPage({
@@ -1099,6 +1141,9 @@ export function FillPage({
 	const box = useRef<HTMLDivElement>(null);
 	const canvas = useRef<HTMLCanvasElement>(null);
 	const [near, setNear] = useState(false);
+	// Where a press began: a mark is placed when it ends as a tap, so a
+	// finger that scrolls the page puts nothing on it.
+	const down = useRef<Press | null>(null);
 
 	useEffect(() => {
 		const el = box.current;
@@ -1161,12 +1206,38 @@ export function FillPage({
 				onTap(0.5, ((top + bottom) / 2 - r.top) / r.height);
 			}}
 			onPointerDown={(e) => {
+				// A second finger: the two of them scroll, nothing is placed.
+				if (
+					down.current &&
+					down.current.id !== e.pointerId &&
+					e.timeStamp - down.current.at < 500
+				) {
+					down.current = null;
+					return;
+				}
 				if (e.target !== e.currentTarget && e.target !== canvas.current) return;
+				if (e.pointerType === "mouse" && e.button !== 0) return;
 				// The text placed here takes the keyboard: the tap must not
 				// take it back to the page.
 				if (placing) e.preventDefault();
+				down.current = {
+					id: e.pointerId,
+					x: e.clientX,
+					y: e.clientY,
+					at: e.timeStamp,
+				};
+			}}
+			onPointerUp={(e) => {
+				const d = down.current;
+				if (!d || d.id !== e.pointerId) return;
+				down.current = null;
+				if (!isTap(d, e)) return;
 				const r = e.currentTarget.getBoundingClientRect();
 				onTap((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+			}}
+			// The browser took the touch over to scroll.
+			onPointerCancel={() => {
+				down.current = null;
 			}}
 		>
 			<canvas ref={canvas} className={s.fillCanvas} />
@@ -1316,6 +1387,7 @@ function PlacedItem({
 		from: Item;
 		moved: boolean;
 	} | null>(null);
+	const tap = useRef<Press | null>(null);
 	const input = useRef<HTMLInputElement>(null);
 	const self = useRef<HTMLDivElement>(null);
 	useEffect(() => {
@@ -1364,6 +1436,23 @@ function PlacedItem({
 	const start = (mode: "move" | "size") => (e: React.PointerEvent) => {
 		if (editing && mode === "move") return;
 		e.stopPropagation();
+		// One finger at a time moves it; a second one is the page's.
+		if (drag.current || tap.current) {
+			drag.current = null;
+			tap.current = null;
+			return;
+		}
+		// A finger on a mark not picked yet may be scrolling the page: it
+		// is picked if the press ends as a tap, and only then can be dragged.
+		if (e.pointerType === "touch" && !selected && mode === "move") {
+			tap.current = {
+				id: e.pointerId,
+				x: e.clientX,
+				y: e.clientY,
+				at: e.timeStamp,
+			};
+			return;
+		}
 		e.preventDefault();
 		e.currentTarget.setPointerCapture(e.pointerId);
 		drag.current = {
@@ -1397,7 +1486,13 @@ function PlacedItem({
 			onChange({ w: f.w * grow, h: f.h * grow });
 		}
 	};
-	const end = () => {
+	const end = (e: React.PointerEvent) => {
+		const pressed = tap.current;
+		tap.current = null;
+		if (pressed) {
+			if (e.type === "pointerup" && isTap(pressed, e)) onSelect();
+			return;
+		}
 		const d = drag.current;
 		drag.current = null;
 		// A tap on placed text edits it.

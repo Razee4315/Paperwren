@@ -613,6 +613,82 @@ test.describe("fill & sign", () => {
 	});
 });
 
+test.describe("fill & sign by touch", () => {
+	test.use({
+		viewport: { width: 390, height: 844 },
+		isMobile: true,
+		hasTouch: true,
+	});
+
+	test("a finger scroll places nothing; one tap places one mark", async ({
+		page,
+	}) => {
+		await boot(page);
+		await page.getByTestId("home-tool-sign").click();
+		await addFile(page, "features/form.pdf");
+		await page.getByTestId("tool-go").click();
+		const editor = page.getByTestId("fill-sign");
+		await expect(editor.getByTestId("fill-field")).toHaveCount(5);
+		await editor.getByTestId("fill-tool-sign").click();
+		await page.getByTestId("signature-type").click();
+		await page.getByTestId("signature-name").fill("Ayesha Khan");
+		await page.getByTestId("signature-keep").uncheck();
+		await page.getByTestId("signature-done").click();
+
+		const pages = editor.getByTestId("fill-pages");
+		const box = await pages.boundingBox();
+		if (!box) throw new Error("no pages");
+		await page.touchscreen.tap(box.x + box.width / 2, box.y + 300);
+		const items = editor.getByTestId("fill-item");
+		await expect(items).toHaveCount(1);
+		// The tool is put down: a later touch can't add another.
+		await expect(pages).not.toHaveAttribute("data-tool", /./);
+
+		const cdp = await page.context().newCDPSession(page);
+		const swipe = async (x: number, y: number, dy: number) => {
+			await cdp.send("Input.dispatchTouchEvent", {
+				type: "touchStart",
+				touchPoints: [{ x, y }],
+			});
+			for (let i = 1; i <= 10; i++)
+				await cdp.send("Input.dispatchTouchEvent", {
+					type: "touchMove",
+					touchPoints: [{ x, y: y + (i * dy) / 10 }],
+				});
+			await cdp.send("Input.dispatchTouchEvent", {
+				type: "touchEnd",
+				touchPoints: [],
+			});
+		};
+		// Let go of the signature, then swipe on it, on paper and on a field.
+		await page.touchscreen.tap(box.x + 20, box.y + 100);
+		const mark = await items.boundingBox();
+		if (!mark) throw new Error("no mark");
+		const from = await items.boundingBox();
+		await swipe(mark.x + mark.width / 2, mark.y + mark.height / 2, -250);
+		await expect
+			.poll(() => pages.evaluate((el) => el.scrollTop))
+			.toBeGreaterThan(50);
+		for (let k = 0; k < 5; k++) {
+			await swipe(box.x + box.width / 2, box.y + box.height - 80, -250);
+			await swipe(box.x + box.width / 2, box.y + 200, 200);
+		}
+		await cdp.detach();
+		await expect(items).toHaveCount(1);
+		// The signature scrolled with the page, it was not dragged.
+		await pages.evaluate((el) => {
+			el.scrollTop = 0;
+		});
+		const to = await items.boundingBox();
+		expect(Math.abs((to?.x ?? 0) - (from?.x ?? 0))).toBeLessThan(2);
+
+		// Signing again is one tap on "Place another", then one on the page.
+		await editor.getByTestId("fill-again").tap();
+		await page.touchscreen.tap(box.x + box.width / 2, box.y + 450);
+		await expect(items).toHaveCount(2);
+	});
+});
+
 /** Hand the next pick a fixture (or bytes). */
 async function nextPick(
 	page: Page,

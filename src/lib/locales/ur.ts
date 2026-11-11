@@ -1222,4 +1222,5 @@ export const ur: Table = {
 		"اس فون کا ویب انجن (Android System WebView) پرانا ہے، اس لیے یہ فائل نہیں دکھائی جا سکی۔ اسے اپنے ایپ اسٹور سے اپ ڈیٹ کریں (Huawei فونز پر AppGallery سے Huawei WebView اپ ڈیٹ کریں)، پھر دوبارہ کوشش کریں۔",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"اس فون کا ویب انجن پرانا ہے۔ Android System WebView اپ ڈیٹ کریں (Huawei فونز پر Huawei WebView)، پھر دوبارہ کوشش کریں۔",
+	"Place another": "ایک اور لگائیں",
 };

@@ -816,3 +816,8 @@ ROWS += TOOL_CONTROLS_UX_ROWS
 # Words for a phone whose web engine is out of date.
 from compat_ux import ROWS as COMPAT_UX_ROWS
 ROWS += COMPAT_UX_ROWS
+
+# Words for the fixes of the 2026-11 review: signing, full screen,
+# cropping, errors and more.
+from audit_ux import ROWS as AUDIT_UX_ROWS
+ROWS += AUDIT_UX_ROWS

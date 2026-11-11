@@ -1131,4 +1131,5 @@ export const zh: Table = {
 		"此手机的网页引擎（Android System WebView）版本过旧，无法显示此文件。请在应用商店中更新它（华为手机请在应用市场更新华为 WebView），然后重试。",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"此手机的网页引擎版本过旧。请更新 Android System WebView（华为手机请更新华为 WebView），然后重试。",
+	"Place another": "再放一个",
 };

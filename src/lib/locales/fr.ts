@@ -1251,4 +1251,5 @@ export const fr: Table = {
 		"Le moteur web de ce téléphone (Android System WebView) n'est pas à jour, ce fichier n'a donc pas pu être affiché. Mettez-le à jour depuis votre boutique d'applications (sur les téléphones Huawei, mettez à jour Huawei WebView dans AppGallery), puis réessayez.",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"Le moteur web de ce téléphone n'est pas à jour. Mettez à jour Android System WebView (Huawei WebView sur les téléphones Huawei), puis réessayez.",
+	"Place another": "En placer un autre",
 };

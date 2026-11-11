@@ -1239,4 +1239,5 @@ export const pt: Table = {
 		"O mecanismo web deste celular (Android System WebView) está desatualizado, por isso não foi possível mostrar este arquivo. Atualize-o pela loja de aplicativos (em celulares Huawei, atualize o Huawei WebView na AppGallery) e tente novamente.",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"O mecanismo web deste celular está desatualizado. Atualize o Android System WebView (Huawei WebView em celulares Huawei) e tente novamente.",
+	"Place another": "Colocar outra",
 };

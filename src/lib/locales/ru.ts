@@ -1267,4 +1267,5 @@ export const ru: Table = {
 		"Веб-движок этого телефона (Android System WebView) устарел, поэтому файл не удалось показать. Обновите его в магазине приложений (на телефонах Huawei обновите Huawei WebView в AppGallery) и попробуйте снова.",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"Веб-движок этого телефона устарел. Обновите Android System WebView (Huawei WebView на телефонах Huawei) и попробуйте снова.",
+	"Place another": "Поставить ещё",
 };
