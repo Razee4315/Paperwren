@@ -243,9 +243,23 @@ function SheetPanel({ title, onClose, children, testId }: PanelProps) {
 	);
 }
 
+/** A menu taller than the window scrolls; its edge fades where more of
+ * it is, so a cut-off row reads as one to scroll to. */
+function markMore(el: HTMLElement) {
+	const more = [
+		el.scrollTop > 1 && "above",
+		el.scrollTop + el.clientHeight < el.scrollHeight - 1 && "below",
+	]
+		.filter(Boolean)
+		.join(" ");
+	if (more) el.dataset.more = more;
+	else delete el.dataset.more;
+}
+
 /** The desktop form of a sheet of actions: a menu at the pointer. */
 function MenuPanel({ title, onClose, children, testId }: PanelProps) {
 	const ref = useRef<HTMLDivElement>(null);
+	const body = useRef<HTMLDivElement>(null);
 	// Read before the menu takes the focus from the button it hangs on.
 	const [anchor] = useState(anchorBox);
 	const [at, setAt] = useState<CSSProperties>({ visibility: "hidden" });
@@ -254,7 +268,7 @@ function MenuPanel({ title, onClose, children, testId }: PanelProps) {
 	useLayoutEffect(() => {
 		const el = ref.current;
 		if (!el) return;
-		const place = () =>
+		const place = () => {
 			setAt(
 				placeMenu(
 					anchor,
@@ -264,6 +278,8 @@ function MenuPanel({ title, onClose, children, testId }: PanelProps) {
 					window.innerHeight,
 				),
 			);
+			if (body.current) markMore(body.current);
+		};
 		place();
 		window.addEventListener("resize", place);
 		return () => window.removeEventListener("resize", place);
@@ -309,7 +325,13 @@ function MenuPanel({ title, onClose, children, testId }: PanelProps) {
 				style={at}
 				onKeyDown={onKey}
 			>
-				{children}
+				<div
+					ref={body}
+					className={s.menuBody}
+					onScroll={(e) => markMore(e.currentTarget)}
+				>
+					{children}
+				</div>
 			</div>
 		</>
 	);

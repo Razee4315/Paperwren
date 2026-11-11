@@ -75,14 +75,45 @@
 	max-width: min(360px, calc(100vw - 16px));
 	max-height: calc(100vh - 16px);
 	max-height: calc(100dvh - 16px);
-	overflow-y: auto;
-	overscroll-behavior: contain;
-	padding: 6px;
+	display: flex;
+	flex-direction: column;
 	background: var(--surface);
 	border: 1px solid var(--line-strong);
 	border-radius: var(--r-m);
 	outline: none;
 	animation: pw-fade-in var(--t-fast) var(--ease);
+}
+/* The items scroll inside the menu's own edge. */
+.menuBody {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 6px;
+	border-radius: inherit;
+}
+/* Where more of a scrolling menu is, its items fade out. */
+.menuBody[data-more] {
+	--fade-top: 0px;
+	--fade-bottom: 0px;
+	-webkit-mask-image: linear-gradient(
+		transparent,
+		#000 var(--fade-top),
+		#000 calc(100% - var(--fade-bottom)),
+		transparent
+	);
+	mask-image: linear-gradient(
+		transparent,
+		#000 var(--fade-top),
+		#000 calc(100% - var(--fade-bottom)),
+		transparent
+	);
+}
+.menuBody[data-more~="above"] {
+	--fade-top: 28px;
+}
+.menuBody[data-more~="below"] {
+	--fade-bottom: 36px;
 }
 .menu .item {
 	min-height: 36px;

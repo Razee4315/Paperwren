@@ -519,6 +519,33 @@ test.describe("the desktop layout", () => {
 		await expect(page.getByTestId("settings")).toHaveCount(0);
 		await expect(page.getByTestId("home")).toBeVisible();
 	});
+
+	test("a menu taller than a short window scrolls, and fades where more of it is", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1082, height: 520 });
+		await boot(page, {}, DESKTOP);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		const menu = page.getByTestId("file-menu");
+		const items = menu.locator(":scope > div");
+		// The whole menu is inside the window, and says there is more.
+		const box = await menu.boundingBox();
+		expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(520);
+		await expect(items).toHaveAttribute("data-more", "below");
+		// At the end the last row shows whole, and the top fades instead.
+		await items.evaluate((el) => {
+			el.scrollTop = el.scrollHeight;
+		});
+		await expect(items).toHaveAttribute("data-more", "above");
+		const last = await page.getByTestId("file-details-open").boundingBox();
+		expect((last?.y ?? 0) + (last?.height ?? 0)).toBeLessThanOrEqual(
+			(box?.y ?? 0) + (box?.height ?? 0),
+		);
+	});
 });
 
 /** The same layout as the Mac app has it: `&lights` for the system's
