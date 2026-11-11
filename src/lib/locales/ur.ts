@@ -1238,4 +1238,5 @@ export const ur: Table = {
 	"Even pages": "جفت صفحات",
 	"Leave out headers and page numbers": "ہیڈر اور صفحہ نمبر چھوڑ دیں",
 	"What is kept of the page": "صفحے کا جو حصہ رکھا جائے گا",
+	Photo: "تصویر",
 };

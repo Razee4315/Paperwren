@@ -1147,4 +1147,5 @@ export const zh: Table = {
 	"Even pages": "偶数页",
 	"Leave out headers and page numbers": "略去页眉和页码",
 	"What is kept of the page": "页面保留的部分",
+	Photo: "照片",
 };

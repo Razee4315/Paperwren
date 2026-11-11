@@ -1284,4 +1284,5 @@ export const ru: Table = {
 	"Leave out headers and page numbers":
 		"Не учитывать колонтитулы и номера страниц",
 	"What is kept of the page": "Что останется от страницы",
+	Photo: "Фото",
 };

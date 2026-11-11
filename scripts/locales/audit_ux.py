@@ -21,4 +21,6 @@ ROWS = [
     ("Even pages", "جفت صفحات", "الصفحات الزوجية", "偶数页", "सम पृष्ठ", "Páginas pares", "Pages paires", "Чётные страницы", "Páginas pares"),
     ("Leave out headers and page numbers", "ہیڈر اور صفحہ نمبر چھوڑ دیں", "استبعاد الترويسات وأرقام الصفحات", "略去页眉和页码", "हेडर और पृष्ठ संख्या छोड़ दें", "Omitir encabezados y números de página", "Ignorer les en-têtes et numéros de page", "Не учитывать колонтитулы и номера страниц", "Ignorar cabeçalhos e números de página"),
     ("What is kept of the page", "صفحے کا جو حصہ رکھا جائے گا", "ما يُبقى من الصفحة", "页面保留的部分", "पृष्ठ का जो हिस्सा रखा जाएगा", "Lo que se conserva de la página", "Ce qui est gardé de la page", "Что останется от страницы", "O que fica da página"),
+    # ---- signing ----
+    ("Photo", "تصویر", "صورة", "照片", "फ़ोटो", "Foto", "Photo", "Фото", "Foto"),
 ]

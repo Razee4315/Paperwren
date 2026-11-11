@@ -1278,4 +1278,5 @@ export const ar: Table = {
 	"Even pages": "الصفحات الزوجية",
 	"Leave out headers and page numbers": "استبعاد الترويسات وأرقام الصفحات",
 	"What is kept of the page": "ما يُبقى من الصفحة",
+	Photo: "صورة",
 };

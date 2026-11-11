@@ -1268,4 +1268,5 @@ export const fr: Table = {
 	"Leave out headers and page numbers":
 		"Ignorer les en-têtes et numéros de page",
 	"What is kept of the page": "Ce qui est gardé de la page",
+	Photo: "Photo",
 };

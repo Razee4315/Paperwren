@@ -5,15 +5,25 @@ import {
 	inkFromPicture,
 	keepSignature,
 } from "@/lib/signatures";
-import { Button, Dialog, toast } from "@/ui";
-import { Check, ImageUp, Maximize, Minimize, Redo2, Undo2 } from "lucide-react";
+import { Button, Dialog, IconButton, toast } from "@/ui";
+import {
+	Check,
+	ImageUp,
+	Info,
+	Maximize,
+	Minimize,
+	Redo2,
+	Undo2,
+} from "lucide-react";
 import {
 	type CSSProperties,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
+import "@/styles/signature-fonts.css";
 import s from "./Tools.module.css";
 import {
 	MAX_WIDTH,
@@ -30,14 +40,20 @@ type Trim = [number, number, number, number];
 /** How tall the photo is shown, at most. */
 const FRAME_HEIGHT = 220;
 
-/** Faces for a typed signature, as the system has them: no fonts are
- * downloaded. The last of each list is there everywhere. */
+/** Faces for a typed signature: bundled (styles/signature-fonts.css),
+ * so every system shows the same three. Letters they lack (Urdu,
+ * Arabic, Chinese) come from the system's own. */
 const HANDS = [
-	'"Segoe Script", "Snell Roundhand", "Brush Script MT", "URW Chancery L", cursive',
-	'"Lucida Handwriting", "Apple Chancery", "Comic Sans MS", cursive',
-	'Georgia, "Noto Serif", "Times New Roman", serif',
+	'"Dancing Script", cursive',
+	'"Great Vibes", cursive',
+	'"Caveat", cursive',
 ];
+/** A typed name's preview, at most and at least, in pixels. */
+const HAND_SIZE = 38;
+const HAND_MIN = 18;
 const INKS = ["#111111", "#1a3c8c"];
+const PICTURE_NOT_CERTIFICATE =
+	"This adds a picture of your signature, not a digital certificate.";
 /** Pixels per CSS pixel the pad draws at, for a sharp signature. */
 const DENSITY = 2;
 
@@ -273,7 +289,7 @@ export function SignaturePad({
 		const size = 120;
 		const ctx = canvas.getContext("2d");
 		if (!ctx) return null;
-		const font = `${hand === 2 ? "italic " : ""}${size}px ${HANDS[hand]}`;
+		const font = `${size}px ${HANDS[hand]}`;
 		ctx.font = font;
 		canvas.width = Math.ceil(ctx.measureText(typed).width + size);
 		canvas.height = Math.ceil(size * 1.8);
@@ -285,6 +301,9 @@ export function SignaturePad({
 	};
 
 	const done = async () => {
+		// The face is drawn only once it is read.
+		if (way === "type")
+			await document.fonts?.load(`120px ${HANDS[hand]}`, typed).catch(() => {});
 		const canvas = made();
 		const picture = canvas ? cut(canvas) : null;
 		if (!picture) {
@@ -297,6 +316,51 @@ export function SignaturePad({
 	};
 	const ready =
 		way === "draw" ? drawn : way === "photo" ? !!photo : !!typed.trim();
+	// Each preview shows the whole name: its face shrinks to fit, once
+	// the face is read, and again as the name changes.
+	const hands = useRef(new Set<HTMLElement>());
+	const fitHand = (el: HTMLButtonElement | null) => {
+		if (el) hands.current.add(el);
+	};
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the previews change width with these
+	useLayoutEffect(() => {
+		let live = true;
+		// Measured as drawn, swashes and all: a script face's ink reaches
+		// past the width its letters take.
+		const ctx = document.createElement("canvas").getContext("2d");
+		const fit = () => {
+			for (const el of hands.current) {
+				if (!el.isConnected) {
+					hands.current.delete(el);
+					continue;
+				}
+				if (!ctx) continue;
+				const style = getComputedStyle(el);
+				const room =
+					el.clientWidth -
+					Number.parseFloat(style.paddingLeft) -
+					Number.parseFloat(style.paddingRight);
+				ctx.font = `${HAND_SIZE}px ${el.style.fontFamily}`;
+				const m = ctx.measureText(el.textContent ?? "");
+				const wide = Math.max(
+					m.width,
+					m.actualBoundingBoxLeft + m.actualBoundingBoxRight,
+				);
+				const size =
+					wide > 0 ? Math.floor((HAND_SIZE * room) / wide) : HAND_SIZE;
+				el.style.fontSize = `${Math.max(HAND_MIN, Math.min(HAND_SIZE, size))}px`;
+			}
+		};
+		fit();
+		// A face read only now, once shown, is wider or narrower.
+		const again = () => live && fit();
+		document.fonts?.addEventListener("loadingdone", again);
+		document.fonts?.ready.then(again).catch(() => {});
+		return () => {
+			live = false;
+			document.fonts?.removeEventListener("loadingdone", again);
+		};
+	}, [typed, way, initials]);
 	// On a phone, drawing takes the whole screen, with every control in
 	// view: nothing has to be scrolled to, so no swipe lands on the pad.
 	const surface = !isDesktop && way === "draw" && !fullScreen;
@@ -349,7 +413,7 @@ export function SignaturePad({
 							[
 								["draw", t("Draw")],
 								["type", t("Type")],
-								["photo", t("Upload")],
+								["photo", t("Photo")],
 							] as const
 						).map(([value, label]) => (
 							<button
@@ -390,6 +454,28 @@ export function SignaturePad({
 									</button>
 								))}
 							</div>
+							<fieldset className={s.penWidths}>
+								<legend className="visually-hidden">
+									{t("Pen thickness")}
+								</legend>
+								{[
+									{ width: 1.4, label: t("Thin pen") },
+									{ width: 2.6, label: t("Medium pen") },
+									{ width: 4.5, label: t("Thick pen") },
+								].map(({ width, label }) => (
+									<button
+										key={width}
+										type="button"
+										className={s.penWidth}
+										aria-label={label}
+										title={label}
+										aria-pressed={penWidth === width}
+										onClick={() => setPenWidth(width)}
+									>
+										<span style={{ height: width }} aria-hidden="true" />
+									</button>
+								))}
+							</fieldset>
 							{!surface && (
 								<button
 									ref={expandButton}
@@ -406,29 +492,6 @@ export function SignaturePad({
 								</button>
 							)}
 						</div>
-						<fieldset className={s.penWidths}>
-							<legend className="visually-hidden">{t("Pen thickness")}</legend>
-							<span className={s.penLabel} aria-hidden="true">
-								{t("Pen thickness")}
-							</span>
-							{[
-								{ width: 1.4, label: t("Thin pen") },
-								{ width: 2.6, label: t("Medium pen") },
-								{ width: 4.5, label: t("Thick pen") },
-							].map(({ width, label }) => (
-								<button
-									key={width}
-									type="button"
-									className={s.penWidth}
-									aria-label={label}
-									title={label}
-									aria-pressed={penWidth === width}
-									onClick={() => setPenWidth(width)}
-								>
-									<span style={{ height: width }} aria-hidden="true" />
-								</button>
-							))}
-						</fieldset>
 						<div className={s.padSurface}>
 							<canvas
 								ref={pad}
@@ -493,13 +556,17 @@ export function SignaturePad({
 									redraw();
 								}}
 								data-testid="signature-undo"
+								aria-label={t("Undo")}
+								title={t("Undo")}
 							>
-								<Undo2 size={16} /> {t("Undo")}
+								<Undo2 size={18} />
 							</Button>
 							<Button
 								variant="ghost"
 								disabled={!canRedo}
 								data-testid="signature-redo"
+								aria-label={t("Redo")}
+								title={t("Redo")}
 								onClick={() => {
 									const line = undone.current.pop();
 									if (line) strokes.current.push(line);
@@ -508,7 +575,7 @@ export function SignaturePad({
 									redraw();
 								}}
 							>
-								<Redo2 size={16} /> {t("Redo")}
+								<Redo2 size={18} />
 							</Button>
 							<Button
 								variant="ghost"
@@ -542,15 +609,13 @@ export function SignaturePad({
 						{HANDS.map((family, i) => (
 							<button
 								key={family}
+								ref={fitHand}
 								type="button"
 								className={s.hand}
 								aria-pressed={hand === i}
-								style={{
-									fontFamily: family,
-									fontStyle: i === 2 ? "italic" : undefined,
-									color: ink,
-								}}
+								style={{ fontFamily: family, color: ink }}
 								onClick={() => setHand(i)}
+								data-testid="signature-hand"
 							>
 								{typed || (initials ? "A.K." : t("Your name"))}
 							</button>
@@ -614,22 +679,25 @@ export function SignaturePad({
 				)}
 
 				{!fullScreen && (
-					<label className={s.keep}>
-						<input
-							type="checkbox"
-							checked={keep}
-							onChange={(e) => setKeep(e.target.checked)}
-							data-testid="signature-keep"
-						/>
-						{t("Keep it on this device for next time")}
-					</label>
-				)}
-				{!fullScreen && (
-					<p className={s.hint}>
-						{t(
-							"This adds a picture of your signature, not a digital certificate.",
-						)}
-					</p>
+					<div className={s.keepRow}>
+						<label className={s.keep}>
+							<input
+								type="checkbox"
+								checked={keep}
+								onChange={(e) => setKeep(e.target.checked)}
+								data-testid="signature-keep"
+							/>
+							{t("Keep it on this device for next time")}
+						</label>
+						{/* What this is, a tap away rather than said every time. */}
+						<IconButton
+							label={t(PICTURE_NOT_CERTIFICATE)}
+							onClick={() => toast(t(PICTURE_NOT_CERTIFICATE))}
+							data-testid="signature-about"
+						>
+							<Info size={18} />
+						</IconButton>
+					</div>
 				)}
 			</div>
 		</Dialog>

@@ -538,9 +538,9 @@
 .drawSheet .padTools {
 	grid-area: tools;
 }
-.drawSheet .keep {
+.drawSheet .keepRow {
 	flex-shrink: 0;
-	margin-top: 8px;
+	margin-top: 4px;
 }
 .drawSheet .hint {
 	flex-shrink: 0;
@@ -555,7 +555,7 @@
 		display: grid;
 		grid-template-columns: minmax(180px, auto) auto minmax(0, 1fr);
 		grid-template-rows: auto minmax(0, 1fr) auto;
-		grid-template-areas: "tabs head widths" "pad pad pad" "tools tools keep";
+		grid-template-areas: "tabs head head" "pad pad pad" "tools keep keep";
 		gap: 8px 12px;
 	}
 	.drawSheet .padBox {
@@ -572,10 +572,11 @@
 	.drawSheet .padTools {
 		margin: 0;
 	}
-	.drawSheet .keep {
+	.drawSheet .keepRow {
 		grid-area: keep;
 		align-self: center;
 		margin: 0;
+		font-size: 13px;
 	}
 	.drawSheet .hint {
 		display: none;
@@ -781,6 +782,22 @@
 	font-size: 14px;
 	color: var(--text-2);
 	line-height: 1.5;
+}
+/* Keep it, and what it is behind an (i), in one row. */
+.keepRow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+}
+.keepRow .keep {
+	flex: 1;
+	min-width: 0;
+	margin-top: 0;
+}
+/* The pen's widths share the ink's row. */
+.padHeading .penWidths {
+	margin: 0;
 }
 .keep {
 	display: flex;

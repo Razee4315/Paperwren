@@ -611,6 +611,26 @@ test.describe("fill & sign", () => {
 		const editor = page.getByTestId("fill-sign");
 		await editor.getByTestId("fill-tool-sign").click();
 		await page.getByTestId("signature-type").click();
+		// The same three faces on every system, bundled; a long name
+		// shrinks to show whole.
+		await page
+			.getByTestId("signature-name")
+			.fill("Ayesha Khan Siddiqui Rahman");
+		const hands = page.getByTestId("signature-hand");
+		await expect(hands).toHaveCount(3);
+		await expect
+			.poll(() =>
+				page.evaluate(() =>
+					["Dancing Script", "Great Vibes", "Caveat"].every((face) =>
+						document.fonts.check(`20px "${face}"`),
+					),
+				),
+			)
+			.toBe(true);
+		const sizes = await hands.evaluateAll((els) =>
+			els.map((el) => Number.parseFloat(getComputedStyle(el).fontSize)),
+		);
+		expect(Math.min(...sizes)).toBeLessThan(38);
 		await page.getByTestId("signature-name").fill("Ayesha Khan");
 		await page.getByTestId("signature-keep").uncheck();
 		await page.getByTestId("signature-done").click();

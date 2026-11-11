@@ -1256,4 +1256,5 @@ export const pt: Table = {
 	"Leave out headers and page numbers":
 		"Ignorar cabeçalhos e números de página",
 	"What is kept of the page": "O que fica da página",
+	Photo: "Foto",
 };

@@ -1217,4 +1217,5 @@ export const hi: Table = {
 	"Even pages": "सम पृष्ठ",
 	"Leave out headers and page numbers": "हेडर और पृष्ठ संख्या छोड़ दें",
 	"What is kept of the page": "पृष्ठ का जो हिस्सा रखा जाएगा",
+	Photo: "फ़ोटो",
 };
