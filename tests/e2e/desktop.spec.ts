@@ -101,6 +101,11 @@ test.describe("the desktop layout", () => {
 			/./,
 		);
 		await expect(button).toHaveAttribute("aria-label", "Full screen");
+		// A window too narrow for it has it in the menu instead.
+		await page.setViewportSize({ width: 600, height: 800 });
+		await expect(button).toHaveCount(0);
+		await page.getByTestId("file-more").click();
+		await expect(page.getByTestId("file-fullscreen")).toBeVisible();
 	});
 
 	test("the side panel lists pages and stays open while reading", async ({

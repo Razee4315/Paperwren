@@ -298,6 +298,16 @@ function onFullscreenChange(then: () => void) {
 const readingFullscreen = () =>
 	document.documentElement.dataset.fullscreen === "page";
 
+/** A window too narrow for full screen's button in the bar: it is in
+ * the menu instead. */
+const NARROW = "(max-width: 720px)";
+function onNarrowChange(then: () => void) {
+	const query = window.matchMedia?.(NARROW);
+	query?.addEventListener("change", then);
+	return () => query?.removeEventListener("change", then);
+}
+const narrowWindow = () => !!window.matchMedia?.(NARROW).matches;
+
 export function Shell({
 	name,
 	format,
@@ -386,6 +396,7 @@ export function Shell({
 	const [colorOpen, setColorOpen] = useState(false);
 	const [keysOpen, setKeysOpen] = useState(false);
 	const full = useSyncExternalStore(onFullscreenChange, readingFullscreen);
+	const narrow = useSyncExternalStore(onNarrowChange, narrowWindow);
 	useEffect(() => {
 		if (sideFocus) update("sidePanel", true);
 	}, [sideFocus, update]);
@@ -885,7 +896,7 @@ export function Shell({
 						</IconButton>
 					)}
 					{actions}
-					{isDesktop && (
+					{isDesktop && !narrow && (
 						<IconButton
 							label={full ? t("Leave full screen") : t("Full screen")}
 							shortcut={hintFor("fullscreen")}
@@ -901,6 +912,9 @@ export function Shell({
 						details={details}
 						onPrint={onPrint}
 						active={active}
+						fullscreen={
+							isDesktop && narrow ? { on: full, toggle: fullscreen } : undefined
+						}
 					/>
 				</div>
 				{find}

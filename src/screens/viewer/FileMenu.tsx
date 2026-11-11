@@ -2,6 +2,7 @@ import { type FileRef, backend, formatBytes } from "@/lib/backend";
 import { isDesktop } from "@/lib/env";
 import { formatLabel, kindLabel, kindOf, mimeOf } from "@/lib/formats";
 import { t } from "@/lib/i18n";
+import { FULLSCREEN_KEYS } from "@/lib/keys";
 import { printDocument } from "@/lib/print";
 import { hintFor, matches } from "@/lib/shortcuts";
 import type { OpenRequest, Reopen } from "@/lib/types";
@@ -22,6 +23,8 @@ import {
 	Download,
 	FolderOpen,
 	Info,
+	Maximize,
+	Minimize,
 	MoreVertical,
 	PencilLine,
 	Printer,
@@ -229,6 +232,7 @@ export function FileMenu({
 	details: more,
 	onPrint,
 	active,
+	fullscreen,
 }: {
 	/** The viewer's own items; `close` dismisses the menu. */
 	extra?: (close: () => void) => ReactNode;
@@ -237,6 +241,8 @@ export function FileMenu({
 	/** Lay the document out for paper inside `root`. */
 	onPrint?: (root: HTMLElement) => Promise<void> | void;
 	active: boolean;
+	/** Full screen, here when the bar has no room for its button. */
+	fullscreen?: { on: boolean; toggle: () => void };
 }) {
 	const context = useContext(ViewerFileContext);
 	const [open, setOpen] = useState(false);
@@ -287,6 +293,21 @@ export function FileMenu({
 						{extra(close)}
 						<SheetDivider />
 					</>
+				)}
+				{fullscreen && (
+					<SheetItem
+						icon={
+							fullscreen.on ? <Minimize size={20} /> : <Maximize size={20} />
+						}
+						shortcut={FULLSCREEN_KEYS}
+						onClick={() => {
+							setOpen(false);
+							fullscreen.toggle();
+						}}
+						testId="file-fullscreen"
+					>
+						{fullscreen.on ? t("Leave full screen") : t("Full screen")}
+					</SheetItem>
 				)}
 				{/* The file itself: tiles, so the menu stays short. */}
 				<SheetTiles>
