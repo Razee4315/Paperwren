@@ -1202,9 +1202,6 @@ export const fr: Table = {
 	Loading: "Chargement",
 	"Big files take a little longer":
 		"Les gros fichiers prennent un peu plus de temps",
-	"Ink for text and marks": "Encre du texte et des marques",
-	"Text in blue": "Texte en bleu",
-	"Text in black": "Texte en noir",
 	Top: "En haut",
 	Foot: "En bas",
 	Align: "Alignement",

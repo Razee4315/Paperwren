@@ -1,5 +1,5 @@
 import { isDesktop } from "@/lib/env";
-import { t } from "@/lib/i18n";
+import { msg, t } from "@/lib/i18n";
 import {
 	type Signature,
 	inkFromPicture,
@@ -52,8 +52,9 @@ const HANDS = [
 const HAND_SIZE = 38;
 const HAND_MIN = 18;
 const INKS = ["#111111", "#1a3c8c"];
-const PICTURE_NOT_CERTIFICATE =
-	"This adds a picture of your signature, not a digital certificate.";
+const PICTURE_NOT_CERTIFICATE = msg(
+	"This adds a picture of your signature, not a digital certificate.",
+);
 /** Pixels per CSS pixel the pad draws at, for a sharp signature. */
 const DENSITY = 2;
 
