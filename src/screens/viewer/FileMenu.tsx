@@ -20,7 +20,11 @@ import {
 } from "@/ui";
 import {
 	AppWindow,
+	ArrowLeftRight,
+	Columns2,
 	Download,
+	FilePlus,
+	FileText,
 	FolderOpen,
 	Info,
 	Maximize,
@@ -41,6 +45,7 @@ import {
 } from "react";
 import { RenameDialog } from "./RenameDialog";
 import s from "./Shell.module.css";
+import { SideBySideContext } from "./pane";
 
 /** The file a viewer is showing, for the actions that leave the app. */
 export interface ViewerFile {
@@ -248,6 +253,8 @@ export function FileMenu({
 	const [open, setOpen] = useState(false);
 	const [details, setDetails] = useState(false);
 	const [renaming, setRenaming] = useState(false);
+	const pair = useContext(SideBySideContext);
+	const [besideOpen, setBesideOpen] = useState(false);
 	const close = useCallback(() => setOpen(false), []);
 
 	const print = useCallback(() => {
@@ -293,6 +300,35 @@ export function FileMenu({
 						{extra(close)}
 						<SheetDivider />
 					</>
+				)}
+				{pair?.room && (
+					<SheetItem
+						icon={<Columns2 size={20} />}
+						checked={pair.on}
+						onClick={() => {
+							setOpen(false);
+							if (pair.on) pair.leave();
+							else if (pair.others.length) setBesideOpen(true);
+							else pair.pickBeside();
+						}}
+						testId="file-side-by-side"
+						extra={
+							pair.on ? (
+								<IconButton
+									label={t("Swap sides")}
+									onClick={() => {
+										setOpen(false);
+										pair.swap();
+									}}
+									data-testid="file-swap-sides"
+								>
+									<ArrowLeftRight size={18} />
+								</IconButton>
+							) : undefined
+						}
+					>
+						{t("Side by side")}
+					</SheetItem>
 				)}
 				{fullscreen && (
 					<SheetItem
@@ -353,6 +389,39 @@ export function FileMenu({
 					extra={more}
 					onClose={() => setDetails(false)}
 				/>
+			)}
+			{pair && (
+				<Sheet
+					open={besideOpen}
+					title={t("Show beside this")}
+					onClose={() => setBesideOpen(false)}
+					testId="side-by-side-pick"
+				>
+					{pair.others.map((tab) => (
+						<SheetItem
+							key={tab.key}
+							icon={<FileText size={20} />}
+							onClick={() => {
+								setBesideOpen(false);
+								pair.beside(tab);
+							}}
+							testId="side-by-side-tab"
+						>
+							<span dir="auto">{tab.request.name}</span>
+						</SheetItem>
+					))}
+					<SheetDivider />
+					<SheetItem
+						icon={<FilePlus size={20} />}
+						onClick={() => {
+							setBesideOpen(false);
+							pair.pickBeside();
+						}}
+						testId="side-by-side-file"
+					>
+						{t("Choose a file")}
+					</SheetItem>
+				</Sheet>
 			)}
 			{renaming && (
 				<RenameDialog

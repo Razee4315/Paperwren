@@ -23,6 +23,8 @@ import {
 import { PasswordDialog } from "./Dialogs";
 import { FileChangedBar, useFileChanged } from "./FileChanged";
 import { ViewerFileContext } from "./FileMenu";
+import styles from "./Pane.module.css";
+import { type Pane, PaneContext } from "./pane";
 import { runWorker } from "./runWorker";
 import type { ViewerProps } from "./types";
 
@@ -110,7 +112,49 @@ class ViewerBoundary extends Component<
 	}
 }
 
+/**
+ * A document's viewer. On a desktop it sits in a wrapper that, side by
+ * side, fills its half of the window: as a box that holds what is fixed
+ * inside it (the viewer, its opening screen), so no viewer needs to know.
+ * Alone, the wrapper is no box at all. It is there either way, so
+ * turning to side by side and back never opens the document again.
+ */
 export default function ViewerScreen({
+	pane,
+	...props
+}: Parameters<typeof Viewer>[0] & { pane?: Pane }) {
+	if (!pane) return <Viewer {...props} />;
+	const half = pane.side && pane.visible;
+	// A press in this half turns to it: in the half itself, not in a
+	// menu or dialog it opened (drawn elsewhere, over the window), and
+	// not focus put back by one closing. Ctrl+Tab turns halves too.
+	const turn = (e: React.PointerEvent<HTMLDivElement>) => {
+		if (!props.active && e.currentTarget.contains(e.target as Node))
+			pane.onFocus?.();
+	};
+	return (
+		<PaneContext.Provider value={pane}>
+			<div
+				className={half ? styles.pane : undefined}
+				style={
+					half
+						? pane.side === "left"
+							? { right: `${(1 - pane.ratio) * 100}%` }
+							: { left: `${pane.ratio * 100}%` }
+						: { display: "contents" }
+				}
+				data-pane={half ? pane.side : undefined}
+				data-focused={half && props.active ? "" : undefined}
+				onPointerDownCapture={turn}
+				data-testid={half ? `pane-${pane.side}` : undefined}
+			>
+				<Viewer {...props} />
+			</div>
+		</PaneContext.Provider>
+	);
+}
+
+function Viewer({
 	request,
 	active,
 	onClose,

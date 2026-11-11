@@ -23,4 +23,9 @@ ROWS = [
     ("What is kept of the page", "صفحے کا جو حصہ رکھا جائے گا", "ما يُبقى من الصفحة", "页面保留的部分", "पृष्ठ का जो हिस्सा रखा जाएगा", "Lo que se conserva de la página", "Ce qui est gardé de la page", "Что останется от страницы", "O que fica da página"),
     # ---- signing ----
     ("Photo", "تصویر", "صورة", "照片", "फ़ोटो", "Foto", "Photo", "Фото", "Foto"),
+    # ---- side by side ----
+    ("Side by side", "ساتھ ساتھ", "جنبًا إلى جنب", "并排", "साथ-साथ", "Lado a lado", "Côte à côte", "Рядом", "Lado a lado"),
+    ("Show beside this", "اس کے ساتھ دکھائیں", "اعرض بجانب هذا", "在旁边显示", "इसके बगल में दिखाएँ", "Mostrar junto a este", "Afficher à côté", "Показать рядом", "Mostrar ao lado deste"),
+    ("Swap sides", "اطراف بدلیں", "تبديل الجانبين", "交换左右", "दाएँ-बाएँ बदलें", "Intercambiar lados", "Inverser les côtés", "Поменять местами", "Trocar os lados"),
+    ("Resize the two documents", "دونوں دستاویزات کا سائز بدلیں", "غيّر حجم المستندين", "调整两个文档的大小", "दोनों दस्तावेज़ों का आकार बदलें", "Cambiar el tamaño de los dos documentos", "Redimensionner les deux documents", "Изменить размер двух документов", "Redimensionar os dois documentos"),
 ]

@@ -1276,4 +1276,8 @@ export const ar: Table = {
 	"Leave out headers and page numbers": "استبعاد الترويسات وأرقام الصفحات",
 	"What is kept of the page": "ما يُبقى من الصفحة",
 	Photo: "صورة",
+	"Side by side": "جنبًا إلى جنب",
+	"Show beside this": "اعرض بجانب هذا",
+	"Swap sides": "تبديل الجانبين",
+	"Resize the two documents": "غيّر حجم المستندين",
 };

@@ -1215,4 +1215,8 @@ export const hi: Table = {
 	"Leave out headers and page numbers": "हेडर और पृष्ठ संख्या छोड़ दें",
 	"What is kept of the page": "पृष्ठ का जो हिस्सा रखा जाएगा",
 	Photo: "फ़ोटो",
+	"Side by side": "साथ-साथ",
+	"Show beside this": "इसके बगल में दिखाएँ",
+	"Swap sides": "दाएँ-बाएँ बदलें",
+	"Resize the two documents": "दोनों दस्तावेज़ों का आकार बदलें",
 };

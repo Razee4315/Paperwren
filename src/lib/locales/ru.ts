@@ -1282,4 +1282,8 @@ export const ru: Table = {
 		"Не учитывать колонтитулы и номера страниц",
 	"What is kept of the page": "Что останется от страницы",
 	Photo: "Фото",
+	"Side by side": "Рядом",
+	"Show beside this": "Показать рядом",
+	"Swap sides": "Поменять местами",
+	"Resize the two documents": "Изменить размер двух документов",
 };

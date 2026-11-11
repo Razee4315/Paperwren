@@ -1236,4 +1236,8 @@ export const ur: Table = {
 	"Leave out headers and page numbers": "ہیڈر اور صفحہ نمبر چھوڑ دیں",
 	"What is kept of the page": "صفحے کا جو حصہ رکھا جائے گا",
 	Photo: "تصویر",
+	"Side by side": "ساتھ ساتھ",
+	"Show beside this": "اس کے ساتھ دکھائیں",
+	"Swap sides": "اطراف بدلیں",
+	"Resize the two documents": "دونوں دستاویزات کا سائز بدلیں",
 };

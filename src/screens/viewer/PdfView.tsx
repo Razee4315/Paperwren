@@ -1531,14 +1531,31 @@ export default function PdfView({
 	useEffect(() => {
 		const el = container.current;
 		if (!el) return;
+		let width = el.clientWidth;
+		let frame = 0;
 		const measure = () => {
 			setRoomForTwo(el.clientWidth >= 700 && el.clientWidth > el.clientHeight);
 			measureFit();
+			// A zoom that fits ("Fit width", "Fit page", "Auto") fits again
+			// when the room changes: a window resized, or half a window
+			// beside another document, its divider dragged.
+			if (el.clientWidth === width) return;
+			width = el.clientWidth;
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() => {
+				const v = pdfViewer.current;
+				const named = v?.currentScaleValue;
+				if (v && named && Number.isNaN(Number(named)))
+					v.currentScaleValue = named;
+			});
 		};
 		measure();
 		const ro = new ResizeObserver(measure);
 		ro.observe(el);
-		return () => ro.disconnect();
+		return () => {
+			ro.disconnect();
+			cancelAnimationFrame(frame);
+		};
 	}, [measureFit]);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: measured again at each page and zoom
 	useEffect(() => {

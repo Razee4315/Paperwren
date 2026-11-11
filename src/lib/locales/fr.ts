@@ -1266,4 +1266,8 @@ export const fr: Table = {
 		"Ignorer les en-têtes et numéros de page",
 	"What is kept of the page": "Ce qui est gardé de la page",
 	Photo: "Photo",
+	"Side by side": "Côte à côte",
+	"Show beside this": "Afficher à côté",
+	"Swap sides": "Inverser les côtés",
+	"Resize the two documents": "Redimensionner les deux documents",
 };

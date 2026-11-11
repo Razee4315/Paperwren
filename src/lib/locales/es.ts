@@ -1253,4 +1253,8 @@ export const es: Table = {
 		"Omitir encabezados y números de página",
 	"What is kept of the page": "Lo que se conserva de la página",
 	Photo: "Foto",
+	"Side by side": "Lado a lado",
+	"Show beside this": "Mostrar junto a este",
+	"Swap sides": "Intercambiar lados",
+	"Resize the two documents": "Cambiar el tamaño de los dos documentos",
 };

@@ -597,6 +597,83 @@ test.describe("the desktop layout", () => {
 	});
 });
 
+test.describe("two documents side by side", () => {
+	test.use({ viewport: { width: 1280, height: 800 } });
+
+	test("a second opens beside the first; each half takes the keys in turn", async ({
+		page,
+	}) => {
+		await boot(page, {}, DESKTOP);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		// One document open: Side by side asks for the other, which opens
+		// on the right and has the keyboard.
+		await page.evaluate(() => {
+			window.__paperwrenTestFile = new File(["Beside the PDF"], "notes.txt");
+		});
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-side-by-side").click();
+		const left = page.getByTestId("pane-left");
+		const right = page.getByTestId("pane-right");
+		await expect(right).toContainText("Beside the PDF", { timeout: 20_000 });
+		await expect(left.getByTestId("pdf-page-field")).toBeVisible();
+		await expect(right).toHaveAttribute("data-focused", "");
+		const halves = async () =>
+			Promise.all(
+				[left, right].map(async (pane) => (await pane.boundingBox())?.width),
+			);
+		expect(await halves()).toEqual([640, 640]);
+		// The keys go to the half that has them, and to no other.
+		await page.keyboard.press("Control+f");
+		await expect(right.getByTestId("find-input")).toBeVisible();
+		await expect(left.getByTestId("find-input")).toHaveCount(0);
+		await page.keyboard.press("Escape");
+		// A click in the other half turns to it.
+		await left.locator(".pdfViewer").click({ position: { x: 200, y: 300 } });
+		await expect(left).toHaveAttribute("data-focused", "");
+		await expect(right).not.toHaveAttribute("data-focused", "");
+		// The divider moves from the keyboard too.
+		const divider = page.getByTestId("split-divider");
+		await divider.focus();
+		await page.keyboard.press("Shift+ArrowRight");
+		await expect(divider).toHaveAttribute("aria-valuenow", "60");
+		const [wide] = await halves();
+		expect(wide).toBeGreaterThan(700);
+		// The sides change places, and back to one at a time.
+		await left.getByTestId("file-more").click();
+		await page.getByTestId("file-swap-sides").click();
+		await expect(right.getByTestId("pdf-page-field")).toBeVisible();
+		await right.getByTestId("file-more").click();
+		await page.getByTestId("file-side-by-side").click();
+		await expect(page.getByTestId("pane-left")).toHaveCount(0);
+		await expect(page.locator("[data-testid=viewer]:visible")).toHaveCount(1);
+		// With both open, Side by side offers the other one.
+		await page
+			.locator("[data-testid=viewer]:visible")
+			.getByTestId("file-more")
+			.click();
+		await page.getByTestId("file-side-by-side").click();
+		await page.getByTestId("side-by-side-tab").click();
+		await expect(page.getByTestId("pane-right")).toContainText(
+			"Beside the PDF",
+		);
+	});
+
+	test("a window too narrow for two keeps one at a time", async ({ page }) => {
+		await page.setViewportSize({ width: 800, height: 700 });
+		await boot(page, {}, DESKTOP);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		await expect(page.getByTestId("file-menu")).toBeVisible();
+		await expect(page.getByTestId("file-side-by-side")).toHaveCount(0);
+	});
+});
+
 /** The same layout as the Mac app has it: `&lights` for the system's
  * window buttons over the left end of the bar, and the Mac's keys. */
 test.describe("the desktop layout on a Mac", () => {

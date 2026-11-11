@@ -20,12 +20,15 @@ export interface Tab {
 export function TabStrip({
 	tabs,
 	current,
+	beside = null,
 	onShow,
 	onClose,
 	onHome,
 }: {
 	tabs: Tab[];
 	current: number | null;
+	/** The tab shown beside the current one, side by side. */
+	beside?: number | null;
 	onShow: (tab: Tab) => void;
 	onClose: (tab: Tab) => void;
 	onHome: () => void;
@@ -45,6 +48,7 @@ export function TabStrip({
 						<div
 							key={tab.key}
 							className={`${s.tab} ${on ? s.on : ""}`}
+							data-beside={tab.key === beside || undefined}
 							role="presentation"
 							onAuxClick={(e) => {
 								if (e.button === 1) onClose(tab);

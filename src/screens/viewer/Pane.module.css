@@ -1,0 +1,56 @@
+/* A document in one half of the window, side by side (pane.ts). It
+ * holds what is fixed inside it, so the viewer fills the half. */
+.pane {
+	position: fixed;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 30;
+	contain: layout;
+}
+/* The half that has the keyboard: a line of the accent along its top;
+ * the other's bar steps back. */
+.pane[data-focused]::after {
+	content: "";
+	position: absolute;
+	top: var(--tab-strip);
+	left: 0;
+	right: 0;
+	height: 2px;
+	background: var(--accent);
+	z-index: 40;
+	pointer-events: none;
+}
+.pane:not([data-focused]) header {
+	opacity: 0.72;
+}
+/* Where the halves meet: a line, with a wide grip to drag. */
+.divider {
+	position: fixed;
+	top: var(--tab-strip);
+	bottom: 0;
+	z-index: 45;
+	width: 12px;
+	margin-left: -6px;
+	cursor: col-resize;
+	touch-action: none;
+	outline: none;
+}
+.divider > span {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 5.5px;
+	width: 1px;
+	background: var(--line-strong);
+	transition: background-color var(--t-fast) var(--ease), width var(--t-fast)
+		var(--ease), left var(--t-fast) var(--ease);
+}
+.divider:hover > span,
+.divider:focus-visible > span,
+.divider:active > span {
+	left: 4.5px;
+	width: 3px;
+	background: var(--accent);
+}

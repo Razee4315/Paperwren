@@ -1254,4 +1254,8 @@ export const pt: Table = {
 		"Ignorar cabeçalhos e números de página",
 	"What is kept of the page": "O que fica da página",
 	Photo: "Foto",
+	"Side by side": "Lado a lado",
+	"Show beside this": "Mostrar ao lado deste",
+	"Swap sides": "Trocar os lados",
+	"Resize the two documents": "Redimensionar os dois documentos",
 };

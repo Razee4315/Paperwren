@@ -1145,4 +1145,8 @@ export const zh: Table = {
 	"Leave out headers and page numbers": "略去页眉和页码",
 	"What is kept of the page": "页面保留的部分",
 	Photo: "照片",
+	"Side by side": "并排",
+	"Show beside this": "在旁边显示",
+	"Swap sides": "交换左右",
+	"Resize the two documents": "调整两个文档的大小",
 };
