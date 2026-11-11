@@ -82,6 +82,9 @@ interface Field extends Box {
 	on?: string;
 	options?: Array<[value: string, label: string]>;
 	maxLength?: number;
+	/** The size the file asks its text to be written at, as a share of
+	 * the page's height; none: fitted to the box. */
+	size?: number;
 	initial: string | boolean;
 }
 
@@ -123,11 +126,25 @@ interface Widget {
 	buttonValue?: string;
 	options?: Array<{ exportValue: string; displayValue: string }>;
 	maxLen?: number;
+	defaultAppearanceData?: { fontSize?: number };
+}
+
+/** pdf.js's `AnnotationMode.ENABLE_FORMS`: the page is drawn without the
+ * form's fields, which are laid over it here instead. (pdf.js is loaded
+ * later, on its own; only its types are imported here.) */
+const ENABLE_FORMS = 2;
+
+/** The fields of every page, and the pages with fields the file locks,
+ * which are only seen as the file draws them. */
+interface Form {
+	fields: Field[];
+	locked: Set<number>;
 }
 
 /** The fields of every page, placed as shown. */
-async function readFields(doc: PDFDocumentProxy): Promise<Field[]> {
+async function readFields(doc: PDFDocumentProxy): Promise<Form> {
 	const out: Field[] = [];
+	const locked = new Set<number>();
 	for (let n = 1; n <= doc.numPages && out.length < 2000; n++) {
 		const page = await doc.getPage(n);
 		const view = whole(page, () => page.getViewport({ scale: 1 }));
@@ -135,15 +152,14 @@ async function readFields(doc: PDFDocumentProxy): Promise<Field[]> {
 			intent: "display",
 		})) as Widget[];
 		for (const w of widgets) {
-			// Fields the file locks, or hides, are shown as it drew them.
-			if (
-				w.subtype !== "Widget" ||
-				!w.fieldName ||
-				w.hidden ||
-				w.pushButton ||
-				w.readOnly
-			)
+			if (w.subtype !== "Widget") continue;
+			// Fields the file locks, or hides, are shown as it drew them: the
+			// page keeps its fields in the picture.
+			if (w.readOnly || w.pushButton || !w.fieldName) {
+				if (!w.hidden) locked.add(n - 1);
 				continue;
+			}
+			if (w.hidden) continue;
 			const [a, b, c, d] = view.convertToViewportRectangle(w.rect);
 			const box = {
 				page: n - 1,
@@ -153,7 +169,12 @@ async function readFields(doc: PDFDocumentProxy): Promise<Field[]> {
 				h: Math.abs(d - b) / view.height,
 			};
 			if (box.w <= 0 || box.h <= 0) continue;
-			const base = { ...box, name: w.fieldName };
+			const pt = w.defaultAppearanceData?.fontSize ?? 0;
+			const base = {
+				...box,
+				name: w.fieldName,
+				size: pt > 0 ? pt / view.height : undefined,
+			};
 			if (w.fieldType === "Tx")
 				out.push({
 					...base,
@@ -190,9 +211,11 @@ async function readFields(doc: PDFDocumentProxy): Promise<Field[]> {
 				});
 			else if (w.fieldType === "Sig")
 				out.push({ ...base, kind: "signature", initial: "" });
+			// A kind not filled in here is left to the picture too.
+			else locked.add(n - 1);
 		}
 	}
-	return out;
+	return { fields: out, locked };
 }
 
 /** A picture of a mark the PDF's standard font cannot write (a tick,
@@ -267,7 +290,8 @@ export function FillSign({
 	onClose: () => void;
 	onSaved?: (saved: SavedFile) => void;
 }) {
-	const [fields, setFields] = useState<Field[] | null>(null);
+	const [form, setForm] = useState<Form | null>(null);
+	const fields = form?.fields ?? null;
 	const [values, setValues] = useState<Record<string, string | boolean>>({});
 	const [items, setItems] = useState<Item[]>([]);
 	const [tool, setTool] = useState<Tool | null>(null);
@@ -298,8 +322,8 @@ export function FillSign({
 	useEffect(() => {
 		let alive = true;
 		readFields(doc)
-			.then((found) => alive && setFields(found))
-			.catch(() => alive && setFields([]));
+			.then((found) => alive && setForm(found))
+			.catch(() => alive && setForm({ fields: [], locked: new Set() }));
 		// Each page's size as shown, in points, for laying the pages out.
 		(async () => {
 			const out: Array<[number, number]> = [];
@@ -827,6 +851,7 @@ export function FillSign({
 						width={pageWidth}
 						height={(pageWidth * ph) / pw}
 						placing={!!tool}
+						forms={form ? !form.locked.has(page) : null}
 						label={t("Page {n}: place it here", { n: page + 1 })}
 						onTap={(u, v) => {
 							if (tool) place(page, u, v);
@@ -1124,6 +1149,7 @@ export function FillPage({
 	height,
 	onTap,
 	placing,
+	forms,
 	label,
 	children,
 }: {
@@ -1133,6 +1159,10 @@ export function FillPage({
 	height: number;
 	/** A tool is chosen: a tap puts something here. */
 	placing: boolean;
+	/** The form's fields are laid over the page, so it is drawn without
+	 * them; null: not known yet, so not drawn yet. Left out, the page is
+	 * drawn as the file shows it. */
+	forms?: boolean | null;
 	/** What Enter does on the page while placing, said aloud. */
 	label?: string;
 	onTap: (u: number, v: number) => void;
@@ -1157,7 +1187,7 @@ export function FillPage({
 	}, []);
 
 	useEffect(() => {
-		if (!near || width < 50) return;
+		if (!near || width < 50 || forms === null) return;
 		let alive = true;
 		let task: { cancel(): void; promise: Promise<void> } | null = null;
 		const timer = window.setTimeout(async () => {
@@ -1173,7 +1203,11 @@ export function FillPage({
 			);
 			el.width = Math.ceil(viewport.width);
 			el.height = Math.ceil(viewport.height);
-			task = proxy.render({ canvasContext: ctx, viewport });
+			task = proxy.render({
+				canvasContext: ctx,
+				viewport,
+				annotationMode: forms ? ENABLE_FORMS : undefined,
+			});
 			await task.promise.catch(() => {});
 			if (alive) el.dataset.drawn = "1";
 		}, 60);
@@ -1182,7 +1216,7 @@ export function FillPage({
 			window.clearTimeout(timer);
 			task?.cancel();
 		};
-	}, [doc, page, near, width]);
+	}, [doc, page, near, width, forms]);
 
 	return (
 		<div
@@ -1191,6 +1225,8 @@ export function FillPage({
 			style={{ width, height }}
 			data-testid="fill-page"
 			data-page={page}
+			// The file's own fields show under ours: ours hide them.
+			data-ghosts={forms === false || undefined}
 			// While a tool is in hand, Enter puts it on the page, in the
 			// middle of what is seen of it.
 			tabIndex={placing ? 0 : undefined}
@@ -1280,7 +1316,15 @@ function FieldInput({
 				{px > 18 && <span>{t("Sign here")}</span>}
 			</button>
 		) : null;
-	const font = Math.max(8, Math.min(px * 0.62, 18));
+	// As large as the file asks, or as fits the box, at any zoom.
+	const font = Math.max(
+		8,
+		field.size
+			? field.size * pageHeight
+			: field.multiline
+				? Math.min(px * 0.62, pageHeight * 0.016)
+				: px * 0.62,
+	);
 	const label = field.name;
 	if (field.kind === "check" || field.kind === "radio") {
 		const on =

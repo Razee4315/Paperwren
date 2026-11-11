@@ -551,6 +551,53 @@ test.describe("fill & sign", () => {
 		await read.destroy();
 	});
 
+	test("form fields are drawn once, and their text follows the zoom", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await boot(page, {}, "?desktop");
+		await page.getByTestId("home-tool-sign").click();
+		await addFile(page, "features/form.pdf");
+		await page.getByTestId("tool-go").click();
+		const editor = page.getByTestId("fill-sign");
+		const plan = editor.getByLabel("plan");
+		await expect(plan).toBeVisible();
+		const size = () =>
+			plan.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+		const at100 = await size();
+		await editor.getByLabel("Zoom in").click();
+		await editor.getByLabel("Zoom in").click();
+		await expect.poll(size).toBeCloseTo(at100 * 2, 0);
+		await plan.scrollIntoViewIfNeeded();
+		const canvas = editor.locator("canvas[data-drawn]").first();
+		await expect(canvas).toBeAttached();
+		// Under the field, the page's picture is bare paper: the file's own
+		// "Monthly" is not drawn there too.
+		await expect
+			.poll(() =>
+				plan.evaluate((field) => {
+					const page = field.closest("[data-page]");
+					const art = page?.querySelector("canvas");
+					const ctx = art?.getContext("2d");
+					if (!page || !art || !ctx || !art.dataset.drawn) return -1;
+					const p = page.getBoundingClientRect();
+					const f = field.getBoundingClientRect();
+					const k = art.width / p.width;
+					const data = ctx.getImageData(
+						(f.left - p.left + 4) * k,
+						(f.top - p.top + 4) * k,
+						(f.width - 8) * k,
+						(f.height - 8) * k,
+					).data;
+					let dark = 0;
+					for (let i = 0; i < data.length; i += 4)
+						if (data[i] + data[i + 1] + data[i + 2] < 450) dark++;
+					return dark;
+				}),
+			)
+			.toBe(0);
+	});
+
 	test("leaving with changes asks first; a typed signature works too", async ({
 		page,
 	}) => {

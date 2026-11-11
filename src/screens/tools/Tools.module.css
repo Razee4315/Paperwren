@@ -350,6 +350,12 @@
 .fieldRadio {
 	border-radius: 50%;
 }
+/* A page with locked fields is drawn with all its fields in the picture:
+ * the ones filled in here cover the file's own. */
+.fillPage[data-ghosts] .fieldText,
+.fillPage[data-ghosts] .fieldBox {
+	background: #e3f2ef;
+}
 .fieldBox:focus-visible {
 	outline: 2px solid var(--accent);
 }
