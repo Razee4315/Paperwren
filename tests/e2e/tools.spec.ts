@@ -703,7 +703,7 @@ test.describe("fill & sign by touch", () => {
 		await page.touchscreen.tap(box.x + 20, box.y + 100);
 		const mark = await items.boundingBox();
 		if (!mark) throw new Error("no mark");
-		const from = await items.boundingBox();
+		const from = await items.evaluate((el) => el.style.left + el.style.top);
 		await swipe(mark.x + mark.width / 2, mark.y + mark.height / 2, -250);
 		await expect
 			.poll(() => pages.evaluate((el) => el.scrollTop))
@@ -715,11 +715,12 @@ test.describe("fill & sign by touch", () => {
 		await cdp.detach();
 		await expect(items).toHaveCount(1);
 		// The signature scrolled with the page, it was not dragged.
+		expect(await items.evaluate((el) => el.style.left + el.style.top)).toBe(
+			from,
+		);
 		await pages.evaluate((el) => {
 			el.scrollTop = 0;
 		});
-		const to = await items.boundingBox();
-		expect(Math.abs((to?.x ?? 0) - (from?.x ?? 0))).toBeLessThan(2);
 
 		// Signing again is one tap on "Place another", then one on the page.
 		await editor.getByTestId("fill-again").tap();

@@ -148,8 +148,7 @@ test("an uploaded signature is placed, kept, and saved into the PDF", async ({
 	await expect(page.getByTestId("fill-hint")).toContainText("Signature");
 	await tapPage(page, 0.5, 0.75);
 	await expect(editor.getByTestId("fill-item")).toHaveCount(1);
-	// Kept for next time.
-	await editor.getByTestId("fill-tool-sign").click();
+	// Kept for next time (the tool was put down after placing).
 	await editor.getByTestId("fill-tool-sign").click();
 	await expect(page.getByTestId("signature-kept")).toHaveCount(1);
 	await page.keyboard.press("Escape");
@@ -201,13 +200,14 @@ test.describe("stamps", () => {
 		await expect(pad).toHaveCount(0);
 		await expect(page.getByTestId("fill-hint")).toContainText("Stamp");
 		await tapPage(page, 0.3, 0.8);
+		// One at a time: the same stamp again is one tap on "Place another".
+		await editor.getByTestId("fill-again").click();
 		await tapPage(page, 0.7, 0.85);
 		await expect(editor.getByTestId("fill-item")).toHaveCount(2);
 		await expect(
 			editor.locator('[data-testid="fill-item"][data-kind="stamp"]'),
 		).toHaveCount(2);
 		// Kept: the next stamp is a tap away.
-		await editor.getByTestId("fill-tool-stamp").click();
 		await editor.getByTestId("fill-tool-stamp").click();
 		await expect(page.getByTestId("stamp-kept")).toHaveCount(1);
 		await page.getByTestId("stamp-kept").click();
