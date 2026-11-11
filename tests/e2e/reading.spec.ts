@@ -532,6 +532,99 @@ test("crop margins fills the screen with text, cuts nothing and is remembered", 
 	);
 });
 
+test("crop by hand: a box for odd pages, another for even pages, remembered", async ({
+	page,
+}) => {
+	await boot(page);
+	await openFixture(page, "features/margins.pdf");
+	await expect(page.getByTestId("pdf-page")).toHaveText("1 / 4", {
+		timeout: 20_000,
+	});
+	const openCrop = async () => {
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("pdf-crop-hand").click();
+		await expect(page.getByTestId("crop-handle-7")).toBeVisible({
+			timeout: 20_000,
+		});
+	};
+	/** The box as shares of the drawn page (left, top, right, bottom). */
+	const box = () =>
+		page.evaluate(() => {
+			const s = document
+				.querySelector("[data-testid=crop-stage]")
+				?.getBoundingClientRect();
+			const b = document
+				.querySelector("[data-testid=crop-box]")
+				?.getBoundingClientRect();
+			if (!s || !b) return [];
+			return [
+				(b.left - s.left) / s.width,
+				(b.top - s.top) / s.height,
+				(b.right - s.left) / s.width,
+				(b.bottom - s.top) / s.height,
+			].map((v) => Math.round(v * 100) / 100);
+		});
+	const drag = async (id: string, dx: number) => {
+		const h = await page.getByTestId(id).boundingBox();
+		if (!h) throw new Error(id);
+		const x = h.x + h.width / 2;
+		const y = h.y + h.height / 2;
+		await page.mouse.move(x, y);
+		await page.mouse.down();
+		await page.mouse.move(x + dx, y, { steps: 5 });
+		await page.mouse.up();
+	};
+
+	await openCrop();
+	await expect(page.getByTestId("crop-count")).toHaveText("Page 1 of 4");
+	// Odd pages: the left edge in.
+	await page.getByTestId("crop-scope-odd").click();
+	const start = await box();
+	await drag("crop-handle-7", 40);
+	await expect.poll(async () => (await box())[0]).toBeGreaterThan(start[0]);
+	const odd = await box();
+	// The next page is even, and the box goes to even pages.
+	await page.getByTestId("crop-next").click();
+	await expect(page.getByTestId("crop-count")).toHaveText("Page 2 of 4");
+	await expect(page.getByTestId("crop-scope-even")).toHaveAttribute(
+		"aria-pressed",
+		"true",
+	);
+	await expect(page.getByTestId("crop-handle-5")).toBeVisible();
+	const evenStart = await box();
+	await drag("crop-handle-5", -40);
+	// The top edge, from the keyboard.
+	await page.getByTestId("crop-handle-4").focus();
+	for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowDown");
+	await expect.poll(async () => (await box())[1]).toBeGreaterThan(evenStart[1]);
+	const even = await box();
+	expect(even[2]).toBeLessThan(evenStart[2]);
+	// Back on page 1, the odd box is as it was left.
+	await page.getByTestId("crop-prev").click();
+	await expect.poll(box).toEqual(odd);
+	await page.getByTestId("crop-done").click();
+	await expect(page.getByTestId("crop-pages")).toHaveCount(0);
+
+	// Closed and opened again, the pages keep their boxes.
+	await page.waitForTimeout(800);
+	await page.getByTestId("viewer-back").click();
+	await page.getByTestId("recent").first().getByRole("button").first().click();
+	await expect(page.getByTestId("pdf-page")).toHaveText(/\/ 4/, {
+		timeout: 20_000,
+	});
+	await page.getByTestId("file-more").click();
+	await expect(page.getByTestId("pdf-crop")).toHaveAttribute(
+		"aria-pressed",
+		"true",
+	);
+	await page.keyboard.press("Escape");
+	await openCrop();
+	await expect(page.getByTestId("crop-count")).toHaveText("Page 1 of 4");
+	await expect.poll(box).toEqual(odd);
+	await page.getByTestId("crop-next").click();
+	await expect.poll(box).toEqual(even);
+});
+
 test.describe("pages turned sideways", () => {
 	test("a book turns page by page, and opens again on its page", async ({
 		page,

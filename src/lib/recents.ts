@@ -4,6 +4,7 @@
  * without React.
  */
 
+import { cleanCrop } from "./crop";
 import { ALL_FORMATS, type FileFormat, formatFromName } from "./formats";
 import type { Position, RecentEntry, Reopen } from "./types";
 
@@ -46,8 +47,9 @@ export function cleanPosition(value: unknown): Position | undefined {
 	if (!value || typeof value !== "object") return undefined;
 	const p = value as Record<string, unknown>;
 	switch (p.kind) {
-		case "pdf":
+		case "pdf": {
 			if (typeof p.scale !== "string") return undefined;
+			const crop = cleanCrop(p.crop);
 			return {
 				kind: "pdf",
 				page: Math.max(1, Math.floor(finite(p.page, 1))),
@@ -59,11 +61,12 @@ export function cleanPosition(value: unknown): Position | undefined {
 					: 0,
 				...(p.spread === true ? { spread: true } : {}),
 				...(p.spread === true && p.cover === true ? { cover: true } : {}),
-				...(p.crop === true ? { crop: true } : {}),
+				...(crop ? { crop } : {}),
 				...(Number.isInteger(p.pages) && (p.pages as number) > 0
 					? { pages: p.pages as number }
 					: {}),
 			};
+		}
 		case "scroll":
 			return {
 				kind: "scroll",

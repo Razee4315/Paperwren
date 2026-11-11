@@ -15,6 +15,7 @@
  * back. Printing always takes the whole page.
  */
 
+import { type CropChoice, type Share, boxByHand, byHand } from "@/lib/crop";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 
 /** Left, bottom, right, top (a page's own space), or left, top, right,
@@ -37,6 +38,10 @@ const BAND_FILL = 0.6;
 const BAND_DEPTH = 0.15;
 /** Kept around what is printed, as a share of the page. */
 const PAD = 0.025;
+/** A running header or a page number is within this share of the
+ * page's top or foot, apart from the text by a gap of at least this. */
+const EDGE_SHARE = 0.08;
+const GAP_SHARE = 0.015;
 /** Pages read to learn the document's usual printed area. */
 const SAMPLES = 8;
 /** Pages whose size differs from the document's by more than this
@@ -119,12 +124,14 @@ function edgeBand(dense: (line: number) => number, lines: number[]): number {
  * (left, top, right, bottom; right and bottom just past it), or null
  * when nothing is. `data` is RGBA, as a canvas gives it. Ink is what is
  * clearly darker than the page's own paper; a dark band along an edge
- * (a scan's) and lone specks are not what is printed.
+ * (a scan's) and lone specks are not what is printed. `bare` leaves out
+ * a running header and a page number too.
  */
 export function inkBox(
 	data: Uint8ClampedArray,
 	width: number,
 	height: number,
+	bare = false,
 ): Box | null {
 	const size = width * height;
 	const shade = new Uint8Array(size);
@@ -169,7 +176,9 @@ export function inkBox(
 	// around it; a stroke of a letter, however thin, has one on each side.
 	const inside = (x: number, y: number) =>
 		x >= left && x < right && y >= top && y < bottom && ink[y * width + x];
-	let box: Box | null = null;
+	// Each row's leftmost and rightmost ink (-1: none).
+	const from = new Int32Array(height).fill(-1);
+	const to = new Int32Array(height).fill(-1);
 	for (let y = top; y < bottom; y++) {
 		for (let x = left; x < right; x++) {
 			if (!ink[y * width + x]) continue;
@@ -178,20 +187,78 @@ export function inkBox(
 				for (let dx = -1; dx <= 1; dx++)
 					if ((dx || dy) && inside(x + dx, y + dy)) near++;
 			if (near < 2) continue;
-			if (!box) box = [x, y, x + 1, y + 1];
-			else {
-				if (x < box[0]) box[0] = x;
-				if (x + 1 > box[2]) box[2] = x + 1;
-				box[3] = y + 1;
-			}
+			if (from[y] < 0) from[y] = x;
+			to[y] = x + 1;
+		}
+	}
+	const has = (y: number) => to[y] >= 0;
+	let first = top;
+	while (first < bottom && !has(first)) first++;
+	if (first >= bottom) return null;
+	let last = bottom - 1;
+	while (!has(last)) last--;
+	if (bare) [first, last] = leaveOutEdges(has, first, last, height);
+	let box: Box | null = null;
+	for (let y = first; y <= last; y++) {
+		if (!has(y)) continue;
+		if (!box) box = [from[y], y, to[y], y + 1];
+		else {
+			box[0] = Math.min(box[0], from[y]);
+			box[2] = Math.max(box[2], to[y]);
+			box[3] = y + 1;
 		}
 	}
 	return box;
 }
 
+/**
+ * The rows printed on once a running header and a page number are left
+ * out: a few lines of ink near the top or the foot of the page, apart
+ * from the rest by a clear gap.
+ */
+function leaveOutEdges(
+	has: (y: number) => boolean,
+	top: number,
+	bottom: number,
+	height: number,
+): [number, number] {
+	let first = top;
+	let last = bottom;
+	const edge = height * EDGE_SHARE;
+	const gap = Math.max(2, Math.round(height * GAP_SHARE));
+	/** The far end of the lines starting at `y`, going `step` rows at a
+	 * time: ink with no gap as wide as `gap` in it. */
+	const group = (y: number, step: 1 | -1, stop: number) => {
+		let end = y;
+		for (let k = y + step; step > 0 ? k <= stop : k >= stop; k += step) {
+			if (Math.abs(k - end) > gap) break;
+			if (has(k)) end = k;
+		}
+		return end;
+	};
+	for (;;) {
+		const end = group(first, 1, last);
+		if (end >= edge || end >= last) break;
+		let next = end + 1;
+		while (next <= last && !has(next)) next++;
+		first = next;
+	}
+	for (;;) {
+		const end = group(last, -1, first);
+		if (end < height - edge || end <= first) break;
+		let next = end - 1;
+		while (next >= first && !has(next)) next--;
+		last = next;
+	}
+	return [first, last];
+}
+
 /** The box of a page's printed area, in its own space, or null when it
  * prints nothing (a blank page keeps its paper). */
-async function printedArea(page: PDFPageProxy): Promise<Box | null> {
+async function printedArea(
+	page: PDFPageProxy,
+	bare: boolean,
+): Promise<Box | null> {
 	const full = fullView(page);
 	const viewport = whole(page, () =>
 		page.getViewport({
@@ -212,7 +279,7 @@ async function printedArea(page: PDFPageProxy): Promise<Box | null> {
 		canvas.height,
 	);
 	canvas.width = canvas.height = 0;
-	const found = inkBox(data, width, height);
+	const found = inkBox(data, width, height, bare);
 	if (!found) return null;
 	const [ax, ay] = viewport.convertToPdfPoint(found[0], found[1]);
 	const [bx, by] = viewport.convertToPdfPoint(found[2], found[3]);
@@ -310,22 +377,58 @@ const otherSize = (page: Box, sheet: Box) =>
 	Math.abs(across(page) - across(sheet)) > OTHER_SIZE * across(sheet) ||
 	Math.abs(down(page) - down(sheet)) > OTHER_SIZE * down(sheet);
 
+/** A box by hand (shares of the page) in a page's own space. */
+export function fromShare(share: Share, full: Box): Box {
+	const w = across(full);
+	const h = down(full);
+	return [
+		full[0] + share[0] * w,
+		full[1] + share[1] * h,
+		full[0] + share[2] * w,
+		full[1] + share[3] * h,
+	];
+}
+
+/** A box in a page's own space as shares of the page, kept on it. */
+export function toShare(box: Box, full: Box): Share {
+	const w = Math.max(1e-6, across(full));
+	const h = Math.max(1e-6, down(full));
+	const at = (v: number) => Math.min(1, Math.max(0, v));
+	return [
+		at((box[0] - full[0]) / w),
+		at((box[1] - full[1]) / h),
+		at((box[2] - full[0]) / w),
+		at((box[3] - full[1]) / h),
+	];
+}
+
+/** The document's own page, past any crop of ours on its getPage. */
+export const ownPage = (doc: PDFDocumentProxy, n: number) =>
+	(Object.getPrototypeOf(doc) as PDFDocumentProxy).getPage.call(doc, n);
+
+export interface AutoCrop {
+	/** The box the app gives page `n`, in its own space. */
+	boxOf: (n: number) => Promise<Box>;
+	/** Whether the pages lose anything worth the name. */
+	trimmed: boolean;
+}
+
 /**
- * Crop a document's pages. Pages are cropped as pdf.js asks for them
- * (its page objects are kept, so each is measured once); `stop` puts
- * every page back as it was. `trimmed` says whether the pages lose
- * anything worth the name.
+ * The app's crop of a document: the usual printed area of odd and of
+ * even pages is learnt from a few of them first; each page is measured
+ * when its box is asked for, once.
  */
-export async function cropPages(
+export async function autoCrop(
 	doc: PDFDocumentProxy,
-): Promise<{ stop: () => void; trimmed: boolean }> {
-	const own = doc.getPage.bind(doc);
+	bare = false,
+): Promise<AutoCrop> {
+	const own = (n: number) => ownPage(doc, n);
 	const areas = new Map<number, Promise<Box | null>>();
 	const measure = (n: number) => {
 		let area = areas.get(n);
 		if (!area) {
 			area = own(n)
-				.then(printedArea)
+				.then((page) => printedArea(page, bare))
 				.catch(() => null);
 			areas.set(n, area);
 		}
@@ -346,33 +449,54 @@ export async function cropPages(
 	}
 	const usual = [usualBox(seen[0]), usualBox(seen[1])];
 	const size = sharedSize([...seen[0], ...seen[1]], sheet);
-	const touched = new Set<PDFPageProxy>();
-	const crop = async (page: PDFPageProxy, n: number) => {
-		const area = await measure(n);
-		if (!canCrop(page)) return page;
-		const full = fullView(page);
-		const common = usual[n % 2] ?? usual[(n + 1) % 2];
-		setView(
-			page,
-			otherSize(full, sheet)
-				? area
-					? padded(area, full)
-					: full
-				: placeBox(
-						full,
-						size,
-						common && padded(common, full),
-						area && padded(area, full),
-					),
-		);
-		touched.add(page);
-		return page;
-	};
-	const patched = (n: number) => own(n).then((page) => crop(page, n));
-	(doc as { getPage: typeof doc.getPage }).getPage = patched;
 	return {
+		async boxOf(n) {
+			const area = await measure(n);
+			const full = fullView(await own(n));
+			if (otherSize(full, sheet)) return area ? padded(area, full) : full;
+			const common = usual[n % 2] ?? usual[(n + 1) % 2];
+			return placeBox(
+				full,
+				size,
+				common && padded(common, full),
+				area && padded(area, full),
+			);
+		},
 		// All but the whole page: nothing to take away.
 		trimmed: size[0] < across(sheet) * 0.97 || size[1] < down(sheet) * 0.97,
+	};
+}
+
+/**
+ * Crop a document's pages as `choice` says. Pages are cropped as pdf.js
+ * asks for them (its page objects are kept, so each is measured once);
+ * `stop` puts every page back as it was. `trimmed` says whether the
+ * pages lose anything worth the name.
+ */
+export async function cropPages(
+	doc: PDFDocumentProxy,
+	choice: CropChoice,
+): Promise<{ stop: () => void; trimmed: boolean }> {
+	const auto = choice.auto ? await autoCrop(doc, choice.bare) : null;
+	const touched = new Set<PDFPageProxy>();
+	const crop = async (page: PDFPageProxy, n: number) => {
+		if (!canCrop(page)) return page;
+		const share = boxByHand(choice, n);
+		const box = share
+			? fromShare(share, fullView(page))
+			: auto
+				? await auto.boxOf(n)
+				: null;
+		if (box) {
+			setView(page, box);
+			touched.add(page);
+		}
+		return page;
+	};
+	const patched = (n: number) => ownPage(doc, n).then((page) => crop(page, n));
+	(doc as { getPage: typeof doc.getPage }).getPage = patched;
+	return {
+		trimmed: byHand(choice) || !!auto?.trimmed,
 		stop() {
 			// The document's own method, on its prototype, shows again.
 			Reflect.deleteProperty(doc, "getPage");

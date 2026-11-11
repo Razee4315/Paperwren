@@ -1269,4 +1269,13 @@ export const ar: Table = {
 	"{file} could not be read.": "تعذّرت قراءة {file}.",
 	"Unavailable · click to locate": "غير متاح · انقر لتحديد موقعه",
 	"Nothing to crop on these pages": "لا شيء لقصّه في هذه الصفحات",
+	"Crop by hand": "القص يدويًا",
+	"Crop pages": "قص الصفحات",
+	"No crop": "بلا قص",
+	"Apply to": "تطبيق على",
+	"All pages": "كل الصفحات",
+	"Odd pages": "الصفحات الفردية",
+	"Even pages": "الصفحات الزوجية",
+	"Leave out headers and page numbers": "استبعاد الترويسات وأرقام الصفحات",
+	"What is kept of the page": "ما يُبقى من الصفحة",
 };

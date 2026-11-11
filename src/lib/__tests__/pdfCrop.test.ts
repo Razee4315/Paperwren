@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
 	type Box,
+	fromShare,
 	inkBox,
 	placeBox,
 	sharedSize,
+	toShare,
 } from "../../screens/viewer/pdfCrop";
 
 const A4: Box = [0, 0, 595, 842];
@@ -133,8 +135,46 @@ describe("the printed part of a drawing", () => {
 		expect(inkBox(data, 100, 140)).toEqual([0, 0, 100, 120]);
 	});
 
+	it("leaves out a running header and a page number when asked", () => {
+		const blocks: Array<[Box, number]> = [
+			// The header, the text, the page number.
+			[[20, 4, 60, 7], 0],
+			[[15, 30, 85, 110], 0],
+			[[45, 133, 55, 136], 0],
+		];
+		const { data } = drawing(100, 140, 255, blocks);
+		expect(inkBox(data, 100, 140)).toEqual([15, 4, 85, 136]);
+		expect(inkBox(data, 100, 140, true)).toEqual([15, 30, 85, 110]);
+	});
+
+	it("keeps a first line that is close to the text, header or not", () => {
+		const { data } = drawing(100, 140, 255, [
+			[[20, 6, 60, 8], 0],
+			[[15, 9, 85, 110], 0],
+		]);
+		expect(inkBox(data, 100, 140, true)).toEqual([15, 6, 85, 110]);
+	});
+
 	it("keeps a photo that fills the page", () => {
 		const { data } = drawing(100, 140, 200, [[[0, 0, 100, 140], 60]]);
 		expect(inkBox(data, 100, 140)).toEqual([0, 0, 100, 140]);
+	});
+});
+
+describe("a box by hand", () => {
+	it("is kept as shares of its page, and fits a page of another size", () => {
+		const page: Box = [0, 0, 600, 800];
+		const share = toShare([60, 80, 540, 720], page);
+		expect(share).toEqual([0.1, 0.1, 0.9, 0.9]);
+		expect(fromShare(share, page)).toEqual([60, 80, 540, 720]);
+		// A page with its box off the origin, twice as large.
+		expect(fromShare(share, [100, 100, 1300, 1700])).toEqual([
+			220, 260, 1180, 1540,
+		]);
+	});
+	it("stays on the page", () => {
+		expect(toShare([-10, -10, 700, 900], [0, 0, 600, 800])).toEqual([
+			0, 0, 1, 1,
+		]);
 	});
 });

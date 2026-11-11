@@ -12,4 +12,13 @@ ROWS = [
     ("Unavailable · click to locate", "دستیاب نہیں · تلاش کرنے کے لیے کلک کریں", "غير متاح · انقر لتحديد موقعه", "不可用 · 点击以查找", "उपलब्ध नहीं · ढूँढने के लिए क्लिक करें", "No disponible · haz clic para buscarlo", "Indisponible · cliquez pour le retrouver", "Недоступен · нажмите, чтобы найти", "Indisponível · clique para localizar"),
     # ---- cropping ----
     ("Nothing to crop on these pages", "ان صفحات پر کاٹنے کو کچھ نہیں", "لا شيء لقصّه في هذه الصفحات", "这些页面没有可裁剪的边距", "इन पन्नों पर काटने को कुछ नहीं", "No hay nada que recortar en estas páginas", "Rien à rogner sur ces pages", "На этих страницах нечего обрезать", "Nada para cortar nestas páginas"),
+    ("Crop by hand", "خود کاٹیں", "القص يدويًا", "手动裁剪", "खुद काटें", "Recortar a mano", "Rogner à la main", "Обрезать вручную", "Cortar à mão"),
+    ("Crop pages", "صفحات کاٹیں", "قص الصفحات", "裁剪页面", "पृष्ठ काटें", "Recortar páginas", "Rogner les pages", "Обрезка страниц", "Cortar páginas"),
+    ("No crop", "کوئی کٹائی نہیں", "بلا قص", "不裁剪", "कोई कटाई नहीं", "Sin recorte", "Aucun rognage", "Без обрезки", "Sem corte"),
+    ("Apply to", "کس پر لاگو کریں", "تطبيق على", "应用于", "किस पर लागू करें", "Aplicar a", "Appliquer à", "Применить к", "Aplicar a"),
+    ("All pages", "تمام صفحات", "كل الصفحات", "所有页面", "सभी पृष्ठ", "Todas las páginas", "Toutes les pages", "Все страницы", "Todas as páginas"),
+    ("Odd pages", "طاق صفحات", "الصفحات الفردية", "奇数页", "विषम पृष्ठ", "Páginas impares", "Pages impaires", "Нечётные страницы", "Páginas ímpares"),
+    ("Even pages", "جفت صفحات", "الصفحات الزوجية", "偶数页", "सम पृष्ठ", "Páginas pares", "Pages paires", "Чётные страницы", "Páginas pares"),
+    ("Leave out headers and page numbers", "ہیڈر اور صفحہ نمبر چھوڑ دیں", "استبعاد الترويسات وأرقام الصفحات", "略去页眉和页码", "हेडर और पृष्ठ संख्या छोड़ दें", "Omitir encabezados y números de página", "Ignorer les en-têtes et numéros de page", "Не учитывать колонтитулы и номера страниц", "Ignorar cabeçalhos e números de página"),
+    ("What is kept of the page", "صفحے کا جو حصہ رکھا جائے گا", "ما يُبقى من الصفحة", "页面保留的部分", "पृष्ठ का जो हिस्सा रखा जाएगा", "Lo que se conserva de la página", "Ce qui est gardé de la page", "Что останется от страницы", "O que fica da página"),
 ]

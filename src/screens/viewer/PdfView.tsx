@@ -1,4 +1,5 @@
 import { backend, requestForBytes } from "@/lib/backend";
+import { type CropChoice, cropOn } from "@/lib/crop";
 import { type DocMark, contentKey, fileSample } from "@/lib/docMarks";
 import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
@@ -56,6 +57,7 @@ import {
 	ScanText,
 	Search,
 	Signature,
+	SlidersHorizontal,
 	StretchHorizontal,
 	Wrench,
 	X,
@@ -88,6 +90,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { CropPages } from "./CropPages";
 import { PageJump, PasswordDialog } from "./Dialogs";
 import { ViewerFileContext } from "./FileMenu";
 import { FindResults } from "./FindResults";
@@ -292,12 +295,12 @@ export default function PdfView({
 			settings.rememberPosition &&
 			position.cover === true,
 	);
-	const [crop, setCrop] = useState(
-		() =>
-			position?.kind === "pdf" &&
-			settings.rememberPosition &&
-			position.crop === true,
+	const [crop, setCrop] = useState<CropChoice | null>(() =>
+		position?.kind === "pdf" && settings.rememberPosition
+			? (position.crop ?? null)
+			: null,
 	);
+	const [cropping, setCropping] = useState(false);
 	const [cropAvailable, setCropAvailable] = useState(false);
 	const flow = settings.pdfFlow;
 	// Pages in a row; pages turned a whole page at a time (in a row, or
@@ -757,7 +760,7 @@ export default function PdfView({
 							rotation: loc.rotation,
 							...(spreadRef.current ? { spread: true } : {}),
 							...(spreadRef.current && coverRef.current ? { cover: true } : {}),
-							...(cropRef.current ? { crop: true } : {}),
+							...(cropRef.current ? { crop: cropRef.current } : {}),
 							pages: doc.numPages,
 						};
 						positionRef.current = pos;
@@ -808,7 +811,7 @@ export default function PdfView({
 				.catch(() => {});
 			// A document read with its margins cropped opens that way.
 			if (cropRef.current)
-				cropPages(doc)
+				cropPages(doc, cropRef.current)
 					.then(({ stop }) => {
 						if (cancelled) return stop();
 						cropStop.current = stop;
@@ -977,30 +980,34 @@ export default function PdfView({
 			? "page-fit"
 			: "page-width";
 	};
-	const toggleCrop = async () => {
+	/** Crop the pages as `next` says (null: not at all). */
+	const applyCrop = async (next: CropChoice | null) => {
 		if (!doc) return;
-		const next = !cropRef.current;
+		cropStop.current?.();
+		cropStop.current = null;
 		cropRef.current = next;
 		setCrop(next);
 		if (next) {
-			const { stop, trimmed } = await cropPages(doc);
+			const { stop, trimmed } = await cropPages(doc, next);
 			if (!trimmed) {
 				// Say so, rather than show the switch on and the pages as
 				// they were.
 				stop();
-				cropRef.current = false;
-				setCrop(false);
-				toast(t("Nothing to crop on these pages"));
+				cropRef.current = null;
+				setCrop(null);
+				toast(t("Nothing to crop on these pages"), {
+					label: t("Crop by hand"),
+					run: () => setCropping(true),
+				});
 				return;
 			}
 			cropStop.current = stop;
-		} else {
-			cropStop.current?.();
-			cropStop.current = null;
 		}
 		// The point of cropping is a page that fills the screen.
 		relayout.current(turnsPages(flowRef.current) ? "page-fit" : "page-width");
 	};
+	const toggleCrop = () =>
+		applyCrop(cropOn(cropRef.current) ? null : { auto: true });
 	const toggleCover = () => {
 		const v = pdfViewer.current;
 		if (!v) return;
@@ -1796,12 +1803,24 @@ export default function PdfView({
 			{cropAvailable && (
 				<SheetItem
 					icon={<Crop size={20} />}
-					checked={crop}
+					checked={cropOn(crop)}
 					onClick={() => {
 						close();
 						toggleCrop();
 					}}
 					testId="pdf-crop"
+					extra={
+						<IconButton
+							label={t("Crop by hand")}
+							onClick={() => {
+								close();
+								setCropping(true);
+							}}
+							data-testid="pdf-crop-hand"
+						>
+							<SlidersHorizontal size={18} />
+						</IconButton>
+					}
 				>
 					{t("Crop margins")}
 				</SheetItem>
@@ -2386,6 +2405,20 @@ export default function PdfView({
 				onCancel={onClose}
 				testId="pdf"
 			/>
+
+			{cropping && doc && (
+				<CropPages
+					doc={doc}
+					choice={crop}
+					page={page}
+					rotation={rotation}
+					onClose={() => setCropping(false)}
+					onDone={(next) => {
+						setCropping(false);
+						void applyCrop(next);
+					}}
+				/>
+			)}
 
 			<Dialog
 				open={printAsk !== null}

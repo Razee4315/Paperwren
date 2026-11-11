@@ -1245,4 +1245,14 @@ export const es: Table = {
 	"{file} could not be read.": "No se pudo leer {file}.",
 	"Unavailable · click to locate": "No disponible · haz clic para buscarlo",
 	"Nothing to crop on these pages": "No hay nada que recortar en estas páginas",
+	"Crop by hand": "Recortar a mano",
+	"Crop pages": "Recortar páginas",
+	"No crop": "Sin recorte",
+	"Apply to": "Aplicar a",
+	"All pages": "Todas las páginas",
+	"Odd pages": "Páginas impares",
+	"Even pages": "Páginas pares",
+	"Leave out headers and page numbers":
+		"Omitir encabezados y números de página",
+	"What is kept of the page": "Lo que se conserva de la página",
 };

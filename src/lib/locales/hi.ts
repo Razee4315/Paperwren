@@ -1208,4 +1208,13 @@ export const hi: Table = {
 	"{file} could not be read.": "{file} पढ़ी नहीं जा सकी।",
 	"Unavailable · click to locate": "उपलब्ध नहीं · ढूँढने के लिए क्लिक करें",
 	"Nothing to crop on these pages": "इन पन्नों पर काटने को कुछ नहीं",
+	"Crop by hand": "खुद काटें",
+	"Crop pages": "पृष्ठ काटें",
+	"No crop": "कोई कटाई नहीं",
+	"Apply to": "किस पर लागू करें",
+	"All pages": "सभी पृष्ठ",
+	"Odd pages": "विषम पृष्ठ",
+	"Even pages": "सम पृष्ठ",
+	"Leave out headers and page numbers": "हेडर और पृष्ठ संख्या छोड़ दें",
+	"What is kept of the page": "पृष्ठ का जो हिस्सा रखा जाएगा",
 };

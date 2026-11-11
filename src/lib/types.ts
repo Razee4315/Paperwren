@@ -1,3 +1,4 @@
+import type { CropChoice } from "./crop";
 import type { FileFormat } from "./formats";
 import type { LanguageSetting } from "./i18n";
 import type { ShortcutId } from "./shortcuts";
@@ -37,8 +38,8 @@ export type Position =
 			spread?: boolean;
 			/** ...with the first page on its own, as a book's cover. */
 			cover?: boolean;
-			/** The white around what is printed is left out. */
-			crop?: boolean;
+			/** How the pages are cropped (lib/crop.ts). */
+			crop?: CropChoice;
 			/** How many pages it has, to show how far through it this is. */
 			pages?: number;
 	  }

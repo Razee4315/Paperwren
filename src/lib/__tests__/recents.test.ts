@@ -177,8 +177,9 @@ describe("cleanPosition", () => {
 			spread: true,
 			cover: true,
 		});
+		// Crop margins as kept before boxes by hand: the app's crop.
 		expect(cleanPosition({ ...pdf, crop: true })).toMatchObject({
-			crop: true,
+			crop: { auto: true },
 		});
 		// A cover only means something beside a second page.
 		expect(cleanPosition({ ...pdf, cover: true })).not.toHaveProperty("cover");

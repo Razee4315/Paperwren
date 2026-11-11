@@ -1274,4 +1274,14 @@ export const ru: Table = {
 	"{file} could not be read.": "Не удалось прочитать {file}.",
 	"Unavailable · click to locate": "Недоступен · нажмите, чтобы найти",
 	"Nothing to crop on these pages": "На этих страницах нечего обрезать",
+	"Crop by hand": "Обрезать вручную",
+	"Crop pages": "Обрезка страниц",
+	"No crop": "Без обрезки",
+	"Apply to": "Применить к",
+	"All pages": "Все страницы",
+	"Odd pages": "Нечётные страницы",
+	"Even pages": "Чётные страницы",
+	"Leave out headers and page numbers":
+		"Не учитывать колонтитулы и номера страниц",
+	"What is kept of the page": "Что останется от страницы",
 };

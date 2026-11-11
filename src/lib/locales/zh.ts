@@ -1138,4 +1138,13 @@ export const zh: Table = {
 	"{file} could not be read.": "无法读取 {file}。",
 	"Unavailable · click to locate": "不可用 · 点击以查找",
 	"Nothing to crop on these pages": "这些页面没有可裁剪的边距",
+	"Crop by hand": "手动裁剪",
+	"Crop pages": "裁剪页面",
+	"No crop": "不裁剪",
+	"Apply to": "应用于",
+	"All pages": "所有页面",
+	"Odd pages": "奇数页",
+	"Even pages": "偶数页",
+	"Leave out headers and page numbers": "略去页眉和页码",
+	"What is kept of the page": "页面保留的部分",
 };

@@ -1229,4 +1229,13 @@ export const ur: Table = {
 	"{file} could not be read.": "{file} نہیں پڑھی جا سکی۔",
 	"Unavailable · click to locate": "دستیاب نہیں · تلاش کرنے کے لیے کلک کریں",
 	"Nothing to crop on these pages": "ان صفحات پر کاٹنے کو کچھ نہیں",
+	"Crop by hand": "خود کاٹیں",
+	"Crop pages": "صفحات کاٹیں",
+	"No crop": "کوئی کٹائی نہیں",
+	"Apply to": "کس پر لاگو کریں",
+	"All pages": "تمام صفحات",
+	"Odd pages": "طاق صفحات",
+	"Even pages": "جفت صفحات",
+	"Leave out headers and page numbers": "ہیڈر اور صفحہ نمبر چھوڑ دیں",
+	"What is kept of the page": "صفحے کا جو حصہ رکھا جائے گا",
 };
