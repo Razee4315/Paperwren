@@ -30,6 +30,8 @@ import {
 	ChevronDown,
 	ChevronUp,
 	ListChecks,
+	Maximize,
+	Minimize,
 	Minus,
 	PanelLeft,
 	Plus,
@@ -46,6 +48,7 @@ import {
 	useEffect,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from "react";
 import { ShortcutList } from "../settings/ShortcutList";
 import { FileMenu, ViewerFileContext } from "./FileMenu";
@@ -276,6 +279,25 @@ function SidePanel({
 	);
 }
 
+/** Full screen on or off, saying how to leave it as it starts. */
+function fullscreen() {
+	if (!inFullscreen()) toast(t("Press Esc to leave full screen"));
+	toggleFullscreen();
+}
+
+/** Whether the reader is in full screen (<html data-fullscreen="page">,
+ * which lib/fullscreen.ts keeps in step), as a value a render reads. */
+function onFullscreenChange(then: () => void) {
+	const watch = new MutationObserver(then);
+	watch.observe(document.documentElement, {
+		attributes: true,
+		attributeFilter: ["data-fullscreen"],
+	});
+	return () => watch.disconnect();
+}
+const readingFullscreen = () =>
+	document.documentElement.dataset.fullscreen === "page";
+
 export function Shell({
 	name,
 	format,
@@ -363,6 +385,7 @@ export function Shell({
 	const { settings, update } = useSettings();
 	const [colorOpen, setColorOpen] = useState(false);
 	const [keysOpen, setKeysOpen] = useState(false);
+	const full = useSyncExternalStore(onFullscreenChange, readingFullscreen);
 	useEffect(() => {
 		if (sideFocus) update("sidePanel", true);
 	}, [sideFocus, update]);
@@ -373,10 +396,8 @@ export function Shell({
 		const onKey = (e: KeyboardEvent) => {
 			if (modalOpen() || e.defaultPrevented) return;
 			if (matches(e, "keys")) setKeysOpen(true);
-			else if (matches(e, "fullscreen")) {
-				if (!inFullscreen()) toast(t("Press Esc to leave full screen"));
-				toggleFullscreen();
-			} else return;
+			else if (matches(e, "fullscreen")) fullscreen();
+			else return;
 			e.preventDefault();
 		};
 		window.addEventListener("keydown", onKey);
@@ -864,6 +885,17 @@ export function Shell({
 						</IconButton>
 					)}
 					{actions}
+					{isDesktop && (
+						<IconButton
+							label={full ? t("Leave full screen") : t("Full screen")}
+							shortcut={hintFor("fullscreen")}
+							active={full}
+							onClick={fullscreen}
+							data-testid="viewer-fullscreen"
+						>
+							{full ? <Minimize size={18} /> : <Maximize size={18} />}
+						</IconButton>
+					)}
 					<FileMenu
 						extra={fileMenu}
 						details={details}

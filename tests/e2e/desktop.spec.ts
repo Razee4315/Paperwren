@@ -54,9 +54,53 @@ test.describe("the desktop layout", () => {
 		expect(box?.x ?? 0).toBeGreaterThan(700);
 		// What the side panel does is not repeated in the menu.
 		await expect(page.getByTestId("pdf-pages")).toHaveCount(0);
-		await expect(page.getByTestId("file-fullscreen")).toBeVisible();
+		// Nor is the bar's full screen button.
+		await expect(page.getByTestId("file-fullscreen")).toHaveCount(0);
 		await page.keyboard.press("Escape");
 		await expect(menu).toHaveCount(0);
+	});
+
+	test("every viewer has a full screen button in its bar", async ({ page }) => {
+		await boot(page, {}, DESKTOP);
+		for (const file of [
+			"sample.docx",
+			"sample.xlsx",
+			"sample.txt",
+			"sample.png",
+			"sample.pptx",
+		]) {
+			await openFixture(page, file);
+			await expect(
+				page.getByTestId("viewer").getByTestId("viewer-fullscreen"),
+			).toBeVisible({ timeout: 20_000 });
+			// The slide show has an icon of its own, not full screen's.
+			if (file.endsWith(".pptx"))
+				await expect(
+					page.getByTestId("slides-present").locator(".lucide-presentation"),
+				).toBeVisible();
+			await page.getByTestId("viewer-back").click();
+		}
+		await openFixture(page, "sample.pdf");
+		const button = page.getByTestId("viewer-fullscreen");
+		await expect(button).toHaveAttribute("aria-label", "Full screen");
+		await button.click();
+		await expect(page.locator("html")).toHaveAttribute(
+			"data-fullscreen",
+			"page",
+		);
+		// The bar hides; brought back at the top edge, its button says how
+		// to leave, and leaves.
+		await page.mouse.move(640, 300);
+		await page.mouse.move(640, 1);
+		await expect(page.locator("html")).toHaveAttribute("data-reveal", "");
+		await expect(button).toHaveAttribute("aria-label", "Leave full screen");
+		await expect(button).toHaveAttribute("aria-pressed", "true");
+		await button.click();
+		await expect(page.locator("html")).not.toHaveAttribute(
+			"data-fullscreen",
+			/./,
+		);
+		await expect(button).toHaveAttribute("aria-label", "Full screen");
 	});
 
 	test("the side panel lists pages and stays open while reading", async ({
