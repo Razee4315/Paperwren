@@ -290,7 +290,11 @@ export function Home({
 									<i style={{ width: `${Math.max(6, ratio * 100)}%` }} />
 								</span>
 							)}
-							{e.unavailable ? t("Unavailable · tap to locate") : meta(e)}
+							{e.unavailable
+								? isDesktop
+									? t("Unavailable · click to locate")
+									: t("Unavailable · tap to locate")
+								: meta(e)}
 						</span>
 					</span>
 				</button>

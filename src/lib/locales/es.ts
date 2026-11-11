@@ -1239,4 +1239,9 @@ export const es: Table = {
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"El motor web de este teléfono está desactualizado. Actualiza Android System WebView (Huawei WebView en teléfonos Huawei) y vuelve a intentarlo.",
 	"Place another": "Colocar otra",
+	"File in use": "Archivo en uso",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} está abierto en otra aplicación que no lo comparte. Ciérralo allí y vuelve a intentarlo.",
+	"{file} could not be read.": "No se pudo leer {file}.",
+	"Unavailable · click to locate": "No disponible · haz clic para buscarlo",
 };

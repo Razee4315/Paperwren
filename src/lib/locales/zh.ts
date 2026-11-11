@@ -1132,4 +1132,9 @@ export const zh: Table = {
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"此手机的网页引擎版本过旧。请更新 Android System WebView（华为手机请更新华为 WebView），然后重试。",
 	"Place another": "再放一个",
+	"File in use": "文件正在使用",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} 已在另一个不允许共享的应用中打开。请在那里关闭它，然后重试。",
+	"{file} could not be read.": "无法读取 {file}。",
+	"Unavailable · click to locate": "不可用 · 点击以查找",
 };

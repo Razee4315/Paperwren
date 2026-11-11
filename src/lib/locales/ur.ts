@@ -1223,4 +1223,9 @@ export const ur: Table = {
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"اس فون کا ویب انجن پرانا ہے۔ Android System WebView اپ ڈیٹ کریں (Huawei فونز پر Huawei WebView)، پھر دوبارہ کوشش کریں۔",
 	"Place another": "ایک اور لگائیں",
+	"File in use": "فائل استعمال میں ہے",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} کسی اور ایپ میں کھلی ہے جو اسے بانٹنے نہیں دیتی۔ اسے وہاں بند کریں، پھر دوبارہ کوشش کریں۔",
+	"{file} could not be read.": "{file} نہیں پڑھی جا سکی۔",
+	"Unavailable · click to locate": "دستیاب نہیں · تلاش کرنے کے لیے کلک کریں",
 };

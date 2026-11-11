@@ -1268,4 +1268,9 @@ export const ru: Table = {
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"Веб-движок этого телефона устарел. Обновите Android System WebView (Huawei WebView на телефонах Huawei) и попробуйте снова.",
 	"Place another": "Поставить ещё",
+	"File in use": "Файл занят",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} открыт в другом приложении, которое не даёт к нему доступа. Закройте его там и попробуйте снова.",
+	"{file} could not be read.": "Не удалось прочитать {file}.",
+	"Unavailable · click to locate": "Недоступен · нажмите, чтобы найти",
 };

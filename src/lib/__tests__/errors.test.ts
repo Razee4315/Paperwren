@@ -21,6 +21,51 @@ describe("classifyError", () => {
 		expect(classifyError(message)).toBe(expected);
 	});
 
+	// The words each system uses, as the file system plugin passes them on.
+	it.each([
+		[
+			"failed to open file at path: C:\\Users\\me\\Downloads\\notes.md with error: The system cannot find the file specified. (os error 2)",
+			"not_found",
+		],
+		[
+			"failed to open file at path: D:\\gone\\a.pdf with error: The system cannot find the path specified. (os error 3)",
+			"not_found",
+		],
+		[
+			"failed to open file at path: C:\\x.pdf with error: The process cannot access the file because it is being used by another process. (os error 32)",
+			"busy",
+		],
+		[
+			"failed to open file at path: C:\\x.pdf with error: The process cannot access the file because another process has locked a portion of the file. (os error 33)",
+			"busy",
+		],
+		[
+			"failed to open file at path: C:\\Windows\\x.pdf with error: Access is denied. (os error 5)",
+			"permission",
+		],
+		[
+			"failed to open file at path: /home/u/a.pdf with error: No such file or directory (os error 2)",
+			"not_found",
+		],
+		[
+			"failed to open file at path: /Users/u/a.pdf with error: Operation not permitted (os error 1)",
+			"permission",
+		],
+		["java.io.FileNotFoundException: open failed: ENOENT", "not_found"],
+		// A different error that merely starts with the same digit.
+		["failed to read: (os error 23)", "unreadable"],
+	])("%s -> %s", (message, expected) => {
+		expect(classifyError(message)).toBe(expected);
+	});
+
+	it("goes by the kind the app's own commands send first", () => {
+		expect(classifyError({ kind: "not_found", message: "gone" })).toBe(
+			"not_found",
+		);
+		expect(classifyError({ kind: "corrupt", message: "x" })).toBe("corrupt");
+		expect(classifyError({ kind: "io", message: "denied" })).toBe("permission");
+	});
+
 	it("keeps an explicit OpenError", () => {
 		expect(classifyError(new OpenError("empty"))).toBe("empty");
 	});
@@ -37,6 +82,11 @@ describe("failureCopy", () => {
 		expect(failureCopy("permission", "a.pdf").action).toBe("locate");
 		expect(failureCopy("corrupt", "a.pdf").action).toBeNull();
 		expect(failureCopy("unsupported", "a.pdf").action).toBeNull();
+	});
+	it("asks to close a file another app holds, with nothing to locate", () => {
+		const copy = failureCopy("busy", "a.pdf");
+		expect(copy.title).toBe("File in use");
+		expect(copy.action).toBeNull();
 	});
 	it("names the file", () => {
 		expect(failureCopy("not_found", "Report.pdf").message).toContain(

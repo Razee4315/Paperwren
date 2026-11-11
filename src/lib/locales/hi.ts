@@ -1202,4 +1202,9 @@ export const hi: Table = {
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"इस फ़ोन का वेब इंजन पुराना है। Android System WebView अपडेट करें (Huawei फ़ोन पर Huawei WebView), फिर दोबारा कोशिश करें।",
 	"Place another": "एक और लगाएँ",
+	"File in use": "फ़ाइल उपयोग में है",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} किसी दूसरे ऐप में खुली है जो इसे साझा नहीं करता। उसे वहाँ बंद करें, फिर दोबारा कोशिश करें।",
+	"{file} could not be read.": "{file} पढ़ी नहीं जा सकी।",
+	"Unavailable · click to locate": "उपलब्ध नहीं · ढूँढने के लिए क्लिक करें",
 };

@@ -1263,4 +1263,9 @@ export const ar: Table = {
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"محرّك الويب في هذا الهاتف قديم. حدّث Android System WebView (أو Huawei WebView على هواتف Huawei)، ثم حاول مجددًا.",
 	"Place another": "ضع واحدًا آخر",
+	"File in use": "الملف قيد الاستخدام",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} مفتوح في تطبيق آخر لا يسمح بمشاركته. أغلقه هناك، ثم حاول مجددًا.",
+	"{file} could not be read.": "تعذّرت قراءة {file}.",
+	"Unavailable · click to locate": "غير متاح · انقر لتحديد موقعه",
 };
