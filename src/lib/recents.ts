@@ -239,3 +239,35 @@ export function managedRelPath(path: string): string | null {
 	const at = normalized.lastIndexOf("/imports/");
 	return at === -1 ? null : normalized.slice(at + "/imports/".length);
 }
+
+/**
+ * The folder a file was opened from, by name ("Downloads"), where its
+ * way back says: a path on a computer, or an Android document whose
+ * name carries its path ("primary:Download/a.pdf"). Null otherwise.
+ */
+export function folderOf(reopen: Reopen): string | null {
+	let path: string | null = null;
+	if (reopen.kind === "path") path = reopen.path;
+	else if (reopen.kind === "uri") {
+		try {
+			const id = decodeURIComponent(reopen.uri.split("/").pop() ?? "");
+			path = /^[^:/]*:(.+)$/.exec(id)?.[1] ?? null;
+		} catch {
+			path = null;
+		}
+	}
+	const parts = path?.split(/[\\/]/).filter(Boolean) ?? [];
+	return parts.length >= 2 ? parts[parts.length - 2] : null;
+}
+
+/** The names (in lower case) two or more recent files share. */
+export function sharedNames(entries: RecentEntry[]): Set<string> {
+	const seen = new Set<string>();
+	const shared = new Set<string>();
+	for (const e of entries) {
+		const name = e.name.toLowerCase();
+		if (seen.has(name)) shared.add(name);
+		seen.add(name);
+	}
+	return shared;
+}

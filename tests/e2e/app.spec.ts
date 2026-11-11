@@ -211,6 +211,35 @@ test("skip leaves the welcome immediately", async ({ page }) => {
 	await expect(page.getByTestId("onboarding")).toBeHidden({ timeout: 5000 });
 });
 
+test("two recent files of one name each say their folder", async ({ page }) => {
+	const deck = (id: string, path: string, openedAt: number) => ({
+		id,
+		name: "Marketing_01.pptx",
+		format: "pptx",
+		size: 7_500_000,
+		reopen: { kind: "path", path },
+		openedAt,
+		pinned: false,
+	});
+	await boot(page, {
+		recents_v2: [
+			deck("a", "/home/me/Desktop/Marketing/Marketing_01.pptx", Date.now()),
+			deck("b", "/home/me/Downloads/Marketing_01.pptx", Date.now() - 1000),
+			{
+				...deck("c", "/home/me/Downloads/Plan.pdf", Date.now() - 2000),
+				name: "Plan.pdf",
+				format: "pdf",
+			},
+		],
+	});
+	const rows = page.getByTestId("recent");
+	await expect(rows).toHaveCount(3);
+	await expect(rows.nth(0)).toContainText("Marketing ·");
+	await expect(rows.nth(1)).toContainText("Downloads ·");
+	// A name of its own needs no folder.
+	await expect(rows.nth(2)).not.toContainText("Downloads");
+});
+
 /** A recent whose file is gone: the not-found dialog must be able to
  * remove it, locate it, or simply close. */
 const MISSING = {

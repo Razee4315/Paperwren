@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { androidSaved, requestForSaved } from "../backend";
 import {
 	cleanPosition,
+	folderOf,
 	idForReopen,
 	managedRelPath,
 	migrateLegacyRecents,
 	normalizeRecents,
 	recordOpen,
+	sharedNames,
 } from "../recents";
 import type { RecentEntry, Reopen } from "../types";
 
@@ -236,5 +238,57 @@ describe("managedRelPath", () => {
 		).toBe("ab12/Report.pdf");
 		expect(managedRelPath("C:\\x\\imports\\a.pdf")).toBe("a.pdf");
 		expect(managedRelPath("/tmp/other.pdf")).toBeNull();
+	});
+});
+
+describe("two recent files of one name", () => {
+	it("are told apart by the folder each came from", () => {
+		expect(
+			folderOf({
+				kind: "path",
+				path: "C:\\Users\\me\\Desktop\\Marketing\\Deck.pptx",
+			}),
+		).toBe("Marketing");
+		expect(
+			folderOf({ kind: "path", path: "/home/me/Downloads/Deck.pptx" }),
+		).toBe("Downloads");
+		expect(
+			folderOf({
+				kind: "uri",
+				uri: "content://com.android.externalstorage.documents/document/primary%3ADownload%2FDeck.pptx",
+			}),
+		).toBe("Download");
+	});
+
+	it("say nothing where the way back names no folder", () => {
+		expect(
+			folderOf({
+				kind: "uri",
+				uri: "content://com.android.providers.downloads.documents/document/msf%3A1234",
+			}),
+		).toBeNull();
+		expect(
+			folderOf({ kind: "managed", path: "imports/ab12/Deck.pptx" }),
+		).toBeNull();
+		expect(folderOf({ kind: "path", path: "Deck.pptx" })).toBeNull();
+	});
+
+	it("are found by name, whatever its case", () => {
+		const entry = (id: string, name: string) =>
+			({
+				id,
+				name,
+				format: "pdf",
+				size: 1,
+				openedAt: 1,
+				pinned: false,
+				reopen: { kind: "browser", key: id },
+			}) as const;
+		const twins = sharedNames([
+			entry("a", "Notes.pdf"),
+			entry("b", "notes.PDF"),
+			entry("c", "Other.pdf"),
+		]);
+		expect([...twins]).toEqual(["notes.pdf"]);
 	});
 });

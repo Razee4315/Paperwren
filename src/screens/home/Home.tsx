@@ -8,6 +8,7 @@ import { isDesktop } from "@/lib/env";
 import { type FormatKind, kindOf } from "@/lib/formats";
 import { compareNames, formatDate, isolate, locale, msg, t } from "@/lib/i18n";
 import { keys } from "@/lib/keys";
+import { folderOf, sharedNames } from "@/lib/recents";
 import { samplePdf } from "@/lib/sample";
 import { loadThumb, watchThumb } from "@/lib/thumbs";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
@@ -152,8 +153,11 @@ function RowPicture({ entry }: { entry: RecentEntry }) {
 	);
 }
 
-function meta(e: RecentEntry): string {
+/** What a row says under the name: where the reader is, the size, when
+ * it was opened; and first its folder, when another file has its name. */
+function meta(e: RecentEntry, twin = false): string {
 	const parts: string[] = [];
+	if (twin) parts.push(folderOf(e.reopen) ?? "");
 	if (e.position?.kind === "pdf" && e.position.page > 1)
 		parts.push(t("Page {n}", { n: e.position.page }));
 	else if (e.position?.kind === "slides" && e.position.slide > 0)
@@ -249,6 +253,7 @@ export function Home({
 		</span>
 	);
 
+	const twins = useMemo(() => sharedNames(entries), [entries]);
 	const row = (e: RecentEntry) => {
 		const at = e.position;
 		const ratio =
@@ -294,7 +299,7 @@ export function Home({
 								? isDesktop
 									? t("Unavailable · click to locate")
 									: t("Unavailable · tap to locate")
-								: meta(e)}
+								: meta(e, twins.has(e.name.toLowerCase()))}
 						</span>
 					</span>
 				</button>
@@ -654,7 +659,7 @@ export function Home({
 								setDetailsFor(menuFor);
 								setMenuFor(null);
 							}}
-							hint={meta(menuFor)}
+							hint={meta(menuFor, twins.has(menuFor.name.toLowerCase()))}
 							testId="menu-details"
 						>
 							{t("Details")}
