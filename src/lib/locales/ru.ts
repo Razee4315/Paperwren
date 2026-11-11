@@ -1273,4 +1273,5 @@ export const ru: Table = {
 		"{file} открыт в другом приложении, которое не даёт к нему доступа. Закройте его там и попробуйте снова.",
 	"{file} could not be read.": "Не удалось прочитать {file}.",
 	"Unavailable · click to locate": "Недоступен · нажмите, чтобы найти",
+	"Nothing to crop on these pages": "На этих страницах нечего обрезать",
 };

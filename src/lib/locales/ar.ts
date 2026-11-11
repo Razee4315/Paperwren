@@ -1268,4 +1268,5 @@ export const ar: Table = {
 		"{file} مفتوح في تطبيق آخر لا يسمح بمشاركته. أغلقه هناك، ثم حاول مجددًا.",
 	"{file} could not be read.": "تعذّرت قراءة {file}.",
 	"Unavailable · click to locate": "غير متاح · انقر لتحديد موقعه",
+	"Nothing to crop on these pages": "لا شيء لقصّه في هذه الصفحات",
 };

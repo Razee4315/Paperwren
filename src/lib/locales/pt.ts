@@ -1245,4 +1245,5 @@ export const pt: Table = {
 		"{file} está aberto em outro aplicativo que não o compartilha. Feche-o lá e tente novamente.",
 	"{file} could not be read.": "Não foi possível ler {file}.",
 	"Unavailable · click to locate": "Indisponível · clique para localizar",
+	"Nothing to crop on these pages": "Nada para cortar nestas páginas",
 };

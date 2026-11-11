@@ -983,7 +983,17 @@ export default function PdfView({
 		cropRef.current = next;
 		setCrop(next);
 		if (next) {
-			cropStop.current = (await cropPages(doc)).stop;
+			const { stop, trimmed } = await cropPages(doc);
+			if (!trimmed) {
+				// Say so, rather than show the switch on and the pages as
+				// they were.
+				stop();
+				cropRef.current = false;
+				setCrop(false);
+				toast(t("Nothing to crop on these pages"));
+				return;
+			}
+			cropStop.current = stop;
 		} else {
 			cropStop.current?.();
 			cropStop.current = null;

@@ -1207,4 +1207,5 @@ export const hi: Table = {
 		"{file} किसी दूसरे ऐप में खुली है जो इसे साझा नहीं करता। उसे वहाँ बंद करें, फिर दोबारा कोशिश करें।",
 	"{file} could not be read.": "{file} पढ़ी नहीं जा सकी।",
 	"Unavailable · click to locate": "उपलब्ध नहीं · ढूँढने के लिए क्लिक करें",
+	"Nothing to crop on these pages": "इन पन्नों पर काटने को कुछ नहीं",
 };

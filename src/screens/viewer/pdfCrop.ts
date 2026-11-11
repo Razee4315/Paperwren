@@ -23,8 +23,18 @@ export type Box = [number, number, number, number];
 
 /** A drawing this wide is enough to find the margins. */
 const PROBE_WIDTH = 220;
-/** Darker than this (of 255) is ink. */
+/** Darker than this (of 255) is ink, on white paper. */
 const INK = 232;
+/** On paper of another tone, ink is this much darker than the paper. */
+const PAPER_MARGIN = 24;
+/** Paper at least this light is white: a page made on a computer. */
+const WHITE = 250;
+/** The darkest a page's paper is taken to be. */
+const PAPER_DARKEST = 128;
+/** A dark band along an edge runs at least this share of the page's
+ * length (of the lines across it), and is at most this deep. */
+const BAND_FILL = 0.6;
+const BAND_DEPTH = 0.15;
 /** Kept around what is printed, as a share of the page. */
 const PAD = 0.025;
 /** Pages read to learn the document's usual printed area. */
@@ -72,33 +82,111 @@ export function whole<T>(page: PDFPageProxy, fn: () => T): T {
 	}
 }
 
+/** The paper's colour, as the commonest light value (0-255) of a drawing:
+ * white for a printed page, grey for a scan or a photo of one. */
+function paperTone(shade: Uint8Array, seen: Uint8Array): number {
+	const counts = new Uint32Array(256);
+	for (let i = 0; i < shade.length; i++) if (seen[i]) counts[shade[i]]++;
+	let best = 255;
+	for (let v = PAPER_DARKEST; v < 256; v++)
+		if (counts[v] > counts[best]) best = v;
+	return best;
+}
+
+/**
+ * How many rows (or columns) at one edge are a solid dark band, a
+ * scanner's edge or a shadow: lines mostly ink, from the edge in, fading
+ * into lines mostly paper before a share of the page is used up. A page
+ * dark all over (a photo) has no band.
+ */
+function edgeBand(dense: (line: number) => number, lines: number[]): number {
+	const most = Math.ceil(lines.length * BAND_DEPTH);
+	let n = 0;
+	// A line or two of paper at the very edge (the drawing's last line,
+	// only partly on the page, is left white) can come before the band.
+	while (n < 2 && dense(lines[n]) < BAND_FILL / 2) n++;
+	const start = n;
+	while (n < most && dense(lines[n]) > BAND_FILL) n++;
+	if (n === start || n >= most) return 0;
+	// A blurred edge fades into the paper over a line or two.
+	for (let k = n; k < Math.min(most, n + 3); k++)
+		if (dense(lines[k]) < BAND_FILL / 2) return k;
+	return 0;
+}
+
 /**
  * The part of a drawing of a page that is printed on, in its pixels
  * (left, top, right, bottom; right and bottom just past it), or null
- * when nothing is. `data` is RGBA, as a canvas gives it.
+ * when nothing is. `data` is RGBA, as a canvas gives it. Ink is what is
+ * clearly darker than the page's own paper; a dark band along an edge
+ * (a scan's) and lone specks are not what is printed.
  */
 export function inkBox(
 	data: Uint8ClampedArray,
 	width: number,
 	height: number,
 ): Box | null {
-	let top = height;
-	let left = width;
-	let bottom = -1;
-	let right = -1;
-	for (let y = 0; y < height; y++) {
-		for (let x = 0; x < width; x++) {
-			const i = (y * width + x) * 4;
-			// Transparent is paper too.
-			if (data[i + 3] < 16) continue;
-			if (Math.min(data[i], data[i + 1], data[i + 2]) >= INK) continue;
-			if (y < top) top = y;
-			if (y > bottom) bottom = y;
-			if (x < left) left = x;
-			if (x > right) right = x;
+	const size = width * height;
+	const shade = new Uint8Array(size);
+	const seen = new Uint8Array(size);
+	for (let p = 0; p < size; p++) {
+		const i = p * 4;
+		// Transparent is paper too.
+		if (data[i + 3] < 16) continue;
+		seen[p] = 1;
+		shade[p] = Math.min(data[i], data[i + 1], data[i + 2]);
+	}
+	const paper = paperTone(shade, seen);
+	const below = Math.min(INK, paper - PAPER_MARGIN);
+	// Only a scan (paper not pure white) has edges of its own: a banner
+	// along the top of a page made on a computer is printed.
+	const scanned = paper < WHITE;
+	const ink = new Uint8Array(size);
+	for (let p = 0; p < size; p++) ink[p] = seen[p] && shade[p] < below ? 1 : 0;
+	const range = (n: number) => Array.from({ length: n }, (_, i) => i);
+	// Bands down the sides, then (within what is left) across the top
+	// and bottom.
+	const columns = range(width);
+	const columnFill = (x: number) => {
+		let n = 0;
+		for (let y = 0; y < height; y++) n += ink[y * width + x];
+		return n / height;
+	};
+	const band = (fill: (line: number) => number, lines: number[]) =>
+		scanned ? edgeBand(fill, lines) : 0;
+	const left = band(columnFill, columns);
+	const right = width - band(columnFill, columns.reverse());
+	if (right <= left) return null;
+	const rows = range(height);
+	const rowFill = (y: number) => {
+		let n = 0;
+		for (let x = left; x < right; x++) n += ink[y * width + x];
+		return n / (right - left);
+	};
+	const top = band(rowFill, rows);
+	const bottom = height - band(rowFill, rows.reverse());
+	// Within the bands, a speck is ink with fewer than two ink pixels
+	// around it; a stroke of a letter, however thin, has one on each side.
+	const inside = (x: number, y: number) =>
+		x >= left && x < right && y >= top && y < bottom && ink[y * width + x];
+	let box: Box | null = null;
+	for (let y = top; y < bottom; y++) {
+		for (let x = left; x < right; x++) {
+			if (!ink[y * width + x]) continue;
+			let near = 0;
+			for (let dy = -1; dy <= 1; dy++)
+				for (let dx = -1; dx <= 1; dx++)
+					if ((dx || dy) && inside(x + dx, y + dy)) near++;
+			if (near < 2) continue;
+			if (!box) box = [x, y, x + 1, y + 1];
+			else {
+				if (x < box[0]) box[0] = x;
+				if (x + 1 > box[2]) box[2] = x + 1;
+				box[3] = y + 1;
+			}
 		}
 	}
-	return bottom < 0 ? null : [left, top, right + 1, bottom + 1];
+	return box;
 }
 
 /** The box of a page's printed area, in its own space, or null when it

@@ -1137,4 +1137,5 @@ export const zh: Table = {
 		"{file} 已在另一个不允许共享的应用中打开。请在那里关闭它，然后重试。",
 	"{file} could not be read.": "无法读取 {file}。",
 	"Unavailable · click to locate": "不可用 · 点击以查找",
+	"Nothing to crop on these pages": "这些页面没有可裁剪的边距",
 };

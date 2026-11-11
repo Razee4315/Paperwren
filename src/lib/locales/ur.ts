@@ -1228,4 +1228,5 @@ export const ur: Table = {
 		"{file} کسی اور ایپ میں کھلی ہے جو اسے بانٹنے نہیں دیتی۔ اسے وہاں بند کریں، پھر دوبارہ کوشش کریں۔",
 	"{file} could not be read.": "{file} نہیں پڑھی جا سکی۔",
 	"Unavailable · click to locate": "دستیاب نہیں · تلاش کرنے کے لیے کلک کریں",
+	"Nothing to crop on these pages": "ان صفحات پر کاٹنے کو کچھ نہیں",
 };

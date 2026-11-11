@@ -65,25 +65,76 @@ describe("cropped pages share one size", () => {
 });
 
 describe("the printed part of a drawing", () => {
-	const page = (w: number, h: number, ink: Array<[number, number]>) => {
+	/** A drawing `w` by `h` of paper of tone `paper`, with blocks
+	 * (left, top, right, bottom) of tone `tone`. */
+	const drawing = (
+		w: number,
+		h: number,
+		paper: number,
+		blocks: Array<[Box, number]> = [],
+	) => {
 		const data = new Uint8ClampedArray(w * h * 4).fill(255);
-		for (const [x, y] of ink)
-			data.fill(0, (y * w + x) * 4, (y * w + x) * 4 + 3);
-		return data;
+		const set = (x: number, y: number, v: number) =>
+			data.fill(v, (y * w + x) * 4, (y * w + x) * 4 + 3);
+		for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, paper);
+		for (const [[l, t, r, b], tone] of blocks)
+			for (let y = t; y < b; y++) for (let x = l; x < r; x++) set(x, y, tone);
+		return { data, set };
 	};
+
 	it("finds the box around the ink", () => {
-		expect(
-			inkBox(
-				page(20, 30, [
-					[3, 4],
-					[10, 20],
-				]),
-				20,
-				30,
-			),
-		).toEqual([3, 4, 11, 21]);
+		const { data } = drawing(20, 30, 255, [
+			[[3, 4, 6, 6], 0],
+			[[9, 18, 11, 21], 0],
+		]);
+		expect(inkBox(data, 20, 30)).toEqual([3, 4, 11, 21]);
 	});
+
 	it("finds nothing on a blank page", () => {
-		expect(inkBox(page(20, 30, []), 20, 30)).toBeNull();
+		expect(inkBox(drawing(20, 30, 255).data, 20, 30)).toBeNull();
+	});
+
+	it("finds the text of a scan: grey paper, a dark edge, a shadow and specks", () => {
+		const w = 110;
+		const h = 155;
+		const { data, set } = drawing(w, h, 214, [
+			// The scanner's edge down the left, a shadow along the bottom
+			// (the drawing's last line left white, as a canvas leaves it).
+			[[0, 0, 4, h], 40],
+			[[0, h - 5, w, h - 1], 90],
+			[[0, h - 1, w, h], 255],
+			// The text.
+			[[20, 25, 90, 120], 30],
+		]);
+		// Lone specks all over, darker than the paper.
+		let seed = 7;
+		const next = (n: number) => {
+			seed = (seed * 1103515245 + 12345) % 2147483648;
+			return seed % n;
+		};
+		for (let i = 0; i < 120; i++) set(next(w), next(h - 5), 150);
+		const box = inkBox(data, w, h);
+		expect(box).not.toBeNull();
+		const [l, t, r, b] = box as Box;
+		// Close around the text, not the page.
+		expect(l).toBeGreaterThanOrEqual(16);
+		expect(t).toBeGreaterThanOrEqual(21);
+		expect(r).toBeLessThanOrEqual(94);
+		expect(b).toBeLessThanOrEqual(124);
+		expect(l).toBeLessThanOrEqual(20);
+		expect(r).toBeGreaterThanOrEqual(90);
+	});
+
+	it("keeps a dark banner on a page made on a computer", () => {
+		const { data } = drawing(100, 140, 255, [
+			[[0, 0, 100, 12], 40],
+			[[20, 30, 80, 120], 0],
+		]);
+		expect(inkBox(data, 100, 140)).toEqual([0, 0, 100, 120]);
+	});
+
+	it("keeps a photo that fills the page", () => {
+		const { data } = drawing(100, 140, 200, [[[0, 0, 100, 140], 60]]);
+		expect(inkBox(data, 100, 140)).toEqual([0, 0, 100, 140]);
 	});
 });

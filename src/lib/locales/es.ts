@@ -1244,4 +1244,5 @@ export const es: Table = {
 		"{file} está abierto en otra aplicación que no lo comparte. Ciérralo allí y vuelve a intentarlo.",
 	"{file} could not be read.": "No se pudo leer {file}.",
 	"Unavailable · click to locate": "No disponible · haz clic para buscarlo",
+	"Nothing to crop on these pages": "No hay nada que recortar en estas páginas",
 };

@@ -1257,4 +1257,5 @@ export const fr: Table = {
 		"{file} est ouvert dans une autre application qui ne le partage pas. Fermez-le là-bas, puis réessayez.",
 	"{file} could not be read.": "Impossible de lire {file}.",
 	"Unavailable · click to locate": "Indisponible · cliquez pour le retrouver",
+	"Nothing to crop on these pages": "Rien à rogner sur ces pages",
 };
