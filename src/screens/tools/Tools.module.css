@@ -488,6 +488,93 @@
 	flex-direction: column;
 	min-height: 0;
 }
+/* The pad dialog's body: grows into a full-screen dialog's height. */
+.padFrame,
+.drawSheet {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
+}
+/* On a phone, drawing fills the screen: the inks and pen widths share a
+ * row above the pad, which takes the rest, so nothing is scrolled to. */
+.drawSheet .ways {
+	flex-shrink: 0;
+	margin-bottom: 8px;
+}
+.drawSheet .way {
+	height: 34px;
+}
+.drawSheet .padBox {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	grid-template-rows: auto minmax(0, 1fr) auto;
+	grid-template-areas: "head widths" "pad pad" "tools tools";
+	column-gap: 8px;
+}
+.drawSheet .padHeading {
+	grid-area: head;
+	margin: 0;
+}
+.drawSheet .penWidths {
+	grid-area: widths;
+	justify-content: flex-end;
+	margin: 0;
+}
+.drawSheet .penLabel {
+	display: none;
+}
+.drawSheet .padSurface {
+	grid-area: pad;
+	min-height: 96px;
+	margin-top: 8px;
+}
+.drawSheet .padTools {
+	grid-area: tools;
+}
+.drawSheet .keep {
+	flex-shrink: 0;
+	margin-top: 8px;
+}
+.drawSheet .hint {
+	flex-shrink: 0;
+	margin: 6px 0 0;
+	font-size: 12px;
+	line-height: 1.4;
+}
+/* A phone on its side: tabs, inks and widths in one row, the pad below,
+ * then its tools beside the choice to keep it. */
+@media (max-height: 500px) {
+	.drawSheet {
+		display: grid;
+		grid-template-columns: minmax(180px, auto) auto minmax(0, 1fr);
+		grid-template-rows: auto minmax(0, 1fr) auto;
+		grid-template-areas: "tabs head widths" "pad pad pad" "tools tools keep";
+		gap: 8px 12px;
+	}
+	.drawSheet .padBox {
+		display: contents;
+	}
+	.drawSheet .ways {
+		grid-area: tabs;
+		align-self: center;
+		margin: 0;
+	}
+	.drawSheet .padSurface {
+		margin: 0;
+	}
+	.drawSheet .padTools {
+		margin: 0;
+	}
+	.drawSheet .keep {
+		grid-area: keep;
+		align-self: center;
+		margin: 0;
+	}
+	.drawSheet .hint {
+		display: none;
+	}
+}
 .padHeading {
 	display: flex;
 	flex-shrink: 0;

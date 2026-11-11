@@ -266,7 +266,7 @@ test.describe("fill & sign", () => {
 		expect(widths[3]).toBeGreaterThan(widths[2] * 1.5);
 	});
 
-	test("initials accept touch strokes and the compact dialog stays reachable in landscape", async ({
+	test("initials accept touch strokes and the pad stays whole in landscape", async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 320, height: 568 });
@@ -275,7 +275,9 @@ test.describe("fill & sign", () => {
 		await addFile(page, "features/form.pdf");
 		await page.getByTestId("tool-go").click();
 		await page.getByTestId("fill-tool-initials").click();
-		await page.getByTestId("signature-fullscreen").click();
+		// A phone draws on the whole screen: no toggle, nothing to scroll.
+		await expect(page.getByTestId("signature-fullscreen")).toHaveCount(0);
+		await expect(page.getByTestId("signature-done")).toBeInViewport();
 		const canvas = page.getByTestId("signature-canvas");
 		const box = await canvas.boundingBox();
 		if (!box) throw new Error("No signature canvas");
@@ -306,7 +308,10 @@ test.describe("fill & sign", () => {
 			await canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL()),
 		).toBe(before);
 		await page.setViewportSize({ width: 568, height: 320 });
-		await page.getByTestId("signature-fullscreen-done").click();
+		await expect(page.getByTestId("signature-done")).toBeInViewport();
+		await expect
+			.poll(async () => (await canvas.boundingBox())?.height)
+			.toBeGreaterThan(100);
 		await page.getByTestId("signature-done").click();
 		await expect(page.getByTestId("signature-pad")).toHaveCount(0);
 		const kept = await page.evaluate(
@@ -317,7 +322,7 @@ test.describe("fill & sign", () => {
 		expect(Math.max(kept.w, kept.h)).toBeGreaterThan(1000);
 	});
 
-	test("a phone signature expands, keeps its shape on rotation, and supports redo", async ({
+	test("a phone signature fills the screen, keeps its shape on rotation, and supports redo", async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 360, height: 800 });
@@ -351,12 +356,10 @@ test.describe("fill & sign", () => {
 					ratio: (right - left + 1) / (bottom - top + 1),
 				};
 			});
-		const compact = await canvas.boundingBox();
-		if (!compact) throw new Error("No compact canvas");
-		await page.getByTestId("signature-fullscreen").click();
 		await expect
 			.poll(async () => (await canvas.boundingBox())?.height)
-			.toBeGreaterThan(500);
+			.toBeGreaterThan(400);
+		await expect(page.getByTestId("signature-done")).toBeInViewport();
 		await sign(page);
 		const portrait = await inkShape();
 		const drawn = await pixels();
@@ -371,26 +374,18 @@ test.describe("fill & sign", () => {
 		await expect
 			.poll(async () => (await inkShape()).ratio)
 			.toBeCloseTo(portrait.ratio, 1);
-		await expect(
-			page.getByTestId("signature-fullscreen-done"),
-		).toBeInViewport();
+		await expect(page.getByTestId("signature-done")).toBeInViewport();
 		await page.setViewportSize({ width: 360, height: 800 });
 		await expect
 			.poll(async () => (await canvas.boundingBox())?.height)
-			.toBeGreaterThan(500);
-		await page.getByTestId("signature-fullscreen-done").click();
-		await expect(page.getByTestId("signature-fullscreen")).toBeFocused();
-		await expect
-			.poll(async () => (await canvas.boundingBox())?.height)
-			.toBeCloseTo(compact.height, 0);
+			.toBeGreaterThan(400);
 		await expect
 			.poll(async () => (await inkShape()).ratio)
 			.toBeCloseTo(portrait.ratio, 1);
+		// Turning the phone back and forth cannot shrink the signature.
 		const small = await inkShape();
-		// Repeated expansion cannot progressively shrink the signature.
-		await page.getByTestId("signature-fullscreen").click();
-		await page.keyboard.press("Escape");
-		await expect(page.getByTestId("signature-pad")).toBeVisible();
+		await page.setViewportSize({ width: 800, height: 360 });
+		await page.setViewportSize({ width: 360, height: 800 });
 		await expect
 			.poll(async () => (await inkShape()).width)
 			.toBeCloseTo(small.width, 0);
@@ -401,10 +396,7 @@ test.describe("fill & sign", () => {
 		await page.getByTestId("signature-clear").click();
 		await expect(page.getByTestId("signature-done")).toBeDisabled();
 		await expect(page.getByTestId("signature-redo")).toBeDisabled();
-		await page.getByTestId("signature-fullscreen").click();
 		await sign(page);
-		await page.evaluate(() => window.__paperwrenHandleBack?.());
-		await expect(page.getByTestId("signature-done")).toBeVisible();
 		await page.getByTestId("signature-done").click();
 		await expect(page.getByTestId("fill-item")).toHaveCount(1);
 		const kept = await page.evaluate(
@@ -686,6 +678,57 @@ test.describe("fill & sign by touch", () => {
 		await editor.getByTestId("fill-again").tap();
 		await page.touchscreen.tap(box.x + box.width / 2, box.y + 450);
 		await expect(items).toHaveCount(2);
+	});
+
+	test("the pad fits a phone on its side, and two fingers draw nothing", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 740, height: 360 });
+		await boot(page);
+		await page.getByTestId("home-tool-sign").click();
+		await addFile(page, "features/form.pdf");
+		await page.getByTestId("tool-go").click();
+		await page.getByTestId("fill-tool-sign").click();
+		const pad = page.getByTestId("signature-pad");
+		await expect(page.getByTestId("signature-done")).toBeInViewport();
+		// Nothing in the dialog scrolls.
+		expect(
+			await pad.evaluate((d) =>
+				[d, ...d.querySelectorAll("*")].some(
+					(e) =>
+						e.scrollHeight > e.clientHeight + 2 &&
+						["auto", "scroll"].includes(getComputedStyle(e).overflowY),
+				),
+			),
+		).toBe(false);
+		const box = await page.getByTestId("signature-canvas").boundingBox();
+		if (!box) throw new Error("no pad");
+		expect(box.height).toBeGreaterThan(100);
+		const cdp = await page.context().newCDPSession(page);
+		const a = { x: box.x + 60, y: box.y + 30, id: 1 };
+		const b = { x: box.x + 200, y: box.y + 30, id: 2 };
+		await cdp.send("Input.dispatchTouchEvent", {
+			type: "touchStart",
+			touchPoints: [a],
+		});
+		await cdp.send("Input.dispatchTouchEvent", {
+			type: "touchStart",
+			touchPoints: [a, b],
+		});
+		for (let i = 1; i <= 8; i++)
+			await cdp.send("Input.dispatchTouchEvent", {
+				type: "touchMove",
+				touchPoints: [
+					{ ...a, y: a.y + i * 8 },
+					{ ...b, y: b.y + i * 8 },
+				],
+			});
+		await cdp.send("Input.dispatchTouchEvent", {
+			type: "touchEnd",
+			touchPoints: [],
+		});
+		await cdp.detach();
+		await expect(page.getByTestId("signature-done")).toBeDisabled();
 	});
 });
 
