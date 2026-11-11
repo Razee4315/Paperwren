@@ -502,13 +502,24 @@ test("crop margins fills the screen with text, cuts nothing and is remembered", 
 	await page.getByTestId("pdf-crop").click();
 	// The text grows to fill the width the margins took.
 	await expect.poll(lineHeight).toBeGreaterThan(before * 1.5);
-	// The page that prints further out keeps all of it.
-	const widths = await page
-		.locator(".pdfViewer .page")
-		.evaluateAll((pages) =>
-			pages.map((el) => el.getBoundingClientRect().width),
-		);
-	expect(widths[2]).toBeGreaterThan(widths[0] * 1.3);
+	// Every page keeps one width, so the text stays one size page after
+	// page, and the page that prints further out keeps all of it.
+	const pages = await page.locator(".pdfViewer .page").evaluateAll((els) =>
+		els.map((el) => {
+			const box = el.getBoundingClientRect();
+			const cut = [...el.querySelectorAll(".textLayer span")].some((s) => {
+				const r = s.getBoundingClientRect();
+				return (
+					r.width > 0 && (r.left < box.left - 1 || r.right > box.right + 1)
+				);
+			});
+			return { width: box.width, cut };
+		}),
+	);
+	for (const p of pages) {
+		expect(Math.abs(p.width - pages[0].width)).toBeLessThan(2);
+		expect(p.cut).toBe(false);
+	}
 	await page.waitForTimeout(600);
 	await page.getByTestId("viewer-back").click();
 	await page.getByTestId("recent").first().getByRole("button").first().click();
