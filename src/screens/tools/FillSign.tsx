@@ -108,6 +108,9 @@ type Ink = keyof typeof INKS;
  * page's height (about 12 points on A4). */
 const LINE = 0.021;
 const ZOOMS = [1, 1.5, 2, 3];
+/** Typing on a phone is at least this size, in CSS pixels (a phone
+ * also zooms in on a field any smaller). */
+const READABLE = 16;
 
 /** A screen wide enough for every tool in one row. */
 const ROOMY = "(min-width: 700px)";
@@ -939,6 +942,7 @@ export function FillSign({
 									describedBy={keysHint}
 									selected={selected === item.id}
 									editing={editing === item.id}
+									readable={compact}
 									onSelect={() => {
 										setSelected(item.id);
 										if (editing !== item.id) setEditing(null);
@@ -1510,6 +1514,7 @@ function PlacedItem({
 	ink,
 	selected,
 	editing,
+	readable = false,
 	onSelect,
 	onEdit,
 	onEdited,
@@ -1528,6 +1533,9 @@ function PlacedItem({
 	ink: string;
 	selected: boolean;
 	editing: boolean;
+	/** Typed at a size that reads (a phone): the mark itself may be
+	 * smaller than that on the screen. */
+	readable?: boolean;
 	onSelect: () => void;
 	onEdit: () => void;
 	/** Typing is over (Enter or Esc in the text). */
@@ -1662,6 +1670,16 @@ function PlacedItem({
 	};
 
 	const fontPx = (item.h * pageHeight) / 1.2;
+	// Text too small to read as it is typed grows while it is typed.
+	const enlarged = readable && fontPx < READABLE;
+	// The field widens after each letter, once the browser has already
+	// slid the words along to keep the caret in view: slide them back.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: again as the words change
+	useLayoutEffect(() => {
+		const el = input.current;
+		if (enlarged && el && el.scrollWidth <= el.clientWidth + 1)
+			el.scrollLeft = 0;
+	}, [enlarged, item.text]);
 	return (
 		<div
 			ref={self}
@@ -1700,8 +1718,15 @@ function PlacedItem({
 			) : editing ? (
 				<input
 					ref={input}
-					className={s.itemInput}
-					style={{ fontSize: fontPx, color: ink }}
+					className={`${s.itemInput} ${enlarged ? s.itemInputLarge : ""}`}
+					style={{
+						fontSize: enlarged ? READABLE : fontPx,
+						color: ink,
+						// Wide enough for what is typed, at the size it is typed.
+						...(enlarged
+							? { width: `max(100%, ${(item.text?.length ?? 0) + 3}ch)` }
+							: {}),
+					}}
 					value={item.text ?? ""}
 					dir="auto"
 					placeholder={t("Type here")}

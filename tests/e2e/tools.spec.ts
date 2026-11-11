@@ -735,6 +735,41 @@ test.describe("fill & sign by touch", () => {
 		).toHaveAttribute("aria-pressed", "true");
 	});
 
+	test("typed words read on a phone while they are typed", async ({ page }) => {
+		await boot(page);
+		await page.getByTestId("home-tool-sign").click();
+		await addFile(page, "features/form.pdf");
+		await page.getByTestId("tool-go").click();
+		const editor = page.getByTestId("fill-sign");
+		await expect(editor.getByTestId("fill-field")).toHaveCount(5);
+		await page.getByTestId("fill-tool-text").click();
+		const box = await editor.getByTestId("fill-page").first().boundingBox();
+		if (!box) throw new Error("no page");
+		await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.75);
+		const field = page.getByTestId("fill-item-text");
+		await expect(field).toBeFocused();
+		await page.keyboard.type("Ayesha Khan, Lahore");
+		// At a size that reads, every word in view.
+		const typing = await field.evaluate((el: HTMLInputElement) => ({
+			size: Number.parseFloat(getComputedStyle(el).fontSize),
+			whole: el.scrollWidth <= el.clientWidth + 1 && el.scrollLeft === 0,
+		}));
+		expect(typing.size).toBeGreaterThanOrEqual(16);
+		expect(typing.whole).toBe(true);
+		// Typed, the mark is its own size on the page again.
+		await page.keyboard.press("Enter");
+		await expect(field).toHaveCount(0);
+		const placed = await editor
+			.getByTestId("fill-item")
+			.first()
+			.evaluate((el) =>
+				Number.parseFloat(
+					getComputedStyle(el.querySelector("span") ?? el).fontSize,
+				),
+			);
+		expect(placed).toBeLessThan(16);
+	});
+
 	test("a finger scroll places nothing; one tap places one mark", async ({
 		page,
 	}) => {

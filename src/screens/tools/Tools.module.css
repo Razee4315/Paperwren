@@ -422,6 +422,18 @@
 	line-height: 1.2;
 	outline: none;
 }
+/* Typing on a phone: the words at a size that reads, over the page,
+ * until typing is over and the mark is its own size again. */
+.itemInputLarge {
+	position: relative;
+	z-index: 3;
+	flex-shrink: 0;
+	height: auto;
+	padding: 4px 8px;
+	border-radius: 6px;
+	background: #fff;
+	box-shadow: 0 0 0 2px var(--accent), 0 6px 18px rgba(0, 0, 0, 0.2);
+}
 .itemRemove {
 	position: absolute;
 	top: -30px;
