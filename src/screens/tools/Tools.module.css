@@ -2080,3 +2080,27 @@
 	stroke: var(--line-strong);
 	stroke-width: 1;
 }
+
+/* The stamp pad on a short screen: a smaller preview and the ready
+ * words in one row that scrolls, so the colours, shapes and Use it are
+ * all in view without scrolling. */
+@media (max-height: 880px) {
+	.stampStage {
+		height: clamp(80px, 15vh, 200px);
+		margin-bottom: 10px;
+		padding: 10px;
+	}
+	.stampMake {
+		gap: 10px;
+	}
+	.presets {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		margin-inline: -4px;
+		padding: 2px 4px;
+		scrollbar-width: none;
+	}
+	.preset {
+		flex-shrink: 0;
+	}
+}

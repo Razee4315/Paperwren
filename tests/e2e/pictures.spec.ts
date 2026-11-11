@@ -183,6 +183,24 @@ test("a picture with nothing on it says so, and Use it is never silent", async (
 });
 
 test.describe("stamps", () => {
+	test("a small phone shows the whole stamp pad without scrolling", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 360, height: 640 });
+		await openEditor(page);
+		await pickTool(page, "stamp");
+		const pad = page.getByTestId("stamp-pad");
+		await expect(pad).toBeVisible();
+		// The colours, the shapes and Use it, all in view as it opens.
+		for (const id of ["stamp-shape-round", "stamp-done", "stamp-keep"])
+			await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 });
+		await expect(
+			pad.getByRole("button", { name: "Blue" }).first(),
+		).toBeInViewport({
+			ratio: 1,
+		});
+	});
+
 	test("a stamp is made, placed twice, kept, and saved", async ({ page }) => {
 		const editor = await openEditor(page);
 		await pickTool(page, "stamp");
