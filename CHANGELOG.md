@@ -1,7 +1,21 @@
 # What's new
 
-## 1.6.3
+## 1.7.0
 
+- Two documents side by side on a computer: ⋮ → Side by side. Click a half to work in it, drag the line between them, or swap sides.
+- Crop by hand: drag the box on a page and apply it to all pages, odd or even pages, or just that page. Remembered for each file.
+- Crop margins works on scanned pages, can leave out headers and page numbers, gives every page the same size, and says when there is nothing to crop.
+- Fill & sign is simpler on a phone: Save at the top, Signature, Text, Date and Tick at the bottom, and the rest under More. One ink for everything, the signature too.
+- Scrolling a form with a finger no longer drops extra signatures, and the signature pad fills a phone's screen.
+- Typed signatures look the same on every device, in three handwriting styles, and the whole name always shows.
+- Text you type on a phone is large enough to read while you type it.
+- A full screen button in every viewer on a computer; full screen on Windows covers the whole screen, and Esc closes a dialog first.
+- Auto, the theme the app starts with, is now plain Light or Dark, following your device.
+- Word files with no page settings show on a normal page.
+- Two recent files with the same name show their folder.
+- A moved or deleted file on Windows says so; a file another app is using says "File in use".
+- Markdown tables break between words, not in the middle of one.
+- Small fixes: the Open file button no longer covers text on an empty Home, long menus show they scroll, and form fields no longer show twice in Fill & sign.
 - Files open faster: PDFs show their first page sooner, and big spreadsheets, text files and Markdown no longer freeze the screen.
 - A loading screen while Tools and Notes open, and a word of reassurance when a big file takes a while.
 - Big folders open without freezing.
