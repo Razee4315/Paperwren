@@ -310,8 +310,8 @@ export const fr: Table = {
 		"La façon simple et discrète d'ouvrir tous les documents sur votre appareil.",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"Pas d'internet, pas de compte, pas de publicité. Vos fichiers ne quittent jamais votre appareil.",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"Chaque thème a sa propre couleur apaisante. Auto suit votre appareil : Papier le jour, Encre la nuit.",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"Chaque thème a sa propre couleur apaisante. Auto suit votre appareil : Clair le jour, Sombre la nuit.",
 	"Same as the device": "Comme l'appareil",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren garde jusqu'à {n} dossiers. Retirez-en un pour en ajouter un autre.",
@@ -1202,9 +1202,6 @@ export const fr: Table = {
 	Loading: "Chargement",
 	"Big files take a little longer":
 		"Les gros fichiers prennent un peu plus de temps",
-	"Ink for text and marks": "Encre du texte et des marques",
-	"Text in blue": "Texte en bleu",
-	"Text in black": "Texte en noir",
 	Top: "En haut",
 	Foot: "En bas",
 	Align: "Alignement",
@@ -1251,4 +1248,26 @@ export const fr: Table = {
 		"Le moteur web de ce téléphone (Android System WebView) n'est pas à jour, ce fichier n'a donc pas pu être affiché. Mettez-le à jour depuis votre boutique d'applications (sur les téléphones Huawei, mettez à jour Huawei WebView dans AppGallery), puis réessayez.",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"Le moteur web de ce téléphone n'est pas à jour. Mettez à jour Android System WebView (Huawei WebView sur les téléphones Huawei), puis réessayez.",
+	"Place another": "En placer un autre",
+	"File in use": "Fichier en cours d'utilisation",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} est ouvert dans une autre application qui ne le partage pas. Fermez-le là-bas, puis réessayez.",
+	"{file} could not be read.": "Impossible de lire {file}.",
+	"Unavailable · click to locate": "Indisponible · cliquez pour le retrouver",
+	"Nothing to crop on these pages": "Rien à rogner sur ces pages",
+	"Crop by hand": "Rogner à la main",
+	"Crop pages": "Rogner les pages",
+	"No crop": "Aucun rognage",
+	"Apply to": "Appliquer à",
+	"All pages": "Toutes les pages",
+	"Odd pages": "Pages impaires",
+	"Even pages": "Pages paires",
+	"Leave out headers and page numbers":
+		"Ignorer les en-têtes et numéros de page",
+	"What is kept of the page": "Ce qui est gardé de la page",
+	Photo: "Photo",
+	"Side by side": "Côte à côte",
+	"Show beside this": "Afficher à côté",
+	"Swap sides": "Inverser les côtés",
+	"Resize the two documents": "Redimensionner les deux documents",
 };

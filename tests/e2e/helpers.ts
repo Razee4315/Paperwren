@@ -35,3 +35,12 @@ export async function openFixture(
 	);
 	await page.getByTestId("open-file").click();
 }
+
+/** A Fill & sign tool, from the bar or, where a phone keeps the rarer
+ * ones, from More. */
+export async function pickTool(page: Page, kind: string) {
+	const more = page.getByTestId("fill-tool-more");
+	const inBar = page.getByTestId("fill-sign").getByTestId(`fill-tool-${kind}`);
+	if ((await more.isVisible()) && !(await inBar.count())) await more.click();
+	await page.getByTestId(`fill-tool-${kind}`).click();
+}

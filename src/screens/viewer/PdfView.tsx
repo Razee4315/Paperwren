@@ -1,4 +1,5 @@
 import { backend, requestForBytes } from "@/lib/backend";
+import { type CropChoice, cropOn } from "@/lib/crop";
 import { type DocMark, contentKey, fileSample } from "@/lib/docMarks";
 import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
@@ -56,6 +57,7 @@ import {
 	ScanText,
 	Search,
 	Signature,
+	SlidersHorizontal,
 	StretchHorizontal,
 	Wrench,
 	X,
@@ -88,6 +90,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { CropPages } from "./CropPages";
 import { PageJump, PasswordDialog } from "./Dialogs";
 import { ViewerFileContext } from "./FileMenu";
 import { FindResults } from "./FindResults";
@@ -292,12 +295,12 @@ export default function PdfView({
 			settings.rememberPosition &&
 			position.cover === true,
 	);
-	const [crop, setCrop] = useState(
-		() =>
-			position?.kind === "pdf" &&
-			settings.rememberPosition &&
-			position.crop === true,
+	const [crop, setCrop] = useState<CropChoice | null>(() =>
+		position?.kind === "pdf" && settings.rememberPosition
+			? (position.crop ?? null)
+			: null,
 	);
+	const [cropping, setCropping] = useState(false);
 	const [cropAvailable, setCropAvailable] = useState(false);
 	const flow = settings.pdfFlow;
 	// Pages in a row; pages turned a whole page at a time (in a row, or
@@ -757,7 +760,7 @@ export default function PdfView({
 							rotation: loc.rotation,
 							...(spreadRef.current ? { spread: true } : {}),
 							...(spreadRef.current && coverRef.current ? { cover: true } : {}),
-							...(cropRef.current ? { crop: true } : {}),
+							...(cropRef.current ? { crop: cropRef.current } : {}),
 							pages: doc.numPages,
 						};
 						positionRef.current = pos;
@@ -808,8 +811,8 @@ export default function PdfView({
 				.catch(() => {});
 			// A document read with its margins cropped opens that way.
 			if (cropRef.current)
-				cropPages(doc)
-					.then((stop) => {
+				cropPages(doc, cropRef.current)
+					.then(({ stop }) => {
 						if (cancelled) return stop();
 						cropStop.current = stop;
 						show();
@@ -977,20 +980,34 @@ export default function PdfView({
 			? "page-fit"
 			: "page-width";
 	};
-	const toggleCrop = async () => {
+	/** Crop the pages as `next` says (null: not at all). */
+	const applyCrop = async (next: CropChoice | null) => {
 		if (!doc) return;
-		const next = !cropRef.current;
+		cropStop.current?.();
+		cropStop.current = null;
 		cropRef.current = next;
 		setCrop(next);
 		if (next) {
-			cropStop.current = await cropPages(doc);
-		} else {
-			cropStop.current?.();
-			cropStop.current = null;
+			const { stop, trimmed } = await cropPages(doc, next);
+			if (!trimmed) {
+				// Say so, rather than show the switch on and the pages as
+				// they were.
+				stop();
+				cropRef.current = null;
+				setCrop(null);
+				toast(t("Nothing to crop on these pages"), {
+					label: t("Crop by hand"),
+					run: () => setCropping(true),
+				});
+				return;
+			}
+			cropStop.current = stop;
 		}
 		// The point of cropping is a page that fills the screen.
 		relayout.current(turnsPages(flowRef.current) ? "page-fit" : "page-width");
 	};
+	const toggleCrop = () =>
+		applyCrop(cropOn(cropRef.current) ? null : { auto: true });
 	const toggleCover = () => {
 		const v = pdfViewer.current;
 		if (!v) return;
@@ -1514,14 +1531,31 @@ export default function PdfView({
 	useEffect(() => {
 		const el = container.current;
 		if (!el) return;
+		let width = el.clientWidth;
+		let frame = 0;
 		const measure = () => {
 			setRoomForTwo(el.clientWidth >= 700 && el.clientWidth > el.clientHeight);
 			measureFit();
+			// A zoom that fits ("Fit width", "Fit page", "Auto") fits again
+			// when the room changes: a window resized, or half a window
+			// beside another document, its divider dragged.
+			if (el.clientWidth === width) return;
+			width = el.clientWidth;
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() => {
+				const v = pdfViewer.current;
+				const named = v?.currentScaleValue;
+				if (v && named && Number.isNaN(Number(named)))
+					v.currentScaleValue = named;
+			});
 		};
 		measure();
 		const ro = new ResizeObserver(measure);
 		ro.observe(el);
-		return () => ro.disconnect();
+		return () => {
+			ro.disconnect();
+			cancelAnimationFrame(frame);
+		};
 	}, [measureFit]);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: measured again at each page and zoom
 	useEffect(() => {
@@ -1786,12 +1820,24 @@ export default function PdfView({
 			{cropAvailable && (
 				<SheetItem
 					icon={<Crop size={20} />}
-					checked={crop}
+					checked={cropOn(crop)}
 					onClick={() => {
 						close();
 						toggleCrop();
 					}}
 					testId="pdf-crop"
+					extra={
+						<IconButton
+							label={t("Crop by hand")}
+							onClick={() => {
+								close();
+								setCropping(true);
+							}}
+							data-testid="pdf-crop-hand"
+						>
+							<SlidersHorizontal size={18} />
+						</IconButton>
+					}
 				>
 					{t("Crop margins")}
 				</SheetItem>
@@ -2376,6 +2422,20 @@ export default function PdfView({
 				onCancel={onClose}
 				testId="pdf"
 			/>
+
+			{cropping && doc && (
+				<CropPages
+					doc={doc}
+					choice={crop}
+					page={page}
+					rotation={rotation}
+					onClose={() => setCropping(false)}
+					onDone={(next) => {
+						setCropping(false);
+						void applyCrop(next);
+					}}
+				/>
+			)}
 
 			<Dialog
 				open={printAsk !== null}

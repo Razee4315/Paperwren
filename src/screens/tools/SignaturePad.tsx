@@ -1,18 +1,29 @@
-import { t } from "@/lib/i18n";
+import { isDesktop } from "@/lib/env";
+import { msg, t } from "@/lib/i18n";
 import {
 	type Signature,
 	inkFromPicture,
 	keepSignature,
 } from "@/lib/signatures";
-import { Button, Dialog, toast } from "@/ui";
-import { Check, ImageUp, Maximize, Minimize, Redo2, Undo2 } from "lucide-react";
+import { Button, Dialog, IconButton, toast } from "@/ui";
+import {
+	Check,
+	ImageUp,
+	Info,
+	Maximize,
+	Minimize,
+	Redo2,
+	Undo2,
+} from "lucide-react";
 import {
 	type CSSProperties,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
+import "@/styles/signature-fonts.css";
 import s from "./Tools.module.css";
 import {
 	MAX_WIDTH,
@@ -29,14 +40,21 @@ type Trim = [number, number, number, number];
 /** How tall the photo is shown, at most. */
 const FRAME_HEIGHT = 220;
 
-/** Faces for a typed signature, as the system has them: no fonts are
- * downloaded. The last of each list is there everywhere. */
+/** Faces for a typed signature: bundled (styles/signature-fonts.css),
+ * so every system shows the same three. Letters they lack (Urdu,
+ * Arabic, Chinese) come from the system's own. */
 const HANDS = [
-	'"Segoe Script", "Snell Roundhand", "Brush Script MT", "URW Chancery L", cursive',
-	'"Lucida Handwriting", "Apple Chancery", "Comic Sans MS", cursive',
-	'Georgia, "Noto Serif", "Times New Roman", serif',
+	'"Dancing Script", cursive',
+	'"Great Vibes", cursive',
+	'"Caveat", cursive',
 ];
+/** A typed name's preview, at most and at least, in pixels. */
+const HAND_SIZE = 38;
+const HAND_MIN = 18;
 const INKS = ["#111111", "#1a3c8c"];
+const PICTURE_NOT_CERTIFICATE = msg(
+	"This adds a picture of your signature, not a digital certificate.",
+);
 /** Pixels per CSS pixel the pad draws at, for a sharp signature. */
 const DENSITY = 2;
 
@@ -88,15 +106,25 @@ function paint(
  */
 export function SignaturePad({
 	initials = false,
+	ink: startInk = INKS[1],
+	onInk,
 	onDone,
 	onClose,
 }: {
 	initials?: boolean;
+	/** The ink it starts with: the one for all that is added. */
+	ink?: string;
+	/** The ink picked here becomes that one too. */
+	onInk?: (ink: string) => void;
 	onDone: (signature: Signature) => void;
 	onClose: () => void;
 }) {
 	const [way, setWay] = useState<Way>("draw");
-	const [ink, setInk] = useState(INKS[0]);
+	const [ink, pickInk] = useState(startInk);
+	const setInk = (next: string) => {
+		pickInk(next);
+		onInk?.(next);
+	};
 	const [penWidth, setPenWidth] = useState(2.6);
 	const [typed, setTyped] = useState("");
 	const [hand, setHand] = useState(0);
@@ -129,6 +157,9 @@ export function SignaturePad({
 	const strokes = useRef<Stroke[]>([]);
 	const undone = useRef<Stroke[]>([]);
 	const activePointer = useRef<number | null>(null);
+	// A second finger came down while drawing: the stroke is dropped and
+	// nothing more is drawn until the fingers are lifted.
+	const dropped = useRef(false);
 	const baseSize = useRef<{ w: number; h: number } | null>(null);
 	const view = useRef({ scale: 1, x: 0, y: 0 });
 	const expandButton = useRef<HTMLButtonElement>(null);
@@ -259,7 +290,7 @@ export function SignaturePad({
 		const size = 120;
 		const ctx = canvas.getContext("2d");
 		if (!ctx) return null;
-		const font = `${hand === 2 ? "italic " : ""}${size}px ${HANDS[hand]}`;
+		const font = `${size}px ${HANDS[hand]}`;
 		ctx.font = font;
 		canvas.width = Math.ceil(ctx.measureText(typed).width + size);
 		canvas.height = Math.ceil(size * 1.8);
@@ -271,6 +302,9 @@ export function SignaturePad({
 	};
 
 	const done = async () => {
+		// The face is drawn only once it is read.
+		if (way === "type")
+			await document.fonts?.load(`120px ${HANDS[hand]}`, typed).catch(() => {});
 		const canvas = made();
 		const picture = canvas ? cut(canvas) : null;
 		if (!picture) {
@@ -283,6 +317,54 @@ export function SignaturePad({
 	};
 	const ready =
 		way === "draw" ? drawn : way === "photo" ? !!photo : !!typed.trim();
+	// Each preview shows the whole name: its face shrinks to fit, once
+	// the face is read, and again as the name changes.
+	const hands = useRef(new Set<HTMLElement>());
+	const fitHand = (el: HTMLButtonElement | null) => {
+		if (el) hands.current.add(el);
+	};
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the previews change width with these
+	useLayoutEffect(() => {
+		let live = true;
+		// Measured as drawn, swashes and all: a script face's ink reaches
+		// past the width its letters take.
+		const ctx = document.createElement("canvas").getContext("2d");
+		const fit = () => {
+			for (const el of hands.current) {
+				if (!el.isConnected) {
+					hands.current.delete(el);
+					continue;
+				}
+				if (!ctx) continue;
+				const style = getComputedStyle(el);
+				const room =
+					el.clientWidth -
+					Number.parseFloat(style.paddingLeft) -
+					Number.parseFloat(style.paddingRight);
+				ctx.font = `${HAND_SIZE}px ${el.style.fontFamily}`;
+				const m = ctx.measureText(el.textContent ?? "");
+				const wide = Math.max(
+					m.width,
+					m.actualBoundingBoxLeft + m.actualBoundingBoxRight,
+				);
+				const size =
+					wide > 0 ? Math.floor((HAND_SIZE * room) / wide) : HAND_SIZE;
+				el.style.fontSize = `${Math.max(HAND_MIN, Math.min(HAND_SIZE, size))}px`;
+			}
+		};
+		fit();
+		// A face read only now, once shown, is wider or narrower.
+		const again = () => live && fit();
+		document.fonts?.addEventListener("loadingdone", again);
+		document.fonts?.ready.then(again).catch(() => {});
+		return () => {
+			live = false;
+			document.fonts?.removeEventListener("loadingdone", again);
+		};
+	}, [typed, way, initials]);
+	// On a phone, drawing takes the whole screen, with every control in
+	// view: nothing has to be scrolled to, so no swipe lands on the pad.
+	const surface = !isDesktop && way === "draw" && !fullScreen;
 
 	return (
 		<Dialog
@@ -290,7 +372,7 @@ export function SignaturePad({
 			wide
 			title={initials ? t("Your initials") : t("Your signature")}
 			onClose={fullScreen ? finishDrawing : onClose}
-			fullScreen={fullScreen}
+			fullScreen={fullScreen || surface}
 			testId="signature-pad"
 			actions={
 				fullScreen ? (
@@ -316,282 +398,309 @@ export function SignaturePad({
 				)
 			}
 		>
-			{!fullScreen && (
-				<div
-					className={s.ways}
-					role="tablist"
-					style={
-						{
-							"--n": 3,
-							"--i": ["draw", "type", "photo"].indexOf(way),
-						} as CSSProperties
-					}
-				>
-					{(
-						[
-							["draw", t("Draw")],
-							["type", t("Type")],
-							["photo", t("Upload")],
-						] as const
-					).map(([value, label]) => (
-						<button
-							key={value}
-							type="button"
-							role="tab"
-							aria-selected={way === value}
-							className={s.way}
-							onClick={() => setWay(value)}
-							data-testid={`signature-${value}`}
-						>
-							{label}
-						</button>
-					))}
-				</div>
-			)}
-
-			{way === "draw" && (
-				<div className={`${s.padBox} ${fullScreen ? s.expandedPad : ""}`}>
-					<div className={s.padHeading}>
-						<div className={s.inkChoices}>
-							{INKS.map((colour) => (
-								<button
-									key={colour}
-									type="button"
-									className={s.inkDot}
-									aria-pressed={ink === colour}
-									aria-label={
-										colour === INKS[0] ? t("Black ink") : t("Blue ink")
-									}
-									onClick={() => setInk(colour)}
-								>
-									<span style={{ background: colour }} aria-hidden="true">
-										{ink === colour && <Check size={14} strokeWidth={2.5} />}
-									</span>
-								</button>
-							))}
-						</div>
-						<button
-							ref={expandButton}
-							type="button"
-							className={s.expandPad}
-							onClick={() =>
-								fullScreen ? finishDrawing() : setFullScreen(true)
-							}
-							data-testid="signature-fullscreen"
-							aria-expanded={fullScreen}
-						>
-							{fullScreen ? <Minimize size={16} /> : <Maximize size={16} />}
-							{fullScreen ? t("Exit full screen") : t("Full screen")}
-						</button>
-					</div>
-					<fieldset className={s.penWidths}>
-						<legend className="visually-hidden">{t("Pen thickness")}</legend>
-						<span className={s.penLabel} aria-hidden="true">
-							{t("Pen thickness")}
-						</span>
-						{[
-							{ width: 1.4, label: t("Thin pen") },
-							{ width: 2.6, label: t("Medium pen") },
-							{ width: 4.5, label: t("Thick pen") },
-						].map(({ width, label }) => (
+			<div className={surface ? s.drawSheet : s.padFrame}>
+				{!fullScreen && (
+					<div
+						className={s.ways}
+						role="tablist"
+						style={
+							{
+								"--n": 3,
+								"--i": ["draw", "type", "photo"].indexOf(way),
+							} as CSSProperties
+						}
+					>
+						{(
+							[
+								["draw", t("Draw")],
+								["type", t("Type")],
+								["photo", t("Photo")],
+							] as const
+						).map(([value, label]) => (
 							<button
-								key={width}
+								key={value}
 								type="button"
-								className={s.penWidth}
-								aria-label={label}
-								title={label}
-								aria-pressed={penWidth === width}
-								onClick={() => setPenWidth(width)}
+								role="tab"
+								aria-selected={way === value}
+								className={s.way}
+								onClick={() => setWay(value)}
+								data-testid={`signature-${value}`}
 							>
-								<span style={{ height: width }} aria-hidden="true" />
+								{label}
 							</button>
 						))}
-					</fieldset>
-					<div className={s.padSurface}>
-						<canvas
-							ref={pad}
-							className={s.pad}
-							aria-label={t("Sign here")}
-							onPointerDown={(e) => {
-								if (activePointer.current !== null || e.button !== 0) return;
-								activePointer.current = e.pointerId;
-								e.currentTarget.setPointerCapture(e.pointerId);
-								undone.current = [];
-								setCanRedo(false);
-								strokes.current.push({
-									points: [point(e)],
-									// Width lives in the same drawing plane as the points:
-									// expanding the pad must not make new strokes thinner.
-									width: penWidth,
-								});
-								setDrawn(true);
-								redraw();
-							}}
-							onPointerMove={(e) => {
-								if (activePointer.current !== e.pointerId) return;
-								strokes.current[strokes.current.length - 1]?.points.push(
-									point(e),
-								);
-								redraw();
-							}}
-							onLostPointerCapture={(e) => {
-								if (activePointer.current === e.pointerId)
-									activePointer.current = null;
-							}}
-							data-testid="signature-canvas"
-						/>
-						<span className={s.padLine} aria-hidden="true" />
 					</div>
-					<div className={s.padTools}>
-						<Button
-							variant="ghost"
-							disabled={!drawn}
-							onClick={() => {
-								const line = strokes.current.pop();
-								if (line) undone.current.push(line);
-								setCanRedo(undone.current.length > 0);
-								setDrawn(strokes.current.length > 0);
-								redraw();
-							}}
-							data-testid="signature-undo"
-						>
-							<Undo2 size={16} /> {t("Undo")}
-						</Button>
-						<Button
-							variant="ghost"
-							disabled={!canRedo}
-							data-testid="signature-redo"
-							onClick={() => {
-								const line = undone.current.pop();
-								if (line) strokes.current.push(line);
-								setCanRedo(undone.current.length > 0);
-								setDrawn(strokes.current.length > 0);
-								redraw();
-							}}
-						>
-							<Redo2 size={16} /> {t("Redo")}
-						</Button>
-						<Button
-							variant="ghost"
-							disabled={!drawn}
-							onClick={() => {
-								strokes.current = [];
-								undone.current = [];
-								setCanRedo(false);
-								setDrawn(false);
-								redraw();
-							}}
-							data-testid="signature-clear"
-						>
-							{t("Clear")}
-						</Button>
-					</div>
-				</div>
-			)}
+				)}
 
-			{way === "type" && (
-				<div className={s.typed}>
-					<input
-						className={s.field}
-						value={typed}
-						onChange={(e) => setTyped(e.target.value)}
-						placeholder={initials ? t("Your initials") : t("Your name")}
-						aria-label={initials ? t("Your initials") : t("Your name")}
-						autoComplete="name"
-						data-testid="signature-name"
-					/>
-					{HANDS.map((family, i) => (
-						<button
-							key={family}
-							type="button"
-							className={s.hand}
-							aria-pressed={hand === i}
-							style={{
-								fontFamily: family,
-								fontStyle: i === 2 ? "italic" : undefined,
-								color: ink,
-							}}
-							onClick={() => setHand(i)}
-						>
-							{typed || (initials ? "A.K." : t("Your name"))}
-						</button>
-					))}
-				</div>
-			)}
-
-			{way === "photo" && (
-				<div className={s.photo}>
-					{raw && <PhotoTrim source={raw} trim={trim} onTrim={setTrim} />}
-					{raw && (
-						// As tall with a signature or without: the dialog must not
-						// move under a finger still dragging on the photo.
-						<div className={s.photoResult}>
-							{photo ? (
-								<img
-									className={s.photoPreview}
-									src={photo.toDataURL("image/png")}
-									alt={t("Your signature")}
-									data-testid="signature-preview"
-								/>
-							) : (
-								<p className={s.hint} data-testid="signature-missed">
-									{t("No signature was found in that picture")}
-								</p>
+				{way === "draw" && (
+					<div
+						className={`${s.padBox} ${fullScreen || surface ? s.expandedPad : ""}`}
+					>
+						<div className={s.padHeading}>
+							<div className={s.inkChoices}>
+								{INKS.map((colour) => (
+									<button
+										key={colour}
+										type="button"
+										className={s.inkDot}
+										aria-pressed={ink === colour}
+										aria-label={
+											colour === INKS[0] ? t("Black ink") : t("Blue ink")
+										}
+										onClick={() => setInk(colour)}
+									>
+										<span style={{ background: colour }} aria-hidden="true">
+											{ink === colour && <Check size={14} strokeWidth={2.5} />}
+										</span>
+									</button>
+								))}
+							</div>
+							<fieldset className={s.penWidths}>
+								<legend className="visually-hidden">
+									{t("Pen thickness")}
+								</legend>
+								{[
+									{ width: 1.4, label: t("Thin pen") },
+									{ width: 2.6, label: t("Medium pen") },
+									{ width: 4.5, label: t("Thick pen") },
+								].map(({ width, label }) => (
+									<button
+										key={width}
+										type="button"
+										className={s.penWidth}
+										aria-label={label}
+										title={label}
+										aria-pressed={penWidth === width}
+										onClick={() => setPenWidth(width)}
+									>
+										<span style={{ height: width }} aria-hidden="true" />
+									</button>
+								))}
+							</fieldset>
+							{!surface && (
+								<button
+									ref={expandButton}
+									type="button"
+									className={s.expandPad}
+									onClick={() =>
+										fullScreen ? finishDrawing() : setFullScreen(true)
+									}
+									data-testid="signature-fullscreen"
+									aria-expanded={fullScreen}
+								>
+									{fullScreen ? <Minimize size={16} /> : <Maximize size={16} />}
+									{fullScreen ? t("Exit full screen") : t("Full screen")}
+								</button>
 							)}
 						</div>
-					)}
-					{raw && (
-						<label className={s.inkDepth}>
-							<span>{t("Lighter")}</span>
-							<input
-								type="range"
-								aria-label={t("How dark the ink reads")}
-								min={-1}
-								max={1}
-								step={0.1}
-								value={depth}
-								onChange={(e) => setDepth(Number(e.target.value))}
-								data-testid="signature-depth"
+						<div className={s.padSurface}>
+							<canvas
+								ref={pad}
+								className={s.pad}
+								aria-label={t("Sign here")}
+								onPointerDown={(e) => {
+									if (activePointer.current !== null) {
+										// Two fingers: not a signature. What the first began
+										// is taken back.
+										if (
+											e.pointerType === "touch" &&
+											e.pointerId !== activePointer.current &&
+											!dropped.current
+										) {
+											dropped.current = true;
+											strokes.current.pop();
+											setDrawn(strokes.current.length > 0);
+											redraw();
+										}
+										return;
+									}
+									if (e.button !== 0) return;
+									dropped.current = false;
+									activePointer.current = e.pointerId;
+									e.currentTarget.setPointerCapture(e.pointerId);
+									undone.current = [];
+									setCanRedo(false);
+									strokes.current.push({
+										points: [point(e)],
+										// Width lives in the same drawing plane as the points:
+										// expanding the pad must not make new strokes thinner.
+										width: penWidth,
+									});
+									setDrawn(true);
+									redraw();
+								}}
+								onPointerMove={(e) => {
+									if (activePointer.current !== e.pointerId || dropped.current)
+										return;
+									strokes.current[strokes.current.length - 1]?.points.push(
+										point(e),
+									);
+									redraw();
+								}}
+								onLostPointerCapture={(e) => {
+									if (activePointer.current === e.pointerId)
+										activePointer.current = null;
+								}}
+								data-testid="signature-canvas"
 							/>
-							<span>{t("Darker")}</span>
-						</label>
-					)}
-					{!raw && (
-						<p className={s.hint}>
-							{t(
-								"Pick a PNG of your signature, or a photo of it signed on white paper. Paper is made clear.",
-							)}
-						</p>
-					)}
-					<Button
-						variant="secondary"
-						onClick={fromPhoto}
-						data-testid="signature-pick"
-					>
-						<ImageUp size={18} />{" "}
-						{raw ? t("Pick another") : t("Pick a picture")}
-					</Button>
-				</div>
-			)}
+							<span className={s.padLine} aria-hidden="true" />
+						</div>
+						<div className={s.padTools}>
+							<Button
+								variant="ghost"
+								disabled={!drawn}
+								onClick={() => {
+									const line = strokes.current.pop();
+									if (line) undone.current.push(line);
+									setCanRedo(undone.current.length > 0);
+									setDrawn(strokes.current.length > 0);
+									redraw();
+								}}
+								data-testid="signature-undo"
+								aria-label={t("Undo")}
+								title={t("Undo")}
+							>
+								<Undo2 size={18} />
+							</Button>
+							<Button
+								variant="ghost"
+								disabled={!canRedo}
+								data-testid="signature-redo"
+								aria-label={t("Redo")}
+								title={t("Redo")}
+								onClick={() => {
+									const line = undone.current.pop();
+									if (line) strokes.current.push(line);
+									setCanRedo(undone.current.length > 0);
+									setDrawn(strokes.current.length > 0);
+									redraw();
+								}}
+							>
+								<Redo2 size={18} />
+							</Button>
+							<Button
+								variant="ghost"
+								disabled={!drawn}
+								onClick={() => {
+									strokes.current = [];
+									undone.current = [];
+									setCanRedo(false);
+									setDrawn(false);
+									redraw();
+								}}
+								data-testid="signature-clear"
+							>
+								{t("Clear")}
+							</Button>
+						</div>
+					</div>
+				)}
 
-			{!fullScreen && (
-				<label className={s.keep}>
-					<input
-						type="checkbox"
-						checked={keep}
-						onChange={(e) => setKeep(e.target.checked)}
-						data-testid="signature-keep"
-					/>
-					{t("Keep it on this device for next time")}
-				</label>
-			)}
-			{!fullScreen && (
-				<p className={s.hint}>
-					{t(
-						"This adds a picture of your signature, not a digital certificate.",
-					)}
-				</p>
-			)}
+				{way === "type" && (
+					<div className={s.typed}>
+						<input
+							className={s.field}
+							value={typed}
+							onChange={(e) => setTyped(e.target.value)}
+							placeholder={initials ? t("Your initials") : t("Your name")}
+							aria-label={initials ? t("Your initials") : t("Your name")}
+							autoComplete="name"
+							data-testid="signature-name"
+						/>
+						{HANDS.map((family, i) => (
+							<button
+								key={family}
+								ref={fitHand}
+								type="button"
+								className={s.hand}
+								aria-pressed={hand === i}
+								style={{ fontFamily: family, color: ink }}
+								onClick={() => setHand(i)}
+								data-testid="signature-hand"
+							>
+								{typed || (initials ? "A.K." : t("Your name"))}
+							</button>
+						))}
+					</div>
+				)}
+
+				{way === "photo" && (
+					<div className={s.photo}>
+						{raw && <PhotoTrim source={raw} trim={trim} onTrim={setTrim} />}
+						{raw && (
+							// As tall with a signature or without: the dialog must not
+							// move under a finger still dragging on the photo.
+							<div className={s.photoResult}>
+								{photo ? (
+									<img
+										className={s.photoPreview}
+										src={photo.toDataURL("image/png")}
+										alt={t("Your signature")}
+										data-testid="signature-preview"
+									/>
+								) : (
+									<p className={s.hint} data-testid="signature-missed">
+										{t("No signature was found in that picture")}
+									</p>
+								)}
+							</div>
+						)}
+						{raw && (
+							<label className={s.inkDepth}>
+								<span>{t("Lighter")}</span>
+								<input
+									type="range"
+									aria-label={t("How dark the ink reads")}
+									min={-1}
+									max={1}
+									step={0.1}
+									value={depth}
+									onChange={(e) => setDepth(Number(e.target.value))}
+									data-testid="signature-depth"
+								/>
+								<span>{t("Darker")}</span>
+							</label>
+						)}
+						{!raw && (
+							<p className={s.hint}>
+								{t(
+									"Pick a PNG of your signature, or a photo of it signed on white paper. Paper is made clear.",
+								)}
+							</p>
+						)}
+						<Button
+							variant="secondary"
+							onClick={fromPhoto}
+							data-testid="signature-pick"
+						>
+							<ImageUp size={18} />{" "}
+							{raw ? t("Pick another") : t("Pick a picture")}
+						</Button>
+					</div>
+				)}
+
+				{!fullScreen && (
+					<div className={s.keepRow}>
+						<label className={s.keep}>
+							<input
+								type="checkbox"
+								checked={keep}
+								onChange={(e) => setKeep(e.target.checked)}
+								data-testid="signature-keep"
+							/>
+							{t("Keep it on this device for next time")}
+						</label>
+						{/* What this is, a tap away rather than said every time. */}
+						<IconButton
+							label={t(PICTURE_NOT_CERTIFICATE)}
+							onClick={() => toast(t(PICTURE_NOT_CERTIFICATE))}
+							data-testid="signature-about"
+						>
+							<Info size={18} />
+						</IconButton>
+					</div>
+				)}
+			</div>
 		</Dialog>
 	);
 }

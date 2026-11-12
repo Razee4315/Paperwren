@@ -30,6 +30,8 @@ import {
 	ChevronDown,
 	ChevronUp,
 	ListChecks,
+	Maximize,
+	Minimize,
 	Minus,
 	PanelLeft,
 	Plus,
@@ -46,12 +48,14 @@ import {
 	useEffect,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from "react";
 import { ShortcutList } from "../settings/ShortcutList";
 import { FileMenu, ViewerFileContext } from "./FileMenu";
 import { ReadAloud } from "./ReadAloud";
 import { AutoScroll, DimSheet } from "./ReadingControls";
 import s from "./Shell.module.css";
+import { PaneContext } from "./pane";
 import type { SpeechSource } from "./speechSources";
 
 export { s as shellStyles };
@@ -276,6 +280,35 @@ function SidePanel({
 	);
 }
 
+/** Full screen on or off, saying how to leave it as it starts. */
+function fullscreen() {
+	if (!inFullscreen()) toast(t("Press Esc to leave full screen"));
+	toggleFullscreen();
+}
+
+/** Whether the reader is in full screen (<html data-fullscreen="page">,
+ * which lib/fullscreen.ts keeps in step), as a value a render reads. */
+function onFullscreenChange(then: () => void) {
+	const watch = new MutationObserver(then);
+	watch.observe(document.documentElement, {
+		attributes: true,
+		attributeFilter: ["data-fullscreen"],
+	});
+	return () => watch.disconnect();
+}
+const readingFullscreen = () =>
+	document.documentElement.dataset.fullscreen === "page";
+
+/** A window too narrow for full screen's button in the bar: it is in
+ * the menu instead. */
+const NARROW = "(max-width: 720px)";
+function onNarrowChange(then: () => void) {
+	const query = window.matchMedia?.(NARROW);
+	query?.addEventListener("change", then);
+	return () => query?.removeEventListener("change", then);
+}
+const narrowWindow = () => !!window.matchMedia?.(NARROW).matches;
+
 export function Shell({
 	name,
 	format,
@@ -363,6 +396,10 @@ export function Shell({
 	const { settings, update } = useSettings();
 	const [colorOpen, setColorOpen] = useState(false);
 	const [keysOpen, setKeysOpen] = useState(false);
+	const full = useSyncExternalStore(onFullscreenChange, readingFullscreen);
+	const pane = useContext(PaneContext);
+	const narrow =
+		useSyncExternalStore(onNarrowChange, narrowWindow) || !!pane?.narrow;
 	useEffect(() => {
 		if (sideFocus) update("sidePanel", true);
 	}, [sideFocus, update]);
@@ -373,10 +410,8 @@ export function Shell({
 		const onKey = (e: KeyboardEvent) => {
 			if (modalOpen() || e.defaultPrevented) return;
 			if (matches(e, "keys")) setKeysOpen(true);
-			else if (matches(e, "fullscreen")) {
-				if (!inFullscreen()) toast(t("Press Esc to leave full screen"));
-				toggleFullscreen();
-			} else return;
+			else if (matches(e, "fullscreen")) fullscreen();
+			else return;
 			e.preventDefault();
 		};
 		window.addEventListener("keydown", onKey);
@@ -834,7 +869,10 @@ export function Shell({
 			ref={shell}
 			className={s.shell}
 			data-testid="viewer"
-			style={active ? undefined : { display: "none" }}
+			// Side by side, the half without the keyboard is still shown.
+			style={
+				active || (pane?.side && pane.visible) ? undefined : { display: "none" }
+			}
 		>
 			<header
 				className={`${s.top} ${barsHidden ? s.hiddenTop : ""} ${finding ? s.pinned : ""}`}
@@ -864,11 +902,25 @@ export function Shell({
 						</IconButton>
 					)}
 					{actions}
+					{isDesktop && !narrow && (
+						<IconButton
+							label={full ? t("Leave full screen") : t("Full screen")}
+							shortcut={hintFor("fullscreen")}
+							active={full}
+							onClick={fullscreen}
+							data-testid="viewer-fullscreen"
+						>
+							{full ? <Minimize size={18} /> : <Maximize size={18} />}
+						</IconButton>
+					)}
 					<FileMenu
 						extra={fileMenu}
 						details={details}
 						onPrint={onPrint}
 						active={active}
+						fullscreen={
+							isDesktop && narrow ? { on: full, toggle: fullscreen } : undefined
+						}
 					/>
 				</div>
 				{find}

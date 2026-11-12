@@ -54,9 +54,58 @@ test.describe("the desktop layout", () => {
 		expect(box?.x ?? 0).toBeGreaterThan(700);
 		// What the side panel does is not repeated in the menu.
 		await expect(page.getByTestId("pdf-pages")).toHaveCount(0);
-		await expect(page.getByTestId("file-fullscreen")).toBeVisible();
+		// Nor is the bar's full screen button.
+		await expect(page.getByTestId("file-fullscreen")).toHaveCount(0);
 		await page.keyboard.press("Escape");
 		await expect(menu).toHaveCount(0);
+	});
+
+	test("every viewer has a full screen button in its bar", async ({ page }) => {
+		await boot(page, {}, DESKTOP);
+		for (const file of [
+			"sample.docx",
+			"sample.xlsx",
+			"sample.txt",
+			"sample.png",
+			"sample.pptx",
+		]) {
+			await openFixture(page, file);
+			await expect(
+				page.getByTestId("viewer").getByTestId("viewer-fullscreen"),
+			).toBeVisible({ timeout: 20_000 });
+			// The slide show has an icon of its own, not full screen's.
+			if (file.endsWith(".pptx"))
+				await expect(
+					page.getByTestId("slides-present").locator(".lucide-presentation"),
+				).toBeVisible();
+			await page.getByTestId("viewer-back").click();
+		}
+		await openFixture(page, "sample.pdf");
+		const button = page.getByTestId("viewer-fullscreen");
+		await expect(button).toHaveAttribute("aria-label", "Full screen");
+		await button.click();
+		await expect(page.locator("html")).toHaveAttribute(
+			"data-fullscreen",
+			"page",
+		);
+		// The bar hides; brought back at the top edge, its button says how
+		// to leave, and leaves.
+		await page.mouse.move(640, 300);
+		await page.mouse.move(640, 1);
+		await expect(page.locator("html")).toHaveAttribute("data-reveal", "");
+		await expect(button).toHaveAttribute("aria-label", "Leave full screen");
+		await expect(button).toHaveAttribute("aria-pressed", "true");
+		await button.click();
+		await expect(page.locator("html")).not.toHaveAttribute(
+			"data-fullscreen",
+			/./,
+		);
+		await expect(button).toHaveAttribute("aria-label", "Full screen");
+		// A window too narrow for it has it in the menu instead.
+		await page.setViewportSize({ width: 600, height: 800 });
+		await expect(button).toHaveCount(0);
+		await page.getByTestId("file-more").click();
+		await expect(page.getByTestId("file-fullscreen")).toBeVisible();
 	});
 
 	test("the side panel lists pages and stays open while reading", async ({
@@ -518,6 +567,110 @@ test.describe("the desktop layout", () => {
 		await page.keyboard.press("Escape");
 		await expect(page.getByTestId("settings")).toHaveCount(0);
 		await expect(page.getByTestId("home")).toBeVisible();
+	});
+
+	test("a menu taller than a short window scrolls, and fades where more of it is", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1082, height: 520 });
+		await boot(page, {}, DESKTOP);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		const menu = page.getByTestId("file-menu");
+		const items = menu.locator(":scope > div");
+		// The whole menu is inside the window, and says there is more.
+		const box = await menu.boundingBox();
+		expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(520);
+		await expect(items).toHaveAttribute("data-more", "below");
+		// At the end the last row shows whole, and the top fades instead.
+		await items.evaluate((el) => {
+			el.scrollTop = el.scrollHeight;
+		});
+		await expect(items).toHaveAttribute("data-more", "above");
+		const last = await page.getByTestId("file-details-open").boundingBox();
+		expect((last?.y ?? 0) + (last?.height ?? 0)).toBeLessThanOrEqual(
+			(box?.y ?? 0) + (box?.height ?? 0),
+		);
+	});
+});
+
+test.describe("two documents side by side", () => {
+	test.use({ viewport: { width: 1280, height: 800 } });
+
+	test("a second opens beside the first; each half takes the keys in turn", async ({
+		page,
+	}) => {
+		await boot(page, {}, DESKTOP);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		// One document open: Side by side asks for the other, which opens
+		// on the right and has the keyboard.
+		await page.evaluate(() => {
+			window.__paperwrenTestFile = new File(["Beside the PDF"], "notes.txt");
+		});
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-side-by-side").click();
+		const left = page.getByTestId("pane-left");
+		const right = page.getByTestId("pane-right");
+		await expect(right).toContainText("Beside the PDF", { timeout: 20_000 });
+		await expect(left.getByTestId("pdf-page-field")).toBeVisible();
+		await expect(right).toHaveAttribute("data-focused", "");
+		const halves = async () =>
+			Promise.all(
+				[left, right].map(async (pane) => (await pane.boundingBox())?.width),
+			);
+		expect(await halves()).toEqual([640, 640]);
+		// The keys go to the half that has them, and to no other.
+		await page.keyboard.press("Control+f");
+		await expect(right.getByTestId("find-input")).toBeVisible();
+		await expect(left.getByTestId("find-input")).toHaveCount(0);
+		await page.keyboard.press("Escape");
+		// A click in the other half turns to it.
+		await left.locator(".pdfViewer").click({ position: { x: 200, y: 300 } });
+		await expect(left).toHaveAttribute("data-focused", "");
+		await expect(right).not.toHaveAttribute("data-focused", "");
+		// The divider moves from the keyboard too.
+		const divider = page.getByTestId("split-divider");
+		await divider.focus();
+		await page.keyboard.press("Shift+ArrowRight");
+		await expect(divider).toHaveAttribute("aria-valuenow", "60");
+		const [wide] = await halves();
+		expect(wide).toBeGreaterThan(700);
+		// The sides change places, and back to one at a time.
+		await left.getByTestId("file-more").click();
+		await page.getByTestId("file-swap-sides").click();
+		await expect(right.getByTestId("pdf-page-field")).toBeVisible();
+		await right.getByTestId("file-more").click();
+		await page.getByTestId("file-side-by-side").click();
+		await expect(page.getByTestId("pane-left")).toHaveCount(0);
+		await expect(page.locator("[data-testid=viewer]:visible")).toHaveCount(1);
+		// With both open, Side by side offers the other one.
+		await page
+			.locator("[data-testid=viewer]:visible")
+			.getByTestId("file-more")
+			.click();
+		await page.getByTestId("file-side-by-side").click();
+		await page.getByTestId("side-by-side-tab").click();
+		await expect(page.getByTestId("pane-right")).toContainText(
+			"Beside the PDF",
+		);
+	});
+
+	test("a window too narrow for two keeps one at a time", async ({ page }) => {
+		await page.setViewportSize({ width: 800, height: 700 });
+		await boot(page, {}, DESKTOP);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		await expect(page.getByTestId("file-menu")).toBeVisible();
+		await expect(page.getByTestId("file-side-by-side")).toHaveCount(0);
 	});
 });
 

@@ -388,7 +388,7 @@ export function SettingsScreen() {
 								<span className={s.label}>{t("Theme")}</span>
 								<span className={s.fieldHint}>
 									{t(
-										"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.",
+										"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.",
 									)}
 								</span>
 								<ThemePicker

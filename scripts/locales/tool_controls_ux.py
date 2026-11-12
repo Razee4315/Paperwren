@@ -2,9 +2,6 @@
 the same language order as strings.py."""
 
 ROWS = [
-    ("Ink for text and marks", "متن اور نشانات کی سیاہی", "حبر النص والعلامات", "文字和标记的颜色", "टेक्स्ट और निशानों की स्याही", "Tinta del texto y las marcas", "Encre du texte et des marques", "Цвет текста и отметок", "Tinta do texto e das marcas"),
-    ("Text in blue", "نیلا متن", "نص أزرق", "蓝色文字", "नीला टेक्स्ट", "Texto en azul", "Texte en bleu", "Синий текст", "Texto em azul"),
-    ("Text in black", "سیاہ متن", "نص أسود", "黑色文字", "काला टेक्स्ट", "Texto en negro", "Texte en noir", "Чёрный текст", "Texto em preto"),
     ("Top", "اوپر", "الأعلى", "顶部", "ऊपर", "Arriba", "En haut", "Вверху", "Em cima"),
     ("Foot", "نیچے", "الأسفل", "底部", "नीचे", "Abajo", "En bas", "Внизу", "Embaixo"),
     ("Align", "سیدھ", "المحاذاة", "对齐", "संरेखण", "Alinear", "Alignement", "Выравнивание", "Alinhar"),

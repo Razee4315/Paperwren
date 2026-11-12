@@ -1,7 +1,6 @@
 import { type FileRef, backend, formatBytes } from "@/lib/backend";
 import { isDesktop } from "@/lib/env";
 import { formatLabel, kindLabel, kindOf, mimeOf } from "@/lib/formats";
-import { inFullscreen, toggleFullscreen } from "@/lib/fullscreen";
 import { t } from "@/lib/i18n";
 import { FULLSCREEN_KEYS } from "@/lib/keys";
 import { printDocument } from "@/lib/print";
@@ -21,7 +20,11 @@ import {
 } from "@/ui";
 import {
 	AppWindow,
+	ArrowLeftRight,
+	Columns2,
 	Download,
+	FilePlus,
+	FileText,
 	FolderOpen,
 	Info,
 	Maximize,
@@ -42,6 +45,7 @@ import {
 } from "react";
 import { RenameDialog } from "./RenameDialog";
 import s from "./Shell.module.css";
+import { SideBySideContext } from "./pane";
 
 /** The file a viewer is showing, for the actions that leave the app. */
 export interface ViewerFile {
@@ -233,6 +237,7 @@ export function FileMenu({
 	details: more,
 	onPrint,
 	active,
+	fullscreen,
 }: {
 	/** The viewer's own items; `close` dismisses the menu. */
 	extra?: (close: () => void) => ReactNode;
@@ -241,11 +246,15 @@ export function FileMenu({
 	/** Lay the document out for paper inside `root`. */
 	onPrint?: (root: HTMLElement) => Promise<void> | void;
 	active: boolean;
+	/** Full screen, here when the bar has no room for its button. */
+	fullscreen?: { on: boolean; toggle: () => void };
 }) {
 	const context = useContext(ViewerFileContext);
 	const [open, setOpen] = useState(false);
 	const [details, setDetails] = useState(false);
 	const [renaming, setRenaming] = useState(false);
+	const pair = useContext(SideBySideContext);
+	const [besideOpen, setBesideOpen] = useState(false);
 	const close = useCallback(() => setOpen(false), []);
 
 	const print = useCallback(() => {
@@ -292,19 +301,48 @@ export function FileMenu({
 						<SheetDivider />
 					</>
 				)}
-				{isDesktop && (
+				{pair?.room && (
+					<SheetItem
+						icon={<Columns2 size={20} />}
+						checked={pair.on}
+						onClick={() => {
+							setOpen(false);
+							if (pair.on) pair.leave();
+							else if (pair.others.length) setBesideOpen(true);
+							else pair.pickBeside();
+						}}
+						testId="file-side-by-side"
+						extra={
+							pair.on ? (
+								<IconButton
+									label={t("Swap sides")}
+									onClick={() => {
+										setOpen(false);
+										pair.swap();
+									}}
+									data-testid="file-swap-sides"
+								>
+									<ArrowLeftRight size={18} />
+								</IconButton>
+							) : undefined
+						}
+					>
+						{t("Side by side")}
+					</SheetItem>
+				)}
+				{fullscreen && (
 					<SheetItem
 						icon={
-							inFullscreen() ? <Minimize size={20} /> : <Maximize size={20} />
+							fullscreen.on ? <Minimize size={20} /> : <Maximize size={20} />
 						}
 						shortcut={FULLSCREEN_KEYS}
 						onClick={() => {
 							setOpen(false);
-							toggleFullscreen();
+							fullscreen.toggle();
 						}}
 						testId="file-fullscreen"
 					>
-						{inFullscreen() ? t("Leave full screen") : t("Full screen")}
+						{fullscreen.on ? t("Leave full screen") : t("Full screen")}
 					</SheetItem>
 				)}
 				{/* The file itself: tiles, so the menu stays short. */}
@@ -351,6 +389,39 @@ export function FileMenu({
 					extra={more}
 					onClose={() => setDetails(false)}
 				/>
+			)}
+			{pair && (
+				<Sheet
+					open={besideOpen}
+					title={t("Show beside this")}
+					onClose={() => setBesideOpen(false)}
+					testId="side-by-side-pick"
+				>
+					{pair.others.map((tab) => (
+						<SheetItem
+							key={tab.key}
+							icon={<FileText size={20} />}
+							onClick={() => {
+								setBesideOpen(false);
+								pair.beside(tab);
+							}}
+							testId="side-by-side-tab"
+						>
+							<span dir="auto">{tab.request.name}</span>
+						</SheetItem>
+					))}
+					<SheetDivider />
+					<SheetItem
+						icon={<FilePlus size={20} />}
+						onClick={() => {
+							setBesideOpen(false);
+							pair.pickBeside();
+						}}
+						testId="side-by-side-file"
+					>
+						{t("Choose a file")}
+					</SheetItem>
+				</Sheet>
 			)}
 			{renaming && (
 				<RenameDialog

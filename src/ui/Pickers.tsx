@@ -57,10 +57,10 @@ export function ThemePicker({
 					<span className={s.preview}>
 						{theme === "system" ? (
 							<>
-								<span className={s.half} data-theme="light">
+								<span className={s.half} data-theme="plain-light">
 									<Mock />
 								</span>
-								<span className={s.half} data-theme="dark">
+								<span className={s.half} data-theme="plain-dark">
 									<Mock />
 								</span>
 							</>

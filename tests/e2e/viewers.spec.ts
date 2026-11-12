@@ -479,3 +479,29 @@ test("the keyboard reads a document without a click into it first", async ({
 	await page.keyboard.press("Control+f");
 	await expect(page.getByTestId("search-input")).toBeFocused();
 });
+
+test("a Markdown table breaks between words, never inside one", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await boot(page);
+	const md = [
+		"| Topic | Key points |",
+		"|-------|------------|",
+		"| Internationalization | Standardization versus adaptation of the offer |",
+	].join("\n");
+	await page.evaluate((text) => {
+		window.__paperwrenTestFile = new File([text], "table.md");
+	}, md);
+	await page.getByTestId("open-file").click();
+	const cell = page.locator("table td").first();
+	await expect(cell).toHaveText("Internationalization");
+	// One line: the word is whole, and the table scrolls sideways if it must.
+	const lines = await cell.evaluate((td) => {
+		const range = document.createRange();
+		range.selectNodeContents(td);
+		return new Set([...range.getClientRects()].map((r) => Math.round(r.top)))
+			.size;
+	});
+	expect(lines).toBe(1);
+});

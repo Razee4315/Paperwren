@@ -286,8 +286,8 @@ export const zh: Table = {
 		"在设备上打开每一份文档的小巧、安静的方式。",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"不联网、无账号、无广告。你的文件永远不会离开设备。",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"每个主题都有自己柔和的颜色。“自动”跟随设备：白天用纸，夜晚用墨。",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"每个主题都有自己柔和的颜色。“自动”跟随设备：白天浅色，夜晚深色。",
 	"Same as the device": "跟随设备",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren 最多保留 {n} 个文件夹。请先移除一个再添加。",
@@ -1082,9 +1082,6 @@ export const zh: Table = {
 	"Show this list": "显示此列表",
 	Loading: "正在加载",
 	"Big files take a little longer": "大文件需要稍长一点的时间",
-	"Ink for text and marks": "文字和标记的颜色",
-	"Text in blue": "蓝色文字",
-	"Text in black": "黑色文字",
 	Top: "顶部",
 	Foot: "底部",
 	Align: "对齐",
@@ -1131,4 +1128,25 @@ export const zh: Table = {
 		"此手机的网页引擎（Android System WebView）版本过旧，无法显示此文件。请在应用商店中更新它（华为手机请在应用市场更新华为 WebView），然后重试。",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"此手机的网页引擎版本过旧。请更新 Android System WebView（华为手机请更新华为 WebView），然后重试。",
+	"Place another": "再放一个",
+	"File in use": "文件正在使用",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} 已在另一个不允许共享的应用中打开。请在那里关闭它，然后重试。",
+	"{file} could not be read.": "无法读取 {file}。",
+	"Unavailable · click to locate": "不可用 · 点击以查找",
+	"Nothing to crop on these pages": "这些页面没有可裁剪的边距",
+	"Crop by hand": "手动裁剪",
+	"Crop pages": "裁剪页面",
+	"No crop": "不裁剪",
+	"Apply to": "应用于",
+	"All pages": "所有页面",
+	"Odd pages": "奇数页",
+	"Even pages": "偶数页",
+	"Leave out headers and page numbers": "略去页眉和页码",
+	"What is kept of the page": "页面保留的部分",
+	Photo: "照片",
+	"Side by side": "并排",
+	"Show beside this": "在旁边显示",
+	"Swap sides": "交换左右",
+	"Resize the two documents": "调整两个文档的大小",
 };

@@ -8,6 +8,7 @@ import { isDesktop } from "@/lib/env";
 import { type FormatKind, kindOf } from "@/lib/formats";
 import { compareNames, formatDate, isolate, locale, msg, t } from "@/lib/i18n";
 import { keys } from "@/lib/keys";
+import { folderOf, sharedNames } from "@/lib/recents";
 import { samplePdf } from "@/lib/sample";
 import { loadThumb, watchThumb } from "@/lib/thumbs";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
@@ -152,8 +153,11 @@ function RowPicture({ entry }: { entry: RecentEntry }) {
 	);
 }
 
-function meta(e: RecentEntry): string {
+/** What a row says under the name: where the reader is, the size, when
+ * it was opened; and first its folder, when another file has its name. */
+function meta(e: RecentEntry, twin = false): string {
 	const parts: string[] = [];
+	if (twin) parts.push(folderOf(e.reopen) ?? "");
 	if (e.position?.kind === "pdf" && e.position.page > 1)
 		parts.push(t("Page {n}", { n: e.position.page }));
 	else if (e.position?.kind === "slides" && e.position.slide > 0)
@@ -249,6 +253,7 @@ export function Home({
 		</span>
 	);
 
+	const twins = useMemo(() => sharedNames(entries), [entries]);
 	const row = (e: RecentEntry) => {
 		const at = e.position;
 		const ratio =
@@ -290,7 +295,11 @@ export function Home({
 									<i style={{ width: `${Math.max(6, ratio * 100)}%` }} />
 								</span>
 							)}
-							{e.unavailable ? t("Unavailable · tap to locate") : meta(e)}
+							{e.unavailable
+								? isDesktop
+									? t("Unavailable · click to locate")
+									: t("Unavailable · tap to locate")
+								: meta(e, twins.has(e.name.toLowerCase()))}
 						</span>
 					</span>
 				</button>
@@ -305,6 +314,7 @@ export function Home({
 	};
 
 	const hasAny = entries.length > 0;
+	const emptyHome = !activeFolder && ready && !hasAny;
 
 	return (
 		<div className={s.page} data-testid="home">
@@ -447,7 +457,7 @@ export function Home({
 						/>
 					)}
 
-					{!activeFolder && ready && !hasAny && (
+					{emptyHome && (
 						<div className={s.empty} data-testid="empty-state">
 							<EmptyScene />
 							<h2 className={s.emptyTitle}>{t("Open any document")}</h2>
@@ -456,6 +466,19 @@ export function Home({
 									"Fast, private and offline. Everything you open shows up here.",
 								)}
 							</p>
+							{/* With nothing to scroll past, a phone's button sits with
+							    the words it answers, not on top of them. */}
+							{!isDesktop && (
+								<button
+									type="button"
+									className={`${s.fab} ${s.fabInline}`}
+									onClick={onOpenFile}
+									data-testid="open-file"
+								>
+									<Plus size={22} strokeWidth={2.5} />
+									{t("Open file")}
+								</button>
+							)}
 							<button
 								type="button"
 								className={s.sample}
@@ -553,8 +576,8 @@ export function Home({
 			</main>
 
 			{/* A thumb's button at the foot of a phone; on a desktop it is in
-			    the bar, beside Settings. */}
-			{!isDesktop && (
+			    the bar, beside Settings. An empty Home has it in its middle. */}
+			{!isDesktop && !emptyHome && (
 				<button
 					type="button"
 					className={s.fab}
@@ -636,7 +659,7 @@ export function Home({
 								setDetailsFor(menuFor);
 								setMenuFor(null);
 							}}
-							hint={meta(menuFor)}
+							hint={meta(menuFor, twins.has(menuFor.name.toLowerCase()))}
 							testId="menu-details"
 						>
 							{t("Details")}

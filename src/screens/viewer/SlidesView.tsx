@@ -27,8 +27,8 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	LayoutGrid,
-	Maximize,
 	Search,
+	Presentation as SlideShowIcon,
 	StickyNote,
 } from "lucide-react";
 import {
@@ -932,7 +932,7 @@ export default function SlidesView({
 						disabled={!total}
 						data-testid="slides-present"
 					>
-						<Maximize size={20} />
+						<SlideShowIcon size={20} />
 					</IconButton>
 					<IconButton
 						label={t("Find")}

@@ -85,9 +85,9 @@ describe("settings", () => {
 		expect(normalizeSettings({ accent: "ocean" })).toEqual(DEFAULT_SETTINGS);
 	});
 
-	it("resolves the system theme", () => {
-		expect(resolveTheme("system", true)).toBe("dark");
-		expect(resolveTheme("system", false)).toBe("light");
+	it("resolves Auto to the plain white or dark the device asks for", () => {
+		expect(resolveTheme("system", true)).toBe("plain-dark");
+		expect(resolveTheme("system", false)).toBe("plain-light");
 		expect(resolveTheme("sepia", true)).toBe("sepia");
 	});
 

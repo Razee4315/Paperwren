@@ -513,6 +513,11 @@
 .fab:active {
 	background: var(--accent-hover);
 }
+/* On an empty Home: the same button, in its place among the words. */
+.fabInline {
+	position: static;
+	margin-top: 4px;
+}
 
 .empty {
 	display: flex;

@@ -121,6 +121,10 @@
 .md td {
 	padding: 6px 12px;
 	border: 1px solid var(--line);
+	/* A cell breaks between words, never inside one ("anywhere", from
+	 * .md, would let the table squeeze a column to cut words in two);
+	 * a table too wide for the page scrolls sideways instead. */
+	overflow-wrap: break-word;
 }
 .md th {
 	background: var(--surface-2);

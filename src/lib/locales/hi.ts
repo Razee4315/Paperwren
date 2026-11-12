@@ -298,8 +298,8 @@ export const hi: Table = {
 		"अपने डिवाइस पर हर दस्तावेज़ खोलने का छोटा और शांत तरीका।",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"न इंटरनेट, न खाता, न विज्ञापन। आपकी फ़ाइलें कभी आपके डिवाइस से बाहर नहीं जातीं।",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"हर थीम का अपना शांत रंग है। स्वचालित आपके डिवाइस के अनुसार चलता है: दिन में काग़ज़, रात में स्याही।",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"हर थीम का अपना शांत रंग है। स्वचालित आपके डिवाइस के अनुसार चलता है: दिन में हल्का, रात में गहरा।",
 	"Same as the device": "डिवाइस के अनुसार",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren अधिकतम {n} फ़ोल्डर रखता है। नया जोड़ने के लिए एक हटाएँ।",
@@ -1152,9 +1152,6 @@ export const hi: Table = {
 	"Show this list": "यह सूची दिखाएँ",
 	Loading: "लोड हो रहा है",
 	"Big files take a little longer": "बड़ी फ़ाइलों में थोड़ा ज़्यादा समय लगता है",
-	"Ink for text and marks": "टेक्स्ट और निशानों की स्याही",
-	"Text in blue": "नीला टेक्स्ट",
-	"Text in black": "काला टेक्स्ट",
 	Top: "ऊपर",
 	Foot: "नीचे",
 	Align: "संरेखण",
@@ -1201,4 +1198,25 @@ export const hi: Table = {
 		"इस फ़ोन का वेब इंजन (Android System WebView) पुराना है, इसलिए यह फ़ाइल नहीं दिखाई जा सकी। इसे अपने ऐप स्टोर से अपडेट करें (Huawei फ़ोन पर AppGallery से Huawei WebView अपडेट करें), फिर दोबारा कोशिश करें।",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"इस फ़ोन का वेब इंजन पुराना है। Android System WebView अपडेट करें (Huawei फ़ोन पर Huawei WebView), फिर दोबारा कोशिश करें।",
+	"Place another": "एक और लगाएँ",
+	"File in use": "फ़ाइल उपयोग में है",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} किसी दूसरे ऐप में खुली है जो इसे साझा नहीं करता। उसे वहाँ बंद करें, फिर दोबारा कोशिश करें।",
+	"{file} could not be read.": "{file} पढ़ी नहीं जा सकी।",
+	"Unavailable · click to locate": "उपलब्ध नहीं · ढूँढने के लिए क्लिक करें",
+	"Nothing to crop on these pages": "इन पन्नों पर काटने को कुछ नहीं",
+	"Crop by hand": "खुद काटें",
+	"Crop pages": "पृष्ठ काटें",
+	"No crop": "कोई कटाई नहीं",
+	"Apply to": "किस पर लागू करें",
+	"All pages": "सभी पृष्ठ",
+	"Odd pages": "विषम पृष्ठ",
+	"Even pages": "सम पृष्ठ",
+	"Leave out headers and page numbers": "हेडर और पृष्ठ संख्या छोड़ दें",
+	"What is kept of the page": "पृष्ठ का जो हिस्सा रखा जाएगा",
+	Photo: "फ़ोटो",
+	"Side by side": "साथ-साथ",
+	"Show beside this": "इसके बगल में दिखाएँ",
+	"Swap sides": "दाएँ-बाएँ बदलें",
+	"Resize the two documents": "दोनों दस्तावेज़ों का आकार बदलें",
 };

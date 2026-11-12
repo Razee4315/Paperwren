@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { PDFDocument } from "@cantoo/pdf-lib";
 import { type Page, expect, test } from "@playwright/test";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import { boot, openFixture } from "./helpers";
+import { boot, openFixture, pickTool } from "./helpers";
 
 test.describe("rename", () => {
 	test("a file is renamed from its menu, keeping its extension", async ({
@@ -175,7 +175,7 @@ test.describe("fill & sign", () => {
 		await page.getByTestId("home-tool-sign").click();
 		await addFile(page, "features/form.pdf");
 		await page.getByTestId("tool-go").click();
-		await page.getByTestId("fill-tool-initials").click();
+		await pickTool(page, "initials");
 		const canvas = page.getByTestId("signature-canvas");
 		const drawLine = async (x: number) => {
 			const box = await canvas.boundingBox();
@@ -266,7 +266,7 @@ test.describe("fill & sign", () => {
 		expect(widths[3]).toBeGreaterThan(widths[2] * 1.5);
 	});
 
-	test("initials accept touch strokes and the compact dialog stays reachable in landscape", async ({
+	test("initials accept touch strokes and the pad stays whole in landscape", async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 320, height: 568 });
@@ -274,8 +274,10 @@ test.describe("fill & sign", () => {
 		await page.getByTestId("home-tool-sign").click();
 		await addFile(page, "features/form.pdf");
 		await page.getByTestId("tool-go").click();
-		await page.getByTestId("fill-tool-initials").click();
-		await page.getByTestId("signature-fullscreen").click();
+		await pickTool(page, "initials");
+		// A phone draws on the whole screen: no toggle, nothing to scroll.
+		await expect(page.getByTestId("signature-fullscreen")).toHaveCount(0);
+		await expect(page.getByTestId("signature-done")).toBeInViewport();
 		const canvas = page.getByTestId("signature-canvas");
 		const box = await canvas.boundingBox();
 		if (!box) throw new Error("No signature canvas");
@@ -306,7 +308,10 @@ test.describe("fill & sign", () => {
 			await canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL()),
 		).toBe(before);
 		await page.setViewportSize({ width: 568, height: 320 });
-		await page.getByTestId("signature-fullscreen-done").click();
+		await expect(page.getByTestId("signature-done")).toBeInViewport();
+		await expect
+			.poll(async () => (await canvas.boundingBox())?.height)
+			.toBeGreaterThan(100);
 		await page.getByTestId("signature-done").click();
 		await expect(page.getByTestId("signature-pad")).toHaveCount(0);
 		const kept = await page.evaluate(
@@ -317,7 +322,7 @@ test.describe("fill & sign", () => {
 		expect(Math.max(kept.w, kept.h)).toBeGreaterThan(1000);
 	});
 
-	test("a phone signature expands, keeps its shape on rotation, and supports redo", async ({
+	test("a phone signature fills the screen, keeps its shape on rotation, and supports redo", async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 360, height: 800 });
@@ -351,12 +356,10 @@ test.describe("fill & sign", () => {
 					ratio: (right - left + 1) / (bottom - top + 1),
 				};
 			});
-		const compact = await canvas.boundingBox();
-		if (!compact) throw new Error("No compact canvas");
-		await page.getByTestId("signature-fullscreen").click();
 		await expect
 			.poll(async () => (await canvas.boundingBox())?.height)
-			.toBeGreaterThan(500);
+			.toBeGreaterThan(400);
+		await expect(page.getByTestId("signature-done")).toBeInViewport();
 		await sign(page);
 		const portrait = await inkShape();
 		const drawn = await pixels();
@@ -371,26 +374,18 @@ test.describe("fill & sign", () => {
 		await expect
 			.poll(async () => (await inkShape()).ratio)
 			.toBeCloseTo(portrait.ratio, 1);
-		await expect(
-			page.getByTestId("signature-fullscreen-done"),
-		).toBeInViewport();
+		await expect(page.getByTestId("signature-done")).toBeInViewport();
 		await page.setViewportSize({ width: 360, height: 800 });
 		await expect
 			.poll(async () => (await canvas.boundingBox())?.height)
-			.toBeGreaterThan(500);
-		await page.getByTestId("signature-fullscreen-done").click();
-		await expect(page.getByTestId("signature-fullscreen")).toBeFocused();
-		await expect
-			.poll(async () => (await canvas.boundingBox())?.height)
-			.toBeCloseTo(compact.height, 0);
+			.toBeGreaterThan(400);
 		await expect
 			.poll(async () => (await inkShape()).ratio)
 			.toBeCloseTo(portrait.ratio, 1);
+		// Turning the phone back and forth cannot shrink the signature.
 		const small = await inkShape();
-		// Repeated expansion cannot progressively shrink the signature.
-		await page.getByTestId("signature-fullscreen").click();
-		await page.keyboard.press("Escape");
-		await expect(page.getByTestId("signature-pad")).toBeVisible();
+		await page.setViewportSize({ width: 800, height: 360 });
+		await page.setViewportSize({ width: 360, height: 800 });
 		await expect
 			.poll(async () => (await inkShape()).width)
 			.toBeCloseTo(small.width, 0);
@@ -401,10 +396,7 @@ test.describe("fill & sign", () => {
 		await page.getByTestId("signature-clear").click();
 		await expect(page.getByTestId("signature-done")).toBeDisabled();
 		await expect(page.getByTestId("signature-redo")).toBeDisabled();
-		await page.getByTestId("signature-fullscreen").click();
 		await sign(page);
-		await page.evaluate(() => window.__paperwrenHandleBack?.());
-		await expect(page.getByTestId("signature-done")).toBeVisible();
 		await page.getByTestId("signature-done").click();
 		await expect(page.getByTestId("fill-item")).toHaveCount(1);
 		const kept = await page.evaluate(
@@ -559,6 +551,53 @@ test.describe("fill & sign", () => {
 		await read.destroy();
 	});
 
+	test("form fields are drawn once, and their text follows the zoom", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await boot(page, {}, "?desktop");
+		await page.getByTestId("home-tool-sign").click();
+		await addFile(page, "features/form.pdf");
+		await page.getByTestId("tool-go").click();
+		const editor = page.getByTestId("fill-sign");
+		const plan = editor.getByLabel("plan");
+		await expect(plan).toBeVisible();
+		const size = () =>
+			plan.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+		const at100 = await size();
+		await editor.getByLabel("Zoom in").click();
+		await editor.getByLabel("Zoom in").click();
+		await expect.poll(size).toBeCloseTo(at100 * 2, 0);
+		await plan.scrollIntoViewIfNeeded();
+		const canvas = editor.locator("canvas[data-drawn]").first();
+		await expect(canvas).toBeAttached();
+		// Under the field, the page's picture is bare paper: the file's own
+		// "Monthly" is not drawn there too.
+		await expect
+			.poll(() =>
+				plan.evaluate((field) => {
+					const page = field.closest("[data-page]");
+					const art = page?.querySelector("canvas");
+					const ctx = art?.getContext("2d");
+					if (!page || !art || !ctx || !art.dataset.drawn) return -1;
+					const p = page.getBoundingClientRect();
+					const f = field.getBoundingClientRect();
+					const k = art.width / p.width;
+					const data = ctx.getImageData(
+						(f.left - p.left + 4) * k,
+						(f.top - p.top + 4) * k,
+						(f.width - 8) * k,
+						(f.height - 8) * k,
+					).data;
+					let dark = 0;
+					for (let i = 0; i < data.length; i += 4)
+						if (data[i] + data[i + 1] + data[i + 2] < 450) dark++;
+					return dark;
+				}),
+			)
+			.toBe(0);
+	});
+
 	test("leaving with changes asks first; a typed signature works too", async ({
 		page,
 	}) => {
@@ -572,6 +611,26 @@ test.describe("fill & sign", () => {
 		const editor = page.getByTestId("fill-sign");
 		await editor.getByTestId("fill-tool-sign").click();
 		await page.getByTestId("signature-type").click();
+		// The same three faces on every system, bundled; a long name
+		// shrinks to show whole.
+		await page
+			.getByTestId("signature-name")
+			.fill("Ayesha Khan Siddiqui Rahman");
+		const hands = page.getByTestId("signature-hand");
+		await expect(hands).toHaveCount(3);
+		await expect
+			.poll(() =>
+				page.evaluate(() =>
+					["Dancing Script", "Great Vibes", "Caveat"].every((face) =>
+						document.fonts.check(`20px "${face}"`),
+					),
+				),
+			)
+			.toBe(true);
+		const sizes = await hands.evaluateAll((els) =>
+			els.map((el) => Number.parseFloat(getComputedStyle(el).fontSize)),
+		);
+		expect(Math.min(...sizes)).toBeLessThan(38);
 		await page.getByTestId("signature-name").fill("Ayesha Khan");
 		await page.getByTestId("signature-keep").uncheck();
 		await page.getByTestId("signature-done").click();
@@ -610,6 +669,225 @@ test.describe("fill & sign", () => {
 		await page.getByTestId("pdf-fill-sign").click();
 		await editor.getByTestId("fill-tool-sign").click();
 		await expect(page.getByTestId("signature-pad")).toBeVisible();
+	});
+});
+
+test.describe("fill & sign by touch", () => {
+	test.use({
+		viewport: { width: 390, height: 844 },
+		isMobile: true,
+		hasTouch: true,
+	});
+
+	test("a phone keeps the page first: Save on top, four tools and More, one ink", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 360, height: 640 });
+		await boot(page);
+		await page.getByTestId("home-tool-sign").click();
+		await addFile(page, "features/form.pdf");
+		await page.getByTestId("tool-go").click();
+		const editor = page.getByTestId("fill-sign");
+		await expect(editor.getByTestId("fill-field")).toHaveCount(5);
+		// Save in the top bar, above the page; the tools below it.
+		const pages = await page.getByTestId("fill-pages").boundingBox();
+		const save = await page.getByTestId("fill-save").boundingBox();
+		expect((save?.y ?? 999) + (save?.height ?? 0)).toBeLessThanOrEqual(
+			pages?.y ?? 0,
+		);
+		const bar = editor.locator("[role=toolbar] button");
+		await expect(bar).toHaveCount(5);
+		for (const box of await bar.evaluateAll((els) =>
+			els.map((el) => el.getBoundingClientRect().toJSON()),
+		)) {
+			expect(box.left).toBeGreaterThanOrEqual(0);
+			expect(box.right).toBeLessThanOrEqual(360);
+			expect(box.top).toBeGreaterThanOrEqual(
+				(pages?.y ?? 0) + (pages?.height ?? 0) - 1,
+			);
+		}
+		// No hint until there is a next step.
+		await expect(page.getByTestId("fill-guidance")).toHaveCount(0);
+		await page.getByTestId("fill-tool-text").click();
+		await expect(page.getByTestId("fill-hint")).toContainText("Text:");
+		await page
+			.getByTestId("fill-guidance")
+			.getByRole("button", { name: "Cancel", exact: true })
+			.click();
+		await expect(page.getByTestId("fill-guidance")).toHaveCount(0);
+		// The rarer tools, the ink and the zoom are in More.
+		await page.getByTestId("fill-tool-more").click();
+		const more = page.getByTestId("fill-more");
+		for (const id of [
+			"fill-tool-initials",
+			"fill-tool-stamp",
+			"fill-tool-cross",
+			"fill-zoom-in",
+		])
+			await expect(more.getByTestId(id)).toBeVisible();
+		await more.getByTestId("fill-ink-black").click();
+		// The signature takes the same ink.
+		await page.getByTestId("fill-tool-sign").click();
+		await expect(
+			page
+				.getByTestId("signature-pad")
+				.getByRole("button", { name: "Black ink" }),
+		).toHaveAttribute("aria-pressed", "true");
+	});
+
+	test("typed words read on a phone while they are typed", async ({ page }) => {
+		await boot(page);
+		await page.getByTestId("home-tool-sign").click();
+		await addFile(page, "features/form.pdf");
+		await page.getByTestId("tool-go").click();
+		const editor = page.getByTestId("fill-sign");
+		await expect(editor.getByTestId("fill-field")).toHaveCount(5);
+		await page.getByTestId("fill-tool-text").click();
+		const box = await editor.getByTestId("fill-page").first().boundingBox();
+		if (!box) throw new Error("no page");
+		await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.75);
+		const field = page.getByTestId("fill-item-text");
+		await expect(field).toBeFocused();
+		await page.keyboard.type("Ayesha Khan, Lahore");
+		// At a size that reads, every word in view.
+		const typing = await field.evaluate((el: HTMLInputElement) => ({
+			size: Number.parseFloat(getComputedStyle(el).fontSize),
+			whole: el.scrollWidth <= el.clientWidth + 1 && el.scrollLeft === 0,
+		}));
+		expect(typing.size).toBeGreaterThanOrEqual(16);
+		expect(typing.whole).toBe(true);
+		// Typed, the mark is its own size on the page again.
+		await page.keyboard.press("Enter");
+		await expect(field).toHaveCount(0);
+		const placed = await editor
+			.getByTestId("fill-item")
+			.first()
+			.evaluate((el) =>
+				Number.parseFloat(
+					getComputedStyle(el.querySelector("span") ?? el).fontSize,
+				),
+			);
+		expect(placed).toBeLessThan(16);
+	});
+
+	test("a finger scroll places nothing; one tap places one mark", async ({
+		page,
+	}) => {
+		await boot(page);
+		await page.getByTestId("home-tool-sign").click();
+		await addFile(page, "features/form.pdf");
+		await page.getByTestId("tool-go").click();
+		const editor = page.getByTestId("fill-sign");
+		await expect(editor.getByTestId("fill-field")).toHaveCount(5);
+		await editor.getByTestId("fill-tool-sign").click();
+		await page.getByTestId("signature-type").click();
+		await page.getByTestId("signature-name").fill("Ayesha Khan");
+		await page.getByTestId("signature-keep").uncheck();
+		await page.getByTestId("signature-done").click();
+
+		const pages = editor.getByTestId("fill-pages");
+		const box = await pages.boundingBox();
+		if (!box) throw new Error("no pages");
+		await page.touchscreen.tap(box.x + box.width / 2, box.y + 300);
+		const items = editor.getByTestId("fill-item");
+		await expect(items).toHaveCount(1);
+		// The tool is put down: a later touch can't add another.
+		await expect(pages).not.toHaveAttribute("data-tool", /./);
+
+		const cdp = await page.context().newCDPSession(page);
+		const swipe = async (x: number, y: number, dy: number) => {
+			await cdp.send("Input.dispatchTouchEvent", {
+				type: "touchStart",
+				touchPoints: [{ x, y }],
+			});
+			for (let i = 1; i <= 10; i++)
+				await cdp.send("Input.dispatchTouchEvent", {
+					type: "touchMove",
+					touchPoints: [{ x, y: y + (i * dy) / 10 }],
+				});
+			await cdp.send("Input.dispatchTouchEvent", {
+				type: "touchEnd",
+				touchPoints: [],
+			});
+		};
+		// Let go of the signature, then swipe on it, on paper and on a field.
+		await page.touchscreen.tap(box.x + 20, box.y + 100);
+		const mark = await items.boundingBox();
+		if (!mark) throw new Error("no mark");
+		const from = await items.evaluate((el) => el.style.left + el.style.top);
+		await swipe(mark.x + mark.width / 2, mark.y + mark.height / 2, -250);
+		await expect
+			.poll(() => pages.evaluate((el) => el.scrollTop))
+			.toBeGreaterThan(50);
+		for (let k = 0; k < 5; k++) {
+			await swipe(box.x + box.width / 2, box.y + box.height - 80, -250);
+			await swipe(box.x + box.width / 2, box.y + 200, 200);
+		}
+		await cdp.detach();
+		await expect(items).toHaveCount(1);
+		// The signature scrolled with the page, it was not dragged.
+		expect(await items.evaluate((el) => el.style.left + el.style.top)).toBe(
+			from,
+		);
+		await pages.evaluate((el) => {
+			el.scrollTop = 0;
+		});
+
+		// Signing again is one tap on "Place another", then one on the page.
+		await editor.getByTestId("fill-again").tap();
+		await page.touchscreen.tap(box.x + box.width / 2, box.y + 450);
+		await expect(items).toHaveCount(2);
+	});
+
+	test("the pad fits a phone on its side, and two fingers draw nothing", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 740, height: 360 });
+		await boot(page);
+		await page.getByTestId("home-tool-sign").click();
+		await addFile(page, "features/form.pdf");
+		await page.getByTestId("tool-go").click();
+		await page.getByTestId("fill-tool-sign").click();
+		const pad = page.getByTestId("signature-pad");
+		await expect(page.getByTestId("signature-done")).toBeInViewport();
+		// Nothing in the dialog scrolls.
+		expect(
+			await pad.evaluate((d) =>
+				[d, ...d.querySelectorAll("*")].some(
+					(e) =>
+						e.scrollHeight > e.clientHeight + 2 &&
+						["auto", "scroll"].includes(getComputedStyle(e).overflowY),
+				),
+			),
+		).toBe(false);
+		const box = await page.getByTestId("signature-canvas").boundingBox();
+		if (!box) throw new Error("no pad");
+		expect(box.height).toBeGreaterThan(100);
+		const cdp = await page.context().newCDPSession(page);
+		const a = { x: box.x + 60, y: box.y + 30, id: 1 };
+		const b = { x: box.x + 200, y: box.y + 30, id: 2 };
+		await cdp.send("Input.dispatchTouchEvent", {
+			type: "touchStart",
+			touchPoints: [a],
+		});
+		await cdp.send("Input.dispatchTouchEvent", {
+			type: "touchStart",
+			touchPoints: [a, b],
+		});
+		for (let i = 1; i <= 8; i++)
+			await cdp.send("Input.dispatchTouchEvent", {
+				type: "touchMove",
+				touchPoints: [
+					{ ...a, y: a.y + i * 8 },
+					{ ...b, y: b.y + i * 8 },
+				],
+			});
+		await cdp.send("Input.dispatchTouchEvent", {
+			type: "touchEnd",
+			touchPoints: [],
+		});
+		await cdp.detach();
+		await expect(page.getByTestId("signature-done")).toBeDisabled();
 	});
 });
 

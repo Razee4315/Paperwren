@@ -9,6 +9,44 @@ test("empty Home explains what the app opens", async ({ page }) => {
 	);
 });
 
+test("a phone's Open file covers nothing on Home", async ({ page }) => {
+	const covered = () =>
+		page.evaluate(() => {
+			const fab = document
+				.querySelector("[data-testid=open-file]")
+				?.getBoundingClientRect();
+			if (!fab) return ["no button"];
+			return [...document.querySelectorAll("main p, main button")]
+				.filter((el) => !el.matches("[data-testid=open-file]"))
+				.filter((el) => {
+					const r = el.getBoundingClientRect();
+					return (
+						r.height > 0 &&
+						r.bottom > fab.top &&
+						r.top < fab.bottom &&
+						r.right > fab.left &&
+						r.left < fab.right
+					);
+				})
+				.map((el) => el.textContent?.trim());
+		});
+	for (const size of [
+		{ width: 360, height: 640 },
+		{ width: 390, height: 844 },
+	]) {
+		await page.setViewportSize(size);
+		await boot(page);
+		// Empty, the button sits among the words.
+		await expect(page.getByTestId("empty-state")).toBeVisible();
+		expect(await covered()).toEqual([]);
+	}
+	// With files to scroll past, it floats at the foot again.
+	await openFixture(page, "sample.pdf");
+	await page.getByTestId("viewer-back").click();
+	await expect(page.getByTestId("recent").first()).toBeVisible();
+	await expect(page.getByTestId("open-file")).toHaveCSS("position", "fixed");
+});
+
 test("recents survive a reload and reopen", async ({ page }) => {
 	await boot(page);
 	await openFixture(page, "sample.pdf", "2026 tax return.pdf");
@@ -108,6 +146,25 @@ test("settings change the theme and system Back closes layers in order", async (
 	await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
+test("Auto, the first theme, is plain white or dark as the device is", async ({
+	page,
+}) => {
+	await page.emulateMedia({ colorScheme: "light" });
+	await boot(page);
+	const html = page.locator("html");
+	await expect(html).toHaveAttribute("data-theme", "plain-light");
+	await page.emulateMedia({ colorScheme: "dark" });
+	await expect(html).toHaveAttribute("data-theme", "plain-dark");
+	// Paper and Ink are still there to pick.
+	await page.getByTestId("open-settings").click();
+	await expect(page.getByTestId("theme-system")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await page.getByTestId("theme-light").click();
+	await expect(html).toHaveAttribute("data-theme", "light");
+});
+
 test("legacy settings from the previous version are migrated", async ({
 	page,
 }) => {
@@ -152,6 +209,35 @@ test("skip leaves the welcome immediately", async ({ page }) => {
 	await page.goto("/");
 	await page.getByTestId("onboarding-skip").click();
 	await expect(page.getByTestId("onboarding")).toBeHidden({ timeout: 5000 });
+});
+
+test("two recent files of one name each say their folder", async ({ page }) => {
+	const deck = (id: string, path: string, openedAt: number) => ({
+		id,
+		name: "Marketing_01.pptx",
+		format: "pptx",
+		size: 7_500_000,
+		reopen: { kind: "path", path },
+		openedAt,
+		pinned: false,
+	});
+	await boot(page, {
+		recents_v2: [
+			deck("a", "/home/me/Desktop/Marketing/Marketing_01.pptx", Date.now()),
+			deck("b", "/home/me/Downloads/Marketing_01.pptx", Date.now() - 1000),
+			{
+				...deck("c", "/home/me/Downloads/Plan.pdf", Date.now() - 2000),
+				name: "Plan.pdf",
+				format: "pdf",
+			},
+		],
+	});
+	const rows = page.getByTestId("recent");
+	await expect(rows).toHaveCount(3);
+	await expect(rows.nth(0)).toContainText("Marketing ·");
+	await expect(rows.nth(1)).toContainText("Downloads ·");
+	// A name of its own needs no folder.
+	await expect(rows.nth(2)).not.toContainText("Downloads");
 });
 
 /** A recent whose file is gone: the not-found dialog must be able to

@@ -304,8 +304,8 @@ export const ar: Table = {
 		"الطريقة الصغيرة الهادئة لفتح كل مستند على جهازك.",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"لا إنترنت ولا حسابات ولا إعلانات. ملفاتك لا تغادر جهازك أبدًا.",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"لكل سمة لونها الهادئ. «تلقائي» يتبع جهازك: ورق نهارًا وحبر ليلًا.",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"لكل سمة لونها الهادئ. «تلقائي» يتبع جهازك: فاتح نهارًا وداكن ليلًا.",
 	"Same as the device": "مثل الجهاز",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"يحتفظ Paperwren بما يصل إلى {n} مجلدًا. أزل واحدًا لإضافة آخر.",
@@ -1213,9 +1213,6 @@ export const ar: Table = {
 	"Show this list": "إظهار هذه القائمة",
 	Loading: "جارٍ التحميل",
 	"Big files take a little longer": "تستغرق الملفات الكبيرة وقتًا أطول قليلًا",
-	"Ink for text and marks": "حبر النص والعلامات",
-	"Text in blue": "نص أزرق",
-	"Text in black": "نص أسود",
 	Top: "الأعلى",
 	Foot: "الأسفل",
 	Align: "المحاذاة",
@@ -1262,4 +1259,25 @@ export const ar: Table = {
 		"محرّك الويب في هذا الهاتف (Android System WebView) قديم، لذا تعذّر عرض هذا الملف. حدّثه من متجر التطبيقات (على هواتف Huawei حدّث Huawei WebView من AppGallery)، ثم حاول مجددًا.",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"محرّك الويب في هذا الهاتف قديم. حدّث Android System WebView (أو Huawei WebView على هواتف Huawei)، ثم حاول مجددًا.",
+	"Place another": "ضع واحدًا آخر",
+	"File in use": "الملف قيد الاستخدام",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} مفتوح في تطبيق آخر لا يسمح بمشاركته. أغلقه هناك، ثم حاول مجددًا.",
+	"{file} could not be read.": "تعذّرت قراءة {file}.",
+	"Unavailable · click to locate": "غير متاح · انقر لتحديد موقعه",
+	"Nothing to crop on these pages": "لا شيء لقصّه في هذه الصفحات",
+	"Crop by hand": "القص يدويًا",
+	"Crop pages": "قص الصفحات",
+	"No crop": "بلا قص",
+	"Apply to": "تطبيق على",
+	"All pages": "كل الصفحات",
+	"Odd pages": "الصفحات الفردية",
+	"Even pages": "الصفحات الزوجية",
+	"Leave out headers and page numbers": "استبعاد الترويسات وأرقام الصفحات",
+	"What is kept of the page": "ما يُبقى من الصفحة",
+	Photo: "صورة",
+	"Side by side": "جنبًا إلى جنب",
+	"Show beside this": "اعرض بجانب هذا",
+	"Swap sides": "تبديل الجانبين",
+	"Resize the two documents": "غيّر حجم المستندين",
 };

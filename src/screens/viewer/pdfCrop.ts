@@ -2,27 +2,51 @@
  * Crop margins: a PDF's pages shown without the white around what is
  * printed on them, so a phone's narrow screen holds text, not paper.
  *
- * Each page's printed area is found from a small drawing of it. Pages
- * then show the area usual for the document's pages (odd and even pages
- * apart, as a book's margins alternate), widened wherever a page prints
- * further out, so nothing printed is ever cut; and one unusually wide
- * page does not widen the others. pdf.js reads a page's box
+ * Each page's printed area is found from a small drawing of it. Every
+ * page then shows a box of the same size, as wide and as tall as the
+ * widest and tallest printed area of the pages read to learn the
+ * document: pdf.js draws every page at one scale, so pages of one size
+ * keep the text the same size page after page, and "Fit width" fits
+ * them all. Each box sits where that page's side (odd or even, as a
+ * book's margins alternate) usually prints, moved to take in all the
+ * page prints, so nothing printed is cut. A page of another size than
+ * the rest (a fold-out) is cropped on its own. pdf.js reads a page's box
  * from one field of its page object; that is what changes, and changes
  * back. Printing always takes the whole page.
  */
 
+import { type CropChoice, type Share, boxByHand, byHand } from "@/lib/crop";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 
-type Box = [number, number, number, number];
+/** Left, bottom, right, top (a page's own space), or left, top, right,
+ * bottom (a drawing's pixels). */
+export type Box = [number, number, number, number];
 
 /** A drawing this wide is enough to find the margins. */
 const PROBE_WIDTH = 220;
-/** Darker than this (of 255) is ink. */
+/** Darker than this (of 255) is ink, on white paper. */
 const INK = 232;
+/** On paper of another tone, ink is this much darker than the paper. */
+const PAPER_MARGIN = 24;
+/** Paper at least this light is white: a page made on a computer. */
+const WHITE = 250;
+/** The darkest a page's paper is taken to be. */
+const PAPER_DARKEST = 128;
+/** A dark band along an edge runs at least this share of the page's
+ * length (of the lines across it), and is at most this deep. */
+const BAND_FILL = 0.6;
+const BAND_DEPTH = 0.15;
 /** Kept around what is printed, as a share of the page. */
 const PAD = 0.025;
+/** A running header or a page number is within this share of the
+ * page's top or foot, apart from the text by a gap of at least this. */
+const EDGE_SHARE = 0.08;
+const GAP_SHARE = 0.015;
 /** Pages read to learn the document's usual printed area. */
 const SAMPLES = 8;
+/** Pages whose size differs from the document's by more than this
+ * share are cropped on their own. */
+const OTHER_SIZE = 0.2;
 
 interface WithInfo {
 	_pageInfo?: { view: Box };
@@ -63,9 +87,178 @@ export function whole<T>(page: PDFPageProxy, fn: () => T): T {
 	}
 }
 
+/** The paper's colour, as the commonest light value (0-255) of a drawing:
+ * white for a printed page, grey for a scan or a photo of one. */
+function paperTone(shade: Uint8Array, seen: Uint8Array): number {
+	const counts = new Uint32Array(256);
+	for (let i = 0; i < shade.length; i++) if (seen[i]) counts[shade[i]]++;
+	let best = 255;
+	for (let v = PAPER_DARKEST; v < 256; v++)
+		if (counts[v] > counts[best]) best = v;
+	return best;
+}
+
+/**
+ * How many rows (or columns) at one edge are a solid dark band, a
+ * scanner's edge or a shadow: lines mostly ink, from the edge in, fading
+ * into lines mostly paper before a share of the page is used up. A page
+ * dark all over (a photo) has no band.
+ */
+function edgeBand(dense: (line: number) => number, lines: number[]): number {
+	const most = Math.ceil(lines.length * BAND_DEPTH);
+	let n = 0;
+	// A line or two of paper at the very edge (the drawing's last line,
+	// only partly on the page, is left white) can come before the band.
+	while (n < 2 && dense(lines[n]) < BAND_FILL / 2) n++;
+	const start = n;
+	while (n < most && dense(lines[n]) > BAND_FILL) n++;
+	if (n === start || n >= most) return 0;
+	// A blurred edge fades into the paper over a line or two.
+	for (let k = n; k < Math.min(most, n + 3); k++)
+		if (dense(lines[k]) < BAND_FILL / 2) return k;
+	return 0;
+}
+
+/**
+ * The part of a drawing of a page that is printed on, in its pixels
+ * (left, top, right, bottom; right and bottom just past it), or null
+ * when nothing is. `data` is RGBA, as a canvas gives it. Ink is what is
+ * clearly darker than the page's own paper; a dark band along an edge
+ * (a scan's) and lone specks are not what is printed. `bare` leaves out
+ * a running header and a page number too.
+ */
+export function inkBox(
+	data: Uint8ClampedArray,
+	width: number,
+	height: number,
+	bare = false,
+): Box | null {
+	const size = width * height;
+	const shade = new Uint8Array(size);
+	const seen = new Uint8Array(size);
+	for (let p = 0; p < size; p++) {
+		const i = p * 4;
+		// Transparent is paper too.
+		if (data[i + 3] < 16) continue;
+		seen[p] = 1;
+		shade[p] = Math.min(data[i], data[i + 1], data[i + 2]);
+	}
+	const paper = paperTone(shade, seen);
+	const below = Math.min(INK, paper - PAPER_MARGIN);
+	// Only a scan (paper not pure white) has edges of its own: a banner
+	// along the top of a page made on a computer is printed.
+	const scanned = paper < WHITE;
+	const ink = new Uint8Array(size);
+	for (let p = 0; p < size; p++) ink[p] = seen[p] && shade[p] < below ? 1 : 0;
+	const range = (n: number) => Array.from({ length: n }, (_, i) => i);
+	// Bands down the sides, then (within what is left) across the top
+	// and bottom.
+	const columns = range(width);
+	const columnFill = (x: number) => {
+		let n = 0;
+		for (let y = 0; y < height; y++) n += ink[y * width + x];
+		return n / height;
+	};
+	const band = (fill: (line: number) => number, lines: number[]) =>
+		scanned ? edgeBand(fill, lines) : 0;
+	const left = band(columnFill, columns);
+	const right = width - band(columnFill, columns.reverse());
+	if (right <= left) return null;
+	const rows = range(height);
+	const rowFill = (y: number) => {
+		let n = 0;
+		for (let x = left; x < right; x++) n += ink[y * width + x];
+		return n / (right - left);
+	};
+	const top = band(rowFill, rows);
+	const bottom = height - band(rowFill, rows.reverse());
+	// Within the bands, a speck is ink with fewer than two ink pixels
+	// around it; a stroke of a letter, however thin, has one on each side.
+	const inside = (x: number, y: number) =>
+		x >= left && x < right && y >= top && y < bottom && ink[y * width + x];
+	// Each row's leftmost and rightmost ink (-1: none).
+	const from = new Int32Array(height).fill(-1);
+	const to = new Int32Array(height).fill(-1);
+	for (let y = top; y < bottom; y++) {
+		for (let x = left; x < right; x++) {
+			if (!ink[y * width + x]) continue;
+			let near = 0;
+			for (let dy = -1; dy <= 1; dy++)
+				for (let dx = -1; dx <= 1; dx++)
+					if ((dx || dy) && inside(x + dx, y + dy)) near++;
+			if (near < 2) continue;
+			if (from[y] < 0) from[y] = x;
+			to[y] = x + 1;
+		}
+	}
+	const has = (y: number) => to[y] >= 0;
+	let first = top;
+	while (first < bottom && !has(first)) first++;
+	if (first >= bottom) return null;
+	let last = bottom - 1;
+	while (!has(last)) last--;
+	if (bare) [first, last] = leaveOutEdges(has, first, last, height);
+	let box: Box | null = null;
+	for (let y = first; y <= last; y++) {
+		if (!has(y)) continue;
+		if (!box) box = [from[y], y, to[y], y + 1];
+		else {
+			box[0] = Math.min(box[0], from[y]);
+			box[2] = Math.max(box[2], to[y]);
+			box[3] = y + 1;
+		}
+	}
+	return box;
+}
+
+/**
+ * The rows printed on once a running header and a page number are left
+ * out: a few lines of ink near the top or the foot of the page, apart
+ * from the rest by a clear gap.
+ */
+function leaveOutEdges(
+	has: (y: number) => boolean,
+	top: number,
+	bottom: number,
+	height: number,
+): [number, number] {
+	let first = top;
+	let last = bottom;
+	const edge = height * EDGE_SHARE;
+	const gap = Math.max(2, Math.round(height * GAP_SHARE));
+	/** The far end of the lines starting at `y`, going `step` rows at a
+	 * time: ink with no gap as wide as `gap` in it. */
+	const group = (y: number, step: 1 | -1, stop: number) => {
+		let end = y;
+		for (let k = y + step; step > 0 ? k <= stop : k >= stop; k += step) {
+			if (Math.abs(k - end) > gap) break;
+			if (has(k)) end = k;
+		}
+		return end;
+	};
+	for (;;) {
+		const end = group(first, 1, last);
+		if (end >= edge || end >= last) break;
+		let next = end + 1;
+		while (next <= last && !has(next)) next++;
+		first = next;
+	}
+	for (;;) {
+		const end = group(last, -1, first);
+		if (end < height - edge || end <= first) break;
+		let next = end - 1;
+		while (next >= first && !has(next)) next--;
+		last = next;
+	}
+	return [first, last];
+}
+
 /** The box of a page's printed area, in its own space, or null when it
  * prints nothing (a blank page keeps its paper). */
-async function printedArea(page: PDFPageProxy): Promise<Box | null> {
+async function printedArea(
+	page: PDFPageProxy,
+	bare: boolean,
+): Promise<Box | null> {
 	const full = fullView(page);
 	const viewport = whole(page, () =>
 		page.getViewport({
@@ -86,25 +279,10 @@ async function printedArea(page: PDFPageProxy): Promise<Box | null> {
 		canvas.height,
 	);
 	canvas.width = canvas.height = 0;
-	let top = height;
-	let left = width;
-	let bottom = -1;
-	let right = -1;
-	for (let y = 0; y < height; y++) {
-		for (let x = 0; x < width; x++) {
-			const i = (y * width + x) * 4;
-			// Transparent is paper too.
-			if (data[i + 3] < 16) continue;
-			if (Math.min(data[i], data[i + 1], data[i + 2]) >= INK) continue;
-			if (y < top) top = y;
-			if (y > bottom) bottom = y;
-			if (x < left) left = x;
-			if (x > right) right = x;
-		}
-	}
-	if (bottom < 0) return null;
-	const [ax, ay] = viewport.convertToPdfPoint(left, top);
-	const [bx, by] = viewport.convertToPdfPoint(right + 1, bottom + 1);
+	const found = inkBox(data, width, height, bare);
+	if (!found) return null;
+	const [ax, ay] = viewport.convertToPdfPoint(found[0], found[1]);
+	const [bx, by] = viewport.convertToPdfPoint(found[2], found[3]);
 	return [
 		Math.min(ax, bx),
 		Math.min(ay, by),
@@ -129,22 +307,13 @@ function usualBox(boxes: Box[]): Box | null {
 	return [side(0, -1), side(1, -1), side(2, 1), side(3, 1)];
 }
 
-const union = (a: Box | null, b: Box | null): Box | null =>
-	!a
-		? b
-		: !b
-			? a
-			: [
-					Math.min(a[0], b[0]),
-					Math.min(a[1], b[1]),
-					Math.max(a[2], b[2]),
-					Math.max(a[3], b[3]),
-				];
+const across = (b: Box) => b[2] - b[0];
+const down = (b: Box) => b[3] - b[1];
 
 /** The printed area with a little paper around it, inside the page. */
 function padded(area: Box, page: Box): Box {
-	const dx = (page[2] - page[0]) * PAD;
-	const dy = (page[3] - page[1]) * PAD;
+	const dx = across(page) * PAD;
+	const dy = down(page) * PAD;
 	return [
 		Math.max(page[0], area[0] - dx),
 		Math.max(page[1], area[1] - dy),
@@ -153,53 +322,188 @@ function padded(area: Box, page: Box): Box {
 	];
 }
 
+/** The size every page's box takes: the widest and the tallest of the
+ * printed areas read, with a little paper around, no larger than the
+ * page. */
+export function sharedSize(areas: Box[], page: Box): [number, number] {
+	let w = 0;
+	let h = 0;
+	for (const area of areas) {
+		w = Math.max(w, across(area));
+		h = Math.max(h, down(area));
+	}
+	return [
+		Math.min(across(page), w + 2 * PAD * across(page)),
+		Math.min(down(page), h + 2 * PAD * down(page)),
+	];
+}
+
 /**
- * Crop a document's pages. Pages are cropped as pdf.js asks for them
- * (its page objects are kept, so each is measured once); `stop` puts
- * every page back as it was.
+ * Where a page's box goes: `size` across and down, centred where its
+ * side usually prints (`usual`), then moved as little as needed to take
+ * in what this page prints (`area`), and kept on the page. A page that
+ * prints wider or taller than `size` (one not read to learn the
+ * document) gets a box large enough for it: what is printed is never
+ * cut. All three are in the page's own space.
  */
-export async function cropPages(doc: PDFDocumentProxy) {
-	const own = doc.getPage.bind(doc);
+export function placeBox(
+	page: Box,
+	size: [number, number],
+	usual: Box | null,
+	area: Box | null,
+): Box {
+	const around = usual ?? area;
+	if (!around) return page;
+	const place = (axis: 0 | 1, len: number) => {
+		const lo = page[axis];
+		const hi = page[axis + 2];
+		let start = (around[axis] + around[axis + 2]) / 2 - len / 2;
+		if (area) {
+			start = Math.min(start, area[axis]);
+			start = Math.max(start, area[axis + 2] - len);
+		}
+		return Math.min(hi - len, Math.max(lo, start));
+	};
+	const w = Math.min(across(page), Math.max(size[0], area ? across(area) : 0));
+	const h = Math.min(down(page), Math.max(size[1], area ? down(area) : 0));
+	const x = place(0, w);
+	const y = place(1, h);
+	return [x, y, x + w, y + h];
+}
+
+/** Whether a page is of another size than the document's (a fold-out
+ * among A4 pages). */
+const otherSize = (page: Box, sheet: Box) =>
+	Math.abs(across(page) - across(sheet)) > OTHER_SIZE * across(sheet) ||
+	Math.abs(down(page) - down(sheet)) > OTHER_SIZE * down(sheet);
+
+/** A box by hand (shares of the page) in a page's own space. */
+export function fromShare(share: Share, full: Box): Box {
+	const w = across(full);
+	const h = down(full);
+	return [
+		full[0] + share[0] * w,
+		full[1] + share[1] * h,
+		full[0] + share[2] * w,
+		full[1] + share[3] * h,
+	];
+}
+
+/** A box in a page's own space as shares of the page, kept on it. */
+export function toShare(box: Box, full: Box): Share {
+	const w = Math.max(1e-6, across(full));
+	const h = Math.max(1e-6, down(full));
+	const at = (v: number) => Math.min(1, Math.max(0, v));
+	return [
+		at((box[0] - full[0]) / w),
+		at((box[1] - full[1]) / h),
+		at((box[2] - full[0]) / w),
+		at((box[3] - full[1]) / h),
+	];
+}
+
+/** The document's own page, past any crop of ours on its getPage. */
+export const ownPage = (doc: PDFDocumentProxy, n: number) =>
+	(Object.getPrototypeOf(doc) as PDFDocumentProxy).getPage.call(doc, n);
+
+export interface AutoCrop {
+	/** The box the app gives page `n`, in its own space. */
+	boxOf: (n: number) => Promise<Box>;
+	/** Whether the pages lose anything worth the name. */
+	trimmed: boolean;
+}
+
+/**
+ * The app's crop of a document: the usual printed area of odd and of
+ * even pages is learnt from a few of them first; each page is measured
+ * when its box is asked for, once.
+ */
+export async function autoCrop(
+	doc: PDFDocumentProxy,
+	bare = false,
+): Promise<AutoCrop> {
+	const own = (n: number) => ownPage(doc, n);
 	const areas = new Map<number, Promise<Box | null>>();
 	const measure = (n: number) => {
 		let area = areas.get(n);
 		if (!area) {
 			area = own(n)
-				.then(printedArea)
+				.then((page) => printedArea(page, bare))
 				.catch(() => null);
 			areas.set(n, area);
 		}
 		return area;
 	};
-	// The usual printed area of odd and of even pages.
+	// The usual printed area of odd and of even pages, from pages the
+	// size of the first: one of another size sets nothing for the rest.
 	const count = doc.numPages;
+	const sheet = fullView(await own(1));
 	const picks = new Set<number>([1, 2, 3, 4]);
 	for (let i = 1; i <= SAMPLES; i++)
 		picks.add(Math.max(1, Math.round((count * i) / (SAMPLES + 1))));
 	const seen: [Box[], Box[]] = [[], []];
 	for (const n of [...picks].filter((n) => n <= count)) {
 		const area = await measure(n);
-		if (area) seen[n % 2].push(area);
+		const page = fullView(await own(n));
+		if (area && !otherSize(page, sheet)) seen[n % 2].push(area);
 	}
 	const usual = [usualBox(seen[0]), usualBox(seen[1])];
+	const size = sharedSize([...seen[0], ...seen[1]], sheet);
+	return {
+		async boxOf(n) {
+			const area = await measure(n);
+			const full = fullView(await own(n));
+			if (otherSize(full, sheet)) return area ? padded(area, full) : full;
+			const common = usual[n % 2] ?? usual[(n + 1) % 2];
+			return placeBox(
+				full,
+				size,
+				common && padded(common, full),
+				area && padded(area, full),
+			);
+		},
+		// All but the whole page: nothing to take away.
+		trimmed: size[0] < across(sheet) * 0.97 || size[1] < down(sheet) * 0.97,
+	};
+}
+
+/**
+ * Crop a document's pages as `choice` says. Pages are cropped as pdf.js
+ * asks for them (its page objects are kept, so each is measured once);
+ * `stop` puts every page back as it was. `trimmed` says whether the
+ * pages lose anything worth the name.
+ */
+export async function cropPages(
+	doc: PDFDocumentProxy,
+	choice: CropChoice,
+): Promise<{ stop: () => void; trimmed: boolean }> {
+	const auto = choice.auto ? await autoCrop(doc, choice.bare) : null;
 	const touched = new Set<PDFPageProxy>();
 	const crop = async (page: PDFPageProxy, n: number) => {
-		const area = await measure(n);
-		const common = usual[n % 2] ?? usual[(n + 1) % 2];
-		const shown = union(common, area);
-		if (!shown || !canCrop(page)) return page;
-		setView(page, padded(shown, fullView(page)));
-		touched.add(page);
+		if (!canCrop(page)) return page;
+		const share = boxByHand(choice, n);
+		const box = share
+			? fromShare(share, fullView(page))
+			: auto
+				? await auto.boxOf(n)
+				: null;
+		if (box) {
+			setView(page, box);
+			touched.add(page);
+		}
 		return page;
 	};
-	const patched = (n: number) => own(n).then((page) => crop(page, n));
+	const patched = (n: number) => ownPage(doc, n).then((page) => crop(page, n));
 	(doc as { getPage: typeof doc.getPage }).getPage = patched;
-	return function stop() {
-		// The document's own method, on its prototype, shows again.
-		Reflect.deleteProperty(doc, "getPage");
-		for (const page of touched) {
-			const full = original.get(page);
-			if (full) setView(page, full);
-		}
+	return {
+		trimmed: byHand(choice) || !!auto?.trimmed,
+		stop() {
+			// The document's own method, on its prototype, shows again.
+			Reflect.deleteProperty(doc, "getPage");
+			for (const page of touched) {
+				const full = original.get(page);
+				if (full) setView(page, full);
+			}
+		},
 	};
 }

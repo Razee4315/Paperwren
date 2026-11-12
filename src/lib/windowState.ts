@@ -9,6 +9,7 @@
 
 import { backend } from "./backend";
 import { isDesktop, isTauri } from "./env";
+import { fullscreenChanging } from "./fullscreen";
 
 const KEY = "window";
 const SAVE_MS = 500;
@@ -99,7 +100,12 @@ export async function restoreWindow(): Promise<void> {
 			try {
 				// Neither a minimised nor a full-screen window has a size worth
 				// coming back to.
-				if ((await win.isMinimized()) || (await win.isFullscreen())) return;
+				if (
+					fullscreenChanging() ||
+					(await win.isMinimized()) ||
+					(await win.isFullscreen())
+				)
+					return;
 				const maximized = await win.isMaximized();
 				if (!maximized) normal = await read();
 				const next = { ...normal, maximized };

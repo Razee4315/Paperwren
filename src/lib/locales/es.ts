@@ -307,8 +307,8 @@ export const es: Table = {
 		"La forma pequeña y tranquila de abrir cualquier documento en tu dispositivo.",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"Sin internet, sin cuentas, sin anuncios. Tus archivos nunca salen de tu dispositivo.",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"Cada tema tiene su propio color sereno. Automático sigue a tu dispositivo: Papel de día, Tinta de noche.",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"Cada tema tiene su propio color sereno. Automático sigue a tu dispositivo: Claro de día, Oscuro de noche.",
 	"Same as the device": "Igual que el dispositivo",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren guarda hasta {n} carpetas. Quita una para añadir otra.",
@@ -1189,9 +1189,6 @@ export const es: Table = {
 	"Show this list": "Mostrar esta lista",
 	Loading: "Cargando",
 	"Big files take a little longer": "Los archivos grandes tardan un poco más",
-	"Ink for text and marks": "Tinta del texto y las marcas",
-	"Text in blue": "Texto en azul",
-	"Text in black": "Texto en negro",
 	Top: "Arriba",
 	Foot: "Abajo",
 	Align: "Alinear",
@@ -1238,4 +1235,26 @@ export const es: Table = {
 		"El motor web de este teléfono (Android System WebView) está desactualizado, así que no se pudo mostrar este archivo. Actualízalo desde tu tienda de aplicaciones (en teléfonos Huawei, actualiza Huawei WebView en AppGallery) y vuelve a intentarlo.",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"El motor web de este teléfono está desactualizado. Actualiza Android System WebView (Huawei WebView en teléfonos Huawei) y vuelve a intentarlo.",
+	"Place another": "Colocar otra",
+	"File in use": "Archivo en uso",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} está abierto en otra aplicación que no lo comparte. Ciérralo allí y vuelve a intentarlo.",
+	"{file} could not be read.": "No se pudo leer {file}.",
+	"Unavailable · click to locate": "No disponible · haz clic para buscarlo",
+	"Nothing to crop on these pages": "No hay nada que recortar en estas páginas",
+	"Crop by hand": "Recortar a mano",
+	"Crop pages": "Recortar páginas",
+	"No crop": "Sin recorte",
+	"Apply to": "Aplicar a",
+	"All pages": "Todas las páginas",
+	"Odd pages": "Páginas impares",
+	"Even pages": "Páginas pares",
+	"Leave out headers and page numbers":
+		"Omitir encabezados y números de página",
+	"What is kept of the page": "Lo que se conserva de la página",
+	Photo: "Foto",
+	"Side by side": "Lado a lado",
+	"Show beside this": "Mostrar junto a este",
+	"Swap sides": "Intercambiar lados",
+	"Resize the two documents": "Cambiar el tamaño de los dos documentos",
 };

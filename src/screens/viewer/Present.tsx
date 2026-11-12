@@ -1,4 +1,8 @@
 import { isDesktop } from "@/lib/env";
+import {
+	ofWindow as fullscreenOfWindow,
+	holdFullscreen,
+} from "@/lib/fullscreen";
 import { locale, t } from "@/lib/i18n";
 import { hintFor, matches } from "@/lib/shortcuts";
 import { holdScreen } from "@/lib/wake";
@@ -176,9 +180,10 @@ export function Present({
 
 	// The real full screen. On Android the webview turns a page's request
 	// for it down, so the shell is asked instead: it hides the status and
-	// navigation bars and turns the screen to suit the slides. Elsewhere
-	// the page's own full screen is used (on Windows the shell follows
-	// it); where there is none, the overlay already covers the app.
+	// navigation bars and turns the screen to suit the slides. The
+	// desktop app takes its window full screen; in a browser the page's
+	// own full screen is used; where there is none, the overlay already
+	// covers the app.
 	const closeRef = useRef(close);
 	closeRef.current = close;
 	useEffect(() => {
@@ -199,6 +204,10 @@ export function Present({
 				}
 			};
 		}
+		// The desktop app: the window's full screen, as F11 gives it (on
+		// Windows a maximised window is restored first, or the taskbar's
+		// strip would stay).
+		if (fullscreenOfWindow) return holdFullscreen();
 		let entered = false;
 		// Leaving full screen (Escape, taken by the webview itself) ends
 		// the show. Desktop only: a webview that refuses full screen

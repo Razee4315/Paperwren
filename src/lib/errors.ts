@@ -1,3 +1,4 @@
+import { isDesktop } from "./env";
 import { t } from "./i18n";
 
 /**
@@ -8,6 +9,7 @@ import { t } from "./i18n";
 export type OpenFailure =
 	| "not_found"
 	| "permission"
+	| "busy"
 	| "unreadable"
 	| "empty"
 	| "corrupt"
@@ -24,9 +26,15 @@ export class OpenError extends Error {
 	}
 }
 
-/** Map whatever the platform threw onto the taxonomy. */
+/** Map whatever the platform threw onto the taxonomy. The app's own
+ * commands say what went wrong in `kind`; elsewhere (the file system
+ * plugin, Android) only the message tells, in the words of the system:
+ * Windows', macOS's, Linux's or Android's. */
 export function classifyError(err: unknown): OpenFailure {
 	if (err instanceof OpenError) return err.failure;
+	const kind = (err as { kind?: unknown } | null)?.kind;
+	if (kind === "not_found") return "not_found";
+	if (kind === "corrupt") return "corrupt";
 	const text = (
 		typeof err === "string"
 			? err
@@ -34,9 +42,24 @@ export function classifyError(err: unknown): OpenFailure {
 				? `${err.name} ${err.message}`
 				: String((err as { message?: unknown })?.message ?? err)
 	).toLowerCase();
-	if (/permission|securityexception|eacces|not allowed|denied/.test(text))
+	// Windows: another app holds it open and shares it with no one.
+	if (
+		/os error 3[23]\b|used by another process|locked a portion|sharing violation|ebusy/.test(
+			text,
+		)
+	)
+		return "busy";
+	if (
+		/permission|securityexception|eacces|eperm|not allowed|not permitted|denied|os error 5\b/.test(
+			text,
+		)
+	)
 		return "permission";
-	if (/no such file|not found|does not exist|enoent|filenotfound/.test(text))
+	if (
+		/no such file|not found|does not exist|enoent|filenotfound|cannot find|os error [23]\b/.test(
+			text,
+		)
+	)
 		return "not_found";
 	if (/invalidpdf|corrupt|invalid|malformed|bad zip|end of central/.test(text))
 		return "corrupt";
@@ -137,13 +160,26 @@ export function failureCopy(failure: OpenFailure, name: string): FailureCopy {
 				),
 				action: "locate",
 			};
+		case "busy":
+			return {
+				title: t("File in use"),
+				message: t(
+					"{file} is open in another app that won't share it. Close it there, then try again.",
+					{ file },
+				),
+				action: null,
+			};
 		case "unreadable":
 			return {
 				title: t("Couldn't read the file"),
-				message: t(
-					"{file} could not be read. The app that provided it may be unavailable.",
-					{ file },
-				),
+				// On a phone a file comes from an app (a cloud drive, a mail
+				// app), which may be what is missing; a desktop reads its disk.
+				message: isDesktop
+					? t("{file} could not be read.", { file })
+					: t(
+							"{file} could not be read. The app that provided it may be unavailable.",
+							{ file },
+						),
 				action: "locate",
 			};
 		case "empty":

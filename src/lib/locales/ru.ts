@@ -309,8 +309,8 @@ export const ru: Table = {
 		"Небольшой и тихий способ открыть любой документ на вашем устройстве.",
 	"No internet, no accounts, no ads. Your files never leave your device.":
 		"Без интернета, без аккаунтов, без рекламы. Ваши файлы никогда не покидают устройство.",
-	"Each theme has its own calm colour. Auto follows your device: Paper by day, Ink at night.":
-		"У каждой темы свой спокойный цвет. Авто следует за устройством: Бумага днём, Чернила ночью.",
+	"Each theme has its own calm colour. Auto follows your device: Light by day, Dark at night.":
+		"У каждой темы свой спокойный цвет. Авто следует за устройством: Светлый днём, Тёмный ночью.",
 	"Same as the device": "Как на устройстве",
 	"Paperwren keeps up to {n} folders. Remove one to add another.":
 		"Paperwren хранит не более {n} папок. Уберите одну, чтобы добавить другую.",
@@ -1218,9 +1218,6 @@ export const ru: Table = {
 	"Show this list": "Показать этот список",
 	Loading: "Загрузка",
 	"Big files take a little longer": "Большие файлы открываются чуть дольше",
-	"Ink for text and marks": "Цвет текста и отметок",
-	"Text in blue": "Синий текст",
-	"Text in black": "Чёрный текст",
 	Top: "Вверху",
 	Foot: "Внизу",
 	Align: "Выравнивание",
@@ -1267,4 +1264,26 @@ export const ru: Table = {
 		"Веб-движок этого телефона (Android System WebView) устарел, поэтому файл не удалось показать. Обновите его в магазине приложений (на телефонах Huawei обновите Huawei WebView в AppGallery) и попробуйте снова.",
 	"This phone's web engine is out of date. Update Android System WebView (Huawei WebView on Huawei phones), then try again.":
 		"Веб-движок этого телефона устарел. Обновите Android System WebView (Huawei WebView на телефонах Huawei) и попробуйте снова.",
+	"Place another": "Поставить ещё",
+	"File in use": "Файл занят",
+	"{file} is open in another app that won't share it. Close it there, then try again.":
+		"{file} открыт в другом приложении, которое не даёт к нему доступа. Закройте его там и попробуйте снова.",
+	"{file} could not be read.": "Не удалось прочитать {file}.",
+	"Unavailable · click to locate": "Недоступен · нажмите, чтобы найти",
+	"Nothing to crop on these pages": "На этих страницах нечего обрезать",
+	"Crop by hand": "Обрезать вручную",
+	"Crop pages": "Обрезка страниц",
+	"No crop": "Без обрезки",
+	"Apply to": "Применить к",
+	"All pages": "Все страницы",
+	"Odd pages": "Нечётные страницы",
+	"Even pages": "Чётные страницы",
+	"Leave out headers and page numbers":
+		"Не учитывать колонтитулы и номера страниц",
+	"What is kept of the page": "Что останется от страницы",
+	Photo: "Фото",
+	"Side by side": "Рядом",
+	"Show beside this": "Показать рядом",
+	"Swap sides": "Поменять местами",
+	"Resize the two documents": "Изменить размер двух документов",
 };

@@ -11,6 +11,14 @@ import { UpdateHost } from "@/screens/Updates";
 import { Home } from "@/screens/home/Home";
 import { SettingsScreen } from "@/screens/settings/Settings";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
+import { SplitDivider } from "@/screens/viewer/SplitDivider";
+import {
+	type Pane,
+	SPLIT_ROOM,
+	type SideBySide,
+	SideBySideContext,
+	clampRatio,
+} from "@/screens/viewer/pane";
 import { NavigationProvider, useNav } from "@/state/navigation";
 import { RecentsProvider, useRecents } from "@/state/recents";
 import { SettingsProvider, useSettings } from "@/state/settings";
@@ -32,6 +40,7 @@ import {
 	lazy,
 	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 	useSyncExternalStore,
@@ -75,6 +84,24 @@ const ONBOARDED_KEY = "onboarded";
  * instant; older ones are read again when shown. */
 const KEPT_TABS = 4;
 
+interface Split {
+	left: number;
+	right: number;
+	ratio: number;
+}
+
+function onRoomChange(then: () => void) {
+	const query = window.matchMedia?.(SPLIT_ROOM);
+	query?.addEventListener("change", then);
+	return () => query?.removeEventListener("change", then);
+}
+const roomForTwo = () => !!window.matchMedia?.(SPLIT_ROOM).matches;
+function onResize(then: () => void) {
+	window.addEventListener("resize", then);
+	return () => window.removeEventListener("resize", then);
+}
+const windowWidth = () => window.innerWidth;
+
 declare global {
 	interface Window {
 		__paperwrenFiles?: Array<{ path: string; name: string; size: number }>;
@@ -115,6 +142,16 @@ function Root() {
 	const leaving = useRef(false);
 	const top = state.screens[state.screens.length - 1];
 	const current = top?.kind === "viewer" ? top.key : null;
+	/** Two documents side by side (a desktop's wide window): the tabs in
+	 * each half, and where the halves meet. The one on show (`current`)
+	 * has the keyboard; the other is shown beside it. */
+	const [split, setSplit] = useState<Split | null>(null);
+	const splitRef = useRef(split);
+	splitRef.current = split;
+	/** A file being picked to open beside the document on show. */
+	const besideOf = useRef<number | null>(null);
+	const room = useSyncExternalStore(onRoomChange, roomForTwo);
+	const width = useSyncExternalStore(onResize, windowWidth);
 
 	const show = useCallback(
 		(tab: Tab) => {
@@ -127,6 +164,19 @@ function Root() {
 	const closeTab = useCallback(
 		(key: number) => {
 			const rest = tabsRef.current.filter((tab) => tab.key !== key);
+			const pair = splitRef.current;
+			if (pair && (pair.left === key || pair.right === key)) {
+				// The other half takes the window, and is shown.
+				setSplit(null);
+				const other = rest.find(
+					(tab) => tab.key === (pair.left === key ? pair.right : pair.left),
+				);
+				if (other)
+					used.current = [
+						...used.current.filter((k) => k !== other.key),
+						other.key,
+					];
+			}
 			setTabs(rest);
 			tabsRef.current = rest;
 			used.current = used.current.filter((k) => k !== key);
@@ -162,10 +212,16 @@ function Root() {
 			const already = tabsRef.current.find(
 				(tab) => tab.request.id === request.id,
 			);
-			if (already) return show(already);
-			const tab = { key: nextKey.current++, request };
-			tabsRef.current = [...tabsRef.current, tab];
-			setTabs(tabsRef.current);
+			const tab = already ?? { key: nextKey.current++, request };
+			if (!already) {
+				tabsRef.current = [...tabsRef.current, tab];
+				setTabs(tabsRef.current);
+			}
+			// Picked to open beside the one on show: the two side by side.
+			const left = besideOf.current;
+			besideOf.current = null;
+			if (left !== null && left !== tab.key)
+				setSplit({ left, right: tab.key, ratio: 0.5 });
 			show(tab);
 		},
 		[push, show],
@@ -178,6 +234,14 @@ function Root() {
 			);
 			setTabs(tabsRef.current);
 			used.current = used.current.filter((k) => k !== key);
+			// In its half, if it had one.
+			setSplit((pair) =>
+				pair?.left === key
+					? { ...pair, left: fresh.key }
+					: pair?.right === key
+						? { ...pair, right: fresh.key }
+						: pair,
+			);
 			show(fresh);
 		},
 		[show],
@@ -219,10 +283,68 @@ function Root() {
 				toast(t("Couldn't open the file picker"));
 			} finally {
 				picking.current = false;
+				besideOf.current = null;
 			}
 		},
 		[open, remove],
 	);
+
+	// --- side by side ---
+	const twoShown =
+		isDesktop &&
+		room &&
+		!!split &&
+		top?.kind === "viewer" &&
+		(current === split.left || current === split.right);
+	const sideBySide = useMemo<SideBySide>(
+		() => ({
+			on: twoShown,
+			room: isDesktop && room,
+			others: tabs.filter((tab) => tab.key !== current),
+			beside: (tab) => {
+				if (current === null || tab.key === current) return;
+				setSplit({ left: current, right: tab.key, ratio: 0.5 });
+				show(tab);
+			},
+			pickBeside: () => {
+				if (current === null) return;
+				besideOf.current = current;
+				void pick();
+			},
+			swap: () =>
+				setSplit(
+					(pair) =>
+						pair && {
+							left: pair.right,
+							right: pair.left,
+							ratio: 1 - pair.ratio,
+						},
+				),
+			leave: () => setSplit(null),
+		}),
+		[twoShown, room, tabs, current, show, pick],
+	);
+	const paneOf = (tab: Tab): Pane => {
+		const half =
+			twoShown && split
+				? tab.key === split.left
+					? "left"
+					: tab.key === split.right
+						? "right"
+						: null
+				: null;
+		const ratio = split ? clampRatio(split.ratio, width) : 0.5;
+		const across = half === "left" ? ratio : 1 - ratio;
+		return {
+			visible: half !== null || (tab.key === current && top?.kind === "viewer"),
+			side: half,
+			ratio,
+			narrow: half !== null && width * across < 720,
+			onFocus: () => {
+				if (tab.key !== current) show(tab);
+			},
+		};
+	};
 
 	const openRecent = useCallback(
 		(e: RecentEntry) =>
@@ -553,44 +675,67 @@ function Root() {
 					</Suspense>
 				);
 			})}
-			{isDesktop &&
-				tabs
-					.filter(
-						(tab) =>
-							tab.key === current ||
-							used.current.slice(-KEPT_TABS).includes(tab.key),
-					)
-					.map((tab) => (
-						<Suspense
-							key={tab.key}
-							fallback={
-								tab.key === current ? (
-									<OpeningView name={tab.request.name} />
-								) : null
-							}
-						>
-							<ViewerScreen
-								request={tab.request}
-								// Under Settings, or behind another tab: kept, not shown.
-								active={tab.key === current && top?.kind === "viewer"}
-								onClose={() => closeTab(tab.key)}
-								onReplace={(request) => replaceTab(tab.key, request)}
-								onOpen={open}
-								onTools={(tool, file) => push({ kind: "tools", tool, file })}
-								onLocate={() => {
-									const entry = entriesRef.current.find(
-										(e) => e.id === tab.request.id,
-									);
-									closeTab(tab.key);
-									pick(entry);
-								}}
-							/>
-						</Suspense>
-					))}
+			<SideBySideContext.Provider value={sideBySide}>
+				{isDesktop &&
+					tabs
+						.filter(
+							(tab) =>
+								tab.key === current ||
+								tab.key === split?.left ||
+								tab.key === split?.right ||
+								used.current.slice(-KEPT_TABS).includes(tab.key),
+						)
+						.map((tab) => (
+							<Suspense
+								key={tab.key}
+								fallback={
+									tab.key === current ? (
+										<OpeningView name={tab.request.name} />
+									) : null
+								}
+							>
+								<ViewerScreen
+									request={tab.request}
+									// Under Settings, or behind another tab: kept, not shown.
+									// Side by side, the half on show has the keyboard.
+									active={tab.key === current && top?.kind === "viewer"}
+									pane={paneOf(tab)}
+									onClose={() => closeTab(tab.key)}
+									onReplace={(request) => replaceTab(tab.key, request)}
+									onOpen={open}
+									onTools={(tool, file) => push({ kind: "tools", tool, file })}
+									onLocate={() => {
+										const entry = entriesRef.current.find(
+											(e) => e.id === tab.request.id,
+										);
+										closeTab(tab.key);
+										pick(entry);
+									}}
+								/>
+							</Suspense>
+						))}
+			</SideBySideContext.Provider>
+			{twoShown && split && (
+				<SplitDivider
+					ratio={clampRatio(split.ratio, width)}
+					onRatio={(ratio) =>
+						setSplit(
+							(pair) => pair && { ...pair, ratio: clampRatio(ratio, width) },
+						)
+					}
+				/>
+			)}
 			{stripShown && (
 				<TabStrip
 					tabs={tabs}
 					current={current}
+					beside={
+						twoShown && split
+							? current === split.left
+								? split.right
+								: split.left
+							: null
+					}
 					onShow={show}
 					onClose={(tab) => closeTab(tab.key)}
 					onHome={goHome}

@@ -38,6 +38,12 @@
 	background: var(--canvas);
 	color: var(--text);
 }
+/* Shown beside the current tab, side by side: on show too, without the
+ * keyboard. */
+.tab[data-beside]:not(.on) {
+	background: color-mix(in srgb, var(--canvas) 55%, transparent);
+	color: var(--text);
+}
 .main {
 	display: flex;
 	align-items: center;

@@ -23,6 +23,7 @@ import {
 	Dialog,
 	IconButton,
 	Sheet,
+	SheetDivider,
 	SheetItem,
 	Spinner,
 	toast,
@@ -32,6 +33,7 @@ import {
 	ArrowLeft,
 	CalendarDays,
 	Check,
+	Ellipsis,
 	Info,
 	Minus,
 	PenLine,
@@ -52,6 +54,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
 import { whole } from "../viewer/pdfCrop";
@@ -82,6 +85,9 @@ interface Field extends Box {
 	on?: string;
 	options?: Array<[value: string, label: string]>;
 	maxLength?: number;
+	/** The size the file asks its text to be written at, as a share of
+	 * the page's height; none: fitted to the box. */
+	size?: number;
 	initial: string | boolean;
 }
 
@@ -94,7 +100,7 @@ interface Item extends Box {
 	text?: string;
 }
 
-/** The inks for typed text, the date, ticks and crosses: blue unless
+/** The one ink for all that is added, the signature too: blue unless
  * the reader picks black. */
 const INKS = { blue: "#1a3c8c", black: "#111111" } as const;
 type Ink = keyof typeof INKS;
@@ -102,6 +108,18 @@ type Ink = keyof typeof INKS;
  * page's height (about 12 points on A4). */
 const LINE = 0.021;
 const ZOOMS = [1, 1.5, 2, 3];
+/** Typing on a phone is at least this size, in CSS pixels (a phone
+ * also zooms in on a field any smaller). */
+const READABLE = 16;
+
+/** A screen wide enough for every tool in one row. */
+const ROOMY = "(min-width: 700px)";
+function onRoomyChange(then: () => void) {
+	const query = window.matchMedia?.(ROOMY);
+	query?.addEventListener("change", then);
+	return () => query?.removeEventListener("change", then);
+}
+const roomyScreen = () => !!window.matchMedia?.(ROOMY).matches;
 
 let made = 0;
 const newId = () => `m${++made}`;
@@ -123,11 +141,25 @@ interface Widget {
 	buttonValue?: string;
 	options?: Array<{ exportValue: string; displayValue: string }>;
 	maxLen?: number;
+	defaultAppearanceData?: { fontSize?: number };
+}
+
+/** pdf.js's `AnnotationMode.ENABLE_FORMS`: the page is drawn without the
+ * form's fields, which are laid over it here instead. (pdf.js is loaded
+ * later, on its own; only its types are imported here.) */
+const ENABLE_FORMS = 2;
+
+/** The fields of every page, and the pages with fields the file locks,
+ * which are only seen as the file draws them. */
+interface Form {
+	fields: Field[];
+	locked: Set<number>;
 }
 
 /** The fields of every page, placed as shown. */
-async function readFields(doc: PDFDocumentProxy): Promise<Field[]> {
+async function readFields(doc: PDFDocumentProxy): Promise<Form> {
 	const out: Field[] = [];
+	const locked = new Set<number>();
 	for (let n = 1; n <= doc.numPages && out.length < 2000; n++) {
 		const page = await doc.getPage(n);
 		const view = whole(page, () => page.getViewport({ scale: 1 }));
@@ -135,15 +167,14 @@ async function readFields(doc: PDFDocumentProxy): Promise<Field[]> {
 			intent: "display",
 		})) as Widget[];
 		for (const w of widgets) {
-			// Fields the file locks, or hides, are shown as it drew them.
-			if (
-				w.subtype !== "Widget" ||
-				!w.fieldName ||
-				w.hidden ||
-				w.pushButton ||
-				w.readOnly
-			)
+			if (w.subtype !== "Widget") continue;
+			// Fields the file locks, or hides, are shown as it drew them: the
+			// page keeps its fields in the picture.
+			if (w.readOnly || w.pushButton || !w.fieldName) {
+				if (!w.hidden) locked.add(n - 1);
 				continue;
+			}
+			if (w.hidden) continue;
 			const [a, b, c, d] = view.convertToViewportRectangle(w.rect);
 			const box = {
 				page: n - 1,
@@ -153,7 +184,12 @@ async function readFields(doc: PDFDocumentProxy): Promise<Field[]> {
 				h: Math.abs(d - b) / view.height,
 			};
 			if (box.w <= 0 || box.h <= 0) continue;
-			const base = { ...box, name: w.fieldName };
+			const pt = w.defaultAppearanceData?.fontSize ?? 0;
+			const base = {
+				...box,
+				name: w.fieldName,
+				size: pt > 0 ? pt / view.height : undefined,
+			};
 			if (w.fieldType === "Tx")
 				out.push({
 					...base,
@@ -190,9 +226,11 @@ async function readFields(doc: PDFDocumentProxy): Promise<Field[]> {
 				});
 			else if (w.fieldType === "Sig")
 				out.push({ ...base, kind: "signature", initial: "" });
+			// A kind not filled in here is left to the picture too.
+			else locked.add(n - 1);
 		}
 	}
-	return out;
+	return { fields: out, locked };
 }
 
 /** A picture of a mark the PDF's standard font cannot write (a tick,
@@ -267,10 +305,14 @@ export function FillSign({
 	onClose: () => void;
 	onSaved?: (saved: SavedFile) => void;
 }) {
-	const [fields, setFields] = useState<Field[] | null>(null);
+	const [form, setForm] = useState<Form | null>(null);
+	const fields = form?.fields ?? null;
 	const [values, setValues] = useState<Record<string, string | boolean>>({});
 	const [items, setItems] = useState<Item[]>([]);
 	const [tool, setTool] = useState<Tool | null>(null);
+	// A signature, initials or a stamp was just placed: the same one can
+	// be placed again from the hint.
+	const [again, setAgain] = useState<Kept | null>(null);
 	const [selected, setSelected] = useState<string | null>(null);
 	const [editing, setEditing] = useState<string | null>(null);
 	const [signatures, setSignatures] = useState<Signature[]>([]);
@@ -286,6 +328,10 @@ export function FillSign({
 	const [saving, setSaving] = useState<"ask" | "busy" | null>(null);
 	const [flatten, setFlatten] = useState(false);
 	const [ink, setInk] = useState<Ink>("blue");
+	const [moreOpen, setMoreOpen] = useState(false);
+	// A phone's narrow screen: Save on top, four tools at the foot.
+	const roomy = useSyncExternalStore(onRoomyChange, roomyScreen);
+	const compact = !isDesktop && !roomy;
 	const [zoom, setZoom] = useState(0);
 	const [width, setWidth] = useState(0);
 	const [sizes, setSizes] = useState<Array<[number, number]>>([]);
@@ -295,8 +341,8 @@ export function FillSign({
 	useEffect(() => {
 		let alive = true;
 		readFields(doc)
-			.then((found) => alive && setFields(found))
-			.catch(() => alive && setFields([]));
+			.then((found) => alive && setForm(found))
+			.catch(() => alive && setForm({ fields: [], locked: new Set() }));
 		// Each page's size as shown, in points, for laying the pages out.
 		(async () => {
 			const out: Array<[number, number]> = [];
@@ -429,6 +475,7 @@ export function FillSign({
 
 	const pick = (next: Tool, keyboard = false) => {
 		byKeys.current = keyboard;
+		setAgain(null);
 		setSelected(null);
 		setEditing(null);
 		if (tool === next) {
@@ -546,10 +593,12 @@ export function FillSign({
 		setItems((list) => [...list, item]);
 		setSelected(item.id);
 		if (tool === "text") setEditing(item.id);
-		// Signing or stamping again is one more tap; the other tools are one
-		// at a time.
-		if (tool !== "sign" && tool !== "initials" && tool !== "stamp")
-			setTool(null);
+		// One at a time, so a later touch on the page can't add another by
+		// mistake; signing more pages is one tap on "Place another".
+		setTool(null);
+		setAgain(
+			tool === "sign" || tool === "initials" || tool === "stamp" ? tool : null,
+		);
 	};
 
 	const save = async () => {
@@ -634,20 +683,35 @@ export function FillSign({
 		["check", t("Tick"), <Check key="c" size={20} />],
 		["cross", t("Cross"), <X key="x" size={20} />],
 	];
+	/** On a phone, the tools few forms need wait in More. */
+	const rare: Tool[] = ["initials", "stamp", "cross"];
+	const atHand = compact
+		? tools.filter(([kind]) => !rare.includes(kind))
+		: tools;
 	const pageWidth = Math.max(200, width) * ZOOMS[zoom];
 	const keysHint = useId();
+	const saveButton = (
+		<Button
+			onClick={() => setSaving("ask")}
+			disabled={!dirty || saving === "busy"}
+			data-testid="fill-save"
+		>
+			{t("Save a copy")}
+		</Button>
+	);
 
 	return createPortal(
 		<div
 			ref={editor}
 			tabIndex={-1}
-			className={s.fill}
+			className={`${s.fill} ${s.signFill}`}
 			// biome-ignore lint/a11y/useSemanticElements: a full-screen surface, not a native dialog
 			role="dialog"
 			aria-modal="true"
 			aria-label={t("Fill & sign")}
 			data-testid="fill-sign"
 			data-can-mark={canMark || undefined}
+			data-compact={compact || undefined}
 		>
 			<header className={s.fillBar} data-tauri-drag-region="deep">
 				<IconButton label={t("Close")} onClick={close} data-testid="fill-close">
@@ -657,6 +721,7 @@ export function FillSign({
 					<strong>{t("Fill & sign")}</strong>
 					<span dir="auto">{name}</span>
 				</div>
+				{compact && saveButton}
 			</header>
 			{canMark && (
 				<div
@@ -664,7 +729,7 @@ export function FillSign({
 					role="toolbar"
 					aria-label={t("Add to the page")}
 				>
-					{tools.map(([kind, label, icon]) => (
+					{atHand.map(([kind, label, icon]) => (
 						<button
 							key={kind}
 							type="button"
@@ -679,118 +744,144 @@ export function FillSign({
 							<span>{label}</span>
 						</button>
 					))}
+					{compact && (
+						<button
+							type="button"
+							className={s.tool}
+							title={t("More")}
+							aria-haspopup="dialog"
+							aria-pressed={!!tool && rare.includes(tool)}
+							onClick={() => setMoreOpen(true)}
+							data-testid="fill-tool-more"
+						>
+							<Ellipsis size={20} />
+							<span>{t("More")}</span>
+						</button>
+					)}
 				</div>
 			)}
-			<div className={s.fillActions} data-testid="fill-actions">
-				<div className={s.zoom}>
-					<IconButton
-						label={t("Zoom out")}
-						disabled={zoom === 0}
-						onClick={() => setZoom((z) => Math.max(0, z - 1))}
-					>
-						<Minus size={18} />
-					</IconButton>
-					<span>{Math.round(ZOOMS[zoom] * 100)}%</span>
-					<IconButton
-						label={t("Zoom in")}
-						disabled={zoom === ZOOMS.length - 1}
-						onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))}
-					>
-						<Plus size={18} />
-					</IconButton>
+			{!compact && (
+				<div className={s.fillActions} data-testid="fill-actions">
+					<div className={s.zoom}>
+						<IconButton
+							label={t("Zoom out")}
+							disabled={zoom === 0}
+							onClick={() => setZoom((z) => Math.max(0, z - 1))}
+						>
+							<Minus size={18} />
+						</IconButton>
+						<span>{Math.round(ZOOMS[zoom] * 100)}%</span>
+						<IconButton
+							label={t("Zoom in")}
+							disabled={zoom === ZOOMS.length - 1}
+							onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))}
+						>
+							<Plus size={18} />
+						</IconButton>
+					</div>
+					{saveButton}
 				</div>
-				<Button
-					onClick={() => setSaving("ask")}
-					disabled={!dirty || saving === "busy"}
-					data-testid="fill-save"
-				>
-					{t("Save a copy")}
-				</Button>
-			</div>
+			)}
 
 			<p id={keysHint} className="visually-hidden">
 				{t(
 					"Move it with the arrow keys, change its size with + and −, or remove it with Delete.",
 				)}
 			</p>
-			<div className={s.fillHint} data-testid="fill-guidance">
-				<Info size={17} aria-hidden="true" />
-				<p aria-live="polite" data-testid="fill-hint">
-					{selected && !editing && isDesktop
-						? t(
-								"Move it with the arrow keys, change its size with + and −, or remove it with Delete.",
-							)
-						: tool
-							? t("{tool}: select a spot on the page to place it.", {
-									tool: tools.find(([kind]) => kind === tool)?.[1] ?? "",
-								})
-							: fields?.length
-								? t(
-										"Type into the form's fields, or add to the page from the tools",
-									)
-								: canMark
+			{(!compact || tool || again) && (
+				<div className={s.fillHint} data-testid="fill-guidance">
+					<Info size={17} aria-hidden="true" />
+					<p aria-live="polite" data-testid="fill-hint">
+						{selected && !editing && isDesktop
+							? t(
+									"Move it with the arrow keys, change its size with + and −, or remove it with Delete.",
+								)
+							: tool
+								? t("{tool}: select a spot on the page to place it.", {
+										tool: tools.find(([kind]) => kind === tool)?.[1] ?? "",
+									})
+								: fields?.length
 									? t(
-											"Choose Text or Signature above, then select a spot on the page.",
+											"Type into the form's fields, or add to the page from the tools",
 										)
-									: t("Type into the form's fields")}
-				</p>
-				{/* Here rather than in the tool bar, which a phone already fills:
-				 * the ink for typed text, the date, ticks and crosses. */}
-				{canMark && (
-					<div
-						className={s.fillInk}
-						role="radiogroup"
-						aria-label={t("Ink for text and marks")}
-					>
-						{(["blue", "black"] as const).map((colour) => (
-							<button
-								key={colour}
-								type="button"
-								// biome-ignore lint/a11y/useSemanticElements: a pair of buttons with radio semantics
-								role="radio"
-								aria-checked={ink === colour}
-								aria-label={
-									colour === "blue" ? t("Text in blue") : t("Text in black")
-								}
-								title={
-									colour === "blue" ? t("Text in blue") : t("Text in black")
-								}
-								// One stop for the pair; the arrows switch between them.
-								tabIndex={ink === colour ? 0 : -1}
-								onClick={() => setInk(colour)}
-								onKeyDown={(e) => {
-									if (!/^Arrow(Left|Right|Up|Down)$/.test(e.key)) return;
-									e.preventDefault();
-									const next = colour === "blue" ? "black" : "blue";
-									setInk(next);
-									(
-										e.currentTarget.parentElement?.querySelector(
-											`[data-testid="fill-ink-${next}"]`,
-										) as HTMLElement | null
-									)?.focus();
-								}}
-								data-testid={`fill-ink-${colour}`}
-							>
-								<span style={{ background: INKS[colour] }} aria-hidden="true" />
-							</button>
-						))}
-					</div>
-				)}
-				{tool && (
-					<button
-						type="button"
-						className={s.cancelTool}
-						onClick={() => setTool(null)}
-					>
-						{t("Cancel")}
-					</button>
-				)}
-				<p className={s.saveStatus} aria-live="polite">
-					{dirty
-						? t("Changes ready to save")
-						: t("Add your details to get started")}
-				</p>
-			</div>
+									: canMark
+										? t(
+												"Choose Text or Signature above, then select a spot on the page.",
+											)
+										: t("Type into the form's fields")}
+					</p>
+					{/* Here rather than in the tool bar: the ink for everything
+					 * added, the signature too. A phone has it in More. */}
+					{canMark && !compact && (
+						<div className={s.fillInk} role="radiogroup" aria-label={t("Ink")}>
+							{(["blue", "black"] as const).map((colour) => (
+								<button
+									key={colour}
+									type="button"
+									// biome-ignore lint/a11y/useSemanticElements: a pair of buttons with radio semantics
+									role="radio"
+									aria-checked={ink === colour}
+									aria-label={
+										colour === "blue" ? t("Blue ink") : t("Black ink")
+									}
+									title={colour === "blue" ? t("Blue ink") : t("Black ink")}
+									// One stop for the pair; the arrows switch between them.
+									tabIndex={ink === colour ? 0 : -1}
+									onClick={() => setInk(colour)}
+									onKeyDown={(e) => {
+										if (!/^Arrow(Left|Right|Up|Down)$/.test(e.key)) return;
+										e.preventDefault();
+										const next = colour === "blue" ? "black" : "blue";
+										setInk(next);
+										(
+											e.currentTarget.parentElement?.querySelector(
+												`[data-testid="fill-ink-${next}"]`,
+											) as HTMLElement | null
+										)?.focus();
+									}}
+									data-testid={`fill-ink-${colour}`}
+								>
+									<span
+										style={{ background: INKS[colour] }}
+										aria-hidden="true"
+									/>
+								</button>
+							))}
+						</div>
+					)}
+					{tool && (
+						<button
+							type="button"
+							className={s.cancelTool}
+							onClick={() => setTool(null)}
+						>
+							{t("Cancel")}
+						</button>
+					)}
+					{!tool && again && (
+						<button
+							type="button"
+							className={s.cancelTool}
+							onClick={() => {
+								setSelected(null);
+								setEditing(null);
+								setTool(again);
+								setAgain(null);
+							}}
+							data-testid="fill-again"
+						>
+							{t("Place another")}
+						</button>
+					)}
+					{!compact && (
+						<p className={s.saveStatus} aria-live="polite">
+							{dirty
+								? t("Changes ready to save")
+								: t("Add your details to get started")}
+						</p>
+					)}
+				</div>
+			)}
 			<div
 				ref={scroller}
 				className={s.fillPages}
@@ -806,6 +897,7 @@ export function FillSign({
 						width={pageWidth}
 						height={(pageWidth * ph) / pw}
 						placing={!!tool}
+						forms={form ? !form.locked.has(page) : null}
 						label={t("Page {n}: place it here", { n: page + 1 })}
 						onTap={(u, v) => {
 							if (tool) place(page, u, v);
@@ -850,6 +942,7 @@ export function FillSign({
 									describedBy={keysHint}
 									selected={selected === item.id}
 									editing={editing === item.id}
+									readable={compact}
 									onSelect={() => {
 										setSelected(item.id);
 										if (editing !== item.id) setEditing(null);
@@ -872,6 +965,73 @@ export function FillSign({
 					</FillPage>
 				))}
 			</div>
+
+			<Sheet
+				open={moreOpen}
+				title={t("More")}
+				onClose={() => setMoreOpen(false)}
+				testId="fill-more"
+			>
+				{tools
+					.filter(([kind]) => rare.includes(kind))
+					.map(([kind, label, icon]) => (
+						<SheetItem
+							key={kind}
+							icon={icon}
+							checked={tool === kind}
+							onClick={() => {
+								setMoreOpen(false);
+								pick(kind, false);
+							}}
+							testId={`fill-tool-${kind}`}
+						>
+							{label}
+						</SheetItem>
+					))}
+				<SheetDivider />
+				{(["blue", "black"] as const).map((colour) => (
+					<SheetItem
+						key={colour}
+						icon={
+							<svg viewBox="0 0 20 20" aria-hidden="true">
+								<circle
+									cx="10"
+									cy="10"
+									r="8"
+									fill={INKS[colour]}
+									className={s.inkSwatch}
+								/>
+							</svg>
+						}
+						checked={ink === colour}
+						onClick={() => {
+							setInk(colour);
+							setMoreOpen(false);
+						}}
+						testId={`fill-ink-${colour}`}
+					>
+						{colour === "blue" ? t("Blue ink") : t("Black ink")}
+					</SheetItem>
+				))}
+				<SheetDivider />
+				<SheetItem
+					icon={<Plus size={20} />}
+					hint={`${Math.round(ZOOMS[zoom] * 100)}%`}
+					disabled={zoom === ZOOMS.length - 1}
+					onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))}
+					testId="fill-zoom-in"
+				>
+					{t("Zoom in")}
+				</SheetItem>
+				<SheetItem
+					icon={<Minus size={20} />}
+					disabled={zoom === 0}
+					onClick={() => setZoom((z) => Math.max(0, z - 1))}
+					testId="fill-zoom-out"
+				>
+					{t("Zoom out")}
+				</SheetItem>
+			</Sheet>
 
 			{chooser && (
 				<Sheet
@@ -952,6 +1112,8 @@ export function FillSign({
 			{padFor && (
 				<SignaturePad
 					initials={shownKind === "initials"}
+					ink={INKS[ink]}
+					onInk={(hex) => setInk(hex === INKS.black ? "black" : "blue")}
 					onClose={() => {
 						target.current = null;
 						setPadFor(null);
@@ -1073,6 +1235,27 @@ function textWidth(text: string, h: number, pw: number, ph: number): number {
 	return (ctx.measureText(text || "M").width + size * 0.4) / pw;
 }
 
+/** Where and when a press on a page began. */
+export interface Press {
+	id: number;
+	x: number;
+	y: number;
+	at: number;
+}
+
+/** Whether a press that ended here was a tap: it hardly moved and was
+ * short. A press that scrolled ends in `pointercancel` instead, or moves
+ * further than this. */
+export function isTap(
+	from: Press,
+	to: { clientX: number; clientY: number; timeStamp: number },
+): boolean {
+	return (
+		Math.hypot(to.clientX - from.x, to.clientY - from.y) < 8 &&
+		to.timeStamp - from.at < 500
+	);
+}
+
 /** One page: its picture, drawn once it is near the screen, under the
  * fields and marks laid over it. */
 export function FillPage({
@@ -1082,6 +1265,7 @@ export function FillPage({
 	height,
 	onTap,
 	placing,
+	forms,
 	label,
 	children,
 }: {
@@ -1091,6 +1275,10 @@ export function FillPage({
 	height: number;
 	/** A tool is chosen: a tap puts something here. */
 	placing: boolean;
+	/** The form's fields are laid over the page, so it is drawn without
+	 * them; null: not known yet, so not drawn yet. Left out, the page is
+	 * drawn as the file shows it. */
+	forms?: boolean | null;
 	/** What Enter does on the page while placing, said aloud. */
 	label?: string;
 	onTap: (u: number, v: number) => void;
@@ -1099,6 +1287,9 @@ export function FillPage({
 	const box = useRef<HTMLDivElement>(null);
 	const canvas = useRef<HTMLCanvasElement>(null);
 	const [near, setNear] = useState(false);
+	// Where a press began: a mark is placed when it ends as a tap, so a
+	// finger that scrolls the page puts nothing on it.
+	const down = useRef<Press | null>(null);
 
 	useEffect(() => {
 		const el = box.current;
@@ -1112,7 +1303,7 @@ export function FillPage({
 	}, []);
 
 	useEffect(() => {
-		if (!near || width < 50) return;
+		if (!near || width < 50 || forms === null) return;
 		let alive = true;
 		let task: { cancel(): void; promise: Promise<void> } | null = null;
 		const timer = window.setTimeout(async () => {
@@ -1128,7 +1319,11 @@ export function FillPage({
 			);
 			el.width = Math.ceil(viewport.width);
 			el.height = Math.ceil(viewport.height);
-			task = proxy.render({ canvasContext: ctx, viewport });
+			task = proxy.render({
+				canvasContext: ctx,
+				viewport,
+				annotationMode: forms ? ENABLE_FORMS : undefined,
+			});
 			await task.promise.catch(() => {});
 			if (alive) el.dataset.drawn = "1";
 		}, 60);
@@ -1137,7 +1332,7 @@ export function FillPage({
 			window.clearTimeout(timer);
 			task?.cancel();
 		};
-	}, [doc, page, near, width]);
+	}, [doc, page, near, width, forms]);
 
 	return (
 		<div
@@ -1146,6 +1341,8 @@ export function FillPage({
 			style={{ width, height }}
 			data-testid="fill-page"
 			data-page={page}
+			// The file's own fields show under ours: ours hide them.
+			data-ghosts={forms === false || undefined}
 			// While a tool is in hand, Enter puts it on the page, in the
 			// middle of what is seen of it.
 			tabIndex={placing ? 0 : undefined}
@@ -1161,12 +1358,38 @@ export function FillPage({
 				onTap(0.5, ((top + bottom) / 2 - r.top) / r.height);
 			}}
 			onPointerDown={(e) => {
+				// A second finger: the two of them scroll, nothing is placed.
+				if (
+					down.current &&
+					down.current.id !== e.pointerId &&
+					e.timeStamp - down.current.at < 500
+				) {
+					down.current = null;
+					return;
+				}
 				if (e.target !== e.currentTarget && e.target !== canvas.current) return;
+				if (e.pointerType === "mouse" && e.button !== 0) return;
 				// The text placed here takes the keyboard: the tap must not
 				// take it back to the page.
 				if (placing) e.preventDefault();
+				down.current = {
+					id: e.pointerId,
+					x: e.clientX,
+					y: e.clientY,
+					at: e.timeStamp,
+				};
+			}}
+			onPointerUp={(e) => {
+				const d = down.current;
+				if (!d || d.id !== e.pointerId) return;
+				down.current = null;
+				if (!isTap(d, e)) return;
 				const r = e.currentTarget.getBoundingClientRect();
 				onTap((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+			}}
+			// The browser took the touch over to scroll.
+			onPointerCancel={() => {
+				down.current = null;
 			}}
 		>
 			<canvas ref={canvas} className={s.fillCanvas} />
@@ -1209,7 +1432,15 @@ function FieldInput({
 				{px > 18 && <span>{t("Sign here")}</span>}
 			</button>
 		) : null;
-	const font = Math.max(8, Math.min(px * 0.62, 18));
+	// As large as the file asks, or as fits the box, at any zoom.
+	const font = Math.max(
+		8,
+		field.size
+			? field.size * pageHeight
+			: field.multiline
+				? Math.min(px * 0.62, pageHeight * 0.016)
+				: px * 0.62,
+	);
 	const label = field.name;
 	if (field.kind === "check" || field.kind === "radio") {
 		const on =
@@ -1283,6 +1514,7 @@ function PlacedItem({
 	ink,
 	selected,
 	editing,
+	readable = false,
 	onSelect,
 	onEdit,
 	onEdited,
@@ -1301,6 +1533,9 @@ function PlacedItem({
 	ink: string;
 	selected: boolean;
 	editing: boolean;
+	/** Typed at a size that reads (a phone): the mark itself may be
+	 * smaller than that on the screen. */
+	readable?: boolean;
 	onSelect: () => void;
 	onEdit: () => void;
 	/** Typing is over (Enter or Esc in the text). */
@@ -1316,6 +1551,7 @@ function PlacedItem({
 		from: Item;
 		moved: boolean;
 	} | null>(null);
+	const tap = useRef<Press | null>(null);
 	const input = useRef<HTMLInputElement>(null);
 	const self = useRef<HTMLDivElement>(null);
 	useEffect(() => {
@@ -1364,6 +1600,23 @@ function PlacedItem({
 	const start = (mode: "move" | "size") => (e: React.PointerEvent) => {
 		if (editing && mode === "move") return;
 		e.stopPropagation();
+		// One finger at a time moves it; a second one is the page's.
+		if (drag.current || tap.current) {
+			drag.current = null;
+			tap.current = null;
+			return;
+		}
+		// A finger on a mark not picked yet may be scrolling the page: it
+		// is picked if the press ends as a tap, and only then can be dragged.
+		if (e.pointerType === "touch" && !selected && mode === "move") {
+			tap.current = {
+				id: e.pointerId,
+				x: e.clientX,
+				y: e.clientY,
+				at: e.timeStamp,
+			};
+			return;
+		}
 		e.preventDefault();
 		e.currentTarget.setPointerCapture(e.pointerId);
 		drag.current = {
@@ -1397,7 +1650,13 @@ function PlacedItem({
 			onChange({ w: f.w * grow, h: f.h * grow });
 		}
 	};
-	const end = () => {
+	const end = (e: React.PointerEvent) => {
+		const pressed = tap.current;
+		tap.current = null;
+		if (pressed) {
+			if (e.type === "pointerup" && isTap(pressed, e)) onSelect();
+			return;
+		}
 		const d = drag.current;
 		drag.current = null;
 		// A tap on placed text edits it.
@@ -1411,6 +1670,16 @@ function PlacedItem({
 	};
 
 	const fontPx = (item.h * pageHeight) / 1.2;
+	// Text too small to read as it is typed grows while it is typed.
+	const enlarged = readable && fontPx < READABLE;
+	// The field widens after each letter, once the browser has already
+	// slid the words along to keep the caret in view: slide them back.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: again as the words change
+	useLayoutEffect(() => {
+		const el = input.current;
+		if (enlarged && el && el.scrollWidth <= el.clientWidth + 1)
+			el.scrollLeft = 0;
+	}, [enlarged, item.text]);
 	return (
 		<div
 			ref={self}
@@ -1449,8 +1718,15 @@ function PlacedItem({
 			) : editing ? (
 				<input
 					ref={input}
-					className={s.itemInput}
-					style={{ fontSize: fontPx, color: ink }}
+					className={`${s.itemInput} ${enlarged ? s.itemInputLarge : ""}`}
+					style={{
+						fontSize: enlarged ? READABLE : fontPx,
+						color: ink,
+						// Wide enough for what is typed, at the size it is typed.
+						...(enlarged
+							? { width: `max(100%, ${(item.text?.length ?? 0) + 3}ch)` }
+							: {}),
+					}}
 					value={item.text ?? ""}
 					dir="auto"
 					placeholder={t("Type here")}

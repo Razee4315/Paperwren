@@ -153,6 +153,7 @@
 	text-decoration: underline;
 	font-weight: 750;
 	padding: 6px;
+	white-space: nowrap;
 }
 .fillActions {
 	grid-area: actions;
@@ -349,6 +350,12 @@
 .fieldRadio {
 	border-radius: 50%;
 }
+/* A page with locked fields is drawn with all its fields in the picture:
+ * the ones filled in here cover the file's own. */
+.fillPage[data-ghosts] .fieldText,
+.fillPage[data-ghosts] .fieldBox {
+	background: #e3f2ef;
+}
 .fieldBox:focus-visible {
 	outline: 2px solid var(--accent);
 }
@@ -372,7 +379,9 @@
 	display: flex;
 	align-items: center;
 	cursor: grab;
-	touch-action: none;
+	/* A finger on a mark not picked yet scrolls the page; once picked,
+	 * it drags the mark. */
+	touch-action: pan-x pan-y;
 	user-select: none;
 	animation: pw-settle var(--t-slow) var(--ease);
 }
@@ -382,6 +391,7 @@
 .item[data-selected] {
 	outline: 1.5px dashed var(--accent);
 	outline-offset: 2px;
+	touch-action: none;
 }
 .item img {
 	width: 100%;
@@ -411,6 +421,18 @@
 	font-family: Helvetica, Arial, sans-serif;
 	line-height: 1.2;
 	outline: none;
+}
+/* Typing on a phone: the words at a size that reads, over the page,
+ * until typing is over and the mark is its own size again. */
+.itemInputLarge {
+	position: relative;
+	z-index: 3;
+	flex-shrink: 0;
+	height: auto;
+	padding: 4px 8px;
+	border-radius: 6px;
+	background: #fff;
+	box-shadow: 0 0 0 2px var(--accent), 0 6px 18px rgba(0, 0, 0, 0.2);
 }
 .itemRemove {
 	position: absolute;
@@ -483,6 +505,94 @@
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
+}
+/* The pad dialog's body: grows into a full-screen dialog's height. */
+.padFrame,
+.drawSheet {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
+}
+/* On a phone, drawing fills the screen: the inks and pen widths share a
+ * row above the pad, which takes the rest, so nothing is scrolled to. */
+.drawSheet .ways {
+	flex-shrink: 0;
+	margin-bottom: 8px;
+}
+.drawSheet .way {
+	height: 34px;
+}
+.drawSheet .padBox {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	grid-template-rows: auto minmax(0, 1fr) auto;
+	grid-template-areas: "head widths" "pad pad" "tools tools";
+	column-gap: 8px;
+}
+.drawSheet .padHeading {
+	grid-area: head;
+	margin: 0;
+}
+.drawSheet .penWidths {
+	grid-area: widths;
+	justify-content: flex-end;
+	margin: 0;
+}
+.drawSheet .penLabel {
+	display: none;
+}
+.drawSheet .padSurface {
+	grid-area: pad;
+	min-height: 96px;
+	margin-top: 8px;
+}
+.drawSheet .padTools {
+	grid-area: tools;
+}
+.drawSheet .keepRow {
+	flex-shrink: 0;
+	margin-top: 4px;
+}
+.drawSheet .hint {
+	flex-shrink: 0;
+	margin: 6px 0 0;
+	font-size: 12px;
+	line-height: 1.4;
+}
+/* A phone on its side: tabs, inks and widths in one row, the pad below,
+ * then its tools beside the choice to keep it. */
+@media (max-height: 500px) {
+	.drawSheet {
+		display: grid;
+		grid-template-columns: minmax(180px, auto) auto minmax(0, 1fr);
+		grid-template-rows: auto minmax(0, 1fr) auto;
+		grid-template-areas: "tabs head head" "pad pad pad" "tools keep keep";
+		gap: 8px 12px;
+	}
+	.drawSheet .padBox {
+		display: contents;
+	}
+	.drawSheet .ways {
+		grid-area: tabs;
+		align-self: center;
+		margin: 0;
+	}
+	.drawSheet .padSurface {
+		margin: 0;
+	}
+	.drawSheet .padTools {
+		margin: 0;
+	}
+	.drawSheet .keepRow {
+		grid-area: keep;
+		align-self: center;
+		margin: 0;
+		font-size: 13px;
+	}
+	.drawSheet .hint {
+		display: none;
+	}
 }
 .padHeading {
 	display: flex;
@@ -684,6 +794,22 @@
 	font-size: 14px;
 	color: var(--text-2);
 	line-height: 1.5;
+}
+/* Keep it, and what it is behind an (i), in one row. */
+.keepRow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+}
+.keepRow .keep {
+	flex: 1;
+	min-width: 0;
+	margin-top: 0;
+}
+/* The pen's widths share the ink's row. */
+.padHeading .penWidths {
+	margin: 0;
 }
 .keep {
 	display: flex;
@@ -1889,4 +2015,104 @@
 }
 :global(html.desktop) .taskPanel {
 	padding: 20px;
+}
+
+/* Fill & sign on a phone: the page first. Save sits in the top bar,
+ * the tools at the foot within a thumb's reach (four, and More for the
+ * rest, the ink and the zoom), and the hint floats over the page only
+ * while there is a next step. */
+.signFill[data-compact] {
+	grid-template-areas: "title" "pages" "tools";
+	grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.signFill[data-compact] .fillBar {
+	gap: 6px;
+	padding-inline-end: calc(10px + var(--safe-right));
+}
+.signFill[data-compact] .fillBar > button:last-child {
+	flex-shrink: 0;
+	min-height: 40px;
+	padding-inline: 14px;
+	font-size: 14px;
+}
+.signFill[data-compact] .toolbar {
+	gap: 2px;
+	padding: 4px calc(6px + var(--safe-right)) calc(4px + var(--safe-bottom))
+		calc(6px + var(--safe-left));
+	overflow: visible;
+	border-top: 1px solid var(--line);
+	border-bottom: 0;
+}
+.signFill[data-compact] .tool {
+	flex: 1 1 0;
+	min-width: 0;
+	flex-direction: column;
+	gap: 3px;
+	padding: 6px 2px;
+	font-size: 11.5px;
+}
+.signFill[data-compact] .tool span {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.signFill[data-compact] .fillHint {
+	grid-area: pages;
+	align-self: end;
+	justify-self: center;
+	z-index: 2;
+	max-width: calc(100% - 24px);
+	margin-bottom: 12px;
+	padding: 6px 6px 6px 14px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+	align-items: center;
+	animation: pw-fade-in var(--t-fast) var(--ease);
+}
+.signFill[data-compact] .fillHint > svg {
+	display: none;
+}
+.signFill[data-compact] .cancelTool {
+	min-height: 36px;
+	padding: 0 12px;
+	border-radius: 999px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	text-decoration: none;
+}
+.signFill[data-compact] .fillPages {
+	padding-bottom: 72px;
+}
+/* An ink in the More sheet. */
+.inkSwatch {
+	stroke: var(--line-strong);
+	stroke-width: 1;
+}
+
+/* The stamp pad on a short screen: a smaller preview and the ready
+ * words in one row that scrolls, so the colours, shapes and Use it are
+ * all in view without scrolling. */
+@media (max-height: 880px) {
+	.stampStage {
+		height: clamp(80px, 15vh, 200px);
+		margin-bottom: 10px;
+		padding: 10px;
+	}
+	.stampMake {
+		gap: 10px;
+	}
+	.presets {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		margin-inline: -4px;
+		padding: 2px 4px;
+		scrollbar-width: none;
+	}
+	.preset {
+		flex-shrink: 0;
+	}
 }
