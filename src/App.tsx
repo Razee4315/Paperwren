@@ -66,6 +66,8 @@ const Onboarding = lazy(() => import("@/screens/onboarding/Onboarding"));
 const WARM_AFTER = 1500;
 function warmReader() {
 	void import("@/screens/viewer/ViewerScreen").catch(() => {});
+	// The PDF reader is a chunk of its own, behind the screen above.
+	void import("@/screens/viewer/PdfView").catch(() => {});
 	void import("@/lib/pdfEngine").then((m) => m.loadEngine()).catch(() => {});
 	// Then Tools and Notes, at the next quiet moment: each is opened
 	// from Home, and should come up as quickly as the reader does.

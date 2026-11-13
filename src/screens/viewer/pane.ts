@@ -23,6 +23,13 @@ export interface Pane {
 
 export const PaneContext = createContext<Pane | null>(null);
 
+/** Whether a viewer is on show: the one with the keyboard, or the half
+ * beside it. A tab behind another, or under Settings, is kept as it
+ * is, laid out and drawn, so showing it again costs nothing. */
+export function onShow(active: boolean, pane: Pane | null): boolean {
+	return active || !!(pane?.side && pane.visible);
+}
+
 export interface SideBySide {
 	/** Two documents are shown now. */
 	on: boolean;

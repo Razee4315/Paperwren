@@ -131,6 +131,7 @@ import {
 import { TurnArrows } from "./TurnArrows";
 import { useZoom } from "./hooks";
 import { PageViewIcon, PageViewSheet } from "./paged";
+import { PaneContext, onShow } from "./pane";
 import { canCrop, cropPages, whole } from "./pdfCrop";
 import {
 	type MarkLabel,
@@ -337,6 +338,12 @@ export default function PdfView({
 		"comments" | "attachments" | "layers" | null
 	>(null);
 	const file = useContext(ViewerFileContext);
+	// On show, or kept behind another tab (pane.ts).
+	const shown = onShow(active, useContext(PaneContext));
+	const shownRef = useRef(shown);
+	shownRef.current = shown;
+	const awayResized = useRef(false);
+	const remeasure = useRef(() => {});
 	// The file's content key, and whether its marks may be kept.
 	const [markDoc, setMarkDoc] = useState<{
 		key: string;
@@ -1536,6 +1543,14 @@ export default function PdfView({
 		let width = el.clientWidth;
 		let frame = 0;
 		const measure = () => {
+			// A tab not on show is laid out as if shown, and a window
+			// resized meanwhile would fit all its pages again for nothing:
+			// that waits until it is shown.
+			if (!el.clientWidth) return;
+			if (!shownRef.current) {
+				awayResized.current = true;
+				return;
+			}
 			setRoomForTwo(el.clientWidth >= 700 && el.clientWidth > el.clientHeight);
 			measureFit();
 			// A zoom that fits ("Fit width", "Fit page", "Auto") fits again
@@ -1552,6 +1567,7 @@ export default function PdfView({
 			});
 		};
 		measure();
+		remeasure.current = measure;
 		const ro = new ResizeObserver(measure);
 		ro.observe(el);
 		return () => {
@@ -1559,6 +1575,11 @@ export default function PdfView({
 			cancelAnimationFrame(frame);
 		};
 	}, [measureFit]);
+	useEffect(() => {
+		if (!shown || !awayResized.current) return;
+		awayResized.current = false;
+		remeasure.current();
+	}, [shown]);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: measured again at each page and zoom
 	useEffect(() => {
 		measureFit();

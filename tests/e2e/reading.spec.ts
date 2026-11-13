@@ -1405,6 +1405,75 @@ test.describe("tabs on a desktop", () => {
 			"sample.txt",
 		]);
 	});
+	test("a tab shown again is just as it was left: nothing drawn again, no entrance (#84)", async ({
+		page,
+	}) => {
+		await boot(page, {}, "?desktop&frame");
+		await openFixture(page, "features/margins.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		const scroller = page.locator('[data-testid="pdf-scroll"]:visible');
+		await scroller.evaluate((el) => {
+			el.scrollTop = 900;
+		});
+		await page.waitForTimeout(600);
+		const pageWidth = () =>
+			page
+				.locator('[data-testid="pdf-scroll"]:visible .page')
+				.first()
+				.evaluate((el) => el.getBoundingClientRect().width);
+		const wide = await pageWidth();
+
+		await openMore(page, "sample.pdf");
+		const tabs = page.getByTestId("tab");
+		await expect(tabs).toHaveText(["margins.pdf", "sample.pdf"]);
+		await page.waitForTimeout(800);
+
+		// From here on, count every page drawn again.
+		await page.evaluate(() => {
+			const w = window as unknown as { drawn: number };
+			w.drawn = 0;
+			new MutationObserver((list) => {
+				for (const m of list)
+					for (const n of m.addedNodes)
+						if (
+							n instanceof Element &&
+							(n.nodeName === "CANVAS" || n.querySelector("canvas"))
+						)
+							w.drawn++;
+			}).observe(document.body, { childList: true, subtree: true });
+		});
+		for (const at of [0, 1, 0]) {
+			await tabs.nth(at).getByRole("tab").click();
+			await page.waitForTimeout(400);
+		}
+		await expect(scroller).toHaveCount(1);
+		// The first document: its place kept, nothing drawn again, and no
+		// entrance played as if it had just been opened.
+		expect(
+			await scroller.evaluate((el) => Math.round(el.scrollTop)),
+		).toBeGreaterThan(850);
+		expect(
+			await page.evaluate(() => (window as unknown as { drawn: number }).drawn),
+		).toBe(0);
+		const shown = page.locator('[data-testid="viewer"]:visible');
+		await expect(shown).toHaveCount(1);
+		expect(await shown.evaluate((el) => el.getAnimations().length)).toBe(0);
+		// The one behind is out of reach, not out of the layout.
+		const away = page.locator('[data-testid="viewer"][data-away]');
+		await expect(away).toHaveCount(1);
+		expect(await away.evaluate((el) => el.clientWidth)).toBeGreaterThan(0);
+
+		// A window made narrower while a tab is behind: it fits again when
+		// shown, not before.
+		await tabs.nth(1).getByRole("tab").click();
+		await page.setViewportSize({ width: 960, height: 800 });
+		await page.waitForTimeout(400);
+		await tabs.nth(0).getByRole("tab").click();
+		await expect.poll(pageWidth).toBeLessThan(wide);
+		expect(await pageWidth()).toBeLessThanOrEqual(960);
+	});
 });
 
 test.describe("office details", () => {
