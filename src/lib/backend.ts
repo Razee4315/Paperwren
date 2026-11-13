@@ -825,9 +825,11 @@ const tauriBackend: Backend = {
 				.catch(() => {});
 		};
 		take();
-		// macOS sends a running app the files to open, and the shell says
-		// when some are waiting. One may have come before this was
-		// listening, so they are asked for once more when it is.
+		// Files opened while the app runs (a double-click in Explorer or a
+		// file manager starts Paperwren again, and that start hands them
+		// over; macOS sends them itself): the shell says when some are
+		// waiting, and they open as tabs. One may have come before this
+		// was listening, so they are asked for once more when it is.
 		let stop = () => {};
 		let cancelled = false;
 		import("@tauri-apps/api/event")
