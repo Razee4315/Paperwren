@@ -38,8 +38,15 @@
       // answer is anything else, so a delivery is never lost into a
       // page that had not finished loading.
       window.__paperwrenFiles = [];
-      window.__paperwrenOpenFile = function (path, name, size) {
-        window.__paperwrenFiles.push({ path: path, name: name, size: size || 0 });
+      // `caller`: another app opened it with Paperwren ("started" or
+      // "woken" Paperwren); Back on it goes back to that app.
+      window.__paperwrenOpenFile = function (path, name, size, caller) {
+        window.__paperwrenFiles.push({
+          path: path,
+          name: name,
+          size: size || 0,
+          caller: caller || null,
+        });
         window.dispatchEvent(new CustomEvent("paperwren-file"));
         return true;
       };

@@ -40,6 +40,10 @@ interface NavApi {
 	/** An overlay closed another way (Esc, its Close button): Back skips
 	 * it from now on, before the render that takes it off the list. */
 	noteClosed: (id: string) => void;
+	/** Give Back a way out of the app before it pops a screen: `leave`
+	 * answers true when it has left (Android: back to the app that
+	 * opened the document). */
+	onLeave: (leave: (state: NavState) => boolean) => () => void;
 }
 
 const NavContext = createContext<NavApi | null>(null);
@@ -71,6 +75,14 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 		window.setTimeout(() => closed.current.delete(id), 400);
 	}, []);
 
+	const leaveRef = useRef<((state: NavState) => boolean) | null>(null);
+	const onLeave = useCallback((leave: (state: NavState) => boolean) => {
+		leaveRef.current = leave;
+		return () => {
+			if (leaveRef.current === leave) leaveRef.current = null;
+		};
+	}, []);
+
 	const back = useCallback(() => {
 		const current = stateRef.current;
 		const open = current.overlays.filter(
@@ -92,6 +104,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 			}
 			return true;
 		}
+		if (leaveRef.current?.({ ...current, overlays: open })) return true;
 		if (!canGoBack(current)) return false;
 		dispatch({ type: "pop" });
 		return true;
@@ -162,8 +175,19 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 			reset,
 			registerOverlay,
 			noteClosed,
+			onLeave,
 		}),
-		[state, push, replace, back, close, reset, registerOverlay, noteClosed],
+		[
+			state,
+			push,
+			replace,
+			back,
+			close,
+			reset,
+			registerOverlay,
+			noteClosed,
+			onLeave,
+		],
 	);
 	return <NavContext.Provider value={api}>{children}</NavContext.Provider>;
 }

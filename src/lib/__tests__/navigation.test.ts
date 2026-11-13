@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	type NavState,
+	backToCaller,
 	canGoBack,
 	initialNav,
 	navReducer,
@@ -121,5 +122,42 @@ describe("reset", () => {
 		expect((state.screens[1] as { key: number }).key).toBe(2);
 		state = navReducer(state, { type: "reset", screens: [] });
 		expect(state.screens).toEqual(initialNav.screens);
+	});
+});
+
+describe("a document another app opened with Paperwren (#83)", () => {
+	const viewer = (id: string, key: number) =>
+		({ kind: "viewer", request: { ...req, id }, key }) as const;
+	it("Back goes back to that app while it is on top with nothing over it", () => {
+		const shown: NavState = {
+			screens: [{ kind: "home" }, viewer("f1", 1)],
+			overlays: [],
+		};
+		expect(backToCaller(shown, "f1")).toBe(true);
+		// Over another document read before: still that app.
+		expect(
+			backToCaller(
+				{
+					...shown,
+					screens: [{ kind: "home" }, viewer("f0", 0), viewer("f1", 1)],
+				},
+				"f1",
+			),
+		).toBe(true);
+	});
+	it("does not while something is over it, or another screen is on top", () => {
+		const base: NavState = {
+			screens: [{ kind: "home" }, viewer("f1", 1)],
+			overlays: ["sheet"],
+		};
+		expect(backToCaller(base, "f1")).toBe(false);
+		expect(
+			backToCaller(
+				{ screens: [...base.screens, { kind: "tools" }], overlays: [] },
+				"f1",
+			),
+		).toBe(false);
+		expect(backToCaller({ ...base, overlays: [] }, "f2")).toBe(false);
+		expect(backToCaller({ ...base, overlays: [] }, null)).toBe(false);
 	});
 });

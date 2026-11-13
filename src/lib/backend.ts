@@ -204,6 +204,10 @@ declare global {
 			saveBegin?(token: string): boolean;
 			saveChunk?(token: string, base64: string): boolean;
 			saveFinish?(token: string, name: string, mime: string): boolean;
+			/** Back on a file another app opened with Paperwren: back to
+			 * that app, ending Paperwren if that start began it (`started`).
+			 * Added after 1.7.0. */
+			leaveToCaller?(started: boolean): boolean;
 		};
 		/** MainActivity's answers to pickFolder / listFolder. */
 		__paperwrenSaved?: (token: string, result: string | null) => void;
@@ -236,6 +240,9 @@ declare global {
 		__paperwrenTestFile?: File;
 		/** Test hook: when the open file was last changed. */
 		__paperwrenTestStamp?: number;
+		/** Test hook: the bytes of copies Android "delivered" (by path),
+		 * for the browser, which has no such store. */
+		__paperwrenTestCopies?: Record<string, Blob>;
 	}
 }
 
@@ -477,6 +484,9 @@ const browserBackend: Backend = {
 		return window.__paperwrenTestStamp ?? null;
 	},
 	async read(reopen) {
+		const copy =
+			reopen.kind === "managed" && window.__paperwrenTestCopies?.[reopen.path];
+		if (copy) return copy.arrayBuffer();
 		if (reopen.kind !== "browser") throw new OpenError("not_found");
 		const blob =
 			liveFiles.get(reopen.key) ??
