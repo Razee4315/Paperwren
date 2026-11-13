@@ -8,7 +8,12 @@ import { locale, t, tn } from "@/lib/i18n";
 import { measureLabel as labelOf } from "@/lib/measure";
 import { hasOwnText } from "@/lib/ocr";
 import { pageViewName } from "@/lib/pageViews";
-import { documentWorker, loadEngine, pdfAsset } from "@/lib/pdfEngine";
+import {
+	documentOptions,
+	documentWorker,
+	loadEngine,
+	pdfAsset,
+} from "@/lib/pdfEngine";
 import { type TextPicture, addMarkup } from "@/lib/pdfMarkup";
 import { digitallySigned } from "@/lib/pdfTools";
 import { PrintCancelled } from "@/lib/print";
@@ -460,12 +465,9 @@ export default function PdfView({
 				const started = documentWorker(pdfjs);
 				release = started.release;
 				task = pdfjs.getDocument({
+					...documentOptions(),
 					worker: started.worker,
 					data: new Uint8Array(data),
-					isEvalSupported: false,
-					cMapUrl: pdfAsset("cmaps"),
-					cMapPacked: true,
-					standardFontDataUrl: pdfAsset("standard_fonts"),
 				});
 				task.onPassword = (
 					update: (password: string) => void,
