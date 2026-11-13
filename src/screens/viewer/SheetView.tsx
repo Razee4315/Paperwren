@@ -530,7 +530,8 @@ export default function SheetView({
 			return;
 		}
 		const paging = e.key === "PageDown" || e.key === "PageUp";
-		if (mod && paging) {
+		// With Shift they move the window's tab instead (App.tsx).
+		if (mod && paging && !e.shiftKey) {
 			// Ctrl+Page Down and Up: the next and the previous sheet.
 			const shown = sheets.map((sh, i) => (offered(sh) ? i : -1));
 			const tabs = shown.filter((i) => i >= 0);

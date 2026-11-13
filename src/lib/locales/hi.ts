@@ -1219,4 +1219,8 @@ export const hi: Table = {
 	"Show beside this": "इसके बगल में दिखाएँ",
 	"Swap sides": "दाएँ-बाएँ बदलें",
 	"Resize the two documents": "दोनों दस्तावेज़ों का आकार बदलें",
+	"Close other tabs": "दूसरे टैब बंद करें",
+	"Close tabs after this one": "इसके बाद वाले टैब बंद करें",
+	"Show side by side": "साथ-साथ दिखाएँ",
+	"Move the tab back or on": "टैब को पीछे या आगे करें",
 };

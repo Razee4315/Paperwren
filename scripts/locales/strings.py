@@ -821,3 +821,7 @@ ROWS += COMPAT_UX_ROWS
 # cropping, errors and more.
 from audit_ux import ROWS as AUDIT_UX_ROWS
 ROWS += AUDIT_UX_ROWS
+
+# Words for the 1.7.1 fixes: tabs and pictures added many at once.
+from fixes_171_ux import ROWS as FIXES_171_UX_ROWS
+ROWS += FIXES_171_UX_ROWS

@@ -1286,4 +1286,8 @@ export const ru: Table = {
 	"Show beside this": "Показать рядом",
 	"Swap sides": "Поменять местами",
 	"Resize the two documents": "Изменить размер двух документов",
+	"Close other tabs": "Закрыть другие вкладки",
+	"Close tabs after this one": "Закрыть вкладки после этой",
+	"Show side by side": "Показать рядом",
+	"Move the tab back or on": "Переместить вкладку назад или вперёд",
 };

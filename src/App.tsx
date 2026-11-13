@@ -6,7 +6,7 @@ import { isFullscreenKey } from "@/lib/keys";
 import { matches } from "@/lib/shortcuts";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
-import { type Tab, TabStrip } from "@/screens/TabStrip";
+import { type Tab, TabStrip, moveTab } from "@/screens/TabStrip";
 import { UpdateHost } from "@/screens/Updates";
 import { Home } from "@/screens/home/Home";
 import { SettingsScreen } from "@/screens/settings/Settings";
@@ -203,6 +203,28 @@ function Root() {
 		leaving.current = true;
 		reset([]);
 	}, [reset]);
+	/** Put the tab of `key` at index `to` in the row. */
+	const moveTabTo = useCallback((key: number, to: number) => {
+		const next = moveTab(tabsRef.current, key, to);
+		if (next === tabsRef.current) return;
+		tabsRef.current = next;
+		setTabs(next);
+	}, []);
+	/** Close every tab but `keep`'s (`which: "others"`), or every one
+	 * after it in the row (`"after"`). The tab kept is shown. */
+	const closeAround = useCallback(
+		(keep: Tab, which: "others" | "after") => {
+			const list = tabsRef.current;
+			const at = list.findIndex((tab) => tab.key === keep.key);
+			if (at < 0) return;
+			const gone = list.filter((_, i) =>
+				which === "others" ? i !== at : i > at,
+			);
+			if (gone.some((tab) => tab.key === current)) show(keep);
+			for (const tab of gone) closeTab(tab.key);
+		},
+		[current, show, closeTab],
+	);
 
 	const open = useCallback(
 		(request: OpenRequest) => {
@@ -478,6 +500,22 @@ function Root() {
 							: Math.min(Number(e.key) - 1, list.length - 1);
 				show(list[to]);
 			} else if (
+				isDesktop &&
+				e.ctrlKey &&
+				e.shiftKey &&
+				!e.altKey &&
+				(e.key === "PageUp" || e.key === "PageDown") &&
+				shownKey.current !== null &&
+				!modalOpen()
+			) {
+				// Ctrl+Shift+Page Up and Down move the tab on show one place
+				// back or on in the row, as in a browser.
+				e.preventDefault();
+				const at = tabsRef.current.findIndex(
+					(tab) => tab.key === shownKey.current,
+				);
+				moveTabTo(shownKey.current, at + (e.key === "PageUp" ? -1 : 1));
+			} else if (
 				e.altKey &&
 				!e.ctrlKey &&
 				e.key === "ArrowLeft" &&
@@ -513,7 +551,7 @@ function Root() {
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [pick, back, close, closeTab, show, deep]);
+	}, [pick, back, close, closeTab, show, deep, moveTabTo]);
 
 	// Ctrl+wheel, which is also how a trackpad pinch arrives: the same
 	// rule as the zoom keys above. A viewer takes it for its document
@@ -741,6 +779,10 @@ function Root() {
 					onShow={show}
 					onClose={(tab) => closeTab(tab.key)}
 					onHome={goHome}
+					onMove={(tab, to) => moveTabTo(tab.key, to)}
+					onCloseOthers={(tab) => closeAround(tab, "others")}
+					onCloseAfter={(tab) => closeAround(tab, "after")}
+					onBeside={sideBySide.room ? sideBySide.beside : undefined}
 				/>
 			)}
 			{welcome && (

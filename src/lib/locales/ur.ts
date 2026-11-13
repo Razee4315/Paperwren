@@ -1240,4 +1240,8 @@ export const ur: Table = {
 	"Show beside this": "اس کے ساتھ دکھائیں",
 	"Swap sides": "اطراف بدلیں",
 	"Resize the two documents": "دونوں دستاویزات کا سائز بدلیں",
+	"Close other tabs": "دوسرے ٹیب بند کریں",
+	"Close tabs after this one": "اس کے بعد والے ٹیب بند کریں",
+	"Show side by side": "ساتھ ساتھ دکھائیں",
+	"Move the tab back or on": "ٹیب کو پیچھے یا آگے کریں",
 };

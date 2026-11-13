@@ -1258,4 +1258,8 @@ export const pt: Table = {
 	"Show beside this": "Mostrar ao lado deste",
 	"Swap sides": "Trocar os lados",
 	"Resize the two documents": "Redimensionar os dois documentos",
+	"Close other tabs": "Fechar as outras abas",
+	"Close tabs after this one": "Fechar as abas depois desta",
+	"Show side by side": "Mostrar lado a lado",
+	"Move the tab back or on": "Mover a aba para trás ou para a frente",
 };

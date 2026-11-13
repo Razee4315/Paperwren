@@ -1149,4 +1149,8 @@ export const zh: Table = {
 	"Show beside this": "在旁边显示",
 	"Swap sides": "交换左右",
 	"Resize the two documents": "调整两个文档的大小",
+	"Close other tabs": "关闭其他标签页",
+	"Close tabs after this one": "关闭此后的标签页",
+	"Show side by side": "并排显示",
+	"Move the tab back or on": "将标签页前移或后移",
 };

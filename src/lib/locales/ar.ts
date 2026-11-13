@@ -1280,4 +1280,8 @@ export const ar: Table = {
 	"Show beside this": "اعرض بجانب هذا",
 	"Swap sides": "تبديل الجانبين",
 	"Resize the two documents": "غيّر حجم المستندين",
+	"Close other tabs": "إغلاق علامات التبويب الأخرى",
+	"Close tabs after this one": "إغلاق علامات التبويب التي بعد هذه",
+	"Show side by side": "اعرض جنبًا إلى جنب",
+	"Move the tab back or on": "حرّك علامة التبويب للخلف أو للأمام",
 };

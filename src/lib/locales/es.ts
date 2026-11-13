@@ -1257,4 +1257,8 @@ export const es: Table = {
 	"Show beside this": "Mostrar junto a este",
 	"Swap sides": "Intercambiar lados",
 	"Resize the two documents": "Cambiar el tamaño de los dos documentos",
+	"Close other tabs": "Cerrar las demás pestañas",
+	"Close tabs after this one": "Cerrar las pestañas posteriores",
+	"Show side by side": "Mostrar lado a lado",
+	"Move the tab back or on": "Mover la pestaña atrás o adelante",
 };

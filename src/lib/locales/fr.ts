@@ -1270,4 +1270,8 @@ export const fr: Table = {
 	"Show beside this": "Afficher à côté",
 	"Swap sides": "Inverser les côtés",
 	"Resize the two documents": "Redimensionner les deux documents",
+	"Close other tabs": "Fermer les autres onglets",
+	"Close tabs after this one": "Fermer les onglets suivants",
+	"Show side by side": "Afficher côte à côte",
+	"Move the tab back or on": "Déplacer l'onglet avant ou après",
 };
