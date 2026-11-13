@@ -528,6 +528,29 @@ test.describe("the desktop layout", () => {
 		await expect(page.getByTestId("shortcuts-reset-all")).toHaveCount(0);
 	});
 
+	test("two quick presses of Esc close a sheet and then leave Settings", async ({
+		page,
+	}) => {
+		await boot(page, {}, DESKTOP);
+		await page.getByTestId("open-settings").click();
+		await page.getByTestId("shortcuts-open").click();
+		await expect(page.getByTestId("shortcuts-sheet")).toBeVisible();
+		// Both before the app draws again: the second must not be lost on
+		// the sheet the first has already closed.
+		await page.evaluate(() => {
+			for (let i = 0; i < 2; i++)
+				(document.activeElement ?? document.body).dispatchEvent(
+					new KeyboardEvent("keydown", {
+						key: "Escape",
+						bubbles: true,
+						cancelable: true,
+					}),
+				);
+		});
+		await expect(page.getByTestId("home")).toBeVisible();
+		await expect(page.getByTestId("settings")).toHaveCount(0);
+	});
+
 	test("the close button of a sheet closes it (#55)", async ({ page }) => {
 		await boot(page, {}, DESKTOP);
 		await page.getByTestId("open-settings").click();

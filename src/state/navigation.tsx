@@ -37,6 +37,9 @@ interface NavApi {
 	reset: (screens: Screen[]) => void;
 	/** Register an open overlay; its `close` runs when Back targets it. */
 	registerOverlay: (id: string, close: () => void) => () => void;
+	/** An overlay closed another way (Esc, its Close button): Back skips
+	 * it from now on, before the render that takes it off the list. */
+	noteClosed: (id: string) => void;
 }
 
 const NavContext = createContext<NavApi | null>(null);
@@ -51,12 +54,31 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 	// nested call must skip the overlay being closed, or Back would call
 	// the same handler forever and the dialog could never close.
 	const closing = useRef(new Set<string>());
+	// Overlays Back has closed that are still listed until the next
+	// render. Two quick presses (Esc Esc, or Back twice while the app is
+	// busy) would otherwise both reach the same overlay, and the second
+	// would do nothing instead of going on to the screen under it.
+	const closed = useRef(new Set<string>());
+	// biome-ignore lint/correctness/useExhaustiveDependencies: cleared at each render of a new state
+	useEffect(() => {
+		closed.current.clear();
+	}, [state]);
+
+	// Until its own close lands; an overlay that turns Back down (busy
+	// saving) is reached again a moment later.
+	const noteClosed = useCallback((id: string) => {
+		closed.current.add(id);
+		window.setTimeout(() => closed.current.delete(id), 400);
+	}, []);
 
 	const back = useCallback(() => {
 		const current = stateRef.current;
-		const open = current.overlays.filter((id) => !closing.current.has(id));
+		const open = current.overlays.filter(
+			(id) => !closing.current.has(id) && !closed.current.has(id),
+		);
 		const top = open[open.length - 1];
 		if (top) {
+			noteClosed(top);
 			const close = closers.current.get(top);
 			if (!close) {
 				dispatch({ type: "overlay-close", id: top });
@@ -73,7 +95,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 		if (!canGoBack(current)) return false;
 		dispatch({ type: "pop" });
 		return true;
-	}, []);
+	}, [noteClosed]);
 
 	const registerOverlay = useCallback((id: string, close: () => void) => {
 		closers.current.set(id, close);
@@ -131,8 +153,17 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 	}, [back]);
 
 	const api = useMemo(
-		() => ({ state, push, replace, back, close, reset, registerOverlay }),
-		[state, push, replace, back, close, reset, registerOverlay],
+		() => ({
+			state,
+			push,
+			replace,
+			back,
+			close,
+			reset,
+			registerOverlay,
+			noteClosed,
+		}),
+		[state, push, replace, back, close, reset, registerOverlay, noteClosed],
 	);
 	return <NavContext.Provider value={api}>{children}</NavContext.Provider>;
 }
@@ -144,12 +175,21 @@ export function useNav(): NavApi {
 }
 
 /** While `open`, Back closes this overlay before anything else. */
-export function useBackClose(id: string, open: boolean, close: () => void) {
-	const { registerOverlay } = useNav();
+export function useBackClose(
+	id: string,
+	open: boolean,
+	close: () => void,
+): () => void {
+	const { registerOverlay, noteClosed } = useNav();
 	const closeRef = useRef(close);
 	closeRef.current = close;
 	useEffect(() => {
 		if (!open) return;
 		return registerOverlay(id, () => closeRef.current());
 	}, [id, open, registerOverlay]);
+	// The close to hand to Esc and Close buttons: Back hears of it at once.
+	return useCallback(() => {
+		noteClosed(id);
+		closeRef.current();
+	}, [id, noteClosed]);
 }
