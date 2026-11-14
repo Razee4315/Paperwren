@@ -1350,4 +1350,6 @@ export const es: Table = {
 		"Otra app está usando este archivo. Ciérralo allí y vuelve a intentarlo.",
 	"Paperwren isn't allowed to rename this file":
 		"Paperwren no tiene permiso para cambiar el nombre de este archivo",
+	"That's the file you have open. Choose another name.":
+		"Es el archivo que tienes abierto. Elige otro nombre.",
 };

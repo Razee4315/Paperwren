@@ -17,6 +17,7 @@ import {
 	mimeOf,
 } from "./formats";
 import { compareNames, formatNumber, msg, t } from "./i18n";
+import { openHeader, saveAsking, saveRefused } from "./openFiles";
 import { idForReopen, managedRelPath } from "./recents";
 import {
 	type Renamed,
@@ -139,11 +140,14 @@ interface Backend {
 	openWith(file: FileRef): Promise<void>;
 	reveal(file: FileRef): Promise<void>;
 	/** Save bytes the app made (a filled-in form, pages put together)
-	 * as a new file, where the reader says. Null when they cancel. */
+	 * as a new file, where the reader says. Null when they cancel. Never
+	 * over a file that is open (`open`, filled in from lib/openFiles): the
+	 * reader is told and asked again. */
 	saveFile(
 		name: string,
 		bytes: Uint8Array,
 		mime: string,
+		open?: string[],
 	): Promise<SavedFile | null>;
 	/** Give the file a new name. On a desktop the file itself is
 	 * renamed in its folder; on Android a document whose provider lets
@@ -1163,7 +1167,7 @@ const tauriBackend: Backend = {
 	async reveal(file) {
 		await invoke("reveal_in_folder", { path: nativeTarget(file) });
 	},
-	async saveFile(name, bytes, mime) {
+	async saveFile(name, bytes, mime, open = []) {
 		const bridge = window.__paperwrenAndroidExtras;
 		if (window.__paperwrenAndroid) {
 			if (!bridge?.saveBegin || !bridge.saveChunk || !bridge.saveFinish)
@@ -1186,8 +1190,13 @@ const tauriBackend: Backend = {
 			if (answer === null) throw new OpenError("unreadable");
 			return androidSaved(answer, name);
 		}
+		// The shell refuses a place that is one of the open files (it alone
+		// sees where the reader picked before anything is written).
 		const path = await invoke<string | null>("save_as", bytes, {
-			headers: { "x-name": encodeURIComponent(name) },
+			headers: {
+				"x-name": encodeURIComponent(name),
+				"x-open": openHeader(open),
+			},
 		});
 		if (!path) return null;
 		const cut = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
@@ -1293,6 +1302,12 @@ export function requestForBytes(name: string, bytes: Uint8Array): OpenRequest {
 export const backend: Backend = {
 	...raw,
 	storeSet: createSerializedWriter((key, value) => raw.storeSet(key, value)),
+	saveFile(name, bytes, mime) {
+		return saveAsking(
+			(open) => raw.saveFile(name, bytes, mime, open),
+			saveRefused,
+		);
+	},
 	stamp(reopen) {
 		return reopen.kind === "memory" ? Promise.resolve(null) : raw.stamp(reopen);
 	},

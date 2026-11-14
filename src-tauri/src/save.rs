@@ -4,7 +4,8 @@
 //! - **Save a copy** of something the app made (a filled-in form, pages
 //!   put together). The reader picks the place in the system's save
 //!   dialog, opened from here; the web layer never names a path to
-//!   write to, so the fs plugin stays read-only.
+//!   write to, so the fs plugin stays read-only. It names the files the
+//!   reader has open, and a copy never goes over one of them.
 //! - **Rename** the document on show, in its own folder. The new name
 //!   must be a plain file name of a document type the app opens, and
 //!   another file of that name is never replaced.
@@ -85,6 +86,23 @@ fn same_file(a: &Path, b: &Path) -> bool {
     }
 }
 
+/// Whether a copy saved at `path` would go over one of the files the
+/// reader has open (`open`, as the web layer knows them): the same file
+/// however its path is written (letter case on Windows and macOS,
+/// either slash, a link). A place where no file is yet is never one.
+#[cfg_attr(mobile, allow(dead_code))]
+pub fn is_open(path: &Path, open: &[String]) -> bool {
+    open.iter().any(|o| same_file(path, Path::new(o)))
+}
+
+/// The open files in the `x-open` header, once decoded: one path a line.
+pub fn open_paths(list: &str) -> Vec<String> {
+    list.lines()
+        .filter(|l| !l.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
 /// The extension of a suggested file name, for the dialog's filter.
 pub fn extension_of(name: &str) -> Option<String> {
     Path::new(name)
@@ -139,6 +157,37 @@ mod tests {
         assert_eq!(to, dir.join("Renamed.pdf"));
         assert!(!a.exists());
         assert_eq!(fs::read(&to).unwrap(), b"%PDF-1.4 a");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn never_saves_over_an_open_file() {
+        let dir = scratch("open");
+        let a = dir.join("open.pdf");
+        fs::write(&a, b"%PDF-1.4 a").unwrap();
+        let gone = dir.join("gone.pdf");
+        let open = open_paths(&format!("{}\n\n{}\n", a.display(), gone.display()));
+        assert_eq!(open.len(), 2);
+
+        assert!(is_open(&a, &open));
+        // The same file, written another way.
+        assert!(is_open(&dir.join(".").join("open.pdf"), &open));
+        // Another file, and a place where no file is yet.
+        fs::write(dir.join("other.pdf"), b"%PDF-1.4 b").unwrap();
+        assert!(!is_open(&dir.join("other.pdf"), &open));
+        assert!(!is_open(&dir.join("new.pdf"), &open));
+        assert!(!is_open(&a, &[]));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn an_open_file_is_the_same_in_any_case_or_slash() {
+        let dir = scratch("open-case");
+        let a = dir.join("Open File.pdf");
+        fs::write(&a, b"%PDF-1.4 a").unwrap();
+        let open = vec![a.to_string_lossy().replace('\\', "/").to_uppercase()];
+        assert!(is_open(&dir.join("open file.PDF"), &open));
         let _ = fs::remove_dir_all(&dir);
     }
 

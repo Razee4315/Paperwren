@@ -1312,4 +1312,6 @@ export const hi: Table = {
 		"यह फ़ाइल किसी और ऐप में खुली है। उसे वहाँ बंद करें, फिर दोबारा कोशिश करें।",
 	"Paperwren isn't allowed to rename this file":
 		"Paperwren को इस फ़ाइल का नाम बदलने की अनुमति नहीं है",
+	"That's the file you have open. Choose another name.":
+		"यह वही फ़ाइल है जो आपने खोल रखी है। कोई और नाम चुनें।",
 };

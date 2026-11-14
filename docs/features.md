@@ -176,6 +176,6 @@ The same app on Windows:
 - A signature, initials or stamp you ask to keep are stored as pictures in app-private storage, and can be forgotten whenever you sign or in Settings.
 - Scanning asks for no camera permission: the phone's camera app takes the photo. The photos are worked on in memory; the copy the camera app writes into the app's own folder is deleted the next time the app starts.
 - Notes are stored in app-private storage and go nowhere unless you save one as a PDF or back them up, which writes a file where you pick it.
-- The app never changes a file it opened. It writes only a copy a tool made, where you pick it in the system's save screen, and a file you rename. On a desktop both are done by the Rust side (`src-tauri/src/save.rs`), which checks the name: the web layer's file access stays read-only.
+- The app never changes a file it opened. It writes only a copy a tool made, where you pick it in the system's save screen (never over a file you have open: it says so and asks again), and a file you rename. On a desktop both are done by the Rust side (`src-tauri/src/save.rs`), which checks the name: the web layer's file access stays read-only.
 
 The full policy is at [razee4315.github.io/Paperwren/privacy](https://razee4315.github.io/Paperwren/privacy).

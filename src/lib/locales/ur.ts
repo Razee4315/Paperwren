@@ -1334,4 +1334,6 @@ export const ur: Table = {
 		"یہ فائل کسی اور ایپ میں کھلی ہے۔ اسے وہاں بند کریں، پھر دوبارہ کوشش کریں۔",
 	"Paperwren isn't allowed to rename this file":
 		"Paperwren کو اس فائل کا نام بدلنے کی اجازت نہیں",
+	"That's the file you have open. Choose another name.":
+		"یہ وہی فائل ہے جو آپ نے کھول رکھی ہے۔ کوئی اور نام چنیں۔",
 };
