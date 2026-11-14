@@ -1235,4 +1235,11 @@ export const zh: Table = {
 	Triangles: "三角形",
 	Vertices: "顶点",
 	Animations: "动画",
+	"This changes the name in Paperwren only. The original file keeps its name.":
+		"这只会更改 Paperwren 中的名称，原文件保留原名。",
+	"Renamed to {name} in Paperwren. The original file keeps its name.":
+		"已在 Paperwren 中重命名为 {name}，原文件保留原名。",
+	"Another app is using this file. Close it there, then try again.":
+		"另一个应用正在使用此文件。请先在那里关闭它，然后重试。",
+	"Paperwren isn't allowed to rename this file": "Paperwren 无权重命名此文件",
 };

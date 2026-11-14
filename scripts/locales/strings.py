@@ -847,3 +847,8 @@ ROWS += CROP_18_ROWS
 # Words for opening 3D models (.glb) in 1.8.
 from model_18 import ROWS as MODEL_18_ROWS
 ROWS += MODEL_18_ROWS
+
+# Words for renaming in 1.8: when only Paperwren's name for a file
+# changes, and why a rename was refused.
+from rename_18 import ROWS as RENAME_18_ROWS
+ROWS += RENAME_18_ROWS

@@ -8,6 +8,7 @@ import {
 	removeBookmark,
 } from "@/lib/bookmarks";
 import { isDesktop, isTauri } from "@/lib/env";
+import { moveKeyed } from "@/lib/recents";
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
 /**
@@ -53,10 +54,8 @@ export async function moveBookmarks(from: string, to: string) {
 	if (from === to) return;
 	await load();
 	const base = SHARED ? await read() : book;
-	const list = base[from];
-	if (!list) return;
-	const next = { ...base, [to]: list };
-	delete next[from];
+	const next = moveKeyed(base, from, to);
+	if (next === base) return;
 	book = next;
 	emit();
 	await backend.storeSet(BOOKMARKS_KEY, next).catch(() => {});

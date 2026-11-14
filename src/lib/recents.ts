@@ -232,6 +232,51 @@ export function updateEntry(
 	return sortRecents(list.map((e) => (e.id === id ? { ...e, ...patch } : e)));
 }
 
+/** A recent renamed: known by the name it has now, from where it is
+ * now. Its id comes from that place, so a file renamed where it is has
+ * a new one (what it kept, its place in the list, its pin and where the
+ * reader got to, goes with it); a copy the app holds keeps its own.
+ * Another entry already at the new place gives way to it. */
+export function renameRecent(
+	list: RecentEntry[],
+	id: string,
+	name: string,
+	reopen: Reopen,
+): { list: RecentEntry[]; id: string } {
+	const now = idForReopen(reopen);
+	return {
+		id: now,
+		list: list
+			.filter((e) => e.id !== now || now === id)
+			.map((e) =>
+				e.id === id
+					? {
+							...e,
+							id: now,
+							name,
+							nameVerified: undefined,
+							reopen,
+							unavailable: undefined,
+						}
+					: e,
+			),
+	};
+}
+
+/** Things kept by a file's id (its bookmarks), moved to its new id;
+ * whatever was already under the new id gives way. The same object
+ * when there is nothing to move. */
+export function moveKeyed<T>(
+	record: Record<string, T>,
+	from: string,
+	to: string,
+): Record<string, T> {
+	if (from === to || !(from in record)) return record;
+	const next = { ...record, [to]: record[from] };
+	delete next[from];
+	return next;
+}
+
 /** Managed-copy path relative to the imports directory, as the Rust
  * housekeeping commands expect it. */
 export function managedRelPath(path: string): string | null {

@@ -910,6 +910,12 @@ button.findCount {
 	font-size: 13px;
 	color: var(--danger, #b0312c);
 }
+/* Only the app's name for the file changes: said before it is done. */
+.renameNote {
+	margin: 8px 0 0;
+	font-size: 13px;
+	color: var(--text-2);
+}
 
 /* Desktop: a window's screens change in place, with a short fade; a
  * phone's slide reads as the window shaking. */

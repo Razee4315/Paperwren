@@ -25,7 +25,9 @@ export function splitName(name: string): [stem: string, ext: string] {
  * extension is kept apart), or null when it will do. */
 export function nameProblem(stem: string, ext = ""): string | null {
 	const name = stem.trim();
-	if (!name || name === "." || name === "..") return msg("Type a name");
+	// Dots and spaces at the end are dropped (joinName), so "..." is no
+	// name at all.
+	if (!name.replace(/[. ]+$/, "")) return msg("Type a name");
 	if (FORBIDDEN.test(name) || control(name))
 		return msg("A name can't contain any of \\ / : * ? \" < > |");
 	if (RESERVED.test(name.split(".")[0]))

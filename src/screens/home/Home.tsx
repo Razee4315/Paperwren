@@ -177,6 +177,7 @@ export function Home({
 	onSettings,
 	onTools,
 	onNotes,
+	onRenamed,
 }: {
 	onOpenFile: () => void;
 	onOpenRecent: (entry: RecentEntry) => void;
@@ -185,6 +186,11 @@ export function Home({
 	onSettings: () => void;
 	onTools: (tool?: ToolId) => void;
 	onNotes: () => void;
+	/** A recent was renamed (`from` its old id): a tab showing it follows. */
+	onRenamed?: (
+		from: string,
+		now: Pick<OpenRequest, "id" | "name" | "reopen">,
+	) => void;
 }) {
 	const { entries, ready, togglePin, remove, restore } = useRecents();
 	// The first screen is on show (PAPERWREN_TRACE, lib/trace.ts).
@@ -691,6 +697,9 @@ export function Home({
 					file={refOf(renameFor)}
 					id={renameFor.id}
 					onClose={() => setRenameFor(null)}
+					onRenamed={(name, reopen, id) =>
+						onRenamed?.(renameFor.id, { id, name, reopen })
+					}
 				/>
 			)}
 			{detailsFor && (

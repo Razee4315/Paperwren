@@ -278,6 +278,20 @@ function Root() {
 		},
 		[show],
 	);
+	/** A file renamed from Home while a tab has it: the tab reads it from
+	 * where it is now, under its new name, and stays where it was. */
+	const renamedOpen = useCallback(
+		(from: string, now: Pick<OpenRequest, "id" | "name" | "reopen">) => {
+			if (!tabsRef.current.some((tab) => tab.request.id === from)) return;
+			tabsRef.current = tabsRef.current.map((tab) =>
+				tab.request.id === from
+					? { ...tab, request: { ...tab.request, ...now, nameVerified: true } }
+					: tab,
+			);
+			setTabs(tabsRef.current);
+		},
+		[],
+	);
 
 	// Back (Alt+Left, a mouse's back button) took the document away:
 	// that closes its tab, as the arrow in the bar does.
@@ -696,6 +710,7 @@ function Root() {
 				onSettings={() => push({ kind: "settings" })}
 				onTools={(tool) => push({ kind: "tools", tool })}
 				onNotes={() => push({ kind: "notes" })}
+				onRenamed={renamedOpen}
 			/>
 			{state.screens.map((screen, i) => {
 				const atTop = i === state.screens.length - 1;

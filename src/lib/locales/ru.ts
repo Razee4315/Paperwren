@@ -1372,4 +1372,12 @@ export const ru: Table = {
 	Triangles: "Треугольники",
 	Vertices: "Вершины",
 	Animations: "Анимации",
+	"This changes the name in Paperwren only. The original file keeps its name.":
+		"Имя изменится только в Paperwren. У исходного файла останется прежнее имя.",
+	"Renamed to {name} in Paperwren. The original file keeps its name.":
+		"В Paperwren переименовано в {name}. У исходного файла прежнее имя.",
+	"Another app is using this file. Close it there, then try again.":
+		"Этот файл занят другим приложением. Закройте его там и попробуйте снова.",
+	"Paperwren isn't allowed to rename this file":
+		"У Paperwren нет права переименовать этот файл",
 };

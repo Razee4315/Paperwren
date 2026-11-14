@@ -1342,4 +1342,12 @@ export const es: Table = {
 	Triangles: "Triángulos",
 	Vertices: "Vértices",
 	Animations: "Animaciones",
+	"This changes the name in Paperwren only. The original file keeps its name.":
+		"Esto cambia el nombre solo en Paperwren. El archivo original conserva su nombre.",
+	"Renamed to {name} in Paperwren. The original file keeps its name.":
+		"En Paperwren ahora se llama {name}. El archivo original conserva su nombre.",
+	"Another app is using this file. Close it there, then try again.":
+		"Otra app está usando este archivo. Ciérralo allí y vuelve a intentarlo.",
+	"Paperwren isn't allowed to rename this file":
+		"Paperwren no tiene permiso para cambiar el nombre de este archivo",
 };

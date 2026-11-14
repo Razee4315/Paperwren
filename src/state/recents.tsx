@@ -6,10 +6,11 @@ import {
 	migrateLegacyRecents,
 	normalizeRecents,
 	recordOpen as recordOpenPure,
+	renameRecent,
 	sortRecents,
 	updateEntry,
 } from "@/lib/recents";
-import { forgetThumb } from "@/lib/thumbs";
+import { forgetThumb, moveThumb } from "@/lib/thumbs";
 import {
 	type Position,
 	type RecentEntry,
@@ -285,19 +286,13 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 
 	const rename = useCallback<RecentsApi["rename"]>(
 		(id, name, reopen) => {
-			// An id comes from where the file is: a renamed desktop file has
-			// a new one; a copy the app holds keeps its own.
+			// An id comes from where the file is: a file renamed where it is
+			// has a new one, and what is kept by it moves along; a copy the
+			// app holds keeps its own.
 			const now = idForReopen(reopen);
-			commit((prev) =>
-				prev
-					.filter((e) => e.id !== now || now === id)
-					.map((e) =>
-						e.id === id
-							? { ...e, id: now, name, nameVerified: undefined, reopen }
-							: e,
-					),
-			);
+			commit((prev) => renameRecent(prev, id, name, reopen).list);
 			moveBookmarks(id, now);
+			moveThumb(id, now);
 			return now;
 		},
 		[commit],

@@ -18,6 +18,12 @@ import {
 } from "./formats";
 import { compareNames, formatNumber, msg, t } from "./i18n";
 import { idForReopen, managedRelPath } from "./recents";
+import {
+	type Renamed,
+	documentRenamed,
+	renameRefused,
+	renameWay,
+} from "./rename";
 import { createSerializedWriter } from "./serializedWriter";
 import type { OpenRequest, Reopen } from "./types";
 
@@ -47,6 +53,10 @@ export interface FileAbilities {
 	reveal: boolean;
 	/** Give it a new name. */
 	rename: boolean;
+	/** A rename reaches the file itself (or is tried there). False where
+	 * only the name it goes by in Paperwren can change: a copy the app
+	 * holds, whose original is out of reach. */
+	renameOriginal: boolean;
 }
 
 /** A folder the user chose to browse from Home. */
@@ -135,10 +145,12 @@ interface Backend {
 		mime: string,
 	): Promise<SavedFile | null>;
 	/** Give the file a new name. On a desktop the file itself is
-	 * renamed in its folder; elsewhere the app holds a copy, and the
-	 * name is the one it is known by here (and is shared or saved by).
-	 * Resolves to where the file is now. */
-	rename(file: FileRef, name: string): Promise<Reopen>;
+	 * renamed in its folder; on Android a document whose provider lets
+	 * the app is renamed there. A copy the app holds (and a document
+	 * its provider will not rename) only changes the name it is known
+	 * by here (and is shared or saved by), which the answer says.
+	 * Rejects, renaming nothing, when the rename is refused. */
+	rename(file: FileRef, name: string): Promise<Renamed>;
 	/** Ask the host to print the page as it is laid out for print.
 	 * False when the host has no printing of its own (use window.print). */
 	printPage(jobName: string): Promise<boolean>;
@@ -216,9 +228,15 @@ declare global {
 			 * that app, ending Paperwren if that start began it (`started`).
 			 * Added after 1.7.0. */
 			leaveToCaller?(started: boolean): boolean;
+			/** Ask a document's provider to rename it; the answer comes
+			 * back through window.__paperwrenRenamed(token, {uri, name} |
+			 * "unsupported" | "permission" | "not_found" | null). Added
+			 * after 1.7.1. */
+			renameDocument?(uri: string, name: string, token: string): boolean;
 		};
 		/** MainActivity's answers to pickFolder / listFolder. */
 		__paperwrenSaved?: (token: string, result: string | null) => void;
+		__paperwrenRenamed?: (token: string, result: unknown) => void;
 		__paperwrenFolder?: (
 			token: string,
 			folder: { uri: string; name: string } | null,
@@ -253,6 +271,15 @@ declare global {
 		/** Test hook: the bytes of copies Android "delivered" (by path),
 		 * for the browser, which has no such store. */
 		__paperwrenTestCopies?: Record<string, Blob>;
+		/** Test hook: stands in for the system renaming the file itself.
+		 * Resolves to where it is now (renamed there), null (only the
+		 * app's name changes), or rejects ({kind}) as the system would. */
+		__paperwrenTestRename?: (
+			reopen: Reopen,
+			name: string,
+		) => Promise<Reopen | null> | Reopen | null;
+		/** Test hook: every rename the backend was asked for. */
+		__paperwrenTestRenames?: Array<{ reopen: Reopen; name: string }>;
 	}
 }
 
@@ -492,6 +519,8 @@ const browserBackend: Backend = {
 			openWith: false,
 			reveal: false,
 			rename: true,
+			// A browser hands over a copy: the file on disk is out of reach.
+			renameOriginal: !!window.__paperwrenTestRename,
 		};
 	},
 	async share(file) {
@@ -509,8 +538,13 @@ const browserBackend: Backend = {
 		saveCopy(new File([bytes as BlobPart], name, { type: mime }));
 		return { name };
 	},
-	async rename(file) {
-		return file.reopen;
+	async rename(file, name) {
+		window.__paperwrenTestRenames?.push({ reopen: file.reopen, name });
+		const system = window.__paperwrenTestRename;
+		const now = system ? await system(file.reopen, name) : null;
+		return now
+			? { reopen: now, name, original: true }
+			: { reopen: file.reopen, name, original: false };
 	},
 	async printPage() {
 		return false;
@@ -650,7 +684,11 @@ function importPicked(uri: string): Promise<ManagedCopy | null> {
 const androidWaiters = new Map<string, (value: unknown) => void>();
 let androidToken = 0;
 function androidCall<T>(
-	callback: "__paperwrenFolder" | "__paperwrenFolderList" | "__paperwrenSaved",
+	callback:
+		| "__paperwrenFolder"
+		| "__paperwrenFolderList"
+		| "__paperwrenSaved"
+		| "__paperwrenRenamed",
 	start: (token: string) => boolean,
 ): Promise<T | null> {
 	window[callback] ??= (token: string, value: unknown) => {
@@ -943,6 +981,11 @@ const tauriBackend: Backend = {
 				openWith: extras,
 				reveal: false,
 				rename: true,
+				renameOriginal:
+					renameWay(
+						file.reopen,
+						!!window.__paperwrenAndroidExtras?.renameDocument,
+					) === "document",
 			};
 		}
 		return {
@@ -956,6 +999,7 @@ const tauriBackend: Backend = {
 				!SCRIPT_EXTENSIONS.includes(extensionOf(file.name)),
 			reveal: file.reopen.kind === "path",
 			rename: true,
+			renameOriginal: renameWay(file.reopen, false) === "file",
 		};
 	},
 	async share(file) {
@@ -1022,13 +1066,32 @@ const tauriBackend: Backend = {
 		return { name: path.slice(cut + 1), reopen: { kind: "path", path } };
 	},
 	async rename(file, name) {
-		// A phone holds a private copy: the name is the one it goes by here.
-		if (file.reopen.kind !== "path") return file.reopen;
-		const path = await invoke<string>("rename_file", {
-			path: file.reopen.path,
-			name,
-		});
-		return { kind: "path", path };
+		const { reopen } = file;
+		const extras = window.__paperwrenAndroidExtras;
+		const way = renameWay(reopen, !!extras?.renameDocument);
+		if (way === "file" && reopen.kind === "path") {
+			const path = await invoke<string>("rename_file", {
+				path: reopen.path,
+				name,
+			});
+			const cut = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+			return {
+				reopen: { kind: "path", path },
+				name: path.slice(cut + 1) || name,
+				original: true,
+			};
+		}
+		if (way === "document" && reopen.kind === "uri" && extras?.renameDocument) {
+			const { renameDocument } = extras;
+			const answer = await androidCall<unknown>("__paperwrenRenamed", (token) =>
+				renameDocument.call(extras, reopen.uri, name, token),
+			);
+			return documentRenamed(answer, reopen, name);
+		}
+		if (way === null) throw renameRefused("unsupported");
+		// A copy the app holds (picked, or opened from another app): the
+		// original is out of reach, so the name is the one it goes by here.
+		return { reopen, name, original: false };
 	},
 	async printPage(jobName) {
 		return window.__paperwrenAndroidExtras?.printPage(jobName) ?? false;
@@ -1120,6 +1183,7 @@ export const backend: Backend = {
 			openWith: false,
 			reveal: false,
 			rename: false,
+			renameOriginal: false,
 		};
 	},
 	async rename(file, name) {

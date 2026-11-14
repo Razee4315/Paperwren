@@ -1365,4 +1365,12 @@ export const ar: Table = {
 	Triangles: "المثلثات",
 	Vertices: "الرؤوس",
 	Animations: "الحركات",
+	"This changes the name in Paperwren only. The original file keeps its name.":
+		"هذا يغيّر الاسم في Paperwren فقط. يبقى اسم الملف الأصلي كما هو.",
+	"Renamed to {name} in Paperwren. The original file keeps its name.":
+		"أُعيدت التسمية إلى {name} في Paperwren. يبقى اسم الملف الأصلي كما هو.",
+	"Another app is using this file. Close it there, then try again.":
+		"يستخدم تطبيق آخر هذا الملف. أغلقه هناك ثم حاول مرة أخرى.",
+	"Paperwren isn't allowed to rename this file":
+		"لا يُسمح لـ Paperwren بإعادة تسمية هذا الملف",
 };

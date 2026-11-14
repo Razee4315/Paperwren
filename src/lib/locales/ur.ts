@@ -1326,4 +1326,12 @@ export const ur: Table = {
 	Triangles: "مثلث",
 	Vertices: "راس",
 	Animations: "حرکات",
+	"This changes the name in Paperwren only. The original file keeps its name.":
+		"یہ صرف Paperwren میں نام بدلتا ہے۔ اصل فائل کا نام وہی رہے گا۔",
+	"Renamed to {name} in Paperwren. The original file keeps its name.":
+		"Paperwren میں نام بدل کر {name} کر دیا۔ اصل فائل کا نام وہی ہے۔",
+	"Another app is using this file. Close it there, then try again.":
+		"یہ فائل کسی اور ایپ میں کھلی ہے۔ اسے وہاں بند کریں، پھر دوبارہ کوشش کریں۔",
+	"Paperwren isn't allowed to rename this file":
+		"Paperwren کو اس فائل کا نام بدلنے کی اجازت نہیں",
 };

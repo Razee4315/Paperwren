@@ -32,9 +32,17 @@ test.describe("rename", () => {
 			"can't contain",
 		);
 		await expect(page.getByTestId("rename-go")).toBeDisabled();
+		// A browser holds a copy: it says before and after that only the
+		// app's name changes, never that the file itself was renamed.
+		await expect(page.getByTestId("rename-in-app")).toContainText(
+			"in Paperwren only",
+		);
 		await field.fill("Quarterly report ");
 		await field.press("Enter");
 		await expect(page.getByTestId("rename")).toHaveCount(0);
+		await expect(page.getByTestId("toast")).toContainText(
+			"Renamed to Quarterly report.pdf in Paperwren. The original file keeps its name.",
+		);
 		await expect(page.getByTestId("viewer").locator("header")).toContainText(
 			"Quarterly report.pdf",
 		);
@@ -58,6 +66,113 @@ test.describe("rename", () => {
 		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
 			timeout: 20_000,
 		});
+	});
+
+	/** Stand in for a system that renames the file itself: every rename
+	 * asked for is kept, and `fail` (a desktop refusal's kind and words)
+	 * refuses them. */
+	async function systemRenames(
+		page: Page,
+		fail?: { kind: string; message: string },
+	) {
+		await page.evaluate((fail) => {
+			window.__paperwrenTestRenames = [];
+			window.__paperwrenTestRename = async (reopen) => {
+				if (fail) throw fail;
+				return reopen;
+			};
+		}, fail);
+	}
+
+	test("the file itself is renamed, through the backend", async ({ page }) => {
+		await boot(page);
+		await systemRenames(page);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-rename").click();
+		// The file itself is renamed: nothing to warn about.
+		await expect(page.getByTestId("rename-in-app")).toHaveCount(0);
+		await page.getByTestId("rename-input").fill("Q3");
+		await page.getByTestId("rename-go").click();
+		await expect(page.getByTestId("rename")).toHaveCount(0);
+		const toast = page.getByTestId("toast");
+		await expect(toast).toContainText("Renamed to Q3.pdf");
+		await expect(toast).not.toContainText("in Paperwren");
+		const asked = await page.evaluate(() => window.__paperwrenTestRenames);
+		expect(asked).toHaveLength(1);
+		expect(asked?.[0].name).toBe("Q3.pdf");
+		expect(asked?.[0].reopen.kind).toBe("browser");
+		await expect(page.getByTestId("viewer").locator("header")).toContainText(
+			"Q3.pdf",
+		);
+	});
+
+	test("a tab follows its file renamed from Home", async ({ page }) => {
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await boot(page, {}, "?desktop&frame");
+		await systemRenames(page);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		// A second document, so the tabs show at Home.
+		const text = readFileSync("fixtures/sample.txt").toString("base64");
+		await page.evaluate((b64) => {
+			const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+			window.__paperwrenTestFile = new File([bytes], "sample.txt");
+		}, text);
+		await page.keyboard.press("Control+o");
+		const tabs = page.getByTestId("tab");
+		await expect(tabs).toHaveText(["sample.pdf", "sample.txt"]);
+		await page.getByTestId("tab-home").click();
+		const recent = page.getByTestId("recent").filter({ hasText: "sample.pdf" });
+		await recent.getByRole("button", { name: /More actions/ }).click();
+		await page.getByTestId("menu-rename").click();
+		await page.getByTestId("rename-input").fill("Q3");
+		await page.getByTestId("rename-go").click();
+		const renamed = page.getByTestId("recent").filter({ hasText: "Q3.pdf" });
+		await expect(renamed).toHaveCount(1);
+		await expect(tabs).toHaveText(["Q3.pdf", "sample.txt"]);
+		// Opened again, it is the same tab, under its new name.
+		await renamed.getByRole("button").first().click();
+		await expect(tabs).toHaveCount(2);
+		await expect(page).toHaveTitle(/Q3\.pdf/);
+	});
+
+	test("a refused rename keeps the old name everywhere", async ({ page }) => {
+		await boot(page);
+		await systemRenames(page, {
+			kind: "io",
+			message:
+				"The process cannot access the file because it is being used by another process. (os error 32)",
+		});
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-rename").click();
+		await page.getByTestId("rename-input").fill("Q3");
+		await page.getByTestId("rename-go").click();
+		await expect(page.getByTestId("rename-error")).toContainText(
+			"Another app is using this file",
+		);
+		const asked = await page.evaluate(() => window.__paperwrenTestRenames);
+		expect(asked?.map((a) => a.name)).toEqual(["Q3.pdf"]);
+		// Nothing changed: the dialog stays to try again, and the old name
+		// is the one shown and kept.
+		await expect(page.getByTestId("rename")).toBeVisible();
+		await page.getByRole("button", { name: "Cancel" }).click();
+		await expect(page.getByTestId("viewer").locator("header")).toContainText(
+			"sample.pdf",
+		);
+		await page.getByTestId("viewer-back").click();
+		await expect(page.getByTestId("recent").first()).toContainText(
+			"sample.pdf",
+		);
 	});
 });
 
