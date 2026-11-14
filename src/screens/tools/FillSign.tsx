@@ -891,7 +891,10 @@ export function FillSign({
 			disabled={!dirty || saving === "busy"}
 			data-testid="fill-save"
 		>
-			{saveWord}
+			{/* A phone's bar beside the title has no room for the longer
+			 * words in most languages; the hint, the mark and the save
+			 * dialog's title say that it signs. */}
+			{compact && signing ? t("Save") : saveWord}
 		</Button>
 	);
 	// Signing with a digital ID: a rare tool, in More on a phone.
