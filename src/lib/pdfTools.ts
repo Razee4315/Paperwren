@@ -64,7 +64,9 @@ export async function open(bytes: Uint8Array, password?: string): Promise<Doc> {
 	const { PDFDocument } = await lib();
 	try {
 		return await PDFDocument.load(bytes, {
-			password,
+			// A file whose author only limits what a reader may do opens with
+			// the empty password; pdf-lib tries none unless it is given.
+			password: password ?? "",
 			updateMetadata: false,
 		});
 	} catch (err) {
@@ -74,19 +76,23 @@ export async function open(bytes: Uint8Array, password?: string): Promise<Doc> {
 	}
 }
 
-const SIGNED = new TextEncoder().encode("/ByteRange");
+/** True when the bytes hold `mark` somewhere. */
+function holds(bytes: Uint8Array, mark: string): boolean {
+	const wanted = new TextEncoder().encode(mark);
+	let at = bytes.indexOf(wanted[0]);
+	while (at >= 0) {
+		let i = 1;
+		while (i < wanted.length && bytes[at + i] === wanted[i]) i++;
+		if (i === wanted.length) return true;
+		at = bytes.indexOf(wanted[0], at + 1);
+	}
+	return false;
+}
 
 /** True for a PDF with a digital signature: the mark every signature
  * dictionary carries. A copy rewrites the file, which breaks it. */
 export function digitallySigned(bytes: Uint8Array): boolean {
-	let at = bytes.indexOf(SIGNED[0]);
-	while (at >= 0) {
-		let i = 1;
-		while (i < SIGNED.length && bytes[at + i] === SIGNED[i]) i++;
-		if (i === SIGNED.length) return true;
-		at = bytes.indexOf(SIGNED[0], at + 1);
-	}
-	return false;
+	return holds(bytes, "/ByteRange");
 }
 
 /** The page's box as shown (pdf.js shows the crop box), and the turn
@@ -351,12 +357,40 @@ export async function cropCopy(
 	return doc.save({ updateFieldAppearances: false });
 }
 
+/** How many pages a PDF has, and whether the file is protected: it
+ * asks for a password to open, or opens freely but limits what a reader
+ * may do (copying, say). */
+export async function pdfInfo(
+	bytes: Uint8Array,
+	password?: string,
+): Promise<{ pages: number; protected: boolean }> {
+	const doc = await open(bytes, password);
+	// pdf-lib forgets the encryption once it has read the file, so this is
+	// read from the bytes: the dictionary every protected file carries.
+	return { pages: doc.getPageCount(), protected: holds(bytes, "/Encrypt") };
+}
+
 /** How many pages a PDF has. */
 export async function pageCount(
 	bytes: Uint8Array,
 	password?: string,
 ): Promise<number> {
-	return (await open(bytes, password)).getPageCount();
+	return (await pdfInfo(bytes, password)).pages;
+}
+
+/** What a copy of a PDF leaves behind: "password" for one that needed a
+ * password to open, "limits" for one that opens freely but restricts
+ * what a reader may do. Every tool saves a copy with neither. */
+export type Protection = "password" | "limits";
+
+/** The protection of a file `pdfInfo` described, opened with `password`
+ * if it needed one. */
+export function pdfProtection(file: {
+	password?: string;
+	protected: boolean;
+}): Protection | null {
+	if (!file.protected) return null;
+	return file.password ? "password" : "limits";
 }
 
 /** Pages as "1-3, 5, 8-": 0-based page numbers, in the order typed.

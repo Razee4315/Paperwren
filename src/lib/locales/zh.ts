@@ -1244,4 +1244,8 @@ export const zh: Table = {
 	"Paperwren isn't allowed to rename this file": "Paperwren 无权重命名此文件",
 	"That's the file you have open. Choose another name.":
 		"这是你正打开的文件。请换一个名称。",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		"副本打开时不需要密码。如需重新加密，请使用“添加密码”。",
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"此 PDF 限制阅读者的某些操作，例如复制。副本将没有这些限制。",
 };

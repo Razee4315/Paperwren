@@ -1382,4 +1382,8 @@ export const ru: Table = {
 		"У Paperwren нет права переименовать этот файл",
 	"That's the file you have open. Choose another name.":
 		"Это файл, который у вас открыт. Выберите другое имя.",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		"Копия откроется без пароля. Чтобы снова защитить её, используйте «Добавить пароль».",
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"Этот PDF ограничивает действия читателя, например копирование. У копии ограничений не будет.",
 };

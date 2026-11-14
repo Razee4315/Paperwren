@@ -16,7 +16,7 @@ import {
 	pdfAsset,
 } from "@/lib/pdfEngine";
 import { type TextPicture, addMarkup } from "@/lib/pdfMarkup";
-import { digitallySigned } from "@/lib/pdfTools";
+import { type Protection, digitallySigned } from "@/lib/pdfTools";
 import { PrintCancelled } from "@/lib/print";
 import { resolvePageColor } from "@/lib/settings";
 import { hintFor, matches } from "@/lib/shortcuts";
@@ -83,7 +83,7 @@ import type {
 import "pdfjs-dist/web/pdf_viewer.css";
 import { drawPage } from "@/lib/pagePicture";
 import { FillSign } from "@/screens/tools/FillSign";
-import { type MarkTool, MarkUp, SIGNED_WARNING } from "@/screens/tools/MarkUp";
+import { CopyWarnings, type MarkTool, MarkUp } from "@/screens/tools/MarkUp";
 import { ReadText } from "@/screens/tools/ReadText";
 import { markHit } from "@/screens/tools/ink";
 import { pdfSource } from "@/screens/tools/readSource";
@@ -371,9 +371,12 @@ export default function PdfView({
 	};
 	const [marksOpen, setMarksOpen] = useState(false);
 	const [readingText, setReadingText] = useState(false);
+	// What a copy will not keep: the password it was opened with, or the
+	// limits its author set. Every copy the tools save has neither.
+	const [protection, setProtection] = useState<Protection | null>(null);
 	const textSource = useMemo(
-		() => (doc ? pdfSource(doc, name, passwordRef.current) : null),
-		[doc, name],
+		() => (doc ? pdfSource(doc, name, passwordRef.current, protection) : null),
+		[doc, name, protection],
 	);
 	// What the page on show suggests: reading a scan, signing a form.
 	const [offer, setOffer] = useState<"scan" | "sign" | null>(null);
@@ -521,6 +524,15 @@ export default function PdfView({
 							const noCopy =
 								Array.isArray(permissions) &&
 								!permissions.includes(pdfjs.PermissionFlag.COPY);
+							// Only an encrypted file has permissions to read: with the
+							// password it was opened with, or the limits it sets.
+							setProtection(
+								passwordRef.current
+									? "password"
+									: Array.isArray(permissions)
+										? "limits"
+										: null,
+							);
 							if (Array.isArray(permissions)) {
 								const flag = pdfjs.PermissionFlag;
 								const mark =
@@ -1511,7 +1523,7 @@ export default function PdfView({
 	};
 
 	const askSaveMarks = () => {
-		if (signed) setAskSigned(true);
+		if (signed || protection) setAskSigned(true);
 		else void saveWithMarks();
 	};
 
@@ -2411,6 +2423,7 @@ export default function PdfView({
 					store={marks}
 					start={markingUp}
 					signed={signed}
+					protection={protection}
 					onClose={() => setMarkingUp(null)}
 					onSaved={(saved) => announceSaved(saved, file?.openOver)}
 				/>
@@ -2433,6 +2446,7 @@ export default function PdfView({
 					password={passwordRef.current}
 					canMark={rights.mark}
 					signed={signed}
+					protection={protection}
 					startPage={fillFrom}
 					onClose={() => setFilling(false)}
 					onSaved={(saved) => announceSaved(saved, file?.openOver)}
@@ -2457,6 +2471,7 @@ export default function PdfView({
 					name={name}
 					password={passwordRef.current}
 					signed={signed}
+					protection={protection}
 					onSaved={(saved) => announceSaved(saved, file?.openOver)}
 					choice={crop}
 					page={page}
@@ -2579,7 +2594,7 @@ export default function PdfView({
 					</>
 				}
 			>
-				{t(SIGNED_WARNING)}
+				<CopyWarnings signed={signed} protection={protection} />
 			</Dialog>
 
 			<Sheet

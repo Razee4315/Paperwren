@@ -1354,4 +1354,8 @@ export const pt: Table = {
 		"O Paperwren não tem permissão para renomear este arquivo",
 	"That's the file you have open. Choose another name.":
 		"Esse é o arquivo que você tem aberto. Escolha outro nome.",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		"A cópia vai abrir sem senha. Para protegê-la de novo, use «Adicionar uma senha».",
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"Este PDF limita o que um leitor pode fazer, como copiar. A cópia não terá limites.",
 };

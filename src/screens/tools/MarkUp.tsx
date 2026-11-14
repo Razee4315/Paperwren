@@ -16,7 +16,8 @@ import {
 	textLines,
 } from "@/lib/pageText";
 import { NOTE_SIZE, type TextPicture, addMarkup } from "@/lib/pdfMarkup";
-import { ToolError } from "@/lib/pdfTools";
+import { type Protection, ToolError } from "@/lib/pdfTools";
+import { copyNote } from "@/lib/protection";
 import {
 	LINE_HEIGHT,
 	layoutText,
@@ -94,9 +95,32 @@ type Writing = {
 	text: string;
 };
 
-export const SIGNED_WARNING = msg(
+const SIGNED_WARNING = msg(
 	"This PDF has a digital signature. A changed copy won't keep it valid.",
 );
+
+/** What a copy of this file will not keep, said where a copy is about
+ * to be saved: a digital signature, a password or limits. Nothing for a
+ * file with none of them. */
+export function CopyWarnings({
+	signed = false,
+	protection = null,
+}: {
+	signed?: boolean;
+	protection?: Protection | null;
+}) {
+	const note = copyNote(protection);
+	return (
+		<>
+			{signed && <p className={s.hint}>{t(SIGNED_WARNING)}</p>}
+			{note && (
+				<p className={s.hint} data-testid="copy-note">
+					{note}
+				</p>
+			)}
+		</>
+	);
+}
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 /** Shorter than this on screen, a measuring line is a slip. */
@@ -120,6 +144,7 @@ export function MarkUp({
 	store,
 	start = "pen",
 	signed = false,
+	protection = null,
 	onClose,
 	onSaved,
 }: {
@@ -132,6 +157,8 @@ export function MarkUp({
 	start?: MarkTool;
 	/** The file has a digital signature, which a copy will not keep. */
 	signed?: boolean;
+	/** What a copy will not keep of the file's password or limits. */
+	protection?: Protection | null;
 	onClose: () => void;
 	onSaved?: (saved: SavedFile) => void;
 }) {
@@ -1038,7 +1065,7 @@ export function MarkUp({
 					<p className={s.hint}>
 						{t("A new PDF is made; the file you opened stays as it was.")}
 					</p>
-					{signed && <p className={s.hint}>{t(SIGNED_WARNING)}</p>}
+					<CopyWarnings signed={signed} protection={protection} />
 				</Dialog>
 			)}
 			{leaving && (

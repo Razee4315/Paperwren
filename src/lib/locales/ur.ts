@@ -1336,4 +1336,8 @@ export const ur: Table = {
 		"Paperwren کو اس فائل کا نام بدلنے کی اجازت نہیں",
 	"That's the file you have open. Choose another name.":
 		"یہ وہی فائل ہے جو آپ نے کھول رکھی ہے۔ کوئی اور نام چنیں۔",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		'کاپی بغیر پاس ورڈ کے کھل جائے گی۔ اسے دوبارہ مقفل کرنے کے لیے "پاس ورڈ لگائیں" استعمال کریں۔',
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"اس PDF میں پڑھنے والے پر پابندیاں ہیں، جیسے متن کاپی کرنا۔ کاپی پر کوئی پابندی نہیں ہوگی۔",
 };

@@ -19,7 +19,7 @@ import {
 } from "@/lib/crop";
 import { copyName } from "@/lib/fileName";
 import { msg, t } from "@/lib/i18n";
-import { cropCopy } from "@/lib/pdfTools";
+import { type Protection, cropCopy } from "@/lib/pdfTools";
 import { Button, Dialog, IconButton, Spinner, Switch, toast } from "@/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
@@ -30,7 +30,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { SIGNED_WARNING } from "../tools/MarkUp";
+import { CopyWarnings } from "../tools/MarkUp";
 import { useFit, usePainted } from "../tools/scan/Corners";
 import s from "./CropPages.module.css";
 import {
@@ -183,12 +183,15 @@ export function CropPages({
 	name,
 	password,
 	signed,
+	protection,
 	onSaved,
 }: {
 	doc: PDFDocumentProxy;
 	name: string;
 	password?: string;
 	signed: boolean;
+	/** What a copy will not keep of the PDF's password or limits. */
+	protection: Protection | null;
 	onSaved: (saved: SavedFile) => void;
 	/** The crop the pages have now. */
 	choice: CropChoice | null;
@@ -357,7 +360,9 @@ export function CropPages({
 							<Button
 								variant="secondary"
 								disabled={!ready || saving}
-								onClick={() => (signed ? setAskSigned(true) : void save())}
+								onClick={() =>
+									signed || protection ? setAskSigned(true) : void save()
+								}
 								data-testid="crop-save"
 							>
 								{saving ? t("Saving…") : t("Save a cropped copy")}
@@ -503,7 +508,7 @@ export function CropPages({
 					</>
 				}
 			>
-				{t(SIGNED_WARNING)}
+				<CopyWarnings signed={signed} protection={protection} />
 			</Dialog>
 		</>
 	);

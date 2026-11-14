@@ -852,3 +852,8 @@ ROWS += MODEL_18_ROWS
 # changes, and why a rename was refused.
 from rename_18 import ROWS as RENAME_18_ROWS
 ROWS += RENAME_18_ROWS
+
+# Words for saying that a copy of a protected PDF keeps neither its
+# password nor its limits.
+from protected_18 import ROWS as PROTECTED_18_ROWS
+ROWS += PROTECTED_18_ROWS

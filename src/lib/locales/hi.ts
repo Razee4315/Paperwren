@@ -1314,4 +1314,8 @@ export const hi: Table = {
 		"Paperwren को इस फ़ाइल का नाम बदलने की अनुमति नहीं है",
 	"That's the file you have open. Choose another name.":
 		"यह वही फ़ाइल है जो आपने खोल रखी है। कोई और नाम चुनें।",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		'कॉपी बिना पासवर्ड के खुलेगी। इसे फिर से लॉक करने के लिए "पासवर्ड लगाएँ" इस्तेमाल करें।',
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"इस PDF में पढ़ने वाले पर कुछ पाबंदियाँ हैं, जैसे कॉपी करना। कॉपी पर कोई पाबंदी नहीं होगी।",
 };

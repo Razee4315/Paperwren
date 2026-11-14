@@ -73,6 +73,7 @@ import { ReadText } from "./ReadText";
 import s from "./Tools.module.css";
 import {
 	Choice,
+	CopyNote,
 	FileList,
 	Go,
 	PageThumb,
@@ -435,15 +436,20 @@ interface ToolProps {
 	onOpen: (request: OpenRequest) => void;
 }
 
+/** `copy` is false for a tool whose result is not a copy of the PDF
+ * (pictures of its pages), or that is about its password itself. */
 function OnePdf({
 	kit,
+	copy = true,
 }: {
 	kit: ReturnType<typeof useToolFiles>;
+	copy?: boolean;
 }) {
 	return (
 		<>
 			<FileList kit={kit} several={false} addLabel={t("Choose a PDF")} />
 			{kit.dialog}
+			{copy && <CopyNote files={kit.files} />}
 		</>
 	);
 }
@@ -496,6 +502,7 @@ function SignTool({ file, onOpen }: ToolProps) {
 					password={picked.password}
 					canMark
 					signed={digitallySigned(picked.bytes)}
+					protection={picked.protection}
 					onClose={() => setOpen(false)}
 					onSaved={(saved) => announceSaved(saved, onOpen)}
 				/>
@@ -532,6 +539,7 @@ function MarkUpTool({ file, onOpen }: ToolProps) {
 					password={picked.password}
 					store={store}
 					signed={digitallySigned(picked.bytes)}
+					protection={picked.protection}
 					onClose={() => setOpen(false)}
 					onSaved={(saved) => announceSaved(saved, onOpen)}
 				/>
@@ -888,7 +896,10 @@ function ReadTool({ file, onOpen }: ToolProps) {
 		setSource(null);
 		if (!picked) return;
 		if (isPdf) {
-			if (doc) setSource(pdfSource(doc, picked.name, picked.password));
+			if (doc)
+				setSource(
+					pdfSource(doc, picked.name, picked.password, picked.protection),
+				);
 			return;
 		}
 		let alive = true;
@@ -931,6 +942,7 @@ function MergeTool({ file, onOpen }: ToolProps) {
 		<>
 			<FileList kit={kit} several addLabel={t("Add PDFs")} />
 			{kit.dialog}
+			<CopyNote files={kit.files} />
 			{kit.files.length < 2 && (
 				<p className={s.hint}>{t("Add at least two PDFs to continue.")}</p>
 			)}
@@ -1348,7 +1360,7 @@ function PicturesTool({ file, onOpen }: ToolProps) {
 	const list = picked ? parsePages(which || `1-${pages}`, pages) : null;
 	return (
 		<>
-			<OnePdf kit={kit} />
+			<OnePdf kit={kit} copy={false} />
 			{picked && (
 				<>
 					<label className={s.label} htmlFor="tool-pictures-field">
@@ -1703,7 +1715,7 @@ function ProtectTool({ file, onOpen }: ToolProps) {
 	];
 	return (
 		<>
-			<OnePdf kit={kit} />
+			<OnePdf kit={kit} copy={false} />
 			<label className={s.label} htmlFor="tool-password">
 				{t("Password")}
 			</label>
@@ -1779,7 +1791,7 @@ function UnlockTool({ file, onOpen }: ToolProps) {
 	const { running, run, feedback } = useRun(onOpen);
 	return (
 		<>
-			<OnePdf kit={kit} />
+			<OnePdf kit={kit} copy={false} />
 			<p className={s.hint}>
 				{picked && !picked.password
 					? t("This PDF has no password to remove.")
