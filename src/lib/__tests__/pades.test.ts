@@ -9,6 +9,7 @@ import {
 	PDFDict,
 	PDFDocument,
 	PDFHeader,
+	PDFHexString,
 	PDFName,
 	PDFNumber,
 	PDFRawStream,
@@ -291,6 +292,22 @@ async function checkLinearized(original: Uint8Array, name?: string) {
 }
 
 describe("incremental PAdES signatures", () => {
+	it("sanitizes the name written into the signature dictionary", async () => {
+		const signed = await signWithId(
+			await pages(),
+			await readPkcs12(fixture("rsa-aes256.p12"), "wren"),
+			"A\u202e\u000a\u2066yesha",
+			{ appearance: null, now },
+		);
+		const after = await PDFDocument.load(signed);
+		const signature = after
+			.getForm()
+			.getSignature("Signature1")
+			.acroField.V() as PDFDict;
+		expect(
+			signature.lookup(PDFName.of("Name"), PDFHexString).decodeText(),
+		).toBe("Ayesha");
+	});
 	it("keeps a prepared widget on its own cropped rotated page under DocMDP P=2", async () => {
 		const original = fixture("mixed-certified.pdf");
 		expect(await canSign(original)).toEqual({ signed: true });

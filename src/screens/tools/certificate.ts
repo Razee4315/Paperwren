@@ -10,6 +10,7 @@ import type {
 	DigitalIdSummary,
 	SignBlocker,
 } from "@/lib/sign";
+import { cleanName } from "@/lib/sign/names";
 
 /** Whether a certificate is valid on a day: before its first day, after
  * its last, or in between. */
@@ -29,15 +30,16 @@ export function certificateDate(date: Date): string {
 /** Who signs: the name, then the organisation and the email when the
  * certificate gives them. */
 export function signerLines(summary: DigitalIdSummary): string[] {
-	return [summary.name, summary.organisation, summary.email].filter(
-		(line): line is string => !!line?.trim(),
-	);
+	return [summary.name, summary.organisation, summary.email]
+		.map((line) => (line === undefined ? undefined : cleanName(line)))
+		.filter((line): line is string => !!line?.trim());
 }
 
 /** Who issued it, or that its owner made it. */
 export function issuerLine(summary: DigitalIdSummary): string {
 	if (summary.selfSigned) return t("Made by its owner (self-signed)");
 	return [summary.issuer, summary.issuerOrganisation]
+		.map((part) => (part === undefined ? undefined : cleanName(part)))
 		.filter((part): part is string => !!part?.trim())
 		.filter((part, i, all) => all.indexOf(part) === i)
 		.join(", ");
@@ -139,7 +141,7 @@ export function blockerMessage(blocker: SignBlocker): string {
  * day by this device's clock. */
 export function signatureCaption(name: string, now: Date): string[] {
 	return [
-		t("Digitally signed by {name}", { name }),
+		t("Digitally signed by {name}", { name: cleanName(name) }),
 		formatDate(now, { dateStyle: "medium", timeStyle: "short" }),
 	];
 }

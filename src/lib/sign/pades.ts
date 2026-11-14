@@ -22,6 +22,7 @@ import {
 import { cmsReservation, createCms, verifyCms } from "./cms";
 import { buffer, concat, equal } from "./der";
 import { DigitalIdError } from "./errors";
+import { cleanName } from "./names";
 import { crossReferences } from "./pdfStructure";
 import type { ImportedId } from "./pkcs12";
 
@@ -202,7 +203,9 @@ async function appearance(
 	if (options.appearance) {
 		const image = await doc.embedPng(options.appearance.png);
 		resources.set(PDFName.of("XObject"), doc.context.obj({ Image: image.ref }));
-		const caption = options.appearance.caption;
+		const caption = options.appearance.caption
+			? cleanName(options.appearance.caption)
+			: undefined;
 		const captionHeight = caption ? Math.min(height / 3, 14) : 0;
 		content = `q ${width} 0 0 ${height - captionHeight} 0 ${captionHeight} cm /Image Do Q\n`;
 		if (caption) {
@@ -321,7 +324,7 @@ export async function signWithId(
 			],
 			Contents: PDFHexString.of("0".repeat(reserve * 2)),
 			M: PDFString.fromDate(now),
-			Name: PDFHexString.fromText(signerName),
+			Name: PDFHexString.fromText(cleanName(signerName)),
 			Prop_Build: { App: { Name: "Paperwren", REx: PDFString.of(version) } },
 		});
 		signatureRef = context.register(signature);

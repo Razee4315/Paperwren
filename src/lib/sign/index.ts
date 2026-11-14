@@ -1,5 +1,5 @@
 import { DigitalIdError } from "./errors";
-import { PdfSignError, canSign, type SignOptions, signWithId } from "./pades";
+import { PdfSignError, type SignOptions, canSign, signWithId } from "./pades";
 import { type ImportedId, readPkcs12 } from "./pkcs12";
 import { type DigitalIdSummary, certificateSummary } from "./x509";
 

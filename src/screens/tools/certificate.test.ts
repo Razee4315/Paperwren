@@ -122,6 +122,11 @@ describe("why it can't sign", () => {
 });
 
 describe("the caption", () => {
+	it("removes controls and bidi formatting from a supplied signer name", () => {
+		expect(
+			signatureCaption("A\u202e\u000a\u2066yesha", day("2026-11-14"))[0],
+		).toBe("Digitally signed by Ayesha");
+	});
 	it("says who signed, then when", () => {
 		const [who, when] = signatureCaption("Ayesha Khan", day("2026-11-14"));
 		expect(who).toBe("Digitally signed by Ayesha Khan");

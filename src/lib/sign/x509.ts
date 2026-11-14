@@ -1,5 +1,6 @@
 import { certificate } from "./certificate";
 import { type Asn1, expectTag, objectId, sequence } from "./der";
+import { cleanName } from "./names";
 import type { ImportedId, KeyKind } from "./pkcs12";
 
 export interface DigitalIdSummary {
@@ -40,7 +41,10 @@ function name(node: Asn1) {
 	for (const rdn of sequence(node))
 		for (const attribute of expectTag(rdn, 49).children) {
 			const [id, value] = sequence(attribute);
-			values.set(objectId(id), text(value));
+			// Keep the first entry in DER order, as OpenSSL's common-name
+			// getter does. Later duplicate CNs never replace the displayed one.
+			const key = objectId(id);
+			if (!values.has(key)) values.set(key, cleanName(text(value)));
 		}
 	return {
 		commonName: values.get("2.5.4.3"),
@@ -103,7 +107,9 @@ export function certificateSummary(
 		unprotected: id.unprotected ?? false,
 		name: subject.commonName ?? subject.organisation ?? subject.email ?? "",
 		organisation: subject.organisation,
-		email: email ? new TextDecoder().decode(email.value) : subject.email,
+		email: email
+			? cleanName(new TextDecoder().decode(email.value))
+			: subject.email,
 		issuer: issuer.commonName ?? issuer.organisation ?? "",
 		issuerOrganisation: issuer.organisation,
 		selfSigned: cert.selfSigned,

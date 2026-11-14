@@ -7,6 +7,7 @@ import {
 } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
+import { readDigitalId } from "../sign";
 import { certificate } from "../sign/certificate";
 import {
 	der,
@@ -20,7 +21,6 @@ import {
 } from "../sign/der";
 import { OID } from "../sign/oids";
 import { pkcs12Kdf, readPkcs12 } from "../sign/pkcs12";
-import { readDigitalId } from "../sign";
 
 const fixture = (name: string) =>
 	Uint8Array.from(readFileSync(`fixtures/digital-id/${name}`));

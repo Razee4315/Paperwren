@@ -35,6 +35,38 @@ function changed(
 }
 
 describe("digital ID certificate summaries", () => {
+	it("uses the first common name and removes controls and bidi formatting", () => {
+		const unsafe =
+			"\u0000\u000a\u001f\u007f\u0085\u009f\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069";
+		const attr = (id: string, value: string) =>
+			set(seq(oid(id), der(12, new TextEncoder().encode(value))));
+		const name = seq(
+			attr("2.5.4.3", `First${unsafe} Signer`),
+			attr("2.5.4.3", "Second Signer"),
+			attr("2.5.4.10", `Org${unsafe}`),
+		);
+		const outer = sequence(read(changed(name)));
+		const tbs = sequence(outer[0]).map((part) => part.raw);
+		tbs[3] = name;
+		const result = summary(seq(seq(...tbs), outer[1].raw, outer[2].raw));
+		expect(result.name).toBe("First Signer");
+		expect(result.issuer).toBe("First Signer");
+		expect(result.organisation).toBe("Org");
+		const san = seq(
+			seq(
+				oid("2.5.29.17"),
+				octet(
+					seq(
+						der(
+							129,
+							new TextEncoder().encode(`signer${unsafe}@example.invalid`),
+						),
+					),
+				),
+			),
+		);
+		expect(summary(changed(name, san)).email).toBe("signer@example.invalid");
+	});
 	it("reads the signer, SAN email, issuer and fixed validity interval", async () => {
 		const id = await readPkcs12(fixture("rsa-aes256.p12"), "wren");
 		const value = certificateSummary(id);
