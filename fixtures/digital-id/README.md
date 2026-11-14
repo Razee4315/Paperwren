@@ -17,8 +17,10 @@ estimate. It has a two-certificate chain and uses the existing test RSA key.
 `node scripts/make-digital-id-shadow-fixtures.mjs` generates the two
 `shadow-*.pdf` attack samples. Their xref selects a page saying PAY 100,
 but an unindexed later page definition says PAY 99999. The signed variant
-has a synthetic ByteRange marker to exercise the incremental UI path;
-it does not contain a real signature. Both must be refused before signing.
+has a real independent OpenSSL CMS signature over its unchanged original
+revision, followed by the unindexed shadow page. Its first signature still
+verifies mathematically. Both files must be refused before signing. The
+generator needs OpenSSL on PATH as well as Node.
 
 Regenerate with `bash scripts/make-digital-id-fixtures.sh` (OpenSSL 3.x;
 the PBMAC1 sample additionally needs 3.4+). Random keys and salts change on

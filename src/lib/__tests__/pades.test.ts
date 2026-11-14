@@ -550,6 +550,13 @@ describe("incremental PAdES signatures", () => {
 		"refuses the shadowed page on the %s path",
 		async (kind) => {
 			const original = fixture(`shadow-${kind}.pdf`);
+			if (kind === "signed") {
+				const first = signatures(original)[0];
+				expect(first.b + first.rest).toBeLessThan(original.length);
+				expect(
+					await verifySignatures(original.subarray(0, first.b + first.rest)),
+				).toHaveLength(1);
+			}
 			const reader = await pdfjs.getDocument({
 				data: original.slice(),
 				verbosity: 0,
