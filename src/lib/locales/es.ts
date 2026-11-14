@@ -1266,4 +1266,31 @@ export const es: Table = {
 	"Adding {n} of {total}…": "Añadiendo {n} de {total}…",
 	"Sort by name": "Ordenar por nombre",
 	"Only the first {n} were added": "Solo se añadieron los primeros {n}",
+	"Or aim for a size": "O apunta a un tamaño",
+	"Or type a size": "O escribe un tamaño",
+	KB: "KB",
+	MB: "MB",
+	"Trying settings, {n} of up to {total}…":
+		"Probando ajustes, {n} de {total} como máximo…",
+	"This PDF is already under {size}, so no copy was made.":
+		"Este PDF ya ocupa menos de {size}, así que no se hizo ninguna copia.",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"Lo más pequeño que puede ser este PDF conservando su texto es {size}.",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"Como imágenes sus páginas pueden ser más pequeñas, pero su texto ya no se podrá seleccionar ni buscar.",
+	"In grey, for a smaller file": "En gris, para un archivo más pequeño",
+	"Turn pages into pictures": "Convertir las páginas en imágenes",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"Dibujando la página {page} de {pages}, intento {n} de {total} como máximo…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"Sus páginas ahora son imágenes: su texto no se puede seleccionar ni buscar.",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"Incluso como imágenes, lo más pequeño que puede ser este PDF es {size}, así que no se hizo ninguna copia.",
+	"Or keep every picture as it is": "O deja cada imagen como está",
+	"Keep quality (lossless)": "Mantener la calidad (sin pérdida)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"No se cambia ninguna imagen: solo se quita lo que nada usa y el resto se empaqueta mejor.",
+	"No picture was changed.": "No se cambió ninguna imagen.",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"Sin cambiar ninguna imagen, este PDF solo se reduce un {n} %, así que no se hizo ninguna copia.",
 };

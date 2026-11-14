@@ -823,3 +823,8 @@ ROWS += AUDIT_UX_ROWS
 # Words for the 1.7.1 fixes: tabs and pictures added many at once.
 from fixes_171_ux import ROWS as FIXES_171_UX_ROWS
 ROWS += FIXES_171_UX_ROWS
+
+# Words for Compress PDF in 1.8: a size to aim for, pages as pictures
+# and keeping quality.
+from compress_18 import ROWS as COMPRESS_18_ROWS
+ROWS += COMPRESS_18_ROWS

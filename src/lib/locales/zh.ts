@@ -1158,4 +1158,31 @@ export const zh: Table = {
 	"Adding {n} of {total}…": "正在添加第 {n} 个，共 {total} 个…",
 	"Sort by name": "按名称排序",
 	"Only the first {n} were added": "只添加了前 {n} 个",
+	"Or aim for a size": "或指定目标大小",
+	"Or type a size": "或输入大小",
+	KB: "KB",
+	MB: "MB",
+	"Trying settings, {n} of up to {total}…":
+		"正在尝试设置，第 {n} 次，最多 {total} 次…",
+	"This PDF is already under {size}, so no copy was made.":
+		"此 PDF 已小于 {size}，因此没有生成副本。",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"在保留文字的情况下，此 PDF 最小只能到 {size}。",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"将页面变成图片可以更小，但其中的文字将无法再选择或搜索。",
+	"In grey, for a smaller file": "灰度，文件更小",
+	"Turn pages into pictures": "将页面转为图片",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"正在绘制第 {page} 页，共 {pages} 页，第 {n} 次尝试，最多 {total} 次…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"其页面现在是图片：文字无法选择或搜索。",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"即使变成图片，此 PDF 最小也有 {size}，因此没有生成副本。",
+	"Or keep every picture as it is": "或保持每张图片不变",
+	"Keep quality (lossless)": "保持质量（无损）",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"图片不会有任何改变：只移除未被使用的内容，其余部分打包得更紧凑。",
+	"No picture was changed.": "没有任何图片被改动。",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"不改动图片的话，此 PDF 只能缩小 {n}%，因此没有生成副本。",
 };

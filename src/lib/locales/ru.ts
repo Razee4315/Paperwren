@@ -1295,4 +1295,31 @@ export const ru: Table = {
 	"Adding {n} of {total}…": "Добавляется {n} из {total}…",
 	"Sort by name": "Сортировать по имени",
 	"Only the first {n} were added": "Добавлены только первые {n}",
+	"Or aim for a size": "Или укажите нужный размер",
+	"Or type a size": "Или введите размер",
+	KB: "КБ",
+	MB: "МБ",
+	"Trying settings, {n} of up to {total}…":
+		"Подбор настроек: попытка {n} из {total} возможных…",
+	"This PDF is already under {size}, so no copy was made.":
+		"Этот PDF уже меньше {size}, поэтому копия не создана.",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"С сохранением текста этот PDF можно уменьшить не более чем до {size}.",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"В виде изображений страницы могут стать меньше, но их текст больше нельзя будет выделить или найти.",
+	"In grey, for a smaller file": "В оттенках серого, чтобы файл был меньше",
+	"Turn pages into pictures": "Превратить страницы в изображения",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"Отрисовка страницы {page} из {pages}, попытка {n} из {total} возможных…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"Теперь страницы — изображения: их текст нельзя выделить или найти.",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"Даже в виде изображений этот PDF не меньше {size}, поэтому копия не создана.",
+	"Or keep every picture as it is": "Или оставьте все изображения как есть",
+	"Keep quality (lossless)": "Сохранить качество (без потерь)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"Изображения не меняются: удаляется только то, что нигде не используется, а остальное упаковывается плотнее.",
+	"No picture was changed.": "Изображения не изменены.",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"Без изменения изображений этот PDF уменьшается лишь на {n}%, поэтому копия не создана.",
 };

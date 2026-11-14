@@ -5,6 +5,18 @@ import { copyName, splitName } from "@/lib/fileName";
 import { msg, t, tn } from "@/lib/i18n";
 import { drawPage } from "@/lib/pagePicture";
 import {
+	type Fitted,
+	type SizeLimit,
+	compressToSize,
+	pageSetting,
+	parseSize,
+	pictureSetting,
+	picturesToSize,
+	sizeLimit,
+} from "@/lib/pdfCompress";
+import { openPdf } from "@/lib/pdfEngine";
+import { losslessPdf } from "@/lib/pdfLossless";
+import {
 	MARK_COLORS,
 	type MarkSize,
 	type NumberSpot,
@@ -69,7 +81,7 @@ import {
 	useRun,
 	useToolFiles,
 } from "./kit";
-import { recodePicture } from "./pdfFiles";
+import { drawPages, recodePicture } from "./pdfFiles";
 import { type ReadSource, bytesSource, pdfSource } from "./readSource";
 import { announceSaved } from "./saved";
 import { ScanTool } from "./scan/ScanTool";
@@ -536,70 +548,331 @@ const SQUEEZE = {
 	small: { side: 1100, quality: 0.5 },
 } as const;
 
+/** Sizes upload forms often ask a PDF to be under. */
+const LIMITS = {
+	"200k": [200, "kb"],
+	"500k": [500, "kb"],
+	"1m": [1, "mb"],
+	"2m": [2, "mb"],
+} as const;
+
+/** A size as a limit is said: "200 KB", "1.5 MB". */
+const limitLabel = (n: number, unit: "kb" | "mb") =>
+	unit === "kb" ? t("{n} KB", { n }) : t("{n} MB", { n });
+
+/** How the copy is made: a level, a size to fit under, or no picture
+ * changed at all. */
+type Squeeze =
+	| keyof typeof SQUEEZE
+	| keyof typeof LIMITS
+	| "typed"
+	| "lossless";
+
+/** How much smaller, as said after each way. */
+function downTo(was: number, now: number) {
+	return t("{was} down to {now}, {n}% smaller", {
+		was: formatBytes(was),
+		now: formatBytes(now),
+		// Never "100%": the copy still has something in it.
+		n: Math.min(99, Math.round((1 - now / was) * 100)),
+	});
+}
+
+const ALREADY_SMALL = msg(
+	"This PDF is already about as small as it can be, so no copy was made.",
+);
+
 function CompressTool({ file, onOpen }: ToolProps) {
 	const kit = useToolFiles("pdf", file);
 	const { running, run, feedback } = useRun(onOpen);
-	const [level, setLevel] = useState<keyof typeof SQUEEZE>("balanced");
+	const [way, setWay] = useState<Squeeze>("balanced");
+	const [typed, setTyped] = useState("");
+	const [unit, setUnit] = useState<"kb" | "mb">("kb");
+	const [grey, setGrey] = useState(false);
 	const [outcome, setOutcome] = useState("");
+	const [progress, setProgress] = useState("");
+	/** The smallest copy with its text kept, when that is still over the
+	 * size aimed for: pages as pictures are offered instead. */
+	const [tooBig, setTooBig] = useState<{
+		smallest: number;
+		limit: SizeLimit;
+		/** The file it was found for. */
+		of: number;
+	} | null>(null);
 	const picked = kit.files[0];
+	const choose = (next: Squeeze) => {
+		setWay(next);
+		setOutcome("");
+		setTooBig(null);
+	};
+	const preset = way in LIMITS ? LIMITS[way as keyof typeof LIMITS] : null;
+	const limit =
+		way === "typed"
+			? parseSize(typed, unit)
+			: preset && sizeLimit(preset[0], preset[1]);
+	// The size as chosen, to say it back.
+	const limitUnit = way === "typed" ? unit : (preset?.[1] ?? "kb");
+	const limitText = limit
+		? limitLabel(limit.aim / (limitUnit === "kb" ? 1e3 : 1e6), limitUnit)
+		: "";
+	const level = (way in SQUEEZE ? way : null) as keyof typeof SQUEEZE | null;
+
+	const compress = async () => {
+		setOutcome("");
+		setTooBig(null);
+		const was = picked.bytes.length;
+		const copy = (bytes: Uint8Array) => ({
+			name: copyName(picked.name, t("compressed")),
+			bytes,
+			mime: PDF,
+		});
+		if (way === "lossless") {
+			const bytes = await losslessPdf(picked.bytes, {
+				password: picked.password,
+			});
+			const saved = Math.round((1 - bytes.length / was) * 100);
+			if (bytes.length >= was * 0.97) {
+				setOutcome(
+					saved >= 1
+						? t(
+								"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.",
+								{ n: saved },
+							)
+						: t(ALREADY_SMALL),
+				);
+				return null;
+			}
+			setOutcome(
+				`${downTo(was, bytes.length)}\n${t("No picture was changed.")}`,
+			);
+			return copy(bytes);
+		}
+		if (limit) {
+			const fitted = await compressToSize(
+				picked.bytes,
+				limit,
+				(at) => (picture) => recodePicture(picture, pictureSetting(at)),
+				{
+					password: picked.password,
+					onTry: (n, most) =>
+						setProgress(
+							t("Trying settings, {n} of up to {total}…", { n, total: most }),
+						),
+				},
+			);
+			if (fitted.kind === "fits") {
+				setOutcome(
+					t("This PDF is already under {size}, so no copy was made.", {
+						size: limitText,
+					}),
+				);
+				return null;
+			}
+			if (fitted.kind === "too big") {
+				setTooBig({ smallest: fitted.smallest, limit, of: picked.key });
+				return null;
+			}
+			setOutcome(downTo(was, fitted.bytes.length));
+			return copy(fitted.bytes);
+		}
+		if (!level) return null;
+		const bytes = await compressPdf(
+			picked.bytes,
+			(picture) => recodePicture(picture, SQUEEZE[level]),
+			{ password: picked.password },
+		);
+		if (bytes.length >= was * 0.97) {
+			setOutcome(t(ALREADY_SMALL));
+			return null;
+		}
+		setOutcome(downTo(was, bytes.length));
+		return copy(bytes);
+	};
+
+	const asPictures = async () => {
+		if (!tooBig || tooBig.of !== picked.key) return null;
+		const was = picked.bytes.length;
+		setOutcome("");
+		const doc = await openPdf(picked.bytes, picked.password);
+		let fitted: Fitted;
+		try {
+			let attempt = { n: 1, most: 1 };
+			fitted = await picturesToSize(
+				tooBig.limit,
+				(at) =>
+					drawPages(doc, { ...pageSetting(at), grey }, (page, pages) =>
+						setProgress(
+							t("Drawing page {page} of {pages}, try {n} of up to {total}…", {
+								page,
+								pages,
+								n: attempt.n,
+								total: attempt.most,
+							}),
+						),
+					),
+				{
+					onTry: (n, most) => {
+						attempt = { n, most };
+					},
+				},
+			);
+		} finally {
+			doc.destroy();
+		}
+		if (fitted.kind !== "made") {
+			setOutcome(
+				t(
+					"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.",
+					{
+						size: formatBytes(
+							fitted.kind === "too big" ? fitted.smallest : was,
+						),
+					},
+				),
+			);
+			return null;
+		}
+		setTooBig(null);
+		setOutcome(
+			`${downTo(was, fitted.bytes.length)}\n${t("Its pages are now pictures: their text can't be selected or searched.")}`,
+		);
+		return {
+			name: copyName(picked.name, t("compressed")),
+			bytes: fitted.bytes,
+			mime: PDF,
+		};
+	};
+	const go = async (make: typeof compress) => {
+		await run(make);
+		setProgress("");
+	};
+
 	return (
 		<>
 			<OnePdf kit={kit} />
 			{picked && (
-				<Choice
-					label={t("How small")}
-					value={level}
-					onChange={setLevel}
-					options={[
-						["light", t("Best quality")],
-						["balanced", t("Balanced")],
-						["small", t("Smallest file")],
-					]}
-					testId="compress-level"
-				/>
+				<>
+					<Choice
+						label={t("How small")}
+						value={way}
+						onChange={choose}
+						options={[
+							["light", t("Best quality")],
+							["balanced", t("Balanced")],
+							["small", t("Smallest file")],
+						]}
+						testId="compress-level"
+					/>
+					<Choice
+						label={t("Or aim for a size")}
+						value={way}
+						onChange={choose}
+						options={
+							Object.entries(LIMITS).map(
+								([id, [n, u]]) => [id as Squeeze, limitLabel(n, u)] as const,
+							) as Array<[Squeeze, string]>
+						}
+						testId="compress-size"
+					/>
+					<div
+						className={s.typedSize}
+						data-chosen={way === "typed" || undefined}
+					>
+						<input
+							className={s.field}
+							value={typed}
+							onChange={(e) => {
+								setTyped(e.target.value);
+								choose("typed");
+							}}
+							onFocus={() => way !== "typed" && typed && choose("typed")}
+							inputMode="decimal"
+							placeholder={t("Or type a size")}
+							aria-label={t("Or type a size")}
+							dir="ltr"
+							data-testid="compress-typed"
+						/>
+						<select
+							className={s.field}
+							value={unit}
+							onChange={(e) => {
+								setUnit(e.target.value as "kb" | "mb");
+								if (typed) choose("typed");
+							}}
+							aria-label={t("Unit")}
+							data-testid="compress-unit"
+						>
+							<option value="kb">{t("KB")}</option>
+							<option value="mb">{t("MB")}</option>
+						</select>
+					</div>
+					<Choice
+						label={t("Or keep every picture as it is")}
+						value={way}
+						onChange={choose}
+						options={[["lossless", t("Keep quality (lossless)")]]}
+						testId="compress-way"
+					/>
+					{way === "lossless" && (
+						<p className={s.hint}>
+							{t(
+								"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.",
+							)}
+						</p>
+					)}
+				</>
+			)}
+			{running && progress && (
+				<p
+					className={s.hint}
+					aria-live="polite"
+					data-testid="compress-progress"
+				>
+					{progress}
+				</p>
 			)}
 			{outcome && (
-				<p className={s.hint} data-testid="compress-outcome">
+				<p className={`${s.hint} ${s.outcome}`} data-testid="compress-outcome">
 					{outcome}
 				</p>
+			)}
+			{tooBig && tooBig.of === picked?.key && (
+				<div className={s.tooBig} data-testid="compress-too-big">
+					<p>
+						{t("The smallest this PDF can be with its text kept is {size}.", {
+							size: formatBytes(tooBig.smallest),
+						})}
+					</p>
+					<p className={s.hint}>
+						{t(
+							"As pictures its pages can be smaller, but their text can no longer be selected or searched.",
+						)}
+					</p>
+					<label className={s.keep}>
+						<input
+							type="checkbox"
+							checked={grey}
+							onChange={(e) => setGrey(e.target.checked)}
+							data-testid="compress-grey"
+						/>
+						{t("In grey, for a smaller file")}
+					</label>
+					<Button
+						variant="secondary"
+						disabled={running}
+						onClick={() => go(asPictures)}
+						data-testid="compress-pictures"
+					>
+						<Images size={18} /> {t("Turn pages into pictures")}
+					</Button>
+				</div>
 			)}
 			{feedback}
 			<Go
 				label={t("Compress")}
-				disabled={!picked}
+				disabled={!picked || (way === "typed" && !limit)}
 				running={running}
-				onClick={() =>
-					run(async () => {
-						setOutcome("");
-						const bytes = await compressPdf(
-							picked.bytes,
-							(picture) => recodePicture(picture, SQUEEZE[level]),
-							{ password: picked.password },
-						);
-						const was = picked.bytes.length;
-						if (bytes.length >= was * 0.97) {
-							setOutcome(
-								t(
-									"This PDF is already about as small as it can be, so no copy was made.",
-								),
-							);
-							return null;
-						}
-						setOutcome(
-							t("{was} down to {now}, {n}% smaller", {
-								was: formatBytes(was),
-								now: formatBytes(bytes.length),
-								// Never "100%": the copy still has something in it.
-								n: Math.min(99, Math.round((1 - bytes.length / was) * 100)),
-							}),
-						);
-						return {
-							name: copyName(picked.name, t("compressed")),
-							bytes,
-							mime: PDF,
-						};
-					})
-				}
+				onClick={() => go(compress)}
 			/>
 		</>
 	);

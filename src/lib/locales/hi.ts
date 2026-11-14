@@ -1228,4 +1228,31 @@ export const hi: Table = {
 	"Adding {n} of {total}…": "{total} में से {n} जोड़ी जा रही है…",
 	"Sort by name": "नाम से क्रमबद्ध करें",
 	"Only the first {n} were added": "केवल पहली {n} जोड़ी गईं",
+	"Or aim for a size": "या कोई आकार तय करें",
+	"Or type a size": "या आकार लिखें",
+	KB: "KB",
+	MB: "MB",
+	"Trying settings, {n} of up to {total}…":
+		"सेटिंग आज़माई जा रही हैं, अधिकतम {total} में से {n}…",
+	"This PDF is already under {size}, so no copy was made.":
+		"यह PDF पहले से ही {size} से छोटी है, इसलिए कोई प्रति नहीं बनी।",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"पाठ बनाए रखते हुए यह PDF कम से कम {size} की हो सकती है।",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"तस्वीरों के रूप में इसके पृष्ठ छोटे हो सकते हैं, लेकिन फिर उनका पाठ न चुना जा सकेगा, न खोजा जा सकेगा।",
+	"In grey, for a smaller file": "धूसर रंग में, छोटी फ़ाइल के लिए",
+	"Turn pages into pictures": "पृष्ठों को तस्वीरों में बदलें",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"पृष्ठ {page} / {pages} बनाया जा रहा है, अधिकतम {total} में से प्रयास {n}…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"अब इसके पृष्ठ तस्वीरें हैं: उनका पाठ न चुना जा सकता है, न खोजा जा सकता है।",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"तस्वीरों के रूप में भी यह PDF कम से कम {size} की है, इसलिए कोई प्रति नहीं बनी।",
+	"Or keep every picture as it is": "या हर तस्वीर को जैसी है वैसी रखें",
+	"Keep quality (lossless)": "गुणवत्ता बनाए रखें (लॉसलेस)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"कोई तस्वीर नहीं बदलती: सिर्फ़ वह हटाया जाता है जिसका कहीं उपयोग नहीं होता, और बाकी को और कसकर पैक किया जाता है।",
+	"No picture was changed.": "कोई तस्वीर नहीं बदली।",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"कोई तस्वीर बदले बिना यह PDF सिर्फ़ {n}% छोटी होती है, इसलिए कोई प्रति नहीं बनी।",
 };

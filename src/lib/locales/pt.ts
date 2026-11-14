@@ -1267,4 +1267,31 @@ export const pt: Table = {
 	"Adding {n} of {total}…": "Adicionando {n} de {total}…",
 	"Sort by name": "Ordenar por nome",
 	"Only the first {n} were added": "Só os primeiros {n} foram adicionados",
+	"Or aim for a size": "Ou escolha um tamanho-alvo",
+	"Or type a size": "Ou digite um tamanho",
+	KB: "KB",
+	MB: "MB",
+	"Trying settings, {n} of up to {total}…":
+		"Testando configurações, {n} de até {total}…",
+	"This PDF is already under {size}, so no copy was made.":
+		"Este PDF já tem menos de {size}, então nenhuma cópia foi feita.",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"O menor que este PDF pode ficar mantendo o texto é {size}.",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"Como imagens as páginas podem ficar menores, mas o texto não poderá mais ser selecionado nem pesquisado.",
+	"In grey, for a smaller file": "Em cinza, para um arquivo menor",
+	"Turn pages into pictures": "Transformar as páginas em imagens",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"Desenhando a página {page} de {pages}, tentativa {n} de até {total}…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"Agora as páginas são imagens: o texto não pode ser selecionado nem pesquisado.",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"Mesmo como imagens, o menor que este PDF pode ficar é {size}, então nenhuma cópia foi feita.",
+	"Or keep every picture as it is": "Ou mantenha cada imagem como está",
+	"Keep quality (lossless)": "Manter a qualidade (sem perdas)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"Nenhuma imagem é alterada: só sai o que nada usa, e o resto é compactado melhor.",
+	"No picture was changed.": "Nenhuma imagem foi alterada.",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"Sem alterar nenhuma imagem, este PDF fica só {n}% menor, então nenhuma cópia foi feita.",
 };

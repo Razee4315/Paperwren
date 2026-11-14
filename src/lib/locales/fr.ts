@@ -1279,4 +1279,31 @@ export const fr: Table = {
 	"Adding {n} of {total}…": "Ajout de {n} sur {total}…",
 	"Sort by name": "Trier par nom",
 	"Only the first {n} were added": "Seuls les {n} premiers ont été ajoutés",
+	"Or aim for a size": "Ou visez une taille",
+	"Or type a size": "Ou saisissez une taille",
+	KB: "Ko",
+	MB: "Mo",
+	"Trying settings, {n} of up to {total}…":
+		"Essai des réglages, {n} sur {total} au plus…",
+	"This PDF is already under {size}, so no copy was made.":
+		"Ce PDF fait déjà moins de {size}, donc aucune copie n'a été faite.",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"En gardant son texte, ce PDF ne peut pas descendre sous {size}.",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"En images, ses pages peuvent être plus légères, mais leur texte ne pourra plus être sélectionné ni recherché.",
+	"In grey, for a smaller file": "En gris, pour un fichier plus léger",
+	"Turn pages into pictures": "Transformer les pages en images",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"Dessin de la page {page} sur {pages}, essai {n} sur {total} au plus…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"Ses pages sont maintenant des images : leur texte ne peut être ni sélectionné ni recherché.",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"Même en images, ce PDF ne descend pas sous {size}, donc aucune copie n'a été faite.",
+	"Or keep every picture as it is": "Ou gardez chaque image telle quelle",
+	"Keep quality (lossless)": "Garder la qualité (sans perte)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"Aucune image n'est modifiée : seul ce qui ne sert à rien est retiré, et le reste est mieux compacté.",
+	"No picture was changed.": "Aucune image n'a été modifiée.",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"Sans modifier d'image, ce PDF ne s'allège que de {n} %, donc aucune copie n'a été faite.",
 };

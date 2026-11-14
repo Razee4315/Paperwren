@@ -1289,4 +1289,31 @@ export const ar: Table = {
 	"Adding {n} of {total}…": "جارٍ إضافة {n} من {total}…",
 	"Sort by name": "رتّب حسب الاسم",
 	"Only the first {n} were added": "أُضيفت أول {n} فقط",
+	"Or aim for a size": "أو استهدف حجمًا",
+	"Or type a size": "أو اكتب حجمًا",
+	KB: "ك.ب",
+	MB: "م.ب",
+	"Trying settings, {n} of up to {total}…":
+		"جارٍ تجربة الإعدادات، {n} من {total} على الأكثر…",
+	"This PDF is already under {size}, so no copy was made.":
+		"هذا الملف أصغر من {size} بالفعل، لذا لم تُنشأ نسخة.",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"أصغر حجم لهذا الملف مع الإبقاء على نصه هو {size}.",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"يمكن أن تصغر صفحاته إذا صارت صورًا، لكن لن يعود ممكنًا تحديد نصها أو البحث فيه.",
+	"In grey, for a smaller file": "بالرمادي، لملف أصغر",
+	"Turn pages into pictures": "حوّل الصفحات إلى صور",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"جارٍ رسم الصفحة {page} من {pages}، المحاولة {n} من {total} على الأكثر…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"صارت صفحاته صورًا الآن: لا يمكن تحديد نصها أو البحث فيه.",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"حتى كصور، أصغر حجم لهذا الملف هو {size}، لذا لم تُنشأ نسخة.",
+	"Or keep every picture as it is": "أو أبقِ كل صورة كما هي",
+	"Keep quality (lossless)": "حافظ على الجودة (بلا فقد)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"لا تتغير أي صورة: يُزال فقط ما لا يستخدمه شيء، ويُضغط الباقي بإحكام أكبر.",
+	"No picture was changed.": "لم تتغير أي صورة.",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"دون تغيير أي صورة يصغر هذا الملف بنسبة {n}% فقط، لذا لم تُنشأ نسخة.",
 };

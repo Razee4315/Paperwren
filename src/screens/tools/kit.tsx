@@ -503,6 +503,7 @@ export function Choice<T extends string>({
 	options: Array<[T, string]>;
 	testId: string;
 }) {
+	const at = options.findIndex(([v]) => v === value);
 	return (
 		<>
 			<span className={s.label}>{label}</span>
@@ -510,14 +511,13 @@ export function Choice<T extends string>({
 				className={s.ways}
 				role="radiogroup"
 				aria-label={label}
+				// None of these is chosen: the choice is in another row.
+				data-none={at < 0 || undefined}
 				// The sliding pill behind the chosen one: how many, and which.
 				style={
 					{
 						"--n": options.length,
-						"--i": Math.max(
-							0,
-							options.findIndex(([v]) => v === value),
-						),
+						"--i": Math.max(0, at),
 					} as CSSProperties
 				}
 			>

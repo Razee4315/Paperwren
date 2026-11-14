@@ -1,5 +1,12 @@
 import { readFileSync } from "node:fs";
-import { PDFDocument } from "@cantoo/pdf-lib";
+import { deflateSync } from "node:zlib";
+import {
+	PDFDocument,
+	concatTransformationMatrix,
+	drawObject,
+	popGraphicsState,
+	pushGraphicsState,
+} from "@cantoo/pdf-lib";
 import { type Page, expect, test } from "@playwright/test";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { boot, openFixture, pickTool, solidPng } from "./helpers";
@@ -1390,6 +1397,75 @@ test.describe("PDF tools", () => {
 			() => (window as unknown as { seen: string[] }).seen,
 		);
 		expect(seen).toContain("Adding 200 of 200…");
+	});
+
+	/** A PDF of `pages` pages, each a large photo-like picture: soft
+	 * colour with a little grain, stored packed but not as a JPEG. */
+	async function photoPdf(pages: number) {
+		const doc = await PDFDocument.create();
+		const [w, h] = [1200, 900];
+		let seed = 7;
+		for (let p = 0; p < pages; p++) {
+			const rgb = new Uint8Array(w * h * 3);
+			for (let y = 0, i = 0; y < h; y++)
+				for (let x = 0; x < w; x++, i += 3) {
+					seed = (seed * 1103515245 + 12345) >>> 0;
+					const grain = (seed >>> 28) - 8;
+					rgb[i] = (x * 200) / w + 30 + grain;
+					rgb[i + 1] = (y * 180) / h + 40 + grain;
+					rgb[i + 2] = ((x + y + p * 300) % 255) * 0.6 + grain;
+				}
+			const ref = doc.context.register(
+				doc.context.stream(deflateSync(rgb), {
+					Type: "XObject",
+					Subtype: "Image",
+					Width: w,
+					Height: h,
+					BitsPerComponent: 8,
+					ColorSpace: "DeviceRGB",
+					Filter: "FlateDecode",
+				}),
+			);
+			const page = doc.addPage([600, 450]);
+			const name = page.node.newXObject("Photo", ref);
+			page.pushOperators(
+				pushGraphicsState(),
+				concatTransformationMatrix(600, 0, 0, 450, 0, 0),
+				drawObject(name),
+				popGraphicsState(),
+			);
+		}
+		return doc.save();
+	}
+
+	test("compress aims under a size and keeps every page", async ({ page }) => {
+		test.setTimeout(120_000);
+		await boot(page);
+		await openTool(page, "compress");
+		const photos = await photoPdf(2);
+		expect(photos.length).toBeGreaterThan(2_000_000);
+		await addFile(page, photos, "photos.pdf");
+		await page.getByTestId("compress-size-200k").click();
+		await expect(page.getByTestId("compress-size-200k")).toHaveAttribute(
+			"aria-checked",
+			"true",
+		);
+		const small = await runTool(page);
+		expect(small.name).toBe("photos (compressed).pdf");
+		expect(small.bytes.length).toBeLessThanOrEqual(200_000);
+		expect((await PDFDocument.load(small.bytes)).getPageCount()).toBe(2);
+		await expect(page.getByTestId("compress-outcome")).toContainText("smaller");
+		// A size typed in, in megabytes: a larger copy, still under it.
+		await page.getByTestId("compress-typed").fill("1.5");
+		await page.getByTestId("compress-unit").selectOption("mb");
+		await expect(page.getByTestId("compress-size-200k")).toHaveAttribute(
+			"aria-checked",
+			"false",
+		);
+		const typed = await runTool(page);
+		expect(typed.bytes.length).toBeLessThanOrEqual(1_500_000);
+		expect(typed.bytes.length).toBeGreaterThan(small.bytes.length);
+		expect((await PDFDocument.load(typed.bytes)).getPageCount()).toBe(2);
 	});
 });
 

@@ -501,6 +501,50 @@
 .way[aria-selected="true"] {
 	color: var(--text);
 }
+/* A row of which none is chosen: the choice is in another row. */
+.ways[data-none]::before {
+	opacity: 0;
+}
+/* Compress: a size typed, with its unit beside it. */
+.typedSize {
+	display: flex;
+	gap: 8px;
+	margin: -6px 0 14px;
+}
+.typedSize > input {
+	flex: 1;
+	min-width: 0;
+}
+.typedSize > select {
+	width: auto;
+	flex-shrink: 0;
+}
+.typedSize[data-chosen] > input {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 2px var(--accent-soft);
+}
+/* Compress: what came of it, a sentence to a line. */
+.outcome {
+	white-space: pre-line;
+}
+/* Compress: the smallest a PDF gets with its text, and what else can
+ * be done. */
+.tooBig {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 14px 16px;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--r-m);
+	background: var(--surface-2);
+}
+.tooBig > p {
+	margin: 0;
+}
+.tooBig > p:first-child {
+	font-weight: 650;
+}
 .padBox {
 	display: flex;
 	flex-direction: column;

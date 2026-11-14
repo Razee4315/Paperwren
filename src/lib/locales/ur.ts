@@ -1249,4 +1249,31 @@ export const ur: Table = {
 	"Adding {n} of {total}…": "{total} میں سے {n} شامل ہو رہی ہے…",
 	"Sort by name": "نام کے لحاظ سے ترتیب دیں",
 	"Only the first {n} were added": "صرف پہلی {n} شامل کی گئیں",
+	"Or aim for a size": "یا کسی سائز کا ہدف رکھیں",
+	"Or type a size": "یا سائز لکھیں",
+	KB: "KB",
+	MB: "MB",
+	"Trying settings, {n} of up to {total}…":
+		"ترتیبات آزمائی جا رہی ہیں، زیادہ سے زیادہ {total} میں سے {n}…",
+	"This PDF is already under {size}, so no copy was made.":
+		"یہ PDF پہلے ہی {size} سے کم ہے، اس لیے کوئی نقل نہیں بنی۔",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"متن برقرار رکھتے ہوئے یہ PDF کم از کم {size} کی ہو سکتی ہے۔",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"تصویروں کی صورت میں اس کے صفحات چھوٹے ہو سکتے ہیں، لیکن پھر ان کا متن نہ منتخب ہو سکے گا نہ تلاش۔",
+	"In grey, for a smaller file": "سرمئی رنگ میں، چھوٹی فائل کے لیے",
+	"Turn pages into pictures": "صفحات کو تصویروں میں بدلیں",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"صفحہ {page} از {pages} بن رہا ہے، کوشش {n}، زیادہ سے زیادہ {total}…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"اب اس کے صفحات تصویریں ہیں: ان کا متن نہ منتخب ہو سکتا ہے نہ تلاش۔",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"تصویروں کی صورت میں بھی یہ PDF کم از کم {size} کی ہے، اس لیے کوئی نقل نہیں بنی۔",
+	"Or keep every picture as it is": "یا ہر تصویر کو ویسا ہی رہنے دیں",
+	"Keep quality (lossless)": "معیار برقرار رکھیں (بغیر نقصان)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"کوئی تصویر نہیں بدلتی: صرف وہ نکالا جاتا ہے جو کہیں استعمال نہیں ہوتا، اور باقی کو مزید سمیٹا جاتا ہے۔",
+	"No picture was changed.": "کوئی تصویر نہیں بدلی۔",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"کوئی تصویر بدلے بغیر یہ PDF صرف {n}% چھوٹی ہوتی ہے، اس لیے کوئی نقل نہیں بنی۔",
 };
