@@ -857,6 +857,15 @@ export function FillSign({
 			onSaved?.(saved);
 			onClose();
 		} catch (err) {
+			if (held) {
+				const { PdfSignError } = await import("@/lib/sign");
+				if (err instanceof PdfSignError) {
+					setSaving(null);
+					toast(blockerMessage(err.reason));
+					if (err.reason === "certified-visible") setIdFlow("held");
+					return;
+				}
+			}
 			setSaving("ask");
 			toast(
 				err instanceof ToolError && err.reason === "password"

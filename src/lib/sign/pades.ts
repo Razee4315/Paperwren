@@ -26,7 +26,12 @@ import { cleanName } from "./names";
 import { crossReferences } from "./pdfStructure";
 import type { ImportedId } from "./pkcs12";
 
-export type SignBlocker = "encrypted" | "certified" | "damaged" | "constrained";
+export type SignBlocker =
+	| "encrypted"
+	| "certified"
+	| "damaged"
+	| "constrained"
+	| "certified-visible";
 export class PdfSignError extends Error {
 	constructor(readonly reason: SignBlocker) {
 		super(reason);
@@ -298,6 +303,16 @@ export async function signWithId(
 			? doc.findPageForAnnotationRef(widgetRef)
 			: undefined;
 		if (existing && !existingPage) throw new PdfSignError("damaged");
+		// Default diff policies reject creating visible fields after certification,
+		// even with DocMDP P=2 or P=3. Filling a prepared field is permitted.
+		if (
+			!existing &&
+			options.appearance &&
+			doc.catalog
+				.lookupMaybe(PDFName.of("Perms"), PDFDict)
+				?.has(PDFName.of("DocMDP"))
+		)
+			throw new PdfSignError("certified-visible");
 		const pageIndex = existingPage
 			? doc.getPages().indexOf(existingPage)
 			: (options.appearance?.placement.page ?? 0);

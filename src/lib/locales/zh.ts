@@ -1244,6 +1244,8 @@ export const zh: Table = {
 	"Paperwren isn't allowed to rename this file": "Paperwren 无权重命名此文件",
 	"That's the file you have open. Choose another name.":
 		"这是你正打开的文件。请换一个名称。",
+	"This certified PDF cannot accept a new visible signature safely. Choose signing without a visible mark, or use an existing signature field.":
+		"此认证 PDF 无法安全添加新的可见签名。请选择无可见标记的签名，或使用现有签名字段。",
 	"This signature field has signing rules or locks that Paperwren can't safely follow.":
 		"此签名字段的签名规则或锁定限制，Paperwren 无法安全遵循。",
 	"This file has no integrity check, so it can't be told whether it was changed.":

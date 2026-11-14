@@ -16,9 +16,19 @@ async def check(directory):
     files = sorted(Path(directory).glob("*.pdf"))
     if not files:
         raise RuntimeError("No signed samples")
-    for name in ("mixed-existing.pdf", "mixed-shared.pdf"):
+    for name in (
+        "mixed-existing.pdf",
+        "mixed-shared.pdf",
+        "shared-approval-visible.pdf",
+        "shared-approval-invisible.pdf",
+        "shared-unsigned-visible.pdf",
+        "annots-absent-direct-form.pdf",
+        "annots-direct-direct-form.pdf",
+        "annots-indirect-direct-form.pdf",
+        "annots-direct-fields-direct-form.pdf",
+    ):
         if not (Path(directory) / name).is_file():
-            raise RuntimeError(f"Missing mixed-structure sample: {name}")
+            raise RuntimeError(f"Missing required sample: {name}")
     total = 0
     for path in files:
         with path.open("rb") as stream:
@@ -26,6 +36,11 @@ async def check(directory):
             signatures = reader.embedded_signatures
             if not signatures:
                 raise RuntimeError(f"{path.name}: no signatures")
+            if (
+                path.name.startswith(("mixed-", "shared-approval-", "annots-", "twice-"))
+                and len(signatures) < 2
+            ):
+                raise RuntimeError(f"{path.name}: missing earlier signature")
             for index, signature in enumerate(signatures):
                 context = ValidationContext(
                     trust_roots=[],

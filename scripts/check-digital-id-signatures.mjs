@@ -20,6 +20,13 @@ const required = [
 	"twice-linearized",
 	"mixed-existing",
 	"mixed-shared",
+	"shared-approval-visible",
+	"shared-approval-invisible",
+	"shared-unsigned-visible",
+	"annots-absent-direct-form",
+	"annots-direct-direct-form",
+	"annots-indirect-direct-form",
+	"annots-direct-fields-direct-form",
 ];
 const files = readdirSync(directory)
 	.filter((name) => name.endsWith(".pdf"))

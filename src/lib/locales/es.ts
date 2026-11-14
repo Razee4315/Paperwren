@@ -1352,6 +1352,8 @@ export const es: Table = {
 		"Paperwren no tiene permiso para cambiar el nombre de este archivo",
 	"That's the file you have open. Choose another name.":
 		"Es el archivo que tienes abierto. Elige otro nombre.",
+	"This certified PDF cannot accept a new visible signature safely. Choose signing without a visible mark, or use an existing signature field.":
+		"Este PDF certificado no puede aceptar una nueva firma visible de forma segura. Elige firmar sin una marca visible o usa un campo de firma existente.",
 	"This signature field has signing rules or locks that Paperwren can't safely follow.":
 		"Este campo de firma tiene reglas o bloqueos que Paperwren no puede seguir de forma segura.",
 	"This file has no integrity check, so it can't be told whether it was changed.":

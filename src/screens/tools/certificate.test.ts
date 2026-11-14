@@ -118,6 +118,9 @@ describe("why it can't sign", () => {
 		expect(blockerMessage("encrypted")).toMatch(/\(Remove a password\)/);
 		expect(blockerMessage("certified")).toMatch(/certified by its author/);
 		expect(blockerMessage("damaged")).toMatch(/structure is damaged/);
+		expect(blockerMessage("certified-visible")).toMatch(
+			/without a visible mark/,
+		);
 	});
 });
 

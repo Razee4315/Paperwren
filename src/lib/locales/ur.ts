@@ -1336,6 +1336,8 @@ export const ur: Table = {
 		"Paperwren کو اس فائل کا نام بدلنے کی اجازت نہیں",
 	"That's the file you have open. Choose another name.":
 		"یہ وہی فائل ہے جو آپ نے کھول رکھی ہے۔ کوئی اور نام چنیں۔",
+	"This certified PDF cannot accept a new visible signature safely. Choose signing without a visible mark, or use an existing signature field.":
+		"اس تصدیق شدہ PDF پر نیا نمایاں دستخط محفوظ طریقے سے شامل نہیں ہو سکتا۔ بغیر نمایاں نشان کے دستخط کریں یا موجودہ دستخط کا خانہ استعمال کریں۔",
 	"This signature field has signing rules or locks that Paperwren can't safely follow.":
 		"اس دستخط کے خانے میں ایسے قواعد یا پابندیاں ہیں جن پر Paperwren محفوظ طریقے سے عمل نہیں کر سکتی۔",
 	"This file has no integrity check, so it can't be told whether it was changed.":

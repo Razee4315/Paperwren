@@ -1354,6 +1354,8 @@ export const pt: Table = {
 		"O Paperwren não tem permissão para renomear este arquivo",
 	"That's the file you have open. Choose another name.":
 		"Esse é o arquivo que você tem aberto. Escolha outro nome.",
+	"This certified PDF cannot accept a new visible signature safely. Choose signing without a visible mark, or use an existing signature field.":
+		"Este PDF certificado não pode receber uma nova assinatura visível com segurança. Escolha assinar sem uma marca visível ou use um campo de assinatura existente.",
 	"This signature field has signing rules or locks that Paperwren can't safely follow.":
 		"Este campo de assinatura tem regras ou bloqueios que o Paperwren não consegue seguir com segurança.",
 	"This file has no integrity check, so it can't be told whether it was changed.":

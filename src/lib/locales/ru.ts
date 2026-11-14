@@ -1382,6 +1382,8 @@ export const ru: Table = {
 		"У Paperwren нет права переименовать этот файл",
 	"That's the file you have open. Choose another name.":
 		"Это файл, который у вас открыт. Выберите другое имя.",
+	"This certified PDF cannot accept a new visible signature safely. Choose signing without a visible mark, or use an existing signature field.":
+		"В этот сертифицированный PDF нельзя безопасно добавить новую видимую подпись. Выберите подпись без видимой отметки или используйте существующее поле подписи.",
 	"This signature field has signing rules or locks that Paperwren can't safely follow.":
 		"В этом поле подписи есть правила или ограничения, которые Paperwren не может безопасно соблюсти.",
 	"This file has no integrity check, so it can't be told whether it was changed.":

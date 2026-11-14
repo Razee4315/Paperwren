@@ -2599,6 +2599,39 @@ test.describe("sign with a digital ID", () => {
 		await expect(page.getByTestId("digital-id-summary")).toHaveCount(0);
 	});
 
+	test("a certified PDF offers invisible signing after refusing a new visible field", async ({
+		page,
+	}) => {
+		const editor = await openForm(page, "digital-id/mixed-certified.pdf");
+		await chooseDigitalId(page);
+		await page.getByTestId("digital-id-continue").click();
+		await sign(page);
+		await page.getByTestId("signature-done").click();
+		await editor.getByTestId("fill-page").nth(1).scrollIntoViewIfNeeded();
+		const target = await editor.getByTestId("fill-page").nth(1).boundingBox();
+		if (!target) throw new Error("no page");
+		await page.mouse.click(
+			target.x + target.width * 0.5,
+			target.y + target.height * 0.5,
+		);
+		await page.getByTestId("fill-save").click();
+		await page.getByTestId("fill-save-go").click();
+		await expect(page.getByTestId("digital-id-summary")).toBeVisible();
+		await expect(
+			page.getByText(
+				"This certified PDF cannot accept a new visible signature safely. Choose signing without a visible mark, or use an existing signature field.",
+			),
+		).toBeVisible();
+		await page.getByTestId("digital-id-invisible").click();
+		await page.getByTestId("digital-id-continue").click();
+		const saved = await saveCopy(page);
+		const original = readFileSync("fixtures/digital-id/mixed-certified.pdf");
+		expect(
+			Buffer.from(saved.bytes.subarray(0, original.length)).equals(original),
+		).toBe(true);
+		expect(byteRanges(saved.bytes)).toHaveLength(2);
+	});
+
 	test("a visible signature goes in the form's signature field with its caption", async ({
 		page,
 	}) => {

@@ -474,3 +474,12 @@ it("checks thousands of objects and tens of megabytes in roughly linear time", a
 	}
 	expect(times[1]).toBeLessThan(times[0] * 5 + 1000);
 }, 30000);
+
+it("keeps certified mixed structures signable without a new visible field", async () => {
+	const original = Uint8Array.from(
+		readFileSync("fixtures/digital-id/mixed-certified.pdf"),
+	);
+	const output = await signPdf(original, id, options);
+	expect(output.subarray(0, original.length)).toEqual(original);
+	expect(await shown(output)).toEqual(await shown(original));
+});

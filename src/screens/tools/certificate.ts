@@ -118,6 +118,9 @@ export function problemMessage(reason: string | undefined): string {
 }
 
 const BLOCKERS: Record<SignBlocker, string> = {
+	"certified-visible": msg(
+		"This certified PDF cannot accept a new visible signature safely. Choose signing without a visible mark, or use an existing signature field.",
+	),
 	constrained: msg(
 		"This signature field has signing rules or locks that Paperwren can't safely follow.",
 	),

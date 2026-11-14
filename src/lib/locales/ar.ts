@@ -1375,6 +1375,8 @@ export const ar: Table = {
 		"لا يُسمح لـ Paperwren بإعادة تسمية هذا الملف",
 	"That's the file you have open. Choose another name.":
 		"هذا هو الملف المفتوح لديك. اختر اسمًا آخر.",
+	"This certified PDF cannot accept a new visible signature safely. Choose signing without a visible mark, or use an existing signature field.":
+		"لا يمكن إضافة توقيع مرئي جديد بأمان إلى ملف PDF المعتمد هذا. اختر التوقيع دون علامة مرئية أو استخدم حقل توقيع موجودًا.",
 	"This signature field has signing rules or locks that Paperwren can't safely follow.":
 		"يحتوي حقل التوقيع هذا على قواعد أو قيود لا يستطيع Paperwren اتباعها بأمان.",
 	"This file has no integrity check, so it can't be told whether it was changed.":

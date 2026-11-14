@@ -428,27 +428,127 @@ describe("incremental PAdES signatures", () => {
 		expect(await pageTexts(signed)).toEqual(await pageTexts(original));
 		emit("mixed-existing", signed);
 	});
-	it("copies shared indirect Annots before adding a widget", async () => {
+	it("refuses a new visible field after certification, but signs invisibly", async () => {
 		const original = fixture("mixed-certified.pdf");
+		await expect(
+			signPdf(original, await id(), {
+				appearance: {
+					png,
+					placement: { page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.1 },
+				},
+				now,
+			}),
+		).rejects.toMatchObject({ reason: "certified-visible" });
 		const signed = await signPdf(original, await id(), {
+			appearance: null,
+			now,
+		});
+		const after = await PDFDocument.load(signed);
+		expect(
+			after
+				.getForm()
+				.getSignature("Signature1")
+				.acroField.dict.get(PDFName.of("Rect"))
+				?.toString(),
+		).toBe("[ 0 0 0 0 ]");
+		expect(signed.subarray(0, original.length)).toEqual(original);
+		expect(await verifySignatures(signed)).toHaveLength(2);
+		emit("mixed-shared", signed);
+	});
+	it.each([false, true])(
+		"copies shared Annots onto one page (earlier approval = %s)",
+		async (earlier) => {
+			const doc = await PDFDocument.create();
+			const annots = doc.context.register(doc.context.obj([]));
+			for (let i = 0; i < 3; i++)
+				doc.addPage([600, 800]).node.set(PDFName.of("Annots"), annots);
+			let original: Uint8Array = await doc.save({ useObjectStreams: false });
+			if (earlier)
+				original = await signPdf(original, await id(), {
+					appearance: null,
+					now,
+				});
+			const signed = await signPdf(original, await id(), {
+				appearance: {
+					png,
+					placement: { page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.1 },
+				},
+				now,
+			});
+			const after = await PDFDocument.load(signed);
+			const ref = after
+				.getForm()
+				.getSignature(earlier ? "Signature2" : "Signature1").acroField.ref;
+			for (let i = 0; i < 3; i++)
+				expect(after.getPage(i).node.Annots()?.asArray().includes(ref)).toBe(
+					i === 1,
+				);
+			expect(signed.subarray(0, original.length)).toEqual(original);
+			await verifySignatures(signed);
+			emit(
+				earlier ? "shared-approval-visible" : "shared-unsigned-visible",
+				signed,
+			);
+		},
+	);
+	it("keeps an earlier signature's bytes when signing a shared array invisibly", async () => {
+		const doc = await PDFDocument.create();
+		const annots = doc.context.register(doc.context.obj([]));
+		for (let i = 0; i < 3; i++)
+			doc.addPage().node.set(PDFName.of("Annots"), annots);
+		const original = await signPdf(await doc.save(), await id(), {
 			appearance: {
 				png,
-				placement: { page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.1 },
+				placement: { page: 2, x: 0.1, y: 0.5, w: 0.3, h: 0.1 },
 			},
 			now,
 		});
-		const before = await PDFDocument.load(original);
-		const after = await PDFDocument.load(signed);
-		const ref = after.getForm().getSignature("Signature1").acroField.ref;
-		expect(after.getPage(1).node.Annots()?.asArray()).toContain(ref);
-		expect(after.getPage(2).node.Annots()?.asArray()).not.toContain(ref);
-		expect(after.getPage(2).node.get(PDFName.of("Annots"))).toBe(
-			before.getPage(2).node.get(PDFName.of("Annots")),
-		);
-		await verifySignatures(signed);
-		expect(await pageTexts(signed)).toEqual(await pageTexts(original));
-		emit("mixed-shared", signed);
+		const signed = await signPdf(original, await id(), {
+			appearance: null,
+			now,
+		});
+		expect(signed.subarray(0, original.length)).toEqual(original);
+		expect(await verifySignatures(signed)).toHaveLength(2);
+		emit("shared-approval-invisible", signed);
 	});
+	it.each(["absent", "direct", "indirect", "direct-fields"])(
+		"adds Annots with a direct AcroForm (%s)",
+		async (kind) => {
+			const doc = await PDFDocument.create();
+			doc.addPage();
+			const target = doc.addPage();
+			if (kind !== "absent" && kind !== "direct-fields")
+				target.node.set(
+					PDFName.of("Annots"),
+					kind === "direct"
+						? doc.context.obj([])
+						: doc.context.register(doc.context.obj([])),
+				);
+			const form = doc.catalog.getOrCreateAcroForm();
+			form.dict.set(
+				PDFName.of("Fields"),
+				kind === "direct-fields"
+					? doc.context.obj([])
+					: doc.context.register(doc.context.obj([])),
+			);
+			doc.catalog.set(PDFName.of("AcroForm"), form.dict);
+			const original = await signPdf(
+				await doc.save({ useObjectStreams: false }),
+				await id(),
+				{ appearance: null, now },
+			);
+			const signed = await signPdf(original, await id(), {
+				appearance: {
+					png,
+					placement: { page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.1 },
+				},
+				now,
+			});
+			expect(signed.subarray(0, original.length)).toEqual(original);
+			expect(await verifySignatures(signed)).toHaveLength(2);
+			emit(`annots-${kind}-direct-form`, signed);
+		},
+	);
 	it.each(["Lock", "SV"])(
 		"refuses an existing field's %s constraints",
 		async (constraint) => {
