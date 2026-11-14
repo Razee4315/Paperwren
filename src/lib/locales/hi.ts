@@ -708,9 +708,6 @@ export const hi: Table = {
 		"नीचे वाला अगले पृष्ठ के लिए, ऊपर वाला पिछले के लिए",
 	"Tap the sides to turn pages": "पृष्ठ पलटने के लिए किनारों पर टैप करें",
 	"The left edge goes back, the right edge on": "बायाँ किनारा पीछे, दायाँ आगे",
-	"Hide the bars while reading": "पढ़ते समय बार छिपाएँ",
-	"They come back when you scroll back or tap":
-		"वापस स्क्रॉल करने या टैप करने पर लौट आते हैं",
 	"Mirror left to right": "बाएँ से दाएँ पलटें",
 	"Mirror top to bottom": "ऊपर से नीचे पलटें",
 	"Size in pixels": "पिक्सेल में आकार",
@@ -1255,6 +1252,16 @@ export const hi: Table = {
 	"No picture was changed.": "कोई तस्वीर नहीं बदली।",
 	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
 		"कोई तस्वीर बदले बिना यह PDF सिर्फ़ {n}% छोटी होती है, इसलिए कोई प्रति नहीं बनी।",
+	"Bars while reading": "पढ़ते समय बार",
+	Always: "हमेशा",
+	"Auto-hide": "अपने-आप",
+	"Tap only": "सिर्फ़ टैप",
+	"They stay, unless you tap the page": "ये बने रहते हैं, जब तक आप पृष्ठ पर टैप न करें",
+	"They go as you read on, and come back when you scroll back or tap":
+		"आगे पढ़ने पर छिप जाते हैं, और वापस स्क्रॉल करने या टैप करने पर लौट आते हैं",
+	"They go as you read on, and only a tap brings them back":
+		"आगे पढ़ने पर छिप जाते हैं, और सिर्फ़ टैप करने से लौटते हैं",
+	"Tap the page to show the bars": "बार दिखाने के लिए पृष्ठ पर टैप करें",
 	Mobile: "मोबाइल",
 	Home: "घर",
 	Work: "कार्यालय",

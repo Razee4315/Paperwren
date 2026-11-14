@@ -733,9 +733,6 @@ export const ar: Table = {
 	"Tap the sides to turn pages": "انقر على الجانبين لقلب الصفحات",
 	"The left edge goes back, the right edge on":
 		"الحافة اليسرى للرجوع واليمنى للتقدم",
-	"Hide the bars while reading": "إخفاء الأشرطة أثناء القراءة",
-	"They come back when you scroll back or tap":
-		"تعود عند التمرير للخلف أو النقر",
 	"Mirror left to right": "قلب من اليسار إلى اليمين",
 	"Mirror top to bottom": "قلب من الأعلى إلى الأسفل",
 	"Size in pixels": "الحجم بالبكسل",
@@ -1316,6 +1313,16 @@ export const ar: Table = {
 	"No picture was changed.": "لم تتغير أي صورة.",
 	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
 		"دون تغيير أي صورة يصغر هذا الملف بنسبة {n}% فقط، لذا لم تُنشأ نسخة.",
+	"Bars while reading": "الأشرطة أثناء القراءة",
+	Always: "دائمًا",
+	"Auto-hide": "إخفاء تلقائي",
+	"Tap only": "بالنقر فقط",
+	"They stay, unless you tap the page": "تبقى ظاهرة ما لم تنقر على الصفحة",
+	"They go as you read on, and come back when you scroll back or tap":
+		"تختفي عندما تتابع القراءة، وتعود عند التمرير للخلف أو النقر",
+	"They go as you read on, and only a tap brings them back":
+		"تختفي عندما تتابع القراءة، ولا تعيدها إلا نقرة",
+	"Tap the page to show the bars": "انقر على الصفحة لإظهار الأشرطة",
 	Mobile: "الجوال",
 	Home: "المنزل",
 	Work: "العمل",

@@ -741,9 +741,6 @@ export const ru: Table = {
 	"Tap the sides to turn pages": "Листать страницы касанием по краям",
 	"The left edge goes back, the right edge on":
 		"Левый край — назад, правый — вперёд",
-	"Hide the bars while reading": "Скрывать панели при чтении",
-	"They come back when you scroll back or tap":
-		"Они вернутся, когда вы прокрутите назад или коснётесь экрана",
 	"Mirror left to right": "Отразить слева направо",
 	"Mirror top to bottom": "Отразить сверху вниз",
 	"Size in pixels": "Размер в пикселях",
@@ -1322,6 +1319,17 @@ export const ru: Table = {
 	"No picture was changed.": "Изображения не изменены.",
 	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
 		"Без изменения изображений этот PDF уменьшается лишь на {n}%, поэтому копия не создана.",
+	"Bars while reading": "Панели при чтении",
+	Always: "Всегда",
+	"Auto-hide": "Авто",
+	"Tap only": "По касанию",
+	"They stay, unless you tap the page":
+		"Они остаются, пока вы не коснётесь страницы",
+	"They go as you read on, and come back when you scroll back or tap":
+		"Скрываются, когда вы читаете дальше, и возвращаются при прокрутке назад или касании",
+	"They go as you read on, and only a tap brings them back":
+		"Скрываются, когда вы читаете дальше, и возвращаются только по касанию",
+	"Tap the page to show the bars": "Коснитесь страницы, чтобы показать панели",
 	Mobile: "Мобильный",
 	Home: "Домашний",
 	Work: "Рабочий",

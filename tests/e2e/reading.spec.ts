@@ -1210,6 +1210,263 @@ test.describe("reading on a phone", () => {
 		expect(await scroller.evaluate((el) => el.clientHeight)).toBe(height);
 	});
 
+	test("Settings has three choices for the bars, and the old switch's is kept", async ({
+		page,
+	}) => {
+		// "Hide the bars while reading" was on: that is hiding on scroll.
+		await boot(page, { settings_v2: { autoHideBars: true } });
+		await page.getByTestId("open-settings").click();
+		const choice = (v: string) => page.getByTestId(`reading-bars-${v}`);
+		await expect(choice("scroll")).toHaveAttribute("aria-checked", "true");
+		await expect(choice("always")).toHaveAttribute("aria-checked", "false");
+		await expect(page.getByTestId("reading-bars-hint")).toHaveText(
+			"They go as you read on, and come back when you scroll back or tap",
+		);
+		await choice("tap").click();
+		await expect(choice("tap")).toHaveAttribute("aria-checked", "true");
+		await expect(page.getByTestId("reading-bars-hint")).toHaveText(
+			"They go as you read on, and only a tap brings them back",
+		);
+		const saved = () =>
+			page.evaluate(() =>
+				JSON.parse(localStorage.getItem("paperwren.settings_v2") ?? "{}"),
+			);
+		await expect.poll(async () => (await saved()).readingBars).toBe("tap");
+		expect(await saved()).not.toHaveProperty("autoHideBars");
+	});
+
+	test("bars always shown stay while the reader scrolls; a tap still hides them", async ({
+		page,
+	}) => {
+		await boot(page, { settings_v2: { readingBars: "always" } });
+		await openFixture(page, "features/book.epub");
+		const book = page.getByTestId("epub-scroll");
+		await expect(book).toContainText("Spring", { timeout: 20_000 });
+		// In the layout, as they always were.
+		await expect(page.getByTestId("viewer")).not.toHaveAttribute(
+			"data-floating",
+		);
+		const height = await book.evaluate((el) => el.clientHeight);
+		await book.evaluate((el) => {
+			el.scrollTop += 300;
+		});
+		await page.waitForTimeout(400);
+		expect(await barsHidden(page)).toBe(false);
+		await book.evaluate((el) => {
+			el.scrollTop -= 100;
+		});
+		await page.waitForTimeout(400);
+		expect(await barsHidden(page)).toBe(false);
+		expect(await book.evaluate((el) => el.clientHeight)).toBe(height);
+		await tap(page, "epub-scroll", 0.5);
+		await expect.poll(() => barsHidden(page)).toBe(true);
+		await page.waitForTimeout(350);
+		await tap(page, "epub-scroll", 0.5);
+		await expect.poll(() => barsHidden(page)).toBe(false);
+	});
+
+	test("bars shown on a tap go as the reader scrolls on, and only a tap brings them back", async ({
+		page,
+	}) => {
+		await boot(page, { settings_v2: { readingBars: "tap" } });
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, longPdf(12));
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toContainText("/ 12", {
+			timeout: 20_000,
+		});
+		const scroller = page.getByTestId("pdf-scroll");
+		await expect(scroller.locator("canvas").first()).toBeVisible();
+		await expect(page.getByTestId("viewer")).toHaveAttribute(
+			"data-floating",
+			"",
+		);
+		// Shown as the document opens, so its controls can be found.
+		expect(await barsHidden(page)).toBe(false);
+		const height = await scroller.evaluate((el) => el.clientHeight);
+		const scrollAndWatch = (by: number) =>
+			scroller.evaluate(
+				(el, by) =>
+					new Promise<number[]>((done) => {
+						const seen = [el.clientHeight];
+						el.scrollTop += by;
+						const start = performance.now();
+						const frame = () => {
+							seen.push(el.clientHeight);
+							if (performance.now() - start < 700) requestAnimationFrame(frame);
+							else done(seen);
+						};
+						requestAnimationFrame(frame);
+					}),
+				by,
+			);
+		expect(new Set(await scrollAndWatch(500))).toEqual(new Set([height]));
+		await expect.poll(() => barsHidden(page)).toBe(true);
+		// Scrolling back does not bring them.
+		expect(new Set(await scrollAndWatch(-200))).toEqual(new Set([height]));
+		expect(await barsHidden(page)).toBe(true);
+		await scroller.evaluate((el) => {
+			el.scrollTop = 0;
+		});
+		await page.waitForTimeout(400);
+		expect(await barsHidden(page)).toBe(true);
+		// A tap does, and the next one sends them away.
+		await tap(page, "pdf-scroll", 0.5);
+		await expect.poll(() => barsHidden(page)).toBe(false);
+		await page.waitForTimeout(350);
+		await tap(page, "pdf-scroll", 0.5);
+		await expect.poll(() => barsHidden(page)).toBe(true);
+		await page.waitForTimeout(350);
+		await tap(page, "pdf-scroll", 0.5);
+		await expect.poll(() => barsHidden(page)).toBe(false);
+		// Reading on sends them away again.
+		await scrollAndWatch(500);
+		await expect.poll(() => barsHidden(page)).toBe(true);
+		expect(await scroller.evaluate((el) => el.clientHeight)).toBe(height);
+	});
+
+	test.describe("full screen", () => {
+		test.beforeEach(async ({ page }) => {
+			// Stand in for the Android shell, which hides the system's bars.
+			await page.addInitScript(() => {
+				const calls: unknown[][] = [];
+				(window as unknown as { __calls: unknown[][] }).__calls = calls;
+				window.__paperwrenAndroidExtras = {
+					immersive: (on: boolean, landscape: boolean) =>
+						calls.push([on, landscape]),
+				} as unknown as typeof window.__paperwrenAndroidExtras;
+			});
+		});
+		const immersive = (page: Page) =>
+			page.evaluate(
+				() => (window as unknown as { __calls: unknown[][] }).__calls,
+			);
+		const back = (page: Page) =>
+			page.evaluate(() => window.__paperwrenHandleBack?.());
+		const enter = async (page: Page) => {
+			await page.getByTestId("file-more").click();
+			await expect(page.getByTestId("file-fullscreen")).toHaveText(
+				"Full screen",
+			);
+			await page.getByTestId("file-fullscreen").click();
+		};
+
+		test("hides every bar, a tap shows the app's, and Back leaves it first", async ({
+			page,
+		}) => {
+			await boot(page);
+			await openFixture(page, "features/book.epub");
+			const book = page.getByTestId("epub-scroll");
+			await expect(book).toContainText("Spring", { timeout: 20_000 });
+			expect(await immersive(page)).toEqual([]);
+			await enter(page);
+			await expect(
+				page.getByText("Tap the page to show the bars"),
+			).toBeVisible();
+			await expect.poll(() => barsHidden(page)).toBe(true);
+			expect(await immersive(page)).toEqual([[true, false]]);
+			// The bars float in full screen: the page keeps its size as they
+			// come and go.
+			await expect(page.getByTestId("viewer")).toHaveAttribute(
+				"data-floating",
+				"",
+			);
+			const height = await book.evaluate((el) => el.clientHeight);
+			// Scrolling does not bring them; a tap does, until the next.
+			await book.evaluate((el) => {
+				el.scrollTop += 300;
+			});
+			await book.evaluate((el) => {
+				el.scrollTop -= 200;
+			});
+			await page.waitForTimeout(400);
+			expect(await barsHidden(page)).toBe(true);
+			await tap(page, "epub-scroll", 0.5);
+			await expect.poll(() => barsHidden(page)).toBe(false);
+			expect(await book.evaluate((el) => el.clientHeight)).toBe(height);
+			await page.waitForTimeout(350);
+			await tap(page, "epub-scroll", 0.5);
+			await expect.poll(() => barsHidden(page)).toBe(true);
+			expect(await book.evaluate((el) => el.clientHeight)).toBe(height);
+
+			// Back leaves full screen, and the bars come back.
+			expect(await back(page)).toBe(true);
+			await expect.poll(() => barsHidden(page)).toBe(false);
+			expect(await immersive(page)).toEqual([
+				[true, false],
+				[false, false],
+			]);
+			await expect(page.getByTestId("viewer")).toBeVisible();
+			await expect(page.getByTestId("viewer")).not.toHaveAttribute(
+				"data-immersed",
+			);
+			// The next Back closes the document.
+			expect(await back(page)).toBe(true);
+			await expect(page.getByTestId("viewer")).toHaveCount(0);
+			expect(await immersive(page)).toHaveLength(2);
+		});
+
+		test("is kept for the next document, and left from the menu", async ({
+			page,
+		}) => {
+			await boot(page);
+			await openFixture(page, "features/book.epub");
+			await expect(page.getByTestId("epub-scroll")).toContainText("Spring", {
+				timeout: 20_000,
+			});
+			await enter(page);
+			await expect.poll(() => barsHidden(page)).toBe(true);
+			// A tap shows the bars and their close arrow.
+			await tap(page, "epub-scroll", 0.5);
+			await expect.poll(() => barsHidden(page)).toBe(false);
+			await page.getByTestId("viewer-back").click();
+			await expect(page.getByTestId("viewer")).toHaveCount(0);
+			// Off the document, the system has its bars back.
+			expect((await immersive(page)).at(-1)).toEqual([false, false]);
+
+			await openFixture(page, "sample.pdf");
+			await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+				timeout: 20_000,
+			});
+			await expect.poll(() => barsHidden(page)).toBe(true);
+			expect((await immersive(page)).at(-1)).toEqual([true, false]);
+			await tap(page, "pdf-scroll", 0.5);
+			await expect.poll(() => barsHidden(page)).toBe(false);
+			await page.getByTestId("file-more").click();
+			await expect(page.getByTestId("file-fullscreen")).toHaveText(
+				"Leave full screen",
+			);
+			await page.getByTestId("file-fullscreen").click();
+			await expect(page.getByTestId("viewer")).not.toHaveAttribute(
+				"data-immersed",
+			);
+			expect(await barsHidden(page)).toBe(false);
+			expect((await immersive(page)).at(-1)).toEqual([false, false]);
+		});
+
+		test("is not kept past a restart", async ({ page }) => {
+			await boot(page);
+			await openFixture(page, "sample.pdf");
+			await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+				timeout: 20_000,
+			});
+			await enter(page);
+			await expect.poll(() => barsHidden(page)).toBe(true);
+			await page.reload();
+			await expect(page.getByTestId("home")).toBeVisible();
+			await openFixture(page, "sample.pdf");
+			await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+				timeout: 20_000,
+			});
+			await page.waitForTimeout(400);
+			expect(await barsHidden(page)).toBe(false);
+			await expect(page.getByTestId("viewer")).not.toHaveAttribute(
+				"data-immersed",
+			);
+		});
+	});
+
 	test("the screen dims, and the document scrolls by itself", async ({
 		page,
 	}) => {
@@ -1389,6 +1646,59 @@ test.describe("a phone held sideways", () => {
 				.getByTestId("viewer")
 				.evaluate((el) => el.style.getPropertyValue("--bars-bottom")),
 		).toBe("0px");
+	});
+
+	test("full screen hides the rail too, and the page takes the whole width", async ({
+		page,
+	}) => {
+		await page.addInitScript(() => {
+			const calls: unknown[][] = [];
+			(window as unknown as { __calls: unknown[][] }).__calls = calls;
+			window.__paperwrenAndroidExtras = {
+				immersive: (on: boolean, landscape: boolean) =>
+					calls.push([on, landscape]),
+			} as unknown as typeof window.__paperwrenAndroidExtras;
+		});
+		await boot(page);
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, longPdf(12));
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toContainText("/ 12", {
+			timeout: 20_000,
+		});
+		const scroller = page.getByTestId("pdf-scroll");
+		await expect(scroller.locator("canvas").first()).toBeVisible();
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-fullscreen").click();
+		const viewer = page.getByTestId("viewer");
+		const rail = viewer.locator("footer");
+		await expect(rail).toHaveAttribute("inert", "");
+		await expect(viewer.locator("header")).toHaveAttribute("inert", "");
+		expect(
+			await page.evaluate(
+				() => (window as unknown as { __calls: unknown[][] }).__calls,
+			),
+		).toEqual([[true, false]]);
+		// Off the screen's right edge, and the page across all of it.
+		const railLeft = () =>
+			rail.evaluate((el) => el.getBoundingClientRect().left);
+		await expect.poll(railLeft).toBeGreaterThanOrEqual(843);
+		const size = () =>
+			scroller.evaluate((el) => `${el.clientWidth}x${el.clientHeight}`);
+		await expect.poll(size).toBe("844x390");
+		// A tap brings the rail back over the page's edge; the page keeps
+		// its size.
+		const at = { identifier: 0, clientX: 422, clientY: 200 };
+		await scroller.dispatchEvent("touchstart", { touches: [at] });
+		await scroller.dispatchEvent("touchend", {
+			touches: [],
+			changedTouches: [at],
+		});
+		await expect(rail).not.toHaveAttribute("inert", "");
+		await expect.poll(railLeft).toBeLessThan(800);
+		expect((await rail.boundingBox())?.x ?? 0).toBeGreaterThan(780);
+		expect(await size()).toBe("844x390");
 	});
 });
 

@@ -882,7 +882,8 @@ test.describe("on a phone", () => {
 		await expect(page.getByTestId("pdf-page-field")).toHaveCount(0);
 		await expect(page.getByTestId("side-toggle")).toHaveCount(0);
 		await page.getByTestId("file-more").click();
-		await expect(page.getByTestId("file-fullscreen")).toHaveCount(0);
+		// A phone's own full screen, with no keys to press for it.
+		await expect(page.getByTestId("file-fullscreen")).toHaveText("Full screen");
 		// The menu is a sheet at the foot of the screen.
 		const box = await page.getByTestId("file-menu").boundingBox();
 		expect((box?.y ?? 0) + (box?.height ?? 0)).toBeGreaterThan(900);

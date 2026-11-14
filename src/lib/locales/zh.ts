@@ -674,8 +674,6 @@ export const zh: Table = {
 		"音量减翻到下一页，音量加翻回上一页",
 	"Tap the sides to turn pages": "点按两侧翻页",
 	"The left edge goes back, the right edge on": "左边缘后退，右边缘前进",
-	"Hide the bars while reading": "阅读时隐藏工具栏",
-	"They come back when you scroll back or tap": "向回滚动或点按即可重新显示",
 	"Mirror left to right": "左右翻转",
 	"Mirror top to bottom": "上下翻转",
 	"Size in pixels": "像素尺寸",
@@ -1185,6 +1183,16 @@ export const zh: Table = {
 	"No picture was changed.": "没有任何图片被改动。",
 	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
 		"不改动图片的话，此 PDF 只能缩小 {n}%，因此没有生成副本。",
+	"Bars while reading": "阅读时的工具栏",
+	Always: "始终",
+	"Auto-hide": "自动隐藏",
+	"Tap only": "仅轻点",
+	"They stay, unless you tap the page": "一直显示，除非你轻点页面",
+	"They go as you read on, and come back when you scroll back or tap":
+		"继续阅读时隐藏，向回滚动或轻点时重新显示",
+	"They go as you read on, and only a tap brings them back":
+		"继续阅读时隐藏，只有轻点才会重新显示",
+	"Tap the page to show the bars": "轻点页面即可显示工具栏",
 	Mobile: "手机",
 	Home: "住宅",
 	Work: "工作",

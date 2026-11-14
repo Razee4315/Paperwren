@@ -84,6 +84,10 @@ export type PdfFlow = "down" | "across" | "one";
 /** The face books, Markdown and reading view are set in: the one
  * each document has, or one the reader picks. */
 export type ReadingFont = "original" | "serif" | "sans";
+/** What a phone's bars do while a document is read: stay, go as the
+ * reader scrolls on and come back as they scroll back, or go as they
+ * scroll on and come back only for a tap. */
+export type ReadingBars = "always" | "scroll" | "tap";
 
 export interface Settings {
 	theme: ThemeSetting;
@@ -113,9 +117,9 @@ export interface Settings {
 	tapToTurn: boolean;
 	/** The app opens with the document last read. */
 	reopenLast: boolean;
-	/** Phones: the bars go while the reader scrolls on, and come back
-	 * when they scroll back. */
-	autoHideBars: boolean;
+	/** Phones: what the bars do while reading (`ReadingBars`). It was
+	 * the switch `autoHideBars` before 1.8. */
+	readingBars: ReadingBars;
 	/** How dark the screen is made over the document (0 to 0.7). */
 	dim: number;
 	/** How fast a document scrolls by itself, in screen pixels a second. */
@@ -150,7 +154,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	volumeKeys: false,
 	tapToTurn: false,
 	reopenLast: false,
-	autoHideBars: false,
+	readingBars: "always",
 	dim: 0,
 	scrollSpeed: 40,
 	updates: "ask",

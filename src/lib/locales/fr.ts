@@ -735,9 +735,6 @@ export const fr: Table = {
 	"Tap the sides to turn pages": "Toucher les bords pour tourner les pages",
 	"The left edge goes back, the right edge on":
 		"Le bord gauche recule, le bord droit avance",
-	"Hide the bars while reading": "Masquer les barres pendant la lecture",
-	"They come back when you scroll back or tap":
-		"Elles reviennent quand vous remontez ou touchez l'écran",
 	"Mirror left to right": "Retourner de gauche à droite",
 	"Mirror top to bottom": "Retourner de haut en bas",
 	"Size in pixels": "Taille en pixels",
@@ -1306,6 +1303,17 @@ export const fr: Table = {
 	"No picture was changed.": "Aucune image n'a été modifiée.",
 	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
 		"Sans modifier d'image, ce PDF ne s'allège que de {n} %, donc aucune copie n'a été faite.",
+	"Bars while reading": "Barres pendant la lecture",
+	Always: "Toujours",
+	"Auto-hide": "Auto",
+	"Tap only": "Au toucher",
+	"They stay, unless you tap the page":
+		"Elles restent, sauf si vous touchez la page",
+	"They go as you read on, and come back when you scroll back or tap":
+		"Elles disparaissent quand vous avancez et reviennent quand vous remontez ou touchez l'écran",
+	"They go as you read on, and only a tap brings them back":
+		"Elles disparaissent quand vous avancez, et seul un toucher les fait revenir",
+	"Tap the page to show the bars": "Touchez la page pour afficher les barres",
 	Mobile: "Portable",
 	Home: "Domicile",
 	Work: "Travail",

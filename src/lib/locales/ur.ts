@@ -717,9 +717,6 @@ export const ur: Table = {
 		"نیچے والا اگلے صفحے کے لیے، اوپر والا پچھلے کے لیے",
 	"Tap the sides to turn pages": "صفحے پلٹنے کے لیے کناروں پر تھپتھپائیں",
 	"The left edge goes back, the right edge on": "بایاں کنارہ پیچھے، دایاں آگے",
-	"Hide the bars while reading": "پڑھتے وقت بار چھپائیں",
-	"They come back when you scroll back or tap":
-		"واپس سکرول کرنے یا تھپتھپانے پر واپس آ جاتے ہیں",
 	"Mirror left to right": "بائیں سے دائیں الٹیں",
 	"Mirror top to bottom": "اوپر سے نیچے الٹیں",
 	"Size in pixels": "پکسل میں سائز",
@@ -1276,6 +1273,17 @@ export const ur: Table = {
 	"No picture was changed.": "کوئی تصویر نہیں بدلی۔",
 	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
 		"کوئی تصویر بدلے بغیر یہ PDF صرف {n}% چھوٹی ہوتی ہے، اس لیے کوئی نقل نہیں بنی۔",
+	"Bars while reading": "پڑھتے وقت بار",
+	Always: "ہمیشہ",
+	"Auto-hide": "خودکار",
+	"Tap only": "صرف ٹیپ",
+	"They stay, unless you tap the page":
+		"یہ رہتے ہیں، جب تک آپ صفحے پر ٹیپ نہ کریں",
+	"They go as you read on, and come back when you scroll back or tap":
+		"آگے پڑھنے پر چھپ جاتے ہیں، اور واپس سکرول کرنے یا ٹیپ کرنے پر لوٹ آتے ہیں",
+	"They go as you read on, and only a tap brings them back":
+		"آگے پڑھنے پر چھپ جاتے ہیں، اور صرف ٹیپ کرنے سے واپس آتے ہیں",
+	"Tap the page to show the bars": "بار دکھانے کے لیے صفحے پر ٹیپ کریں",
 	Mobile: "موبائل",
 	Home: "گھر",
 	Work: "دفتر",

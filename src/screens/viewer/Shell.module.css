@@ -387,6 +387,14 @@
 	:global(html[dir="rtl"]:not(.desktop)) .shell[data-floating] > .hiddenBottom {
 		transform: translateX(-100%);
 	}
+	/* In full screen the document has the whole width, and the rail
+	 * comes back over its edge for a tap. */
+	:global(html:not(.desktop)) .shell[data-floating][data-immersed] > .bottom {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		inset-inline-end: 0;
+	}
 	/* The controls, one under another: the zoom first, then the page,
 	 * then the rest. More than the height holds scroll. Auto margins
 	 * centre them while they fit and give way when they do not. */
