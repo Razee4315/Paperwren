@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
+import { PDFDocument } from "@cantoo/pdf-lib";
 import { type Page, expect, test } from "@playwright/test";
-import { boot, openFixture } from "./helpers";
+import { boot, longPdf, openFixture } from "./helpers";
 
 /** The colour at the middle of the first copied picture of a PDF page. */
 const pictureMiddle = (page: Page) =>
@@ -1108,6 +1109,365 @@ test.describe("reading on a phone", () => {
 		await expect.poll(() => barsHidden(page)).toBe(false);
 	});
 
+	test("bars that go while reading slide over the page, which keeps its size", async ({
+		page,
+	}) => {
+		await boot(page, { settings_v2: { autoHideBars: true } });
+		const pdf = longPdf(12);
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, pdf);
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toContainText("/ 12", {
+			timeout: 20_000,
+		});
+		const scroller = page.getByTestId("pdf-scroll");
+		await expect(scroller.locator("canvas").first()).toBeVisible();
+		const height = await scroller.evaluate((el) => el.clientHeight);
+		// The first page's drawing, to tell whether it is drawn again.
+		await scroller
+			.locator("canvas")
+			.first()
+			.evaluate((c) => {
+				c.dataset.first = "";
+			});
+		// Scroll, then the scroller's height on every frame while the bars
+		// move.
+		const scrollAndWatch = (by: number) =>
+			scroller.evaluate(
+				(el, by) =>
+					new Promise<number[]>((done) => {
+						const seen = [el.clientHeight];
+						el.scrollTop += by;
+						const start = performance.now();
+						const frame = () => {
+							seen.push(el.clientHeight);
+							if (performance.now() - start < 700) requestAnimationFrame(frame);
+							else done(seen);
+						};
+						requestAnimationFrame(frame);
+					}),
+				by,
+			);
+		const bars = () =>
+			page.getByTestId("viewer").evaluate((shell) => {
+				const top = shell.querySelector("header") as HTMLElement;
+				const foot = shell.querySelector("footer") as HTMLElement;
+				const [a, b] = [getComputedStyle(top), getComputedStyle(foot)];
+				return {
+					hidden: top.hasAttribute("inert") && foot.hasAttribute("inert"),
+					margins: [a.marginTop, b.marginBottom],
+					moved: a.transform !== "none" && b.transform !== "none",
+				};
+			});
+
+		await expect.poll(bars).toEqual({
+			hidden: false,
+			margins: ["0px", "0px"],
+			moved: false,
+		});
+		expect(new Set(await scrollAndWatch(500))).toEqual(new Set([height]));
+		await expect.poll(bars).toEqual({
+			hidden: true,
+			margins: ["0px", "0px"],
+			moved: true,
+		});
+		expect(new Set(await scrollAndWatch(-100))).toEqual(new Set([height]));
+		await expect.poll(bars).toEqual({
+			hidden: false,
+			margins: ["0px", "0px"],
+			moved: false,
+		});
+		await expect(scroller.locator("canvas[data-first]")).toHaveCount(1);
+
+		// At the top, the first page starts below the bar over it.
+		await scroller.evaluate((el) => {
+			el.scrollTop = 0;
+		});
+		await expect.poll(() => barsHidden(page)).toBe(false);
+		const under = await page.getByTestId("viewer").evaluate((shell) => {
+			const bar = (shell.querySelector("header") as HTMLElement).offsetHeight;
+			const first = shell.querySelector(".page") as HTMLElement;
+			return (
+				first.getBoundingClientRect().top -
+				shell.getBoundingClientRect().top -
+				bar
+			);
+		});
+		expect(under).toBeGreaterThanOrEqual(0);
+
+		// At the end, the last page ends above where the bottom bar shows.
+		const above = await page.getByTestId("viewer").evaluate((shell) => {
+			const foot = shell.querySelector("footer") as HTMLElement;
+			const box = shell.querySelector(
+				'[data-testid="pdf-scroll"]',
+			) as HTMLElement;
+			box.scrollTop = box.scrollHeight;
+			const pages = box.querySelectorAll(".page");
+			const last = pages[pages.length - 1].getBoundingClientRect();
+			return foot.offsetTop - (last.bottom - shell.getBoundingClientRect().top);
+		});
+		expect(above).toBeGreaterThanOrEqual(0);
+		expect(await scroller.evaluate((el) => el.clientHeight)).toBe(height);
+	});
+
+	test("Settings has three choices for the bars, and the old switch's is kept", async ({
+		page,
+	}) => {
+		// "Hide the bars while reading" was on: that is hiding on scroll.
+		await boot(page, { settings_v2: { autoHideBars: true } });
+		await page.getByTestId("open-settings").click();
+		const choice = (v: string) => page.getByTestId(`reading-bars-${v}`);
+		await expect(choice("scroll")).toHaveAttribute("aria-checked", "true");
+		await expect(choice("always")).toHaveAttribute("aria-checked", "false");
+		await expect(page.getByTestId("reading-bars-hint")).toHaveText(
+			"They go as you read on, and come back when you scroll back or tap",
+		);
+		await choice("tap").click();
+		await expect(choice("tap")).toHaveAttribute("aria-checked", "true");
+		await expect(page.getByTestId("reading-bars-hint")).toHaveText(
+			"They go as you read on, and only a tap brings them back",
+		);
+		const saved = () =>
+			page.evaluate(() =>
+				JSON.parse(localStorage.getItem("paperwren.settings_v2") ?? "{}"),
+			);
+		await expect.poll(async () => (await saved()).readingBars).toBe("tap");
+		expect(await saved()).not.toHaveProperty("autoHideBars");
+	});
+
+	test("bars always shown stay while the reader scrolls; a tap still hides them", async ({
+		page,
+	}) => {
+		await boot(page, { settings_v2: { readingBars: "always" } });
+		await openFixture(page, "features/book.epub");
+		const book = page.getByTestId("epub-scroll");
+		await expect(book).toContainText("Spring", { timeout: 20_000 });
+		// In the layout, as they always were.
+		await expect(page.getByTestId("viewer")).not.toHaveAttribute(
+			"data-floating",
+		);
+		const height = await book.evaluate((el) => el.clientHeight);
+		await book.evaluate((el) => {
+			el.scrollTop += 300;
+		});
+		await page.waitForTimeout(400);
+		expect(await barsHidden(page)).toBe(false);
+		await book.evaluate((el) => {
+			el.scrollTop -= 100;
+		});
+		await page.waitForTimeout(400);
+		expect(await barsHidden(page)).toBe(false);
+		expect(await book.evaluate((el) => el.clientHeight)).toBe(height);
+		await tap(page, "epub-scroll", 0.5);
+		await expect.poll(() => barsHidden(page)).toBe(true);
+		await page.waitForTimeout(350);
+		await tap(page, "epub-scroll", 0.5);
+		await expect.poll(() => barsHidden(page)).toBe(false);
+	});
+
+	test("bars shown on a tap go as the reader scrolls on, and only a tap brings them back", async ({
+		page,
+	}) => {
+		await boot(page, { settings_v2: { readingBars: "tap" } });
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, longPdf(12));
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toContainText("/ 12", {
+			timeout: 20_000,
+		});
+		const scroller = page.getByTestId("pdf-scroll");
+		await expect(scroller.locator("canvas").first()).toBeVisible();
+		await expect(page.getByTestId("viewer")).toHaveAttribute(
+			"data-floating",
+			"",
+		);
+		// Shown as the document opens, so its controls can be found.
+		expect(await barsHidden(page)).toBe(false);
+		const height = await scroller.evaluate((el) => el.clientHeight);
+		const scrollAndWatch = (by: number) =>
+			scroller.evaluate(
+				(el, by) =>
+					new Promise<number[]>((done) => {
+						const seen = [el.clientHeight];
+						el.scrollTop += by;
+						const start = performance.now();
+						const frame = () => {
+							seen.push(el.clientHeight);
+							if (performance.now() - start < 700) requestAnimationFrame(frame);
+							else done(seen);
+						};
+						requestAnimationFrame(frame);
+					}),
+				by,
+			);
+		expect(new Set(await scrollAndWatch(500))).toEqual(new Set([height]));
+		await expect.poll(() => barsHidden(page)).toBe(true);
+		// Scrolling back does not bring them.
+		expect(new Set(await scrollAndWatch(-200))).toEqual(new Set([height]));
+		expect(await barsHidden(page)).toBe(true);
+		await scroller.evaluate((el) => {
+			el.scrollTop = 0;
+		});
+		await page.waitForTimeout(400);
+		expect(await barsHidden(page)).toBe(true);
+		// A tap does, and the next one sends them away.
+		await tap(page, "pdf-scroll", 0.5);
+		await expect.poll(() => barsHidden(page)).toBe(false);
+		await page.waitForTimeout(350);
+		await tap(page, "pdf-scroll", 0.5);
+		await expect.poll(() => barsHidden(page)).toBe(true);
+		await page.waitForTimeout(350);
+		await tap(page, "pdf-scroll", 0.5);
+		await expect.poll(() => barsHidden(page)).toBe(false);
+		// Reading on sends them away again.
+		await scrollAndWatch(500);
+		await expect.poll(() => barsHidden(page)).toBe(true);
+		expect(await scroller.evaluate((el) => el.clientHeight)).toBe(height);
+	});
+
+	test.describe("full screen", () => {
+		test.beforeEach(async ({ page }) => {
+			// Stand in for the Android shell, which hides the system's bars.
+			await page.addInitScript(() => {
+				const calls: unknown[][] = [];
+				(window as unknown as { __calls: unknown[][] }).__calls = calls;
+				window.__paperwrenAndroidExtras = {
+					immersive: (on: boolean, landscape: boolean) =>
+						calls.push([on, landscape]),
+				} as unknown as typeof window.__paperwrenAndroidExtras;
+			});
+		});
+		const immersive = (page: Page) =>
+			page.evaluate(
+				() => (window as unknown as { __calls: unknown[][] }).__calls,
+			);
+		const back = (page: Page) =>
+			page.evaluate(() => window.__paperwrenHandleBack?.());
+		const enter = async (page: Page) => {
+			await page.getByTestId("file-more").click();
+			await expect(page.getByTestId("file-fullscreen")).toHaveText(
+				"Full screen",
+			);
+			await page.getByTestId("file-fullscreen").click();
+		};
+
+		test("hides every bar, a tap shows the app's, and Back leaves it first", async ({
+			page,
+		}) => {
+			await boot(page);
+			await openFixture(page, "features/book.epub");
+			const book = page.getByTestId("epub-scroll");
+			await expect(book).toContainText("Spring", { timeout: 20_000 });
+			expect(await immersive(page)).toEqual([]);
+			await enter(page);
+			await expect(
+				page.getByText("Tap the page to show the bars"),
+			).toBeVisible();
+			await expect.poll(() => barsHidden(page)).toBe(true);
+			expect(await immersive(page)).toEqual([[true, false]]);
+			// The bars float in full screen: the page keeps its size as they
+			// come and go.
+			await expect(page.getByTestId("viewer")).toHaveAttribute(
+				"data-floating",
+				"",
+			);
+			const height = await book.evaluate((el) => el.clientHeight);
+			// Scrolling does not bring them; a tap does, until the next.
+			await book.evaluate((el) => {
+				el.scrollTop += 300;
+			});
+			await book.evaluate((el) => {
+				el.scrollTop -= 200;
+			});
+			await page.waitForTimeout(400);
+			expect(await barsHidden(page)).toBe(true);
+			await tap(page, "epub-scroll", 0.5);
+			await expect.poll(() => barsHidden(page)).toBe(false);
+			expect(await book.evaluate((el) => el.clientHeight)).toBe(height);
+			await page.waitForTimeout(350);
+			await tap(page, "epub-scroll", 0.5);
+			await expect.poll(() => barsHidden(page)).toBe(true);
+			expect(await book.evaluate((el) => el.clientHeight)).toBe(height);
+
+			// Back leaves full screen, and the bars come back.
+			expect(await back(page)).toBe(true);
+			await expect.poll(() => barsHidden(page)).toBe(false);
+			expect(await immersive(page)).toEqual([
+				[true, false],
+				[false, false],
+			]);
+			await expect(page.getByTestId("viewer")).toBeVisible();
+			await expect(page.getByTestId("viewer")).not.toHaveAttribute(
+				"data-immersed",
+			);
+			// The next Back closes the document.
+			expect(await back(page)).toBe(true);
+			await expect(page.getByTestId("viewer")).toHaveCount(0);
+			expect(await immersive(page)).toHaveLength(2);
+		});
+
+		test("is kept for the next document, and left from the menu", async ({
+			page,
+		}) => {
+			await boot(page);
+			await openFixture(page, "features/book.epub");
+			await expect(page.getByTestId("epub-scroll")).toContainText("Spring", {
+				timeout: 20_000,
+			});
+			await enter(page);
+			await expect.poll(() => barsHidden(page)).toBe(true);
+			// A tap shows the bars and their close arrow.
+			await tap(page, "epub-scroll", 0.5);
+			await expect.poll(() => barsHidden(page)).toBe(false);
+			await page.getByTestId("viewer-back").click();
+			await expect(page.getByTestId("viewer")).toHaveCount(0);
+			// Off the document, the system has its bars back.
+			expect((await immersive(page)).at(-1)).toEqual([false, false]);
+
+			await openFixture(page, "sample.pdf");
+			await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+				timeout: 20_000,
+			});
+			await expect.poll(() => barsHidden(page)).toBe(true);
+			expect((await immersive(page)).at(-1)).toEqual([true, false]);
+			await tap(page, "pdf-scroll", 0.5);
+			await expect.poll(() => barsHidden(page)).toBe(false);
+			await page.getByTestId("file-more").click();
+			await expect(page.getByTestId("file-fullscreen")).toHaveText(
+				"Leave full screen",
+			);
+			await page.getByTestId("file-fullscreen").click();
+			await expect(page.getByTestId("viewer")).not.toHaveAttribute(
+				"data-immersed",
+			);
+			expect(await barsHidden(page)).toBe(false);
+			expect((await immersive(page)).at(-1)).toEqual([false, false]);
+		});
+
+		test("is not kept past a restart", async ({ page }) => {
+			await boot(page);
+			await openFixture(page, "sample.pdf");
+			await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+				timeout: 20_000,
+			});
+			await enter(page);
+			await expect.poll(() => barsHidden(page)).toBe(true);
+			await page.reload();
+			await expect(page.getByTestId("home")).toBeVisible();
+			await openFixture(page, "sample.pdf");
+			await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+				timeout: 20_000,
+			});
+			await page.waitForTimeout(400);
+			expect(await barsHidden(page)).toBe(false);
+			await expect(page.getByTestId("viewer")).not.toHaveAttribute(
+				"data-immersed",
+			);
+		});
+	});
+
 	test("the screen dims, and the document scrolls by itself", async ({
 		page,
 	}) => {
@@ -1136,6 +1496,210 @@ test.describe("reading on a phone", () => {
 		expect(await scrollTop(page, "epub-scroll")).toBe(paused);
 		await page.getByTestId("auto-scroll-stop").click();
 		await expect(page.getByTestId("auto-scroll")).toHaveCount(0);
+	});
+});
+
+test.describe("a phone held sideways", () => {
+	test.use({ viewport: { width: 844, height: 390 } });
+
+	/** Where the bars are, and how much of the height they take: a bar
+	 * across the screen takes its height, a rail beside the page none. */
+	const bars = (page: Page) =>
+		page.getByTestId("viewer").evaluate((shell) => {
+			const top = (shell.querySelector("header") as HTMLElement)
+				.getBoundingClientRect()
+				.toJSON() as DOMRect;
+			const foot = (shell.querySelector("footer") as HTMLElement)
+				.getBoundingClientRect()
+				.toJSON() as DOMRect;
+			const rail = foot.height > foot.width;
+			return {
+				share: (top.height + (rail ? 0 : foot.height)) / window.innerHeight,
+				rail,
+				foot,
+				width: window.innerWidth,
+			};
+		});
+
+	/** Every button in the rail is on screen, a finger's size, and the
+	 * topmost thing where it sits. */
+	const railButtonsReachable = (page: Page) =>
+		page.getByTestId("viewer").evaluate((shell) => {
+			const wrong: string[] = [];
+			for (const b of shell.querySelectorAll<HTMLElement>("footer button")) {
+				const r = b.getBoundingClientRect();
+				const name = b.getAttribute("aria-label") ?? b.textContent ?? "";
+				if (
+					r.left < 0 ||
+					r.top < 0 ||
+					r.right > window.innerWidth ||
+					r.bottom > window.innerHeight
+				)
+					wrong.push(`off screen: ${name}`);
+				if (r.width < 40 || r.height < 40) wrong.push(`small: ${name}`);
+				const hit = document.elementFromPoint(
+					r.left + r.width / 2,
+					r.top + r.height / 2,
+				);
+				if (!hit || !b.contains(hit)) wrong.push(`covered: ${name}`);
+			}
+			return wrong;
+		});
+
+	test("the bottom bar is a rail at the side, and comes back upright", async ({
+		page,
+	}) => {
+		await boot(page);
+		const pdf = longPdf(12);
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, pdf);
+		await page.getByTestId("open-file").click();
+		const counter = page.getByTestId("pdf-page");
+		await expect(counter).toContainText("/ 12", { timeout: 20_000 });
+
+		const side = await bars(page);
+		expect(side.rail).toBe(true);
+		expect(side.share).toBeLessThanOrEqual(0.12);
+		// At the right edge.
+		expect(side.foot.right).toBeCloseTo(side.width, 0);
+		expect(side.foot.width).toBeLessThan(64);
+		expect(await railButtonsReachable(page)).toEqual([]);
+
+		// The rail's buttons work.
+		const scale = page.getByTestId("pdf-scale");
+		const before = await scale.textContent();
+		await page.getByTestId("pdf-zoom-in").click();
+		await expect(scale).not.toHaveText(before ?? "");
+		await counter.click();
+		await page.getByTestId("pdf-jump-input").fill("3");
+		await page.getByTestId("pdf-jump-go").click();
+		await expect(counter).toContainText("3 / 12");
+
+		// Upright again: a bar across the foot, as before.
+		await page.setViewportSize({ width: 390, height: 844 });
+		await expect.poll(async () => (await bars(page)).rail).toBe(false);
+		const upright = await bars(page);
+		expect(upright.foot.width).toBeCloseTo(390, 0);
+		expect(upright.foot.bottom).toBeCloseTo(844, 0);
+	});
+
+	test("the rail is at the left in Arabic", async ({ page }) => {
+		await boot(page, { settings_v2: { language: "ar" } });
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-zoom-in")).toBeVisible({
+			timeout: 20_000,
+		});
+		const side = await bars(page);
+		expect(side.rail).toBe(true);
+		expect(side.foot.left).toBeCloseTo(0, 0);
+		expect(side.share).toBeLessThanOrEqual(0.12);
+		expect(await railButtonsReachable(page)).toEqual([]);
+	});
+
+	test("bars that go while reading slide the rail aside, and the page keeps its size", async ({
+		page,
+	}) => {
+		await boot(page, { settings_v2: { autoHideBars: true } });
+		const pdf = longPdf(12);
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, pdf);
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toContainText("/ 12", {
+			timeout: 20_000,
+		});
+		const scroller = page.getByTestId("pdf-scroll");
+		await expect(scroller.locator("canvas").first()).toBeVisible();
+		expect((await bars(page)).share).toBeLessThanOrEqual(0.12);
+		expect(await railButtonsReachable(page)).toEqual([]);
+		const size = () =>
+			scroller.evaluate((el) => `${el.clientWidth}x${el.clientHeight}`);
+		const at = await size();
+		// The scroller's size on every frame while the rail goes.
+		const seen = await scroller.evaluate(
+			(el) =>
+				new Promise<string[]>((done) => {
+					const sizes = [`${el.clientWidth}x${el.clientHeight}`];
+					el.scrollTop += 500;
+					const start = performance.now();
+					const frame = () => {
+						sizes.push(`${el.clientWidth}x${el.clientHeight}`);
+						if (performance.now() - start < 700) requestAnimationFrame(frame);
+						else done(sizes);
+					};
+					requestAnimationFrame(frame);
+				}),
+		);
+		expect(new Set(seen)).toEqual(new Set([at]));
+		const rail = page.getByTestId("viewer").locator("footer");
+		await expect(rail).toHaveAttribute("inert", "");
+		// Moved sideways (a matrix whose fifth term is the x shift), not down.
+		const moved = () =>
+			rail.evaluate((el) => {
+				const m = new DOMMatrix(getComputedStyle(el).transform);
+				return { across: m.e > 40, down: m.f };
+			});
+		await expect.poll(moved).toEqual({ across: true, down: 0 });
+		// Nothing is kept clear at the foot for a bar that is not there.
+		expect(
+			await page
+				.getByTestId("viewer")
+				.evaluate((el) => el.style.getPropertyValue("--bars-bottom")),
+		).toBe("0px");
+	});
+
+	test("full screen hides the rail too, and the page takes the whole width", async ({
+		page,
+	}) => {
+		await page.addInitScript(() => {
+			const calls: unknown[][] = [];
+			(window as unknown as { __calls: unknown[][] }).__calls = calls;
+			window.__paperwrenAndroidExtras = {
+				immersive: (on: boolean, landscape: boolean) =>
+					calls.push([on, landscape]),
+			} as unknown as typeof window.__paperwrenAndroidExtras;
+		});
+		await boot(page);
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, longPdf(12));
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toContainText("/ 12", {
+			timeout: 20_000,
+		});
+		const scroller = page.getByTestId("pdf-scroll");
+		await expect(scroller.locator("canvas").first()).toBeVisible();
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-fullscreen").click();
+		const viewer = page.getByTestId("viewer");
+		const rail = viewer.locator("footer");
+		await expect(rail).toHaveAttribute("inert", "");
+		await expect(viewer.locator("header")).toHaveAttribute("inert", "");
+		expect(
+			await page.evaluate(
+				() => (window as unknown as { __calls: unknown[][] }).__calls,
+			),
+		).toEqual([[true, false]]);
+		// Off the screen's right edge, and the page across all of it.
+		const railLeft = () =>
+			rail.evaluate((el) => el.getBoundingClientRect().left);
+		await expect.poll(railLeft).toBeGreaterThanOrEqual(843);
+		const size = () =>
+			scroller.evaluate((el) => `${el.clientWidth}x${el.clientHeight}`);
+		await expect.poll(size).toBe("844x390");
+		// A tap brings the rail back over the page's edge; the page keeps
+		// its size.
+		const at = { identifier: 0, clientX: 422, clientY: 200 };
+		await scroller.dispatchEvent("touchstart", { touches: [at] });
+		await scroller.dispatchEvent("touchend", {
+			touches: [],
+			changedTouches: [at],
+		});
+		await expect(rail).not.toHaveAttribute("inert", "");
+		await expect.poll(railLeft).toBeLessThan(800);
+		expect((await rail.boundingBox())?.x ?? 0).toBeGreaterThan(780);
+		expect(await size()).toBe("844x390");
 	});
 });
 
@@ -1781,4 +2345,89 @@ test.describe("reading font", () => {
 		expect(await face(page, "article p")).toContain("Georgia");
 		expect(await face(page, "article pre code")).not.toContain("Georgia");
 	});
+});
+
+test("save a cropped copy matches the screen and leaves the opened file unchanged", async ({
+	page,
+}) => {
+	// Use the browser's download fallback rather than the system share sheet.
+	await page.addInitScript(() => {
+		Object.defineProperty(navigator, "canShare", { value: undefined });
+		Object.defineProperty(navigator, "share", { value: undefined });
+	});
+	await boot(page);
+	await openFixture(page, "features/margins.pdf");
+	await expect(page.getByTestId("pdf-page")).toHaveText("1 / 4", {
+		timeout: 20_000,
+	});
+	await page.getByTestId("file-more").click();
+	await page.getByTestId("pdf-crop-hand").click();
+	await expect(page.getByTestId("crop-handle-7")).toBeVisible({
+		timeout: 20_000,
+	});
+	await page.getByTestId("crop-reset").click();
+	await page.getByTestId("crop-scope-page").click();
+	await page.getByTestId("crop-handle-7").focus();
+	await page.keyboard.press("Shift+ArrowRight");
+	await page.keyboard.press("Shift+ArrowRight");
+	const shares = await page.getByTestId("crop-box").evaluate((el) => {
+		const box = el.getBoundingClientRect();
+		const stage = document
+			.querySelector("[data-testid=crop-stage]")
+			?.getBoundingClientRect();
+		if (!stage) throw new Error("no crop stage");
+		return [
+			(box.left - stage.left) / stage.width,
+			(box.top - stage.top) / stage.height,
+			(box.right - stage.left) / stage.width,
+			(box.bottom - stage.top) / stage.height,
+		];
+	});
+	const original = readFileSync("fixtures/features/margins.pdf");
+	const full = (await PDFDocument.load(original)).getPage(0).getCropBox();
+	const download = page.waitForEvent("download");
+	await page.getByTestId("crop-save").click();
+	const saved = await download;
+	expect(saved.suggestedFilename()).toBe("margins (cropped).pdf");
+	const bytes = readFileSync(await saved.path());
+	const copy = await PDFDocument.load(bytes);
+	const box = copy.getPage(0).getCropBox();
+	const expected = [
+		full.x + shares[0] * full.width,
+		full.y + (1 - shares[3]) * full.height,
+		(shares[2] - shares[0]) * full.width,
+		(shares[3] - shares[1]) * full.height,
+	];
+	for (const [i, value] of [box.x, box.y, box.width, box.height].entries())
+		expect(Math.abs(value - expected[i])).toBeLessThan(1);
+	expect(copy.getPage(1).getCropBox()).toEqual(
+		(await PDFDocument.load(original)).getPage(1).getCropBox(),
+	);
+	await expect(page.getByTestId("crop-pages")).toHaveCount(0);
+	await page.getByTestId("file-more").click();
+	const unchanged = page.waitForEvent("download");
+	await page.getByTestId("file-share").click();
+	expect(readFileSync(await (await unchanged).path())).toEqual(original);
+	await page.getByTestId("viewer-back").click();
+	await page.evaluate(
+		({ b64, name }) => {
+			window.__paperwrenTestFile = new File(
+				[Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))],
+				name,
+			);
+		},
+		{ b64: bytes.toString("base64"), name: saved.suggestedFilename() },
+	);
+	await page.getByTestId("open-file").click();
+	await expect(page.getByTestId("pdf-page")).toHaveText("1 / 4", {
+		timeout: 20_000,
+	});
+	await expect
+		.poll(async () =>
+			page
+				.locator(".pdfViewer .page")
+				.first()
+				.evaluate((el) => el.clientWidth / el.clientHeight),
+		)
+		.toBeCloseTo(box.width / box.height, 2);
 });

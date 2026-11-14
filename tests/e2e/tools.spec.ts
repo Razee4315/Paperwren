@@ -1,5 +1,12 @@
 import { readFileSync } from "node:fs";
-import { PDFDocument } from "@cantoo/pdf-lib";
+import { deflateSync } from "node:zlib";
+import {
+	PDFDocument,
+	concatTransformationMatrix,
+	drawObject,
+	popGraphicsState,
+	pushGraphicsState,
+} from "@cantoo/pdf-lib";
 import { type Page, expect, test } from "@playwright/test";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { boot, openFixture, pickTool, solidPng } from "./helpers";
@@ -25,9 +32,17 @@ test.describe("rename", () => {
 			"can't contain",
 		);
 		await expect(page.getByTestId("rename-go")).toBeDisabled();
+		// A browser holds a copy: it says before and after that only the
+		// app's name changes, never that the file itself was renamed.
+		await expect(page.getByTestId("rename-in-app")).toContainText(
+			"in Paperwren only",
+		);
 		await field.fill("Quarterly report ");
 		await field.press("Enter");
 		await expect(page.getByTestId("rename")).toHaveCount(0);
+		await expect(page.getByTestId("toast")).toContainText(
+			"Renamed to Quarterly report.pdf in Paperwren. The original file keeps its name.",
+		);
 		await expect(page.getByTestId("viewer").locator("header")).toContainText(
 			"Quarterly report.pdf",
 		);
@@ -51,6 +66,355 @@ test.describe("rename", () => {
 		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
 			timeout: 20_000,
 		});
+	});
+
+	/** Stand in for a system that renames the file itself: every rename
+	 * asked for is kept, and `fail` (a desktop refusal's kind and words)
+	 * refuses them. */
+	async function systemRenames(
+		page: Page,
+		fail?: { kind: string; message: string },
+	) {
+		await page.evaluate((fail) => {
+			window.__paperwrenTestRenames = [];
+			window.__paperwrenTestRename = async (reopen) => {
+				if (fail) throw fail;
+				return reopen;
+			};
+		}, fail);
+	}
+
+	test("the file itself is renamed, through the backend", async ({ page }) => {
+		await boot(page);
+		await systemRenames(page);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-rename").click();
+		// The file itself is renamed: nothing to warn about.
+		await expect(page.getByTestId("rename-in-app")).toHaveCount(0);
+		await page.getByTestId("rename-input").fill("Q3");
+		await page.getByTestId("rename-go").click();
+		await expect(page.getByTestId("rename")).toHaveCount(0);
+		const toast = page.getByTestId("toast");
+		await expect(toast).toContainText("Renamed to Q3.pdf");
+		await expect(toast).not.toContainText("in Paperwren");
+		const asked = await page.evaluate(() => window.__paperwrenTestRenames);
+		expect(asked).toHaveLength(1);
+		expect(asked?.[0].name).toBe("Q3.pdf");
+		expect(asked?.[0].reopen.kind).toBe("browser");
+		await expect(page.getByTestId("viewer").locator("header")).toContainText(
+			"Q3.pdf",
+		);
+	});
+
+	test("a tab follows its file renamed from Home", async ({ page }) => {
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await boot(page, {}, "?desktop&frame");
+		await systemRenames(page);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		// A second document, so the tabs show at Home.
+		const text = readFileSync("fixtures/sample.txt").toString("base64");
+		await page.evaluate((b64) => {
+			const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+			window.__paperwrenTestFile = new File([bytes], "sample.txt");
+		}, text);
+		await page.keyboard.press("Control+o");
+		const tabs = page.getByTestId("tab");
+		await expect(tabs).toHaveText(["sample.pdf", "sample.txt"]);
+		await page.getByTestId("tab-home").click();
+		const recent = page.getByTestId("recent").filter({ hasText: "sample.pdf" });
+		await recent.getByRole("button", { name: /More actions/ }).click();
+		await page.getByTestId("menu-rename").click();
+		await page.getByTestId("rename-input").fill("Q3");
+		await page.getByTestId("rename-go").click();
+		const renamed = page.getByTestId("recent").filter({ hasText: "Q3.pdf" });
+		await expect(renamed).toHaveCount(1);
+		await expect(tabs).toHaveText(["Q3.pdf", "sample.txt"]);
+		// Opened again, it is the same tab, under its new name.
+		await renamed.getByRole("button").first().click();
+		await expect(tabs).toHaveCount(2);
+		await expect(page).toHaveTitle(/Q3\.pdf/);
+	});
+
+	/** Stand in for the Android shell: `picker` gives it the system's own
+	 * document picker (as 1.8 does; without it, the old picker is used),
+	 * `refuse` is what its provider answers a rename with. What the page
+	 * asks of it is kept in window.__shell. */
+	async function androidShell(
+		page: Page,
+		shell: { picker?: "works" | "fails"; refuse?: string } = {},
+	) {
+		await page.addInitScript((shell) => {
+			const w = window as unknown as Record<string, unknown>;
+			const asked = {
+				picks: [] as unknown[],
+				renames: [] as string[][],
+				kept: [] as string[],
+				released: [] as string[],
+			};
+			w.__shell = asked;
+			const docs: Record<string, { name: string; bytes: string }> = {};
+			w.__shellDocs = docs;
+			const copies: Record<string, Blob> = {};
+			window.__paperwrenTestCopies = copies;
+			const later = (fn: () => void) => window.setTimeout(fn, 10);
+			w.__paperwrenAndroid = {
+				displayName: (uri: string) => docs[uri]?.name ?? "",
+				contentSize: () => 0,
+				importPicked(uri: string, token: string) {
+					const doc = docs[uri];
+					const path = `/data/files/imports/${Object.keys(docs).indexOf(uri)}/${doc.name}`;
+					copies[path] = new Blob([
+						Uint8Array.from(atob(doc.bytes), (c) => c.charCodeAt(0)),
+					]);
+					later(() =>
+						window.__paperwrenImported?.(token, {
+							path,
+							name: doc.name,
+							size: copies[path].size,
+						}),
+					);
+					return true;
+				},
+			};
+			const extras: Record<string, unknown> = {
+				keepAwake() {},
+				releaseFolder: (uri: string) => asked.released.push(uri),
+				renameDocument(uri: string, name: string, token: string) {
+					asked.renames.push([uri, name]);
+					later(() =>
+						window.__paperwrenRenamed?.(
+							token,
+							shell.refuse ?? { uri: `${uri}-renamed`, name },
+						),
+					);
+					return true;
+				},
+			};
+			if (shell.picker) {
+				extras.pickDocuments = (
+					token: string,
+					pictures: boolean,
+					multiple: boolean,
+				) => {
+					asked.picks.push({ pictures, multiple });
+					if (shell.picker === "fails") return false;
+					later(() => window.__paperwrenPicked?.(token, Object.keys(docs)));
+					return true;
+				};
+				extras.keepDocument = (uri: string) => asked.kept.push(uri);
+				extras.canRenameDocument = () => !shell.refuse;
+			}
+			w.__paperwrenAndroidExtras = extras;
+		}, shell);
+	}
+
+	/** A document the shell's picker gives, at `uri`. */
+	async function inPicker(page: Page, uri: string, fixture: string) {
+		const bytes = readFileSync(`fixtures/${fixture}`).toString("base64");
+		await page.evaluate(
+			({ uri, name, bytes }) => {
+				const w = window as unknown as {
+					__shellDocs: Record<string, { name: string; bytes: string }>;
+				};
+				w.__shellDocs[uri] = { name, bytes };
+			},
+			{ uri, name: fixture, bytes },
+		);
+	}
+
+	const shellAsked = (page: Page) =>
+		page.evaluate(
+			() =>
+				(
+					window as unknown as {
+						__shell: {
+							picks: unknown[];
+							renames: string[][];
+							kept: string[];
+							released: string[];
+						};
+					}
+				).__shell,
+		);
+
+	const ORIGINAL =
+		"content://com.android.providers.downloads.documents/document/msf%3A31";
+
+	test("Android: a file picked with Open file is renamed where it is", async ({
+		page,
+	}) => {
+		await androidShell(page, { picker: "works" });
+		await boot(page);
+		await inPicker(page, ORIGINAL, "sample.pdf");
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+		// Its original is kept over restarts, as Recent files names it.
+		await expect
+			.poll(async () => (await shellAsked(page)).kept)
+			.toEqual([ORIGINAL]);
+		expect((await shellAsked(page)).picks).toEqual([
+			{ pictures: false, multiple: false },
+		]);
+
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-rename").click();
+		// The original is renamed: nothing to warn about.
+		await expect(page.getByTestId("rename-input")).toHaveValue("sample");
+		await expect(page.getByTestId("rename-in-app")).toHaveCount(0);
+		await page.getByTestId("rename-input").fill("Q3");
+		await page.getByTestId("rename-go").click();
+		const toast = page.getByTestId("toast");
+		await expect(toast).toContainText("Renamed to Q3.pdf");
+		await expect(toast).not.toContainText("in Paperwren");
+		const asked = await shellAsked(page);
+		expect(asked.renames).toEqual([[ORIGINAL, "Q3.pdf"]]);
+		await expect(page.getByTestId("viewer").locator("header")).toContainText(
+			"Q3.pdf",
+		);
+		// Its new address is held, and the old one let go.
+		await expect
+			.poll(async () => (await shellAsked(page)).kept)
+			.toEqual([ORIGINAL, `${ORIGINAL}-renamed`]);
+		expect((await shellAsked(page)).released).toEqual([ORIGINAL]);
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+
+		// Recent files has it under its new name, and a second rename asks
+		// for the original at its new address.
+		await page.getByTestId("viewer-back").click();
+		const recent = page.getByTestId("recent");
+		await expect(recent).toHaveCount(1);
+		await expect(recent.first()).toContainText("Q3.pdf");
+		const stored = await page.evaluate(() =>
+			JSON.parse(localStorage.getItem("paperwren.recents_v2") ?? "[]"),
+		);
+		expect(stored[0].reopen).toMatchObject({
+			kind: "managed",
+			origin: `${ORIGINAL}-renamed`,
+		});
+		await recent
+			.first()
+			.getByRole("button", { name: /More actions/ })
+			.click();
+		await page.getByTestId("menu-rename").click();
+		await expect(page.getByTestId("rename-in-app")).toHaveCount(0);
+		await page.getByTestId("rename-input").fill("Q4");
+		await page.getByTestId("rename-go").click();
+		await expect(recent.first()).toContainText("Q4.pdf");
+		expect((await shellAsked(page)).renames[1]).toEqual([
+			`${ORIGINAL}-renamed`,
+			"Q4.pdf",
+		]);
+
+		// Removed from Recent files, its original is let go once Undo has
+		// passed.
+		await recent
+			.first()
+			.getByRole("button", { name: /More actions/ })
+			.click();
+		await page.getByTestId("menu-remove").click();
+		await expect(recent).toHaveCount(0);
+		await expect
+			.poll(async () => (await shellAsked(page)).released, { timeout: 10_000 })
+			.toContain(`${ORIGINAL}-renamed-renamed`);
+	});
+
+	test("Android: a provider that will not rename the original says so", async ({
+		page,
+	}) => {
+		await androidShell(page, { picker: "works", refuse: "unsupported" });
+		await boot(page);
+		await inPicker(page, ORIGINAL, "sample.pdf");
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-rename").click();
+		await expect(page.getByTestId("rename-in-app")).toContainText(
+			"in Paperwren only",
+		);
+		await page.getByTestId("rename-input").fill("Q3");
+		await page.getByTestId("rename-go").click();
+		await expect(page.getByTestId("toast")).toContainText(
+			"Renamed to Q3.pdf in Paperwren. The original file keeps its name.",
+		);
+		await expect(page.getByTestId("viewer").locator("header")).toContainText(
+			"Q3.pdf",
+		);
+		// The original out of reach for good, its address is let go.
+		await expect
+			.poll(async () => (await shellAsked(page)).released)
+			.toEqual([ORIGINAL]);
+		await page.getByTestId("viewer-back").click();
+		await expect(page.getByTestId("recent").first()).toContainText("Q3.pdf");
+	});
+
+	for (const picker of [undefined, "fails"] as const)
+		test(`Android: ${picker ? "a picker that fails" : "an older shell"} still opens the file the old way`, async ({
+			page,
+		}) => {
+			await androidShell(page, { picker });
+			await boot(page);
+			await openFixture(page, "sample.pdf");
+			await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+				timeout: 20_000,
+			});
+			expect((await shellAsked(page)).picks).toHaveLength(picker ? 1 : 0);
+			await page.getByTestId("file-more").click();
+			await page.getByTestId("file-rename").click();
+			await expect(page.getByTestId("rename-in-app")).toContainText(
+				"in Paperwren only",
+			);
+			await page.getByTestId("rename-input").fill("Q3");
+			await page.getByTestId("rename-go").click();
+			await expect(page.getByTestId("toast")).toContainText(
+				"in Paperwren. The original file keeps its name.",
+			);
+			expect((await shellAsked(page)).renames).toEqual([]);
+		});
+
+	test("a refused rename keeps the old name everywhere", async ({ page }) => {
+		await boot(page);
+		await systemRenames(page, {
+			kind: "io",
+			message:
+				"The process cannot access the file because it is being used by another process. (os error 32)",
+		});
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-rename").click();
+		await page.getByTestId("rename-input").fill("Q3");
+		await page.getByTestId("rename-go").click();
+		await expect(page.getByTestId("rename-error")).toContainText(
+			"Another app is using this file",
+		);
+		const asked = await page.evaluate(() => window.__paperwrenTestRenames);
+		expect(asked?.map((a) => a.name)).toEqual(["Q3.pdf"]);
+		// Nothing changed: the dialog stays to try again, and the old name
+		// is the one shown and kept.
+		await expect(page.getByTestId("rename")).toBeVisible();
+		await page.getByRole("button", { name: "Cancel" }).click();
+		await expect(page.getByTestId("viewer").locator("header")).toContainText(
+			"sample.pdf",
+		);
+		await page.getByTestId("viewer-back").click();
+		await expect(page.getByTestId("recent").first()).toContainText(
+			"sample.pdf",
+		);
 	});
 });
 
@@ -1337,6 +1701,151 @@ test.describe("PDF tools", () => {
 		expect(pages[5].text).toContain("Locked fixture, page 1");
 	});
 
+	test("a copy of a protected PDF is said to open without its password, before it is saved", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openTool(page, "merge");
+		const note = page.getByTestId("copy-note");
+		await nextPicks(page, [fixtureFile("sample.pdf")]);
+		await page.getByTestId("tool-add").click();
+		await expect(listed(page)).toHaveText(["sample.pdf"]);
+		// A PDF that needs nothing to open says nothing.
+		await expect(note).toHaveCount(0);
+
+		await nextPicks(page, [fixtureFile("viewer-regressions/locked.pdf")]);
+		await page.getByTestId("tool-add").click();
+		await page.getByTestId("tool-password").fill("wren");
+		await page.getByTestId("tool-unlock").click();
+		await expect(listed(page)).toHaveText(["sample.pdf", "locked.pdf"]);
+		await expect(note).toHaveText(
+			"The copy will open without a password. To lock it again, use Add a password.",
+		);
+		// What the note says is so: the copy needs no password.
+		const pages = await texts((await runTool(page)).bytes);
+		expect(pages).toHaveLength(5);
+
+		// Taken out again, there is nothing left to say.
+		await page.getByTestId("tool-file-remove").nth(1).click();
+		await expect(note).toHaveCount(0);
+	});
+
+	test("a PDF that only limits what a reader may do says its copy has no limits", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openTool(page, "extract");
+		// It opens freely, so no password is asked for.
+		await nextPick(page, "features/nocopy.pdf");
+		await page.getByTestId("tool-add").click();
+		await expect(listed(page)).toHaveText(["nocopy.pdf"]);
+		await expect(page.getByTestId("tool-password")).toHaveCount(0);
+		await expect(page.getByTestId("copy-note")).toHaveText(
+			"This PDF limits what a reader may do, such as copying. The copy will have no limits.",
+		);
+		await page.getByTestId("tool-pages-field").fill("1");
+		const out = await runTool(page);
+		expect(Buffer.from(out.bytes).includes("/Encrypt")).toBe(false);
+		expect((await texts(out.bytes))[0].text).toContain("do not copy me");
+	});
+
+	test("the tools about a password itself, and the one that makes pictures, say nothing about it", async ({
+		page,
+	}) => {
+		await boot(page);
+		await page.getByTestId("open-tools").click();
+		for (const tool of ["unlock", "protect", "pictures"]) {
+			await page.getByTestId(`tool-${tool}`).click();
+			await nextPick(page, "viewer-regressions/locked.pdf");
+			await page.getByTestId("tool-add").click();
+			await page.getByTestId("tool-password").fill("wren");
+			await page.getByTestId("tool-unlock").click();
+			await expect(listed(page)).toHaveText(["locked.pdf"]);
+			await expect(page.getByTestId("copy-note")).toHaveCount(0);
+			await page.getByTestId("tools-back").click();
+		}
+	});
+
+	test("mark up says it before a copy of a protected PDF is saved", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openTool(page, "markup");
+		await nextPick(page, "viewer-regressions/locked.pdf");
+		await page.getByTestId("tool-add").click();
+		await page.getByTestId("tool-password").fill("wren");
+		await page.getByTestId("tool-unlock").click();
+		await expect(page.getByTestId("copy-note")).toContainText(
+			"The copy will open without a password",
+		);
+		await page.getByTestId("tool-go").click();
+		const sheet = page.locator('[data-page="0"]');
+		await expect(sheet.locator("canvas[data-drawn]")).toHaveCount(1, {
+			timeout: 20_000,
+		});
+		const box = await sheet.boundingBox();
+		if (!box) throw new Error("no page");
+		await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.6);
+		await page.mouse.down();
+		await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.7, {
+			steps: 5,
+		});
+		await page.mouse.up();
+		await page.getByTestId("mark-save").click();
+		await expect(
+			page.getByTestId("mark-save-ask").getByTestId("copy-note"),
+		).toContainText("The copy will open without a password");
+		const download = page.waitForEvent("download");
+		await page.getByTestId("mark-save-go").click();
+		const saved = new Uint8Array(readFileSync(await (await download).path()));
+		expect(Buffer.from(saved).includes("/Encrypt")).toBe(false);
+	});
+
+	test("a cropped copy of a PDF opened with a password, or one with limits, says so first", async ({
+		page,
+	}) => {
+		// Use the browser's download fallback rather than the system share sheet.
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, "canShare", { value: undefined });
+			Object.defineProperty(navigator, "share", { value: undefined });
+		});
+		await boot(page);
+		const askToCrop = async (fixture: string, password?: string) => {
+			await openFixture(page, fixture);
+			if (password) {
+				await page.getByTestId("pdf-password").fill(password);
+				await page.getByTestId("pdf-password").press("Enter");
+			}
+			await expect(page.getByTestId("pdf-page")).toHaveText(/1 \/ \d/, {
+				timeout: 20_000,
+			});
+			await page.getByTestId("file-more").click();
+			await page.getByTestId("pdf-crop-hand").click();
+			await expect(page.getByTestId("crop-handle-7")).toBeVisible({
+				timeout: 20_000,
+			});
+			await expect(page.getByTestId("crop-save")).toBeEnabled();
+			await page.getByTestId("crop-save").click();
+		};
+		await askToCrop("viewer-regressions/locked.pdf", "wren");
+		const dialog = page.getByTestId("crop-signed-warning");
+		await expect(dialog.getByTestId("copy-note")).toHaveText(
+			"The copy will open without a password. To lock it again, use Add a password.",
+		);
+		const download = page.waitForEvent("download");
+		await dialog.getByRole("button", { name: "Save" }).click();
+		const saved = new Uint8Array(readFileSync(await (await download).path()));
+		expect(Buffer.from(saved).includes("/Encrypt")).toBe(false);
+		await page.getByTestId("viewer-back").click();
+
+		await askToCrop("features/nocopy.pdf");
+		await expect(dialog.getByTestId("copy-note")).toContainText(
+			"The copy will have no limits",
+		);
+		await dialog.getByRole("button", { name: "Cancel" }).click();
+		await expect(dialog).toHaveCount(0);
+	});
+
 	test("a cancelled pick changes nothing, and one pick adds no more than 200", async ({
 		page,
 	}) => {
@@ -1390,6 +1899,75 @@ test.describe("PDF tools", () => {
 			() => (window as unknown as { seen: string[] }).seen,
 		);
 		expect(seen).toContain("Adding 200 of 200…");
+	});
+
+	/** A PDF of `pages` pages, each a large photo-like picture: soft
+	 * colour with a little grain, stored packed but not as a JPEG. */
+	async function photoPdf(pages: number) {
+		const doc = await PDFDocument.create();
+		const [w, h] = [1200, 900];
+		let seed = 7;
+		for (let p = 0; p < pages; p++) {
+			const rgb = new Uint8Array(w * h * 3);
+			for (let y = 0, i = 0; y < h; y++)
+				for (let x = 0; x < w; x++, i += 3) {
+					seed = (seed * 1103515245 + 12345) >>> 0;
+					const grain = (seed >>> 28) - 8;
+					rgb[i] = (x * 200) / w + 30 + grain;
+					rgb[i + 1] = (y * 180) / h + 40 + grain;
+					rgb[i + 2] = ((x + y + p * 300) % 255) * 0.6 + grain;
+				}
+			const ref = doc.context.register(
+				doc.context.stream(deflateSync(rgb), {
+					Type: "XObject",
+					Subtype: "Image",
+					Width: w,
+					Height: h,
+					BitsPerComponent: 8,
+					ColorSpace: "DeviceRGB",
+					Filter: "FlateDecode",
+				}),
+			);
+			const page = doc.addPage([600, 450]);
+			const name = page.node.newXObject("Photo", ref);
+			page.pushOperators(
+				pushGraphicsState(),
+				concatTransformationMatrix(600, 0, 0, 450, 0, 0),
+				drawObject(name),
+				popGraphicsState(),
+			);
+		}
+		return doc.save();
+	}
+
+	test("compress aims under a size and keeps every page", async ({ page }) => {
+		test.setTimeout(120_000);
+		await boot(page);
+		await openTool(page, "compress");
+		const photos = await photoPdf(2);
+		expect(photos.length).toBeGreaterThan(2_000_000);
+		await addFile(page, photos, "photos.pdf");
+		await page.getByTestId("compress-size-200k").click();
+		await expect(page.getByTestId("compress-size-200k")).toHaveAttribute(
+			"aria-checked",
+			"true",
+		);
+		const small = await runTool(page);
+		expect(small.name).toBe("photos (compressed).pdf");
+		expect(small.bytes.length).toBeLessThanOrEqual(200_000);
+		expect((await PDFDocument.load(small.bytes)).getPageCount()).toBe(2);
+		await expect(page.getByTestId("compress-outcome")).toContainText("smaller");
+		// A size typed in, in megabytes: a larger copy, still under it.
+		await page.getByTestId("compress-typed").fill("1.5");
+		await page.getByTestId("compress-unit").selectOption("mb");
+		await expect(page.getByTestId("compress-size-200k")).toHaveAttribute(
+			"aria-checked",
+			"false",
+		);
+		const typed = await runTool(page);
+		expect(typed.bytes.length).toBeLessThanOrEqual(1_500_000);
+		expect(typed.bytes.length).toBeGreaterThan(small.bytes.length);
+		expect((await PDFDocument.load(typed.bytes)).getPageCount()).toBe(2);
 	});
 });
 

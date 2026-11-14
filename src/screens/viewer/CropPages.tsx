@@ -2,10 +2,12 @@
  * Crop by hand: one page large, with the box of what is kept over it to
  * drag by its corners and edges (or move with the arrow keys), and which
  * pages the box is for. It starts from the crop the pages have, or from
- * the app's own when they have none. Only the view changes: the file is
- * never touched.
+ * the app's own when they have none. The opened file is never touched:
+ * the crop changes the view, and a cropped copy can be saved as a new
+ * file.
  */
 
+import { type SavedFile, backend } from "@/lib/backend";
 import {
 	type CropChoice,
 	type CropScope,
@@ -15,8 +17,10 @@ import {
 	cropOn,
 	setBox,
 } from "@/lib/crop";
+import { copyName } from "@/lib/fileName";
 import { msg, t } from "@/lib/i18n";
-import { Button, Dialog, IconButton, Spinner, Switch } from "@/ui";
+import { type Protection, cropCopy } from "@/lib/pdfTools";
+import { Button, Dialog, IconButton, Spinner, Switch, toast } from "@/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import {
@@ -26,6 +30,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { CopyWarnings } from "../tools/MarkUp";
 import { useFit, usePainted } from "../tools/scan/Corners";
 import s from "./CropPages.module.css";
 import {
@@ -175,8 +180,19 @@ export function CropPages({
 	rotation,
 	onDone,
 	onClose,
+	name,
+	password,
+	signed,
+	protection,
+	onSaved,
 }: {
 	doc: PDFDocumentProxy;
+	name: string;
+	password?: string;
+	signed: boolean;
+	/** What a copy will not keep of the PDF's password or limits. */
+	protection: Protection | null;
+	onSaved: (saved: SavedFile) => void;
 	/** The crop the pages have now. */
 	choice: CropChoice | null;
 	/** The page to start on. */
@@ -186,6 +202,8 @@ export function CropPages({
 	onDone: (choice: CropChoice | null) => void;
 	onClose: () => void;
 }) {
+	const [saving, setSaving] = useState(false);
+	const [askSigned, setAskSigned] = useState(false);
 	const total = doc.numPages;
 	const [n, setN] = useState(() => clamp(page, 1, total));
 	const [draft, setDraft] = useState<CropChoice>(
@@ -264,151 +282,235 @@ export function CropPages({
 		setDraft((d) => setBox(d, scope, n, share));
 	};
 
+	const save = async () => {
+		setSaving(true);
+		try {
+			let auto = autos.current.get(!!draft.bare);
+			if (draft.auto && !auto) {
+				auto = autoCrop(doc, draft.bare);
+				autos.current.set(!!draft.bare, auto);
+			}
+			const found = draft.auto ? await auto : null;
+			const boxes: Array<Box | null> = [];
+			for (let n = 1; n <= total; n++) {
+				const share = boxByHand(draft, n);
+				boxes.push(
+					share
+						? fromShare(share, fullView(await ownPage(doc, n)))
+						: found
+							? await found.boxOf(n)
+							: null,
+				);
+			}
+			const bytes = await cropCopy(await doc.getData(), boxes, { password });
+			const saved = await backend.saveFile(
+				copyName(name, t("cropped")),
+				bytes,
+				"application/pdf",
+			);
+			if (saved) {
+				onClose();
+				onSaved(saved);
+			}
+		} catch {
+			toast(t("Couldn't save a copy"));
+		} finally {
+			setSaving(false);
+		}
+	};
+
 	const width = drawn?.image.width ?? 0;
 	const height = drawn?.image.height ?? 0;
 	const ready = !!drawn && drawn.n === n && !!rect;
 
 	return (
-		<Dialog
-			open
-			fullScreen
-			title={t("Crop pages")}
-			onClose={onClose}
-			testId="crop-pages"
-			actions={
-				<>
-					<Button
-						variant="ghost"
-						onClick={() =>
-							setDraft((d) => ({
-								auto: false,
-								...(d.bare ? { bare: true } : {}),
-							}))
-						}
-						data-testid="crop-reset"
-					>
-						{t("No crop")}
-					</Button>
-					<Button
-						variant="secondary"
-						onClick={() => setDraft((d) => clearBoxes(d, scope, n))}
-						data-testid="crop-auto"
-					>
-						{t("Auto")}
-					</Button>
-					<Button
-						onClick={() => onDone(cropOn(draft) ? draft : null)}
-						data-testid="crop-done"
-					>
-						{t("Done")}
-					</Button>
-				</>
-			}
-		>
-			<div className={s.screen}>
-				{drawn && rect && drawn.n === n ? (
-					<CropStage
-						image={drawn.image}
-						rect={rect}
-						active={active}
-						onDown={(which, e, at) => {
-							drag.current = { which, from: at, start: rect, id: e.pointerId };
-							setActive(which);
-						}}
-						onMove={(e, at) => {
-							const d = drag.current;
-							if (!d || d.id !== e.pointerId) return;
-							setRect(
-								movedRect(
-									d.start,
-									d.which,
-									at.x - d.from.x,
-									at.y - d.from.y,
-									width,
-									height,
-								),
-							);
-						}}
-						onUp={(e) => {
-							if (drag.current?.id !== e.pointerId) return;
-							drag.current = null;
-							setActive(null);
-							commit(rect);
-						}}
-						onKey={(which, e) => {
-							const step =
-								Math.max(width, height) * (e.shiftKey ? 0.02 : 0.004);
-							const by: Record<string, [number, number]> = {
-								ArrowLeft: [-step, 0],
-								ArrowRight: [step, 0],
-								ArrowUp: [0, -step],
-								ArrowDown: [0, step],
-							};
-							const d = by[e.key];
-							if (!d) return;
-							e.preventDefault();
-							e.stopPropagation();
-							const next = movedRect(rect, which, d[0], d[1], width, height);
-							setRect(next);
-							commit(next);
-						}}
-					/>
-				) : (
-					<div className={s.wait}>
-						<Spinner />
-					</div>
-				)}
-				<div className={s.controls}>
-					<div className={s.stepper}>
-						<IconButton
-							label={t("Previous page")}
-							onClick={() => go(n - 1)}
-							disabled={n <= 1}
-							data-testid="crop-prev"
-						>
-							<ChevronLeft size={20} className="pw-flip" />
-						</IconButton>
-						<span className={s.count} data-testid="crop-count">
-							{t("Page {n} of {total}", { n, total })}
-						</span>
-						<IconButton
-							label={t("Next page")}
-							onClick={() => go(n + 1)}
-							disabled={n >= total}
-							data-testid="crop-next"
-						>
-							<ChevronRight size={20} className="pw-flip" />
-						</IconButton>
-					</div>
-					<fieldset className={s.scopes} disabled={!ready}>
-						<legend className={s.legend}>{t("Apply to")}</legend>
-						{SCOPES.map(([value, label]) => (
-							<button
-								key={value}
-								type="button"
-								className={s.chip}
-								aria-pressed={scope === value}
-								onClick={() => setScope(value)}
-								data-testid={`crop-scope-${value}`}
+		<>
+			<Dialog
+				open
+				fullScreen
+				title={t("Crop pages")}
+				onClose={() => {
+					if (!saving) onClose();
+				}}
+				testId="crop-pages"
+				actions={
+					<div className={s.actions}>
+						<fieldset className={s.actionGroup} disabled={saving}>
+							<Button
+								variant="ghost"
+								onClick={() =>
+									setDraft((d) => ({
+										auto: false,
+										...(d.bare ? { bare: true } : {}),
+									}))
+								}
+								data-testid="crop-reset"
 							>
-								{t(label)}
-							</button>
-						))}
-					</fieldset>
-					<Switch
-						label={t("Leave out headers and page numbers")}
-						checked={!!draft.bare}
-						onChange={(on) =>
-							setDraft((d) => {
-								const { bare: _, ...rest } = d;
-								return on ? { ...rest, bare: true } : rest;
-							})
-						}
-						testId="crop-bare"
-					/>
+								{t("No crop")}
+							</Button>
+							<Button
+								variant="secondary"
+								onClick={() => setDraft((d) => clearBoxes(d, scope, n))}
+								data-testid="crop-auto"
+							>
+								{t("Auto")}
+							</Button>
+						</fieldset>
+						<div className={s.saveGroup}>
+							<Button
+								variant="secondary"
+								disabled={!ready || saving}
+								onClick={() =>
+									signed || protection ? setAskSigned(true) : void save()
+								}
+								data-testid="crop-save"
+							>
+								{saving ? t("Saving…") : t("Save a cropped copy")}
+							</Button>
+							<Button
+								disabled={saving}
+								onClick={() => onDone(cropOn(draft) ? draft : null)}
+								data-testid="crop-done"
+							>
+								{t("Done")}
+							</Button>
+						</div>
+					</div>
+				}
+			>
+				<div className={s.screen}>
+					{drawn && rect && drawn.n === n ? (
+						<CropStage
+							image={drawn.image}
+							rect={rect}
+							active={active}
+							onDown={(which, e, at) => {
+								drag.current = {
+									which,
+									from: at,
+									start: rect,
+									id: e.pointerId,
+								};
+								setActive(which);
+							}}
+							onMove={(e, at) => {
+								const d = drag.current;
+								if (!d || d.id !== e.pointerId) return;
+								setRect(
+									movedRect(
+										d.start,
+										d.which,
+										at.x - d.from.x,
+										at.y - d.from.y,
+										width,
+										height,
+									),
+								);
+							}}
+							onUp={(e) => {
+								if (drag.current?.id !== e.pointerId) return;
+								drag.current = null;
+								setActive(null);
+								commit(rect);
+							}}
+							onKey={(which, e) => {
+								const step =
+									Math.max(width, height) * (e.shiftKey ? 0.02 : 0.004);
+								const by: Record<string, [number, number]> = {
+									ArrowLeft: [-step, 0],
+									ArrowRight: [step, 0],
+									ArrowUp: [0, -step],
+									ArrowDown: [0, step],
+								};
+								const d = by[e.key];
+								if (!d) return;
+								e.preventDefault();
+								e.stopPropagation();
+								const next = movedRect(rect, which, d[0], d[1], width, height);
+								setRect(next);
+								commit(next);
+							}}
+						/>
+					) : (
+						<div className={s.wait}>
+							<Spinner />
+						</div>
+					)}
+					<div className={s.controls}>
+						<div className={s.stepper}>
+							<IconButton
+								label={t("Previous page")}
+								onClick={() => go(n - 1)}
+								disabled={n <= 1}
+								data-testid="crop-prev"
+							>
+								<ChevronLeft size={20} className="pw-flip" />
+							</IconButton>
+							<span className={s.count} data-testid="crop-count">
+								{t("Page {n} of {total}", { n, total })}
+							</span>
+							<IconButton
+								label={t("Next page")}
+								onClick={() => go(n + 1)}
+								disabled={n >= total}
+								data-testid="crop-next"
+							>
+								<ChevronRight size={20} className="pw-flip" />
+							</IconButton>
+						</div>
+						<fieldset className={s.scopes} disabled={!ready}>
+							<legend className={s.legend}>{t("Apply to")}</legend>
+							{SCOPES.map(([value, label]) => (
+								<button
+									key={value}
+									type="button"
+									className={s.chip}
+									aria-pressed={scope === value}
+									onClick={() => setScope(value)}
+									data-testid={`crop-scope-${value}`}
+								>
+									{t(label)}
+								</button>
+							))}
+						</fieldset>
+						<Switch
+							label={t("Leave out headers and page numbers")}
+							checked={!!draft.bare}
+							onChange={(on) =>
+								setDraft((d) => {
+									const { bare: _, ...rest } = d;
+									return on ? { ...rest, bare: true } : rest;
+								})
+							}
+							testId="crop-bare"
+						/>
+					</div>
 				</div>
-			</div>
-		</Dialog>
+			</Dialog>
+			<Dialog
+				open={askSigned}
+				title={t("Save a copy")}
+				onClose={() => setAskSigned(false)}
+				testId="crop-signed-warning"
+				actions={
+					<>
+						<Button variant="ghost" onClick={() => setAskSigned(false)}>
+							{t("Cancel")}
+						</Button>
+						<Button
+							onClick={() => {
+								setAskSigned(false);
+								void save();
+							}}
+						>
+							{t("Save")}
+						</Button>
+					</>
+				}
+			>
+				<CopyWarnings signed={signed} protection={protection} />
+			</Dialog>
+		</>
 	);
 }
 

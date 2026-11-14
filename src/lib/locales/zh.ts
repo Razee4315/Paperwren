@@ -674,8 +674,6 @@ export const zh: Table = {
 		"音量减翻到下一页，音量加翻回上一页",
 	"Tap the sides to turn pages": "点按两侧翻页",
 	"The left edge goes back, the right edge on": "左边缘后退，右边缘前进",
-	"Hide the bars while reading": "阅读时隐藏工具栏",
-	"They come back when you scroll back or tap": "向回滚动或点按即可重新显示",
 	"Mirror left to right": "左右翻转",
 	"Mirror top to bottom": "上下翻转",
 	"Size in pixels": "像素尺寸",
@@ -1158,4 +1156,96 @@ export const zh: Table = {
 	"Adding {n} of {total}…": "正在添加第 {n} 个，共 {total} 个…",
 	"Sort by name": "按名称排序",
 	"Only the first {n} were added": "只添加了前 {n} 个",
+	"Or aim for a size": "或指定目标大小",
+	"Or type a size": "或输入大小",
+	KB: "KB",
+	MB: "MB",
+	"Trying settings, {n} of up to {total}…":
+		"正在尝试设置，第 {n} 次，最多 {total} 次…",
+	"This PDF is already under {size}, so no copy was made.":
+		"此 PDF 已小于 {size}，因此没有生成副本。",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"在保留文字的情况下，此 PDF 最小只能到 {size}。",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"将页面变成图片可以更小，但其中的文字将无法再选择或搜索。",
+	"In grey, for a smaller file": "灰度，文件更小",
+	"Turn pages into pictures": "将页面转为图片",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"正在绘制第 {page} 页，共 {pages} 页，第 {n} 次尝试，最多 {total} 次…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"其页面现在是图片：文字无法选择或搜索。",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"即使变成图片，此 PDF 最小也有 {size}，因此没有生成副本。",
+	"Or keep every picture as it is": "或保持每张图片不变",
+	"Keep quality (lossless)": "保持质量（无损）",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"图片不会有任何改变：只移除未被使用的内容，其余部分打包得更紧凑。",
+	"No picture was changed.": "没有任何图片被改动。",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"不改动图片的话，此 PDF 只能缩小 {n}%，因此没有生成副本。",
+	"Bars while reading": "阅读时的工具栏",
+	Always: "始终",
+	"Auto-hide": "自动隐藏",
+	"Tap only": "仅轻点",
+	"They stay, unless you tap the page": "一直显示，除非你轻点页面",
+	"They go as you read on, and come back when you scroll back or tap":
+		"继续阅读时隐藏，向回滚动或轻点时重新显示",
+	"They go as you read on, and only a tap brings them back":
+		"继续阅读时隐藏，只有轻点才会重新显示",
+	"Tap the page to show the bars": "轻点页面即可显示工具栏",
+	Mobile: "手机",
+	Home: "住宅",
+	Work: "工作",
+	Fax: "传真",
+	Main: "主要",
+	Phone: "电话",
+	Email: "电子邮件",
+	Address: "地址",
+	Organisation: "组织",
+	"Job title": "职位",
+	Website: "网站",
+	Birthday: "生日",
+	"Contacts: {n}": "联系人：{n}",
+	"No contacts found": "未找到联系人",
+	"Unnamed contact": "未命名联系人",
+	"Keep colours": "保留颜色",
+	"One ink": "单一墨色",
+	"Save a cropped copy": "保存裁剪副本",
+	cropped: "已裁剪",
+	"Can't show this model": "无法显示此模型",
+	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
+		"文件已损坏，或不是 Paperwren 可显示的二进制 glTF (.glb) 模型。",
+	"This is an older kind of binary glTF. Paperwren shows glTF 2.0 models.":
+		"这是较旧的二进制 glTF。Paperwren 显示 glTF 2.0 模型。",
+	"This model is squeezed with Draco, meshopt or KTX2, which Paperwren can't unpack. Open it in another app from the menu.":
+		"此模型使用 Draco、meshopt 或 KTX2 压缩，Paperwren 无法解压。请从菜单中用其他应用打开。",
+	"This model keeps parts of itself in other files or on the web. Paperwren shows .glb files that hold everything inside them, and it never fetches anything.":
+		"此模型的部分内容存放在其他文件中或网络上。Paperwren 只显示内容全部包含在内的 .glb 文件，并且绝不会下载任何内容。",
+	"This model is too large for Paperwren to show.":
+		"此模型太大，Paperwren 无法显示。",
+	"This device can't draw 3D graphics (WebGL), so the model can't be shown.":
+		"此设备无法绘制 3D 图形 (WebGL)，因此无法显示该模型。",
+	"The device took back the 3D view. It will return in a moment, or close the model and open it again.":
+		"设备收回了 3D 视图。它稍后会恢复，也可以关闭模型后重新打开。",
+	"3D model: {name}. Drag to turn it, pinch or scroll to zoom.":
+		"3D 模型：{name}。拖动可旋转，双指捏合或滚动滚轮可缩放。",
+	"Reset view": "重置视图",
+	"Play animation": "播放动画",
+	"Pause animation": "暂停动画",
+	Triangles: "三角形",
+	Vertices: "顶点",
+	Animations: "动画",
+	"This changes the name in Paperwren only. The original file keeps its name.":
+		"这只会更改 Paperwren 中的名称，原文件保留原名。",
+	"Renamed to {name} in Paperwren. The original file keeps its name.":
+		"已在 Paperwren 中重命名为 {name}，原文件保留原名。",
+	"Another app is using this file. Close it there, then try again.":
+		"另一个应用正在使用此文件。请先在那里关闭它，然后重试。",
+	"Paperwren isn't allowed to rename this file": "Paperwren 无权重命名此文件",
+	"That's the file you have open. Choose another name.":
+		"这是你正打开的文件。请换一个名称。",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		"副本打开时不需要密码。如需重新加密，请使用“添加密码”。",
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"此 PDF 限制阅读者的某些操作，例如复制。副本将没有这些限制。",
 };

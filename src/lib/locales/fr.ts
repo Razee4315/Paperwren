@@ -735,9 +735,6 @@ export const fr: Table = {
 	"Tap the sides to turn pages": "Toucher les bords pour tourner les pages",
 	"The left edge goes back, the right edge on":
 		"Le bord gauche recule, le bord droit avance",
-	"Hide the bars while reading": "Masquer les barres pendant la lecture",
-	"They come back when you scroll back or tap":
-		"Elles reviennent quand vous remontez ou touchez l'écran",
 	"Mirror left to right": "Retourner de gauche à droite",
 	"Mirror top to bottom": "Retourner de haut en bas",
 	"Size in pixels": "Taille en pixels",
@@ -1279,4 +1276,98 @@ export const fr: Table = {
 	"Adding {n} of {total}…": "Ajout de {n} sur {total}…",
 	"Sort by name": "Trier par nom",
 	"Only the first {n} were added": "Seuls les {n} premiers ont été ajoutés",
+	"Or aim for a size": "Ou visez une taille",
+	"Or type a size": "Ou saisissez une taille",
+	KB: "Ko",
+	MB: "Mo",
+	"Trying settings, {n} of up to {total}…":
+		"Essai des réglages, {n} sur {total} au plus…",
+	"This PDF is already under {size}, so no copy was made.":
+		"Ce PDF fait déjà moins de {size}, donc aucune copie n'a été faite.",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"En gardant son texte, ce PDF ne peut pas descendre sous {size}.",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"En images, ses pages peuvent être plus légères, mais leur texte ne pourra plus être sélectionné ni recherché.",
+	"In grey, for a smaller file": "En gris, pour un fichier plus léger",
+	"Turn pages into pictures": "Transformer les pages en images",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"Dessin de la page {page} sur {pages}, essai {n} sur {total} au plus…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"Ses pages sont maintenant des images : leur texte ne peut être ni sélectionné ni recherché.",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"Même en images, ce PDF ne descend pas sous {size}, donc aucune copie n'a été faite.",
+	"Or keep every picture as it is": "Ou gardez chaque image telle quelle",
+	"Keep quality (lossless)": "Garder la qualité (sans perte)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"Aucune image n'est modifiée : seul ce qui ne sert à rien est retiré, et le reste est mieux compacté.",
+	"No picture was changed.": "Aucune image n'a été modifiée.",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"Sans modifier d'image, ce PDF ne s'allège que de {n} %, donc aucune copie n'a été faite.",
+	"Bars while reading": "Barres pendant la lecture",
+	Always: "Toujours",
+	"Auto-hide": "Auto",
+	"Tap only": "Au toucher",
+	"They stay, unless you tap the page":
+		"Elles restent, sauf si vous touchez la page",
+	"They go as you read on, and come back when you scroll back or tap":
+		"Elles disparaissent quand vous avancez et reviennent quand vous remontez ou touchez l'écran",
+	"They go as you read on, and only a tap brings them back":
+		"Elles disparaissent quand vous avancez, et seul un toucher les fait revenir",
+	"Tap the page to show the bars": "Touchez la page pour afficher les barres",
+	Mobile: "Portable",
+	Home: "Domicile",
+	Work: "Travail",
+	Fax: "Fax",
+	Main: "Principal",
+	Phone: "Téléphone",
+	Email: "E-mail",
+	Address: "Adresse",
+	Organisation: "Organisation",
+	"Job title": "Poste",
+	Website: "Site web",
+	Birthday: "Anniversaire",
+	"Contacts: {n}": "Contacts : {n}",
+	"No contacts found": "Aucun contact trouvé",
+	"Unnamed contact": "Contact sans nom",
+	"Keep colours": "Garder les couleurs",
+	"One ink": "Une seule encre",
+	"Save a cropped copy": "Enregistrer une copie rognée",
+	cropped: "rogné",
+	"Can't show this model": "Impossible d'afficher ce modèle",
+	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
+		"Le fichier est endommagé ou n'est pas un modèle glTF binaire (.glb) que Paperwren affiche.",
+	"This is an older kind of binary glTF. Paperwren shows glTF 2.0 models.":
+		"C'est une ancienne version du glTF binaire. Paperwren affiche les modèles glTF 2.0.",
+	"This model is squeezed with Draco, meshopt or KTX2, which Paperwren can't unpack. Open it in another app from the menu.":
+		"Ce modèle est compressé avec Draco, meshopt ou KTX2, que Paperwren ne sait pas décompresser. Ouvrez-le dans une autre application depuis le menu.",
+	"This model keeps parts of itself in other files or on the web. Paperwren shows .glb files that hold everything inside them, and it never fetches anything.":
+		"Ce modèle garde certaines de ses parties dans d'autres fichiers ou sur le web. Paperwren affiche les fichiers .glb qui contiennent tout, et ne télécharge jamais rien.",
+	"This model is too large for Paperwren to show.":
+		"Ce modèle est trop volumineux pour que Paperwren l'affiche.",
+	"This device can't draw 3D graphics (WebGL), so the model can't be shown.":
+		"Cet appareil ne peut pas dessiner de graphismes 3D (WebGL), le modèle ne peut donc pas être affiché.",
+	"The device took back the 3D view. It will return in a moment, or close the model and open it again.":
+		"L'appareil a repris la vue 3D. Elle reviendra dans un instant, ou fermez le modèle et rouvrez-le.",
+	"3D model: {name}. Drag to turn it, pinch or scroll to zoom.":
+		"Modèle 3D : {name}. Faites glisser pour le tourner, pincez ou faites défiler pour zoomer.",
+	"Reset view": "Réinitialiser la vue",
+	"Play animation": "Lancer l'animation",
+	"Pause animation": "Mettre l'animation en pause",
+	Triangles: "Triangles",
+	Vertices: "Sommets",
+	Animations: "Animations",
+	"This changes the name in Paperwren only. The original file keeps its name.":
+		"Seul le nom dans Paperwren change. Le fichier d'origine garde son nom.",
+	"Renamed to {name} in Paperwren. The original file keeps its name.":
+		"Renommé en {name} dans Paperwren. Le fichier d'origine garde son nom.",
+	"Another app is using this file. Close it there, then try again.":
+		"Une autre app utilise ce fichier. Fermez-le là-bas, puis réessayez.",
+	"Paperwren isn't allowed to rename this file":
+		"Paperwren n'a pas le droit de renommer ce fichier",
+	"That's the file you have open. Choose another name.":
+		"C'est le fichier que vous avez ouvert. Choisissez un autre nom.",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		"La copie s'ouvrira sans mot de passe. Pour la verrouiller de nouveau, utilisez « Ajouter un mot de passe ».",
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"Ce PDF limite ce qu'un lecteur peut faire, comme copier. La copie n'aura aucune limite.",
 };

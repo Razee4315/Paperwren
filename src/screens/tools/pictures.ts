@@ -1,5 +1,6 @@
 import { backend } from "@/lib/backend";
 import { extensionOf } from "@/lib/formats";
+import type { PixelImage } from "@/lib/inkFromPhoto";
 import { MAX_SRC, type Signature, inkBounds } from "@/lib/signatures";
 
 /** The widest a kept signature or stamp is, in pixels. */
@@ -62,16 +63,29 @@ export async function pickPicture(): Promise<HTMLCanvasElement | null> {
 	return canvas;
 }
 
-/** Work on a canvas's pixels in place. */
-export function withPixels(
-	canvas: HTMLCanvasElement,
-	change: (data: Uint8ClampedArray) => void,
-): HTMLCanvasElement {
+/** A canvas's pixels. */
+export function pixelsOf(canvas: HTMLCanvasElement): PixelImage {
 	const ctx = canvas.getContext("2d", { willReadFrequently: true });
-	if (!ctx) return canvas;
-	const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-	change(image.data);
-	ctx.putImageData(image, 0, 0);
+	if (!ctx) return { data: new Uint8ClampedArray(0), width: 0, height: 0 };
+	return ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+/** Pixels drawn on a canvas of their own. */
+export function canvasOf(image: PixelImage): HTMLCanvasElement {
+	const canvas = document.createElement("canvas");
+	canvas.width = Math.max(1, image.width);
+	canvas.height = Math.max(1, image.height);
+	const ctx = canvas.getContext("2d", { willReadFrequently: true });
+	if (ctx && image.width && image.height)
+		ctx.putImageData(
+			new ImageData(
+				new Uint8ClampedArray(image.data),
+				image.width,
+				image.height,
+			),
+			0,
+			0,
+		);
 	return canvas;
 }
 

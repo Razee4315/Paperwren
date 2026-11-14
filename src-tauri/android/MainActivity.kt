@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -68,9 +69,12 @@ import java.util.concurrent.TimeUnit
  *    same imports store so recents can reopen after a restart.
  * 4. Hand-offs the web layer cannot do: share a file, open it in
  *    another app, print (the page, or a PDF itself), keep the screen
- *    on while reading, and browse a folder the user picked. None of
- *    these needs a manifest permission: sharing goes through a
- *    FileProvider grant, folders through the Storage Access Framework.
+ *    on while reading, browse a folder the user picked, pick documents
+ *    with the system's own picker, and rename a document from such a
+ *    folder (or a copy they saved, or one they picked) when they ask.
+ *    None of these needs a manifest permission: sharing goes through a
+ *    FileProvider grant, folders and renames through the Storage
+ *    Access Framework.
  * 5. The system bars. The app draws under them, and many WebViews
  *    report no safe area for them, so their real sizes are handed to
  *    the page here. A slide show hides them and turns the screen
@@ -123,10 +127,9 @@ class MainActivity : TauriActivity() {
         var result = "null"
         if (uri != null) {
           try {
-            // Keep reading this folder after the app restarts.
-            contentResolver.takePersistableUriPermission(
-              uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
+            // Keep reading this folder after the app restarts, and
+            // renaming a file in it when the reader asks.
+            keepAccess(uri)
             val root = DocumentsContract.buildDocumentUriUsingTree(
               uri, DocumentsContract.getTreeDocumentId(uri)
             )
@@ -178,10 +181,8 @@ class MainActivity : TauriActivity() {
           } ?: throw IllegalStateException("no stream")
           try {
             // Open the copy from the message, and from Recent files after
-            // the app restarts.
-            contentResolver.takePersistableUriPermission(
-              uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
+            // the app restarts (and rename it, when the reader asks).
+            keepAccess(uri)
           } catch (e: Exception) {
             // Readable until the app closes, then named only.
           }
@@ -196,6 +197,47 @@ class MainActivity : TauriActivity() {
         }
         callWeb("__paperwrenSaved", JSONObject.quote(token) + "," + result)
       }
+    }
+
+  /** The web layer's token for the document pick in flight, if any. */
+  private var pickToken: String? = null
+  /** "Open file": the system's own document picker, so the app may keep
+   * the address of what the reader picked (and rename the original when
+   * they ask), not only the copy it reads. Input: pictures only, and
+   * whether several may be picked. Cancelling gives an empty list. No
+   * permission is needed: the reader picks the documents. */
+  private val documentPicker =
+    registerForActivityResult(object : androidx.activity.result.contract.ActivityResultContract<Pair<Boolean, Boolean>, List<Uri>>() {
+      override fun createIntent(context: Context, input: Pair<Boolean, Boolean>): Intent =
+        Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+          addCategory(Intent.CATEGORY_OPENABLE)
+          // Everything a document could be: the app reads what it is.
+          type = if (input.first) "image/*" else "*/*"
+          putExtra(Intent.EXTRA_ALLOW_MULTIPLE, input.second)
+          addFlags(
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or
+              Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+              Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+          )
+        }
+
+      override fun parseResult(resultCode: Int, intent: Intent?): List<Uri> {
+        if (resultCode != RESULT_OK || intent == null) return emptyList()
+        val picked = ArrayList<Uri>()
+        val clip = intent.clipData
+        if (clip != null) {
+          for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let { picked.add(it) }
+        }
+        if (picked.isEmpty()) intent.data?.let { picked.add(it) }
+        return picked
+      }
+    }) { uris ->
+      val token = pickToken
+      pickToken = null
+      if (token == null) return@registerForActivityResult
+      val list = JSONArray()
+      for (uri in uris) list.put(uri.toString())
+      callWeb("__paperwrenPicked", JSONObject.quote(token) + "," + list.toString())
     }
 
   /** A slide show has the screen: the system bars are hidden. */
@@ -786,6 +828,71 @@ class MainActivity : TauriActivity() {
     }
   }
 
+  // ---------- Keeping access, and renaming ----------
+
+  /** Hold on to a document or folder the reader chose (a folder to
+   * browse, a copy they saved) after the app restarts: to read it, and
+   * to write where the grant allows it, which only a rename the reader
+   * asks for ever uses. A grant without writing is kept for reading. */
+  private fun keepAccess(uri: Uri) {
+    try {
+      contentResolver.takePersistableUriPermission(
+        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+      )
+    } catch (e: Exception) {
+      contentResolver.takePersistableUriPermission(
+        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+      )
+    }
+  }
+
+  /** Rename one document where its provider keeps it. Only a document
+   * that says it can be renamed, and one the app may write to, is
+   * asked; the provider never puts it over another file (some give it
+   * a free name instead), so the name is read back from it. Answers
+   * {uri, name}, or "unsupported", "permission" or "not_found" (quoted
+   * JSON), or null when the provider failed. */
+  private fun renamedDocument(uri: Uri, name: String): String {
+    renameRefusal(uri)?.let { return it }
+    val renamed = DocumentsContract.renameDocument(contentResolver, uri, name) ?: return "null"
+    try {
+      // A document of its own (a saved copy, a picked original) has a new
+      // address: keep it. One inside a folder the reader chose is covered
+      // by the folder.
+      keepAccess(renamed)
+    } catch (e: Exception) {
+      // Readable until the app closes, then picked again.
+    }
+    return JSONObject()
+      .put("uri", renamed.toString())
+      .put("name", queryDisplayName(renamed))
+      .toString()
+  }
+
+  /** Why the app may not ask for a document to be renamed ("unsupported",
+   * "permission" or "not_found", quoted JSON), or null when it may: the
+   * document must say it can be renamed, and the app must be allowed to
+   * write to it. */
+  private fun renameRefusal(uri: Uri): String? {
+    if (!DocumentsContract.isDocumentUri(this, uri)) return "\"unsupported\""
+    var found = false
+    var flags = 0
+    contentResolver.query(
+      uri, arrayOf(DocumentsContract.Document.COLUMN_FLAGS), null, null, null
+    )?.use { c ->
+      if (c.moveToFirst()) {
+        found = true
+        if (!c.isNull(0)) flags = c.getInt(0)
+      }
+    }
+    if (!found) return "\"not_found\""
+    if ((flags and DocumentsContract.Document.FLAG_SUPPORTS_RENAME) == 0) return "\"unsupported\""
+    if (checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) !=
+      PackageManager.PERMISSION_GRANTED
+    ) return "\"permission\""
+    return null
+  }
+
   // ---------- Provider metadata ----------
 
   private fun queryDisplayName(uri: Uri): String {
@@ -850,6 +957,8 @@ class MainActivity : TauriActivity() {
       "image/webp" -> "webp"
       "image/bmp" -> "bmp"
       "text/markdown" -> "md"
+      "text/vcard", "text/x-vcard", "text/directory" -> "vcf"
+      "model/gltf-binary" -> "glb"
       "text/plain" -> "txt"
       else -> null
     }
@@ -1213,10 +1322,85 @@ class MainActivity : TauriActivity() {
       if (!fromApp() || !treeUri.startsWith("content://")) return
       try {
         contentResolver.releasePersistableUriPermission(
-          Uri.parse(treeUri), Intent.FLAG_GRANT_READ_URI_PERMISSION
+          Uri.parse(treeUri),
+          Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
         )
       } catch (e: Exception) {
         // Already released, or never held.
+      }
+    }
+
+    /** Rename a document the reader opened from a folder or saved (not a
+     * copy the app holds). Answers through window.__paperwrenRenamed
+     * (token, {uri, name} | "unsupported" | "permission" | "not_found" |
+     * null). */
+    @JavascriptInterface
+    fun renameDocument(target: String, name: String, token: String): Boolean {
+      if (!fromApp() || !target.startsWith("content://")) return false
+      if (name.isBlank() || name.contains('/') || name.length > 255) return false
+      return try {
+        scanExecutor.execute {
+          val result = try {
+            renamedDocument(Uri.parse(target), name)
+          } catch (e: SecurityException) {
+            "\"permission\""
+          } catch (e: java.io.FileNotFoundException) {
+            "\"not_found\""
+          } catch (e: UnsupportedOperationException) {
+            "\"unsupported\""
+          } catch (e: Exception) {
+            "null"
+          }
+          callWeb("__paperwrenRenamed", JSONObject.quote(token) + "," + result)
+        }
+        true
+      } catch (e: Exception) {
+        false
+      }
+    }
+
+    /** "Open file" with the system's own picker. Answers through
+     * window.__paperwrenPicked(token, [uri, ...] | null): empty when the
+     * reader cancels, null when the picker could not start. */
+    @JavascriptInterface
+    fun pickDocuments(token: String, pictures: Boolean, multiple: Boolean): Boolean {
+      if (!fromApp()) return false
+      main.post {
+        try {
+          pickToken = token
+          documentPicker.launch(Pair(pictures, multiple))
+        } catch (e: Exception) {
+          pickToken = null
+          callWeb("__paperwrenPicked", JSONObject.quote(token) + ",null")
+        }
+      }
+      return true
+    }
+
+    /** Keep a picked document over restarts, as Recent files names it:
+     * to read it, and to rename it when the reader asks. Released again
+     * through releaseFolder once nothing names it. */
+    @JavascriptInterface
+    fun keepDocument(target: String): Boolean {
+      if (!fromApp() || !target.startsWith("content://")) return false
+      return try {
+        keepAccess(Uri.parse(target))
+        true
+      } catch (e: Exception) {
+        false
+      }
+    }
+
+    /** Whether renameDocument may be asked for this document (the same
+     * checks it makes), so the reader is told beforehand when only the
+     * name in Paperwren can change. */
+    @JavascriptInterface
+    fun canRenameDocument(target: String): Boolean {
+      if (!fromApp() || !target.startsWith("content://")) return false
+      return try {
+        renameRefusal(Uri.parse(target)) == null
+      } catch (e: Exception) {
+        false
       }
     }
   }

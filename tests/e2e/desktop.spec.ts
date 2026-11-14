@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { type Page, expect, test } from "@playwright/test";
-import { boot, openFixture } from "./helpers";
+import { boot, longPdf, openFixture } from "./helpers";
 
 /** The desktop layout, as the Windows app has it: `?desktop` asks for
  * it in a browser, `&frame` for the window buttons the app draws where
@@ -778,36 +779,94 @@ test.describe("the desktop layout on a Mac", () => {
 	});
 });
 
-/** A plain PDF of `count` pages, each saying which it is: no fixture
- * is long enough to be asked "which pages?" before printing. */
-function longPdf(count: number): string {
-	const objects: string[] = [
-		"<< /Type /Catalog /Pages 2 0 R >>",
-		`<< /Type /Pages /Count ${count} /Kids [${Array.from(
-			{ length: count },
-			(_, i) => `${4 + i * 2} 0 R`,
-		).join(" ")}] >>`,
-		"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-	];
-	for (let i = 0; i < count; i++) {
-		const text = `BT /F1 28 Tf 72 700 Td (Long page ${i + 1}) Tj ET`;
-		objects.push(
-			`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents ${5 + i * 2} 0 R /Resources << /Font << /F1 3 0 R >> >> >>`,
-			`<< /Length ${text.length} >>\nstream\n${text}\nendstream`,
+/** The window keeps the system's own title bar there (GNOME, KDE), which
+ * names the document; `&linux` asks for that look in a browser. */
+test.describe("the desktop layout on Linux", () => {
+	test.use({ viewport: { width: 1280, height: 800 } });
+	const LINUX = "?desktop&linux";
+
+	/** What the open document's screen shows, as a reader sees it: text that
+	 * is hidden is not in it. */
+	const seen = async (page: Page) =>
+		(await page.getByTestId("viewer").first().innerText()).replace(/\s/g, "");
+	const barText = (page: Page) =>
+		page
+			.locator('[data-testid="viewer"] header')
+			.evaluateAll((all) => all.map((el) => (el as HTMLElement).innerText));
+	const openMore = async (page: Page, fixture: string) => {
+		const b64 = readFileSync(`fixtures/${fixture}`).toString("base64");
+		await page.evaluate(
+			({ b64, name }) => {
+				const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+				window.__paperwrenTestFile = new File([bytes], name);
+			},
+			{ b64, name: fixture },
 		);
-	}
-	let out = "%PDF-1.4\n";
-	const offsets = objects.map((body, i) => {
-		const at = out.length;
-		out += `${i + 1} 0 obj\n${body}\nendobj\n`;
-		return at;
+		await page.keyboard.press("Control+o");
+	};
+
+	test("one document: the name is in the window's title, not in the app's bar", async ({
+		page,
+	}) => {
+		await boot(page, {}, LINUX);
+		await expect(page.getByTestId("window-controls")).toHaveCount(0);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		// The window's title carries the name; the app's bar does not repeat it.
+		await expect(page).toHaveTitle("sample.pdf - Paperwren");
+		expect(await seen(page)).not.toContain("sample.pdf");
+		expect((await barText(page)).join("")).not.toContain("sample");
+		await expect(page.getByTestId("tab-strip")).toHaveCount(0);
+
+		// The bar keeps its controls, the tools still at the right.
+		await expect(page.getByTestId("viewer-back")).toBeVisible();
+		const more = await page.getByTestId("file-more").boundingBox();
+		expect((more?.x ?? 0) + (more?.width ?? 0)).toBeGreaterThan(1240);
+		const zoom = await page.getByTestId("pdf-zoom-in").boundingBox();
+		expect(zoom?.x ?? 0).toBeGreaterThan(600);
+
+		// What the name was for is still there: the file menu and rename.
+		await page.getByTestId("file-more").click();
+		await expect(page.getByTestId("file-menu")).toBeVisible();
+		await page.getByTestId("file-rename").click();
+		await expect(page.getByTestId("rename-input")).toHaveValue("sample");
 	});
-	const xref = out.length;
-	out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-	for (const at of offsets) out += `${String(at).padStart(10, "0")} 00000 n \n`;
-	out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
-	return out;
-}
+
+	test("two documents show their tabs; one again hides the row", async ({
+		page,
+	}) => {
+		await boot(page, {}, LINUX);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		await openMore(page, "sample.txt");
+		const tabs = page.getByTestId("tab");
+		await expect(tabs).toHaveText(["sample.pdf", "sample.txt"]);
+		await expect(page).toHaveTitle("sample.txt - Paperwren");
+		// The tabs name the documents; the bar under them does not again.
+		expect((await barText(page)).join("")).not.toContain("sample");
+
+		await tabs.first().getByRole("tab").click();
+		await expect(page).toHaveTitle("sample.pdf - Paperwren");
+		await tabs.first().getByTestId("tab-close").click();
+		await expect(page.getByTestId("tab-strip")).toHaveCount(0);
+		await expect(page).toHaveTitle("sample.txt - Paperwren");
+	});
+
+	test("without &linux the bar names the document, as before", async ({
+		page,
+	}) => {
+		await boot(page, {}, DESKTOP);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		expect(await seen(page)).toContain("sample.pdf");
+	});
+});
 
 test.describe("a PDF on the desktop", () => {
 	test.use({ viewport: { width: 1280, height: 800 } });
@@ -913,7 +972,8 @@ test.describe("on a phone", () => {
 		await expect(page.getByTestId("pdf-page-field")).toHaveCount(0);
 		await expect(page.getByTestId("side-toggle")).toHaveCount(0);
 		await page.getByTestId("file-more").click();
-		await expect(page.getByTestId("file-fullscreen")).toHaveCount(0);
+		// A phone's own full screen, with no keys to press for it.
+		await expect(page.getByTestId("file-fullscreen")).toHaveText("Full screen");
 		// The menu is a sheet at the foot of the screen.
 		const box = await page.getByTestId("file-menu").boundingBox();
 		expect((box?.y ?? 0) + (box?.height ?? 0)).toBeGreaterThan(900);
@@ -1078,5 +1138,208 @@ test.describe("a file changed by another app", () => {
 		await expect(page.getByTestId("text-scroll")).toBeVisible();
 		await page.waitForTimeout(2500);
 		await expect(bar).toHaveCount(0);
+	});
+});
+
+/** The desktop app's window, stood in for (lib/fullscreen.ts): maximised
+ * on a screen of 1280 × 800 whose taskbar takes the foot. It goes from
+ * maximised to full screen and back in one change of size, as a
+ * frameless window on Windows does with tao 0.37.2 and later. */
+test.describe("full screen from a maximised window (#86)", () => {
+	test.use({ viewport: { width: 1280, height: 752 } });
+
+	async function standIn(page: Page, refuse = false) {
+		await page.exposeFunction("__resizeTo", (width: number, height: number) =>
+			page.setViewportSize({ width, height }),
+		);
+		await page.addInitScript((refuse) => {
+			const resize = (
+				window as unknown as {
+					__resizeTo(width: number, height: number): Promise<void>;
+				}
+			).__resizeTo;
+			const state = { full: false };
+			window.__paperwrenWindow = {
+				isFullscreen: async () => state.full,
+				setFullscreen: async (on) => {
+					if (refuse) throw new Error("refused");
+					state.full = on;
+					await (on ? resize(1280, 800) : resize(1280, 752));
+				},
+				onResized: async (then) => {
+					window.addEventListener("resize", then);
+					return () => window.removeEventListener("resize", then);
+				},
+			};
+		}, refuse);
+	}
+
+	interface Frame {
+		top: number;
+		width: number;
+		veil: number;
+	}
+	interface Taken {
+		drawn: { [page: string]: number };
+		frames: Frame[];
+	}
+
+	/** From now on, every page drawn and, frame by frame, where the third
+	 * page is, how wide, and how thick the veil over the document is. */
+	const record = (page: Page) =>
+		page.evaluate(() => {
+			const w = window as unknown as { rec: Taken };
+			const rec: Taken = { drawn: {}, frames: [] };
+			w.rec = rec;
+			new MutationObserver((list) => {
+				for (const m of list)
+					for (const n of m.addedNodes) {
+						if (!(n instanceof Element)) continue;
+						if (n.nodeName !== "CANVAS" && !n.querySelector("canvas")) continue;
+						const at =
+							n.closest(".page")?.getAttribute("data-page-number") ?? "?";
+						rec.drawn[at] = (rec.drawn[at] ?? 0) + 1;
+					}
+			}).observe(document.body, { childList: true, subtree: true });
+			const frame = () => {
+				if (w.rec !== rec) return;
+				const third = document.querySelector(
+					'[data-testid="pdf-scroll"] .page[data-page-number="3"]',
+				);
+				const body = document.querySelector('[data-testid="viewer-body"]');
+				const veil = body ? getComputedStyle(body, "::after") : null;
+				const box = third?.getBoundingClientRect();
+				rec.frames.push({
+					top: Math.round((box?.top ?? 0) * 10) / 10,
+					width: Math.round(box?.width ?? 0),
+					veil: !veil || veil.content === "none" ? 0 : Number(veil.opacity),
+				});
+				requestAnimationFrame(frame);
+			};
+			requestAnimationFrame(frame);
+		});
+	const taken = (page: Page) =>
+		page.evaluate(() => (window as unknown as { rec: Taken }).rec);
+
+	/** The largest step the page takes between two frames that show it. */
+	const jump = (frames: Frame[]) => {
+		let most = 0;
+		for (let i = 1; i < frames.length; i++) {
+			const [a, b] = [frames[i - 1], frames[i]];
+			if (a.veil > 0.95 || b.veil > 0.95) continue;
+			most = Math.max(most, Math.abs(b.top - a.top));
+		}
+		return most;
+	};
+
+	/** At rest: the window settled, the veil gone. */
+	const settled = async (page: Page) => {
+		await expect(page.locator("html")).not.toHaveAttribute("data-fs-veil");
+		await page.waitForTimeout(500);
+		expect(
+			await page.getByTestId("viewer-body").evaluate((el) => {
+				const veil = getComputedStyle(el, "::after");
+				return veil.content === "none" ? 0 : Number(veil.opacity);
+			}),
+		).toBe(0);
+	};
+
+	const openLong = async (page: Page) => {
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, longPdf(12));
+		await page.getByTestId("open-file").click();
+		const field = page.getByTestId("pdf-page-field");
+		await expect(field).toHaveValue("1", { timeout: 20_000 });
+		await field.fill("3");
+		await field.press("Enter");
+		await expect(field).toHaveValue("3");
+		await page.waitForTimeout(800);
+	};
+
+	test("going in and out is one calm change: drawn once, no jump, the place kept", async ({
+		page,
+	}) => {
+		await standIn(page);
+		await boot(page, {}, DESKTOP);
+		await openLong(page);
+		const html = page.locator("html");
+		const field = page.getByTestId("pdf-page-field");
+		await page.mouse.move(640, 400);
+
+		for (const way of ["in", "out"]) {
+			await record(page);
+			await page.keyboard.press("F11");
+			if (way === "in")
+				await expect(html).toHaveAttribute("data-fullscreen", "page");
+			else await expect(html).not.toHaveAttribute("data-fullscreen", /./);
+			await settled(page);
+			const rec = await taken(page);
+			// One change of size, and no narrower one on the way: the
+			// window ends as wide as it began, so the pages keep their one
+			// size...
+			expect([...new Set(rec.frames.map((f) => f.width))]).toHaveLength(1);
+			// ...and each page on show is drawn once at most.
+			for (const times of Object.values(rec.drawn))
+				expect(times).toBeLessThanOrEqual(1);
+			// The page never jumps where it can be seen...
+			expect(jump(rec.frames)).toBeLessThanOrEqual(1);
+			// ...because what moves, moves under the veil.
+			expect(rec.frames.some((f) => f.veil > 0.95)).toBe(true);
+			// The same page is being read.
+			await expect(field).toHaveValue("3");
+		}
+		expect(await page.evaluate(() => [innerWidth, innerHeight])).toEqual([
+			1280, 752,
+		]);
+	});
+
+	test("with reduced motion the veil comes and goes without a fade", async ({
+		page,
+	}) => {
+		await page.emulateMedia({ reducedMotion: "reduce" });
+		await standIn(page);
+		await boot(page, {}, DESKTOP);
+		await openLong(page);
+		await record(page);
+		await page.keyboard.press("F11");
+		await expect(page.locator("html")).toHaveAttribute(
+			"data-fullscreen",
+			"page",
+		);
+		await settled(page);
+		const { frames } = await taken(page);
+		expect(frames.some((f) => f.veil > 0.95)).toBe(true);
+		expect(frames.filter((f) => f.veil > 0.05 && f.veil < 0.95)).toEqual([]);
+	});
+
+	test("a window that turns full screen down: the veil goes and the page fits the window", async ({
+		page,
+	}) => {
+		await standIn(page, true);
+		await boot(page, {}, DESKTOP);
+		await openLong(page);
+		const third = page.locator(
+			'[data-testid="pdf-scroll"] .page[data-page-number="3"]',
+		);
+		const wide = async () => (await third.boundingBox())?.width ?? 0;
+		const before = await wide();
+		await page.keyboard.press("F11");
+		await expect(page.locator("html")).toHaveAttribute("data-fs-veil");
+		// Refused: the window is left as it was, and so is the page.
+		await settled(page);
+		await expect(page.locator("html")).not.toHaveAttribute(
+			"data-fullscreen",
+			/./,
+		);
+		expect(await page.evaluate(() => [innerWidth, innerHeight])).toEqual([
+			1280, 752,
+		]);
+		expect(Math.abs((await wide()) - before)).toBeLessThanOrEqual(1);
+		// And it goes on following the window.
+		await page.setViewportSize({ width: 860, height: 600 });
+		await expect.poll(wide).toBeLessThan(before);
+		await page.setViewportSize({ width: 1280, height: 752 });
+		await expect.poll(wide).toBeGreaterThan(before - 2);
 	});
 });

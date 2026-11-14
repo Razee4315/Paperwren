@@ -741,9 +741,6 @@ export const ru: Table = {
 	"Tap the sides to turn pages": "Листать страницы касанием по краям",
 	"The left edge goes back, the right edge on":
 		"Левый край — назад, правый — вперёд",
-	"Hide the bars while reading": "Скрывать панели при чтении",
-	"They come back when you scroll back or tap":
-		"Они вернутся, когда вы прокрутите назад или коснётесь экрана",
 	"Mirror left to right": "Отразить слева направо",
 	"Mirror top to bottom": "Отразить сверху вниз",
 	"Size in pixels": "Размер в пикселях",
@@ -1295,4 +1292,98 @@ export const ru: Table = {
 	"Adding {n} of {total}…": "Добавляется {n} из {total}…",
 	"Sort by name": "Сортировать по имени",
 	"Only the first {n} were added": "Добавлены только первые {n}",
+	"Or aim for a size": "Или укажите нужный размер",
+	"Or type a size": "Или введите размер",
+	KB: "КБ",
+	MB: "МБ",
+	"Trying settings, {n} of up to {total}…":
+		"Подбор настроек: попытка {n} из {total} возможных…",
+	"This PDF is already under {size}, so no copy was made.":
+		"Этот PDF уже меньше {size}, поэтому копия не создана.",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"С сохранением текста этот PDF можно уменьшить не более чем до {size}.",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"В виде изображений страницы могут стать меньше, но их текст больше нельзя будет выделить или найти.",
+	"In grey, for a smaller file": "В оттенках серого, чтобы файл был меньше",
+	"Turn pages into pictures": "Превратить страницы в изображения",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"Отрисовка страницы {page} из {pages}, попытка {n} из {total} возможных…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"Теперь страницы — изображения: их текст нельзя выделить или найти.",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"Даже в виде изображений этот PDF не меньше {size}, поэтому копия не создана.",
+	"Or keep every picture as it is": "Или оставьте все изображения как есть",
+	"Keep quality (lossless)": "Сохранить качество (без потерь)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"Изображения не меняются: удаляется только то, что нигде не используется, а остальное упаковывается плотнее.",
+	"No picture was changed.": "Изображения не изменены.",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"Без изменения изображений этот PDF уменьшается лишь на {n}%, поэтому копия не создана.",
+	"Bars while reading": "Панели при чтении",
+	Always: "Всегда",
+	"Auto-hide": "Авто",
+	"Tap only": "По касанию",
+	"They stay, unless you tap the page":
+		"Они остаются, пока вы не коснётесь страницы",
+	"They go as you read on, and come back when you scroll back or tap":
+		"Скрываются, когда вы читаете дальше, и возвращаются при прокрутке назад или касании",
+	"They go as you read on, and only a tap brings them back":
+		"Скрываются, когда вы читаете дальше, и возвращаются только по касанию",
+	"Tap the page to show the bars": "Коснитесь страницы, чтобы показать панели",
+	Mobile: "Мобильный",
+	Home: "Домашний",
+	Work: "Рабочий",
+	Fax: "Факс",
+	Main: "Основной",
+	Phone: "Телефон",
+	Email: "Электронная почта",
+	Address: "Адрес",
+	Organisation: "Организация",
+	"Job title": "Должность",
+	Website: "Сайт",
+	Birthday: "День рождения",
+	"Contacts: {n}": "Контакты: {n}",
+	"No contacts found": "Контакты не найдены",
+	"Unnamed contact": "Контакт без имени",
+	"Keep colours": "Сохранить цвета",
+	"One ink": "Одни чернила",
+	"Save a cropped copy": "Сохранить обрезанную копию",
+	cropped: "обрезано",
+	"Can't show this model": "Не удаётся показать эту модель",
+	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
+		"Файл повреждён или не является двоичной моделью glTF (.glb), которую показывает Paperwren.",
+	"This is an older kind of binary glTF. Paperwren shows glTF 2.0 models.":
+		"Это более старый вид двоичного glTF. Paperwren показывает модели glTF 2.0.",
+	"This model is squeezed with Draco, meshopt or KTX2, which Paperwren can't unpack. Open it in another app from the menu.":
+		"Эта модель сжата с помощью Draco, meshopt или KTX2, и Paperwren не может её распаковать. Откройте файл в другом приложении через меню.",
+	"This model keeps parts of itself in other files or on the web. Paperwren shows .glb files that hold everything inside them, and it never fetches anything.":
+		"Эта модель хранит часть данных в других файлах или в интернете. Paperwren показывает файлы .glb, в которых всё находится внутри, и ничего не загружает.",
+	"This model is too large for Paperwren to show.":
+		"Эта модель слишком велика, чтобы Paperwren мог её показать.",
+	"This device can't draw 3D graphics (WebGL), so the model can't be shown.":
+		"Это устройство не умеет рисовать 3D-графику (WebGL), поэтому модель показать нельзя.",
+	"The device took back the 3D view. It will return in a moment, or close the model and open it again.":
+		"Устройство забрало 3D-вид. Он вернётся через мгновение, или закройте модель и откройте её снова.",
+	"3D model: {name}. Drag to turn it, pinch or scroll to zoom.":
+		"3D-модель: {name}. Перетащите, чтобы повернуть; сведите пальцы или прокрутите колесо, чтобы изменить масштаб.",
+	"Reset view": "Сбросить вид",
+	"Play animation": "Воспроизвести анимацию",
+	"Pause animation": "Приостановить анимацию",
+	Triangles: "Треугольники",
+	Vertices: "Вершины",
+	Animations: "Анимации",
+	"This changes the name in Paperwren only. The original file keeps its name.":
+		"Имя изменится только в Paperwren. У исходного файла останется прежнее имя.",
+	"Renamed to {name} in Paperwren. The original file keeps its name.":
+		"В Paperwren переименовано в {name}. У исходного файла прежнее имя.",
+	"Another app is using this file. Close it there, then try again.":
+		"Этот файл занят другим приложением. Закройте его там и попробуйте снова.",
+	"Paperwren isn't allowed to rename this file":
+		"У Paperwren нет права переименовать этот файл",
+	"That's the file you have open. Choose another name.":
+		"Это файл, который у вас открыт. Выберите другое имя.",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		"Копия откроется без пароля. Чтобы снова защитить её, используйте «Добавить пароль».",
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"Этот PDF ограничивает действия читателя, например копирование. У копии ограничений не будет.",
 };

@@ -22,6 +22,7 @@ mod imports;
 mod open;
 mod save;
 mod store;
+mod trace;
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -158,6 +159,20 @@ fn launch_files(waiting: tauri::State<'_, Waiting>) -> Vec<String> {
     waiting.take()
 }
 
+/// Whether `PAPERWREN_TRACE` asks for start-up timings (trace.rs). The web
+/// layer asks once and sends its milestones only when this is true.
+#[tauri::command]
+fn trace_enabled() -> bool {
+    trace::enabled()
+}
+
+/// A milestone the web layer reached, written to the trace with the
+/// time since the process started.
+#[tauri::command]
+fn trace_mark(name: String) {
+    trace::mark_web(&name);
+}
+
 /// Documents to open in the running app: keep them for the window,
 /// tell it, and bring it forward. With none, it is only brought
 /// forward (Paperwren started again from its icon).
@@ -275,6 +290,14 @@ async fn save_as(
         .and_then(percent_decoded)
         .and_then(|n| save::valid_name(&n).ok())
         .unwrap_or_else(|| "Untitled".to_owned());
+    // The files the reader has open: a copy never goes over one of them.
+    let open = request
+        .headers()
+        .get("x-open")
+        .and_then(|v| v.to_str().ok())
+        .and_then(percent_decoded)
+        .map(|list| save::open_paths(&list))
+        .unwrap_or_default();
     #[cfg(desktop)]
     {
         use tauri_plugin_dialog::DialogExt;
@@ -289,6 +312,14 @@ async fn save_as(
             let path = picked
                 .into_path()
                 .map_err(|e| AppError::new(error::ErrorKind::Path, e.to_string()))?;
+            // The opened file is never changed: the reader is told, and
+            // asked again.
+            if save::is_open(&path, &open) {
+                return Err(AppError::new(
+                    error::ErrorKind::IsOpen,
+                    "that is a file you have open",
+                ));
+            }
             std::fs::write(&path, &bytes)?;
             Ok(path.to_str().map(str::to_owned))
         })
@@ -296,13 +327,15 @@ async fn save_as(
     }
     #[cfg(not(desktop))]
     {
-        let _ = (app, bytes, name);
+        let _ = (app, bytes, name, open);
         Err(AppError::new(error::ErrorKind::Path, "not available here"))
     }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // The clock for PAPERWREN_TRACE starts here.
+    trace::start();
     let builder = tauri::Builder::default();
     // First of all: a second start hands over and ends before anything
     // else of it runs.
@@ -319,6 +352,15 @@ pub fn run() {
         .plugin(tauri_plugin_process::init());
     builder
         .manage(Waiting::at_launch())
+        // The windows of the configuration exist by the time this runs.
+        .setup(|_app| {
+            trace::mark("window created");
+            Ok(())
+        })
+        .on_page_load(|_webview, payload| match payload.event() {
+            tauri::webview::PageLoadEvent::Started => trace::mark("page load started"),
+            tauri::webview::PageLoadEvent::Finished => trace::mark("page load finished"),
+        })
         .invoke_handler(tauri::generate_handler![
             store_get,
             store_set,
@@ -331,7 +373,9 @@ pub fn run() {
             open_external,
             reveal_in_folder,
             rename_file,
-            save_as
+            save_as,
+            trace_enabled,
+            trace_mark
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

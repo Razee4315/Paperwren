@@ -1,63 +1,50 @@
 import { describe, expect, it } from "vitest";
-import { type FullscreenWindow, windowFullscreen } from "../fullscreen";
+import {
+	type FullscreenWindow,
+	fitWhenSettled,
+	untilSteady,
+	windowFullscreen,
+} from "../fullscreen";
 
-/** A window that keeps a log of what it was asked to do. */
-function fakeWindow(maximized: boolean) {
-	const state = { full: false, maximized };
+/** A window that keeps a log of what it was asked to do. It keeps
+ * being maximised to itself, as Windows and tao do. */
+function fakeWindow() {
+	const state = { full: false };
 	const log: string[] = [];
 	const settle = () => new Promise((r) => setTimeout(r, 1));
-	const win: FullscreenWindow = {
+	const win = {
 		isFullscreen: async () => state.full,
-		isMaximized: async () => state.maximized,
-		setFullscreen: async (on) => {
+		setFullscreen: async (on: boolean) => {
 			await settle();
 			log.push(on ? "full" : "unfull");
 			state.full = on;
 		},
 		maximize: async () => {
 			log.push("maximize");
-			state.maximized = true;
 		},
 		unmaximize: async () => {
 			log.push("unmaximize");
-			state.maximized = false;
 		},
-	};
+	} satisfies FullscreenWindow & Record<string, unknown>;
 	return { win, state, log };
 }
 
 describe("the window's full screen", () => {
-	it("restores a maximised window first on Windows, and maximises it after", async () => {
-		const { win, state, log } = fakeWindow(true);
-		const fs = windowFullscreen(win, { restoreMaximized: true });
+	it("goes straight to full screen from a maximised window, and straight back", async () => {
+		const { win, state, log } = fakeWindow();
+		const fs = windowFullscreen(win);
 		await fs.enter();
-		expect(log).toEqual(["unmaximize", "full"]);
-		expect(state).toEqual({ full: true, maximized: false });
+		expect(log).toEqual(["full"]);
+		expect(state.full).toBe(true);
 		await fs.leave();
-		expect(log).toEqual(["unmaximize", "full", "unfull", "maximize"]);
-		expect(state).toEqual({ full: false, maximized: true });
-	});
-
-	it("leaves a window that was not maximised as it was", async () => {
-		const { win, state, log } = fakeWindow(false);
-		const fs = windowFullscreen(win, { restoreMaximized: true });
-		await fs.toggle();
-		await fs.toggle();
+		// Never restored on the way in, nor maximised again on the way out.
 		expect(log).toEqual(["full", "unfull"]);
-		expect(state).toEqual({ full: false, maximized: false });
-	});
-
-	it("goes straight to full screen where the system handles it (a Mac)", async () => {
-		const { win, log } = fakeWindow(true);
-		const fs = windowFullscreen(win, { restoreMaximized: false });
-		await fs.enter();
-		await fs.leave();
-		expect(log).toEqual(["full", "unfull"]);
+		expect(state.full).toBe(false);
 	});
 
 	it("takes quick presses one at a time", async () => {
-		const { win, state, log } = fakeWindow(true);
-		const fs = windowFullscreen(win, { restoreMaximized: true });
+		const { win, state, log } = fakeWindow();
+		const fs = windowFullscreen(win);
 		fs.toggle();
 		expect(fs.busy()).toBe(false);
 		const last = fs.toggle();
@@ -65,16 +52,84 @@ describe("the window's full screen", () => {
 		expect(fs.busy()).toBe(true);
 		await last;
 		expect(fs.busy()).toBe(false);
-		expect(log).toEqual(["unmaximize", "full", "unfull", "maximize"]);
-		expect(state.maximized).toBe(true);
+		expect(log).toEqual(["full", "unfull"]);
+		expect(state.full).toBe(false);
+	});
+
+	it("is left as it was by a window that turns full screen down", async () => {
+		const { win, state, log } = fakeWindow();
+		win.setFullscreen = async () => {
+			throw new Error("refused");
+		};
+		const fs = windowFullscreen(win);
+		await fs.enter();
+		expect(log).toEqual([]);
+		expect(state.full).toBe(false);
+		expect(fs.busy()).toBe(false);
+		// And the next press is still taken.
+		await fs.leave();
+		await fs.toggle();
+		expect(fs.busy()).toBe(false);
 	});
 
 	it("does nothing when asked for the state it is in", async () => {
-		const { win, log } = fakeWindow(false);
-		const fs = windowFullscreen(win, { restoreMaximized: true });
+		const { win, log } = fakeWindow();
+		const fs = windowFullscreen(win);
 		await fs.leave();
 		await fs.enter();
 		await fs.enter();
 		expect(log).toEqual(["full"]);
+	});
+});
+
+describe("waiting for the window to settle", () => {
+	/** Frames 16 ms apart; `sizes` is what each frame reads, the last
+	 * one kept. Resolves with how many frames it took. */
+	async function settle(sizes: string[], options: { from?: string } = {}) {
+		let t = 0;
+		let n = 0;
+		const queue: Array<() => void> = [];
+		const done = untilSteady(() => sizes[Math.min(n, sizes.length - 1)], {
+			...options,
+			now: () => t,
+			frame: (then) => queue.push(then),
+		});
+		let finished = false;
+		done.then(() => {
+			finished = true;
+		});
+		while (!finished && n < 100) {
+			n++;
+			t += 16;
+			queue.shift()?.();
+			await Promise.resolve();
+		}
+		return n;
+	}
+
+	it("waits for a size held two frames", async () => {
+		// A size the web view passed on late, then the full one.
+		expect(await settle(["a", "b", "c", "c", "c"])).toBe(4);
+	});
+
+	it("waits longer while the window has not begun to change", async () => {
+		expect(await settle(["a"], { from: "a" })).toBe(6);
+		expect(await settle(["a"])).toBe(2);
+	});
+
+	it("gives up after 250 ms of a size that keeps changing", async () => {
+		const changing = Array.from({ length: 100 }, (_, i) => String(i));
+		expect(await settle(changing)).toBe(16);
+	});
+});
+
+describe("a viewer's fit", () => {
+	it("is done at once while full screen is not changing", () => {
+		let fits = 0;
+		const fit = fitWhenSettled(() => fits++);
+		fit.run();
+		fit.run();
+		expect(fits).toBe(2);
+		fit.stop();
 	});
 });

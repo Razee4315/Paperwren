@@ -717,9 +717,6 @@ export const ur: Table = {
 		"نیچے والا اگلے صفحے کے لیے، اوپر والا پچھلے کے لیے",
 	"Tap the sides to turn pages": "صفحے پلٹنے کے لیے کناروں پر تھپتھپائیں",
 	"The left edge goes back, the right edge on": "بایاں کنارہ پیچھے، دایاں آگے",
-	"Hide the bars while reading": "پڑھتے وقت بار چھپائیں",
-	"They come back when you scroll back or tap":
-		"واپس سکرول کرنے یا تھپتھپانے پر واپس آ جاتے ہیں",
 	"Mirror left to right": "بائیں سے دائیں الٹیں",
 	"Mirror top to bottom": "اوپر سے نیچے الٹیں",
 	"Size in pixels": "پکسل میں سائز",
@@ -1249,4 +1246,98 @@ export const ur: Table = {
 	"Adding {n} of {total}…": "{total} میں سے {n} شامل ہو رہی ہے…",
 	"Sort by name": "نام کے لحاظ سے ترتیب دیں",
 	"Only the first {n} were added": "صرف پہلی {n} شامل کی گئیں",
+	"Or aim for a size": "یا کسی سائز کا ہدف رکھیں",
+	"Or type a size": "یا سائز لکھیں",
+	KB: "KB",
+	MB: "MB",
+	"Trying settings, {n} of up to {total}…":
+		"ترتیبات آزمائی جا رہی ہیں، زیادہ سے زیادہ {total} میں سے {n}…",
+	"This PDF is already under {size}, so no copy was made.":
+		"یہ PDF پہلے ہی {size} سے کم ہے، اس لیے کوئی نقل نہیں بنی۔",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"متن برقرار رکھتے ہوئے یہ PDF کم از کم {size} کی ہو سکتی ہے۔",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"تصویروں کی صورت میں اس کے صفحات چھوٹے ہو سکتے ہیں، لیکن پھر ان کا متن نہ منتخب ہو سکے گا نہ تلاش۔",
+	"In grey, for a smaller file": "سرمئی رنگ میں، چھوٹی فائل کے لیے",
+	"Turn pages into pictures": "صفحات کو تصویروں میں بدلیں",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"صفحہ {page} از {pages} بن رہا ہے، کوشش {n}، زیادہ سے زیادہ {total}…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"اب اس کے صفحات تصویریں ہیں: ان کا متن نہ منتخب ہو سکتا ہے نہ تلاش۔",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"تصویروں کی صورت میں بھی یہ PDF کم از کم {size} کی ہے، اس لیے کوئی نقل نہیں بنی۔",
+	"Or keep every picture as it is": "یا ہر تصویر کو ویسا ہی رہنے دیں",
+	"Keep quality (lossless)": "معیار برقرار رکھیں (بغیر نقصان)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"کوئی تصویر نہیں بدلتی: صرف وہ نکالا جاتا ہے جو کہیں استعمال نہیں ہوتا، اور باقی کو مزید سمیٹا جاتا ہے۔",
+	"No picture was changed.": "کوئی تصویر نہیں بدلی۔",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"کوئی تصویر بدلے بغیر یہ PDF صرف {n}% چھوٹی ہوتی ہے، اس لیے کوئی نقل نہیں بنی۔",
+	"Bars while reading": "پڑھتے وقت بار",
+	Always: "ہمیشہ",
+	"Auto-hide": "خودکار",
+	"Tap only": "صرف ٹیپ",
+	"They stay, unless you tap the page":
+		"یہ رہتے ہیں، جب تک آپ صفحے پر ٹیپ نہ کریں",
+	"They go as you read on, and come back when you scroll back or tap":
+		"آگے پڑھنے پر چھپ جاتے ہیں، اور واپس سکرول کرنے یا ٹیپ کرنے پر لوٹ آتے ہیں",
+	"They go as you read on, and only a tap brings them back":
+		"آگے پڑھنے پر چھپ جاتے ہیں، اور صرف ٹیپ کرنے سے واپس آتے ہیں",
+	"Tap the page to show the bars": "بار دکھانے کے لیے صفحے پر ٹیپ کریں",
+	Mobile: "موبائل",
+	Home: "گھر",
+	Work: "دفتر",
+	Fax: "فیکس",
+	Main: "مرکزی",
+	Phone: "فون",
+	Email: "ای میل",
+	Address: "پتہ",
+	Organisation: "ادارہ",
+	"Job title": "عہدہ",
+	Website: "ویب سائٹ",
+	Birthday: "سالگرہ",
+	"Contacts: {n}": "رابطے: {n}",
+	"No contacts found": "کوئی رابطہ نہیں ملا",
+	"Unnamed contact": "بے نام رابطہ",
+	"Keep colours": "رنگ برقرار رکھیں",
+	"One ink": "ایک سیاہی",
+	"Save a cropped copy": "تراشی ہوئی نقل محفوظ کریں",
+	cropped: "تراشی ہوئی",
+	"Can't show this model": "یہ ماڈل نہیں دکھایا جا سکتا",
+	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
+		"فائل خراب ہے یا ایسا بائنری glTF (.glb) ماڈل نہیں جو Paperwren دکھاتا ہے۔",
+	"This is an older kind of binary glTF. Paperwren shows glTF 2.0 models.":
+		"یہ بائنری glTF کی پرانی قسم ہے۔ Paperwren glTF 2.0 ماڈل دکھاتا ہے۔",
+	"This model is squeezed with Draco, meshopt or KTX2, which Paperwren can't unpack. Open it in another app from the menu.":
+		"یہ ماڈل Draco، meshopt یا KTX2 سے دبایا گیا ہے، جسے Paperwren کھول نہیں سکتا۔ مینو سے اسے کسی دوسری ایپ میں کھولیں۔",
+	"This model keeps parts of itself in other files or on the web. Paperwren shows .glb files that hold everything inside them, and it never fetches anything.":
+		"یہ ماڈل اپنے کچھ حصے دوسری فائلوں میں یا ویب پر رکھتا ہے۔ Paperwren وہ .glb فائلیں دکھاتا ہے جن میں سب کچھ اندر ہی ہو، اور یہ کبھی کچھ ڈاؤن لوڈ نہیں کرتا۔",
+	"This model is too large for Paperwren to show.":
+		"یہ ماڈل Paperwren کے دکھانے کے لیے بہت بڑا ہے۔",
+	"This device can't draw 3D graphics (WebGL), so the model can't be shown.":
+		"یہ آلہ 3D گرافکس (WebGL) نہیں بنا سکتا، اس لیے ماڈل نہیں دکھایا جا سکتا۔",
+	"The device took back the 3D view. It will return in a moment, or close the model and open it again.":
+		"آلے نے 3D منظر واپس لے لیا ہے۔ یہ کچھ دیر میں لوٹ آئے گا، یا ماڈل بند کر کے دوبارہ کھولیں۔",
+	"3D model: {name}. Drag to turn it, pinch or scroll to zoom.":
+		"3D ماڈل: {name}۔ گھمانے کے لیے گھسیٹیں، بڑا چھوٹا کرنے کے لیے چٹکی بھریں یا اسکرول کریں۔",
+	"Reset view": "منظر دوبارہ ترتیب دیں",
+	"Play animation": "حرکت چلائیں",
+	"Pause animation": "حرکت روکیں",
+	Triangles: "مثلث",
+	Vertices: "راس",
+	Animations: "حرکات",
+	"This changes the name in Paperwren only. The original file keeps its name.":
+		"یہ صرف Paperwren میں نام بدلتا ہے۔ اصل فائل کا نام وہی رہے گا۔",
+	"Renamed to {name} in Paperwren. The original file keeps its name.":
+		"Paperwren میں نام بدل کر {name} کر دیا۔ اصل فائل کا نام وہی ہے۔",
+	"Another app is using this file. Close it there, then try again.":
+		"یہ فائل کسی اور ایپ میں کھلی ہے۔ اسے وہاں بند کریں، پھر دوبارہ کوشش کریں۔",
+	"Paperwren isn't allowed to rename this file":
+		"Paperwren کو اس فائل کا نام بدلنے کی اجازت نہیں",
+	"That's the file you have open. Choose another name.":
+		"یہ وہی فائل ہے جو آپ نے کھول رکھی ہے۔ کوئی اور نام چنیں۔",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		'کاپی بغیر پاس ورڈ کے کھل جائے گی۔ اسے دوبارہ مقفل کرنے کے لیے "پاس ورڈ لگائیں" استعمال کریں۔',
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"اس PDF میں پڑھنے والے پر پابندیاں ہیں، جیسے متن کاپی کرنا۔ کاپی پر کوئی پابندی نہیں ہوگی۔",
 };

@@ -733,9 +733,6 @@ export const ar: Table = {
 	"Tap the sides to turn pages": "انقر على الجانبين لقلب الصفحات",
 	"The left edge goes back, the right edge on":
 		"الحافة اليسرى للرجوع واليمنى للتقدم",
-	"Hide the bars while reading": "إخفاء الأشرطة أثناء القراءة",
-	"They come back when you scroll back or tap":
-		"تعود عند التمرير للخلف أو النقر",
 	"Mirror left to right": "قلب من اليسار إلى اليمين",
 	"Mirror top to bottom": "قلب من الأعلى إلى الأسفل",
 	"Size in pixels": "الحجم بالبكسل",
@@ -1289,4 +1286,97 @@ export const ar: Table = {
 	"Adding {n} of {total}…": "جارٍ إضافة {n} من {total}…",
 	"Sort by name": "رتّب حسب الاسم",
 	"Only the first {n} were added": "أُضيفت أول {n} فقط",
+	"Or aim for a size": "أو استهدف حجمًا",
+	"Or type a size": "أو اكتب حجمًا",
+	KB: "ك.ب",
+	MB: "م.ب",
+	"Trying settings, {n} of up to {total}…":
+		"جارٍ تجربة الإعدادات، {n} من {total} على الأكثر…",
+	"This PDF is already under {size}, so no copy was made.":
+		"هذا الملف أصغر من {size} بالفعل، لذا لم تُنشأ نسخة.",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"أصغر حجم لهذا الملف مع الإبقاء على نصه هو {size}.",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"يمكن أن تصغر صفحاته إذا صارت صورًا، لكن لن يعود ممكنًا تحديد نصها أو البحث فيه.",
+	"In grey, for a smaller file": "بالرمادي، لملف أصغر",
+	"Turn pages into pictures": "حوّل الصفحات إلى صور",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"جارٍ رسم الصفحة {page} من {pages}، المحاولة {n} من {total} على الأكثر…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"صارت صفحاته صورًا الآن: لا يمكن تحديد نصها أو البحث فيه.",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"حتى كصور، أصغر حجم لهذا الملف هو {size}، لذا لم تُنشأ نسخة.",
+	"Or keep every picture as it is": "أو أبقِ كل صورة كما هي",
+	"Keep quality (lossless)": "حافظ على الجودة (بلا فقد)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"لا تتغير أي صورة: يُزال فقط ما لا يستخدمه شيء، ويُضغط الباقي بإحكام أكبر.",
+	"No picture was changed.": "لم تتغير أي صورة.",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"دون تغيير أي صورة يصغر هذا الملف بنسبة {n}% فقط، لذا لم تُنشأ نسخة.",
+	"Bars while reading": "الأشرطة أثناء القراءة",
+	Always: "دائمًا",
+	"Auto-hide": "إخفاء تلقائي",
+	"Tap only": "بالنقر فقط",
+	"They stay, unless you tap the page": "تبقى ظاهرة ما لم تنقر على الصفحة",
+	"They go as you read on, and come back when you scroll back or tap":
+		"تختفي عندما تتابع القراءة، وتعود عند التمرير للخلف أو النقر",
+	"They go as you read on, and only a tap brings them back":
+		"تختفي عندما تتابع القراءة، ولا تعيدها إلا نقرة",
+	"Tap the page to show the bars": "انقر على الصفحة لإظهار الأشرطة",
+	Mobile: "الجوال",
+	Home: "المنزل",
+	Work: "العمل",
+	Fax: "الفاكس",
+	Main: "الرئيسي",
+	Phone: "الهاتف",
+	Email: "البريد الإلكتروني",
+	Address: "العنوان",
+	Organisation: "المؤسسة",
+	"Job title": "المسمى الوظيفي",
+	Website: "الموقع الإلكتروني",
+	Birthday: "تاريخ الميلاد",
+	"Contacts: {n}": "جهات الاتصال: {n}",
+	"No contacts found": "لم يتم العثور على جهات اتصال",
+	"Unnamed contact": "جهة اتصال بلا اسم",
+	"Keep colours": "أبقِ الألوان",
+	"One ink": "حبر واحد",
+	"Save a cropped copy": "احفظ نسخة مقصوصة",
+	cropped: "مقصوصة",
+	"Can't show this model": "تعذّر عرض هذا النموذج",
+	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
+		"الملف تالف أو ليس نموذج glTF ثنائيًا (.glb) يعرضه Paperwren.",
+	"This is an older kind of binary glTF. Paperwren shows glTF 2.0 models.":
+		"هذا نوع أقدم من glTF الثنائي. يعرض Paperwren نماذج glTF 2.0.",
+	"This model is squeezed with Draco, meshopt or KTX2, which Paperwren can't unpack. Open it in another app from the menu.":
+		"هذا النموذج مضغوط بـ Draco أو meshopt أو KTX2، ولا يستطيع Paperwren فك ضغطه. افتحه في تطبيق آخر من القائمة.",
+	"This model keeps parts of itself in other files or on the web. Paperwren shows .glb files that hold everything inside them, and it never fetches anything.":
+		"يحتفظ هذا النموذج ببعض أجزائه في ملفات أخرى أو على الويب. يعرض Paperwren ملفات .glb التي تحتوي على كل شيء بداخلها، ولا يجلب أي شيء أبدًا.",
+	"This model is too large for Paperwren to show.":
+		"هذا النموذج أكبر من أن يعرضه Paperwren.",
+	"This device can't draw 3D graphics (WebGL), so the model can't be shown.":
+		"لا يستطيع هذا الجهاز رسم الرسومات ثلاثية الأبعاد (WebGL)، لذا لا يمكن عرض النموذج.",
+	"The device took back the 3D view. It will return in a moment, or close the model and open it again.":
+		"سحب الجهاز عرض الأبعاد الثلاثية. سيعود بعد قليل، أو أغلق النموذج وافتحه مجددًا.",
+	"3D model: {name}. Drag to turn it, pinch or scroll to zoom.":
+		"نموذج ثلاثي الأبعاد: {name}. اسحب لتدويره، واضغط بإصبعين أو مرّر العجلة للتكبير.",
+	"Reset view": "إعادة ضبط العرض",
+	"Play animation": "تشغيل الحركة",
+	"Pause animation": "إيقاف الحركة مؤقتًا",
+	Triangles: "المثلثات",
+	Vertices: "الرؤوس",
+	Animations: "الحركات",
+	"This changes the name in Paperwren only. The original file keeps its name.":
+		"هذا يغيّر الاسم في Paperwren فقط. يبقى اسم الملف الأصلي كما هو.",
+	"Renamed to {name} in Paperwren. The original file keeps its name.":
+		"أُعيدت التسمية إلى {name} في Paperwren. يبقى اسم الملف الأصلي كما هو.",
+	"Another app is using this file. Close it there, then try again.":
+		"يستخدم تطبيق آخر هذا الملف. أغلقه هناك ثم حاول مرة أخرى.",
+	"Paperwren isn't allowed to rename this file":
+		"لا يُسمح لـ Paperwren بإعادة تسمية هذا الملف",
+	"That's the file you have open. Choose another name.":
+		"هذا هو الملف المفتوح لديك. اختر اسمًا آخر.",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		"ستُفتح النسخة دون كلمة مرور. لتقفلها مرة أخرى، استخدم «إضافة كلمة مرور».",
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"يضع ملف PDF هذا قيودًا على ما يفعله القارئ، مثل النسخ. ولن تحمل النسخة أي قيود.",
 };

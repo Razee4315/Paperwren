@@ -2,6 +2,7 @@ import { backend } from "@/lib/backend";
 import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
 import { exifDate, readExif } from "@/lib/exif";
+import { fitWhenSettled } from "@/lib/fullscreen";
 import { formatNumber, locale, t, tn } from "@/lib/i18n";
 import { type Pictures, readPictures, systemDecode } from "@/lib/pictures";
 import { idForReopen } from "@/lib/recents";
@@ -232,9 +233,13 @@ export default function ImageView({
 			);
 		};
 		measure();
-		const ro = new ResizeObserver(measure);
+		const fit = fitWhenSettled(measure);
+		const ro = new ResizeObserver(fit.run);
 		ro.observe(el);
-		return () => ro.disconnect();
+		return () => {
+			ro.disconnect();
+			fit.stop();
+		};
 	}, [wide, tall]);
 
 	// --- several pictures: turned like pages ---

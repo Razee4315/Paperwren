@@ -1,0 +1,7 @@
+Two documents side by side on a computer.
+Crop by hand, and crop margins now works on scanned pages.
+Fill & sign is simpler on a phone: Save at the top, the main tools at the bottom.
+Typed signatures look the same on every device.
+Files open faster: PDFs show their first page sooner, and big spreadsheets and text files no longer freeze the screen.
+Word files with no page settings show on a normal page.
+Small fixes to menus, Markdown tables and the empty Home screen.

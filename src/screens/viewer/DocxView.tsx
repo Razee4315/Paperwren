@@ -1,5 +1,6 @@
 import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
+import { fitWhenSettled } from "@/lib/fullscreen";
 import { t } from "@/lib/i18n";
 import { fitted } from "@/lib/print";
 import { hintFor } from "@/lib/shortcuts";
@@ -48,6 +49,7 @@ import {
 	PageCount,
 	SidewaysItem,
 	jumpTo,
+	shownBand,
 	usePaged,
 	useSideways,
 } from "./paged";
@@ -186,9 +188,13 @@ export default function DocxView({
 				);
 		};
 		measure();
-		const ro = new ResizeObserver(measure);
+		const fit = fitWhenSettled(measure);
+		const ro = new ResizeObserver(fit.run);
 		ro.observe(el);
-		return () => ro.disconnect();
+		return () => {
+			ro.disconnect();
+			fit.stop();
+		};
 	}, [status, reading]);
 
 	// Reading view can be turned page by page, as a book is.
@@ -259,8 +265,7 @@ export default function DocxView({
 		const el = scroller.current;
 		const target = sheets.current[n - 1];
 		if (!el || !target) return;
-		el.scrollTop +=
-			target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+		el.scrollTop += target.getBoundingClientRect().top - shownBand(el).top - 8;
 	};
 	const goToHeading = (heading: Heading) => {
 		const el = scroller.current;

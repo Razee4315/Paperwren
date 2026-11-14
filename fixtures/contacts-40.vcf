@@ -1,0 +1,18 @@
+BEGIN:VCARD
+VERSION:4.0
+FN:Aisha Khan
+ORG:Paperwren;Design
+TITLE:Designer
+TEL;TYPE="cell":tel:+92 300 1234567
+EMAIL:aisha@example.com
+ADR;TYPE=work:;;12 Garden Road;Lahore;;54000;Pakistan
+URL:https://example.com
+BDAY:19900521
+NOTE:Available in the morning\nPlease leave a message.
+END:VCARD
+BEGIN:VCARD
+VERSION:4.0
+N:Silva;Rafael;;;
+EMAIL:rafael@example.com
+TEL;TYPE=work:tel:+55 11 1234 5678
+END:VCARD

@@ -10,6 +10,19 @@ async function openGrid(page: Page) {
 	await boot(page);
 	await openFixture(page, "viewer-regressions/grid.xlsx");
 	await expect(cell(page, 1, 2)).toHaveText("100", { timeout: 20_000 });
+	// The screen has slid in: a place measured before that is a fraction
+	// of a pixel off where it comes to rest.
+	await page.evaluate(() =>
+		Promise.all(
+			document
+				.getAnimations()
+				.filter(
+					(a) =>
+						a.effect?.getComputedTiming().endTime !== Number.POSITIVE_INFINITY,
+				)
+				.map((a) => a.finished.catch(() => {})),
+		),
+	);
 }
 
 async function centre(page: Page, r: number, c: number) {

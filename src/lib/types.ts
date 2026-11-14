@@ -6,7 +6,11 @@ import type { ShortcutId } from "./shortcuts";
 /** How a file can be read again after the app restarts. */
 export type Reopen =
 	| { kind: "uri"; uri: string } // Android content:// grant
-	| { kind: "managed"; path: string } // copy under app_data/imports
+	// A copy under app_data/imports. `origin` is the Android document it
+	// was picked from, when the app may keep its address (so the original
+	// can be renamed); older entries and copies opened from another app
+	// have none.
+	| { kind: "managed"; path: string; origin?: string }
 	| { kind: "path"; path: string } // desktop filesystem path
 	| { kind: "browser"; key: string } // dev/web preview (IndexedDB)
 	| { kind: "memory"; key: string }; // inside another file, this run only
@@ -84,6 +88,10 @@ export type PdfFlow = "down" | "across" | "one";
 /** The face books, Markdown and reading view are set in: the one
  * each document has, or one the reader picks. */
 export type ReadingFont = "original" | "serif" | "sans";
+/** What a phone's bars do while a document is read: stay, go as the
+ * reader scrolls on and come back as they scroll back, or go as they
+ * scroll on and come back only for a tap. */
+export type ReadingBars = "always" | "scroll" | "tap";
 
 export interface Settings {
 	theme: ThemeSetting;
@@ -113,9 +121,9 @@ export interface Settings {
 	tapToTurn: boolean;
 	/** The app opens with the document last read. */
 	reopenLast: boolean;
-	/** Phones: the bars go while the reader scrolls on, and come back
-	 * when they scroll back. */
-	autoHideBars: boolean;
+	/** Phones: what the bars do while reading (`ReadingBars`). It was
+	 * the switch `autoHideBars` before 1.8. */
+	readingBars: ReadingBars;
 	/** How dark the screen is made over the document (0 to 0.7). */
 	dim: number;
 	/** How fast a document scrolls by itself, in screen pixels a second. */
@@ -150,7 +158,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	volumeKeys: false,
 	tapToTurn: false,
 	reopenLast: false,
-	autoHideBars: false,
+	readingBars: "always",
 	dim: 0,
 	scrollSpeed: 40,
 	updates: "ask",

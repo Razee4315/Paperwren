@@ -3,6 +3,7 @@ import {
 	isDarkTheme,
 	migrateLegacySettings,
 	normalizeSettings,
+	readingBarsOf,
 	resolvePageColor,
 	resolveTheme,
 } from "../settings";
@@ -27,6 +28,36 @@ describe("settings", () => {
 			normalizeSettings({ pageColor: "dark", darkPages: false }).pageColor,
 		).toBe("dark");
 		expect(normalizeSettings({ darkPages: false }).pageColor).toBe("original");
+	});
+
+	it("turns the old bars switch into the choice that replaced it", () => {
+		// On hid the bars as the reader scrolled; off kept them.
+		expect(readingBarsOf({ autoHideBars: true })).toBe("scroll");
+		expect(readingBarsOf({ autoHideBars: false })).toBe("always");
+		expect(readingBarsOf({})).toBe("always");
+		expect(readingBarsOf({ autoHideBars: "yes" })).toBe("always");
+		// A choice made since wins over the old switch, and an unknown
+		// one is read as the switch would be.
+		expect(readingBarsOf({ readingBars: "tap", autoHideBars: false })).toBe(
+			"tap",
+		);
+		expect(readingBarsOf({ readingBars: "never", autoHideBars: true })).toBe(
+			"scroll",
+		);
+		const old = normalizeSettings({ autoHideBars: true });
+		expect(old.readingBars).toBe("scroll");
+		expect(old).not.toHaveProperty("autoHideBars");
+		expect(normalizeSettings({ autoHideBars: false }).readingBars).toBe(
+			"always",
+		);
+		expect(normalizeSettings(undefined).readingBars).toBe("always");
+		// What is saved reads back the same.
+		for (const readingBars of ["always", "scroll", "tap"] as const) {
+			const saved = JSON.parse(
+				JSON.stringify(normalizeSettings({ readingBars })),
+			);
+			expect(normalizeSettings(saved).readingBars).toBe(readingBars);
+		}
 	});
 
 	it("keeps how PDF pages follow one another", () => {
