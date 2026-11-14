@@ -292,6 +292,25 @@ async function checkLinearized(original: Uint8Array, name?: string) {
 }
 
 describe("incremental PAdES signatures", () => {
+	it("checks stream definitions without marking original streams for rewriting", async () => {
+		const original = await pages(true);
+		const doc = await PDFDocument.load(original, {
+			forIncrementalUpdate: true,
+			updateMetadata: false,
+		});
+		const streams = doc.context
+			.enumerateIndirectObjects()
+			.filter(([, object]) => object instanceof PDFRawStream);
+		const before = streams.map(([ref]) =>
+			doc.context.snapshot?.shouldSave(ref.objectNumber),
+		);
+		crossReferences(original, doc);
+		expect(
+			streams.map(([ref]) =>
+				doc.context.snapshot?.shouldSave(ref.objectNumber),
+			),
+		).toEqual(before);
+	});
 	it("sanitizes the name written into the signature dictionary", async () => {
 		const signed = await signWithId(
 			await pages(),

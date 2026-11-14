@@ -11,6 +11,7 @@ import {
 	PDFRef,
 	decodePDFRawStream,
 } from "@cantoo/pdf-lib";
+import { equal } from "./der";
 
 function xrefBytes(object: PDFRawStream, columns: number): Uint8Array {
 	const bytes = decodePDFRawStream(object).decode();
@@ -318,8 +319,17 @@ export function crossReferences(
 		const loaded = doc.context.lookup(
 			PDFRef.of(n, entry.type === 2 ? 0 : entry.generation),
 		);
-		if (!loaded || object.toString() !== loaded.toString())
-			throw new Error("damaged");
+		// PDFStream.toString updates Length and marks it for incremental
+		// saving. Compare its dictionary and raw bytes without that mutation.
+		const same =
+			object instanceof PDFRawStream
+				? loaded instanceof PDFRawStream &&
+					object.dict.toString() === loaded.dict.toString() &&
+					equal(object.getContents(), loaded.getContents())
+				: loaded &&
+					!(loaded instanceof PDFRawStream) &&
+					object.toString() === loaded.toString();
+		if (!same) throw new Error("damaged");
 	}
 	const seen = new Set<PDFObject>();
 	const pending: PDFObject[] = [doc.catalog];
