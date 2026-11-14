@@ -1375,6 +1375,8 @@ export const ar: Table = {
 		"لا يُسمح لـ Paperwren بإعادة تسمية هذا الملف",
 	"That's the file you have open. Choose another name.":
 		"هذا هو الملف المفتوح لديك. اختر اسمًا آخر.",
+	"This signature field has signing rules or locks that Paperwren can't safely follow.":
+		"يحتوي حقل التوقيع هذا على قواعد أو قيود لا يستطيع Paperwren اتباعها بأمان.",
 	"This file has no integrity check, so it can't be told whether it was changed.":
 		"لا يحتوي هذا الملف على فحص لسلامته، لذا لا يمكن معرفة ما إذا كان قد تغيّر.",
 	"Choose your digital ID (.pfx or .p12)": "اختر معرّفك الرقمي (.pfx أو .p12)",

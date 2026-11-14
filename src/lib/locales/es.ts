@@ -1352,6 +1352,8 @@ export const es: Table = {
 		"Paperwren no tiene permiso para cambiar el nombre de este archivo",
 	"That's the file you have open. Choose another name.":
 		"Es el archivo que tienes abierto. Elige otro nombre.",
+	"This signature field has signing rules or locks that Paperwren can't safely follow.":
+		"Este campo de firma tiene reglas o bloqueos que Paperwren no puede seguir de forma segura.",
 	"This file has no integrity check, so it can't be told whether it was changed.":
 		"Este archivo no tiene una comprobación de integridad, así que no se puede saber si fue modificado.",
 	"Choose your digital ID (.pfx or .p12)": "Elige tu ID digital (.pfx o .p12)",

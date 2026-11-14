@@ -18,6 +18,8 @@ const required = [
 	"twice-signed",
 	"twice-visible",
 	"twice-linearized",
+	"mixed-existing",
+	"mixed-shared",
 ];
 const files = readdirSync(directory)
 	.filter((name) => name.endsWith(".pdf"))

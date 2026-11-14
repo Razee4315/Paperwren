@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { deflateSync } from "node:zlib";
 import {
 	PDFDocument,
+	PDFName,
 	concatTransformationMatrix,
 	drawObject,
 	popGraphicsState,
@@ -2464,6 +2465,32 @@ function linearized(): Uint8Array {
 }
 
 test.describe("sign with a digital ID", () => {
+	test("a prepared digital signature keeps its own box under DocMDP P=2", async ({
+		page,
+	}) => {
+		const editor = await openForm(page, "digital-id/mixed-certified.pdf");
+		await chooseDigitalId(page);
+		await page.getByTestId("digital-id-continue").click();
+		await sign(page);
+		await page.getByTestId("signature-done").click();
+		await editor.getByTestId("fill-sign-here").click();
+		const item = editor.locator(
+			'[data-testid="fill-item"][data-kind="digital"]',
+		);
+		await expect(item).toHaveCount(1);
+		await expect(item.getByTestId("fill-item-size")).toHaveCount(0);
+		const before = await item.getAttribute("style");
+		await item.press("ArrowRight");
+		await item.press("+");
+		await expect(item).toHaveAttribute("style", before ?? "");
+		const saved = await saveCopy(page);
+		const doc = await PDFDocument.load(saved.bytes);
+		const field = doc.getForm().getSignature("Prepared").acroField;
+		expect(field.dict.get(PDFName.of("Rect"))?.toString()).toBe(
+			"[ 60 100 260 180 ]",
+		);
+		expect(field.dict.get(PDFName.of("P"))).toBe(doc.getPage(0).ref);
+	});
 	test("a digital ID without a MAC warns before signing", async ({ page }) => {
 		await openForm(page);
 		await nextDigitalId(page, "rsa-nomac.p12");

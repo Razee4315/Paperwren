@@ -1913,6 +1913,7 @@ function PlacedItem({
 	const tap = useRef<Press | null>(null);
 	const input = useRef<HTMLInputElement>(null);
 	const self = useRef<HTMLDivElement>(null);
+	const fixed = item.kind === "digital" && !!item.field;
 	useEffect(() => {
 		if (editing) input.current?.focus();
 	}, [editing]);
@@ -1926,7 +1927,7 @@ function PlacedItem({
 	 * its shape; Enter edits typed text. Delete and Escape are the
 	 * editor's (they work on whatever is picked). */
 	const onKey = (e: React.KeyboardEvent) => {
-		if (editing || e.target !== e.currentTarget) return;
+		if (fixed || editing || e.target !== e.currentTarget) return;
 		const step = e.shiftKey ? 0.05 : 0.005;
 		const by: Record<string, [number, number]> = {
 			ArrowLeft: [-step, 0],
@@ -1957,6 +1958,11 @@ function PlacedItem({
 	};
 
 	const start = (mode: "move" | "size") => (e: React.PointerEvent) => {
+		if (fixed) {
+			e.stopPropagation();
+			onSelect();
+			return;
+		}
 		if (editing && mode === "move") return;
 		e.stopPropagation();
 		// One finger at a time moves it; a second one is the page's.
@@ -2043,7 +2049,7 @@ function PlacedItem({
 		<div
 			ref={self}
 			className={s.item}
-			style={at(item)}
+			style={{ ...at(item), cursor: fixed ? "default" : undefined }}
 			data-selected={selected ? "" : undefined}
 			data-kind={item.kind}
 			// biome-ignore lint/a11y/noNoninteractiveTabindex: a mark is moved and sized from the keyboard
@@ -2051,7 +2057,7 @@ function PlacedItem({
 			// biome-ignore lint/a11y/useSemanticElements: a mark on the page, not a form group
 			role="group"
 			aria-label={label}
-			aria-describedby={describedBy}
+			aria-describedby={fixed ? undefined : describedBy}
 			onFocus={(e) => {
 				if (e.target === e.currentTarget && !selected) onSelect();
 			}}
@@ -2153,14 +2159,16 @@ function PlacedItem({
 					>
 						<Trash2 size={14} />
 					</button>
-					<span
-						className={s.itemSize}
-						onPointerDown={start("size")}
-						onPointerMove={move}
-						onPointerUp={end}
-						aria-hidden="true"
-						data-testid="fill-item-size"
-					/>
+					{!fixed && (
+						<span
+							className={s.itemSize}
+							onPointerDown={start("size")}
+							onPointerMove={move}
+							onPointerUp={end}
+							aria-hidden="true"
+							data-testid="fill-item-size"
+						/>
+					)}
 				</>
 			)}
 		</div>

@@ -10,8 +10,9 @@ import {
 	PDFDocument,
 	PDFHeader,
 	PDFName,
-	type PDFNumber,
+	PDFNumber,
 	PDFRawStream,
+	PDFRef,
 	PDFString,
 	StandardFonts,
 	decodePDFRawStream,
@@ -60,6 +61,23 @@ async function pages(stream = false, turn = 0) {
 		font: await doc.embedFont(StandardFonts.Helvetica),
 	});
 	return doc.save({ useObjectStreams: stream });
+}
+
+async function pageTexts(pdf: Uint8Array) {
+	const reader = await pdfjs.getDocument({ data: pdf.slice(), verbosity: 0 })
+		.promise;
+	try {
+		const pages = [];
+		for (let n = 1; n <= reader.numPages; n++)
+			pages.push(
+				(await (await reader.getPage(n)).getTextContent()).items.map((item) =>
+					"str" in item ? item.str : "",
+				),
+			);
+		return pages;
+	} finally {
+		await reader.destroy();
+	}
 }
 
 function signatures(pdf: Uint8Array) {
@@ -273,6 +291,131 @@ async function checkLinearized(original: Uint8Array, name?: string) {
 }
 
 describe("incremental PAdES signatures", () => {
+	it("keeps a prepared widget on its own cropped rotated page under DocMDP P=2", async () => {
+		const original = fixture("mixed-certified.pdf");
+		expect(await canSign(original)).toEqual({ signed: true });
+		const signed = await signPdf(original, await id(), {
+			field: "Prepared",
+			appearance: {
+				png,
+				placement: { page: 2, x: 0.6, y: 0.6, w: 0.1, h: 0.1 },
+			},
+			now,
+		});
+		const before = await PDFDocument.load(original);
+		const after = await PDFDocument.load(signed);
+		const form = before.catalog.getAcroForm();
+		const compressed = new Set(
+			before.context.enumerateIndirectObjects().flatMap(([, object]) => {
+				if (
+					!(object instanceof PDFRawStream) ||
+					object.dict.get(PDFName.of("Type")) !== PDFName.of("ObjStm")
+				)
+					return [];
+				const first = object.dict
+					.lookup(PDFName.of("First"), PDFNumber)
+					.asNumber();
+				return new TextDecoder()
+					.decode(decodePDFRawStream(object).decode().subarray(0, first))
+					.trim()
+					.split(/\s+/)
+					.map(Number)
+					.filter((_, i) => i % 2 === 0);
+			}),
+		);
+		for (const ref of [
+			before.catalog.get(PDFName.of("AcroForm")),
+			form?.dict.get(PDFName.of("Fields")),
+			before.getPage(0).node.get(PDFName.of("Annots")),
+		]) {
+			expect(ref).toBeInstanceOf(PDFRef);
+			expect(compressed.has((ref as PDFRef).objectNumber)).toBe(true);
+		}
+		const widget = after.getForm().getSignature("Prepared").acroField;
+		expect(widget.dict.get(PDFName.of("Rect"))?.toString()).toBe(
+			"[ 60 100 260 180 ]",
+		);
+		expect(widget.dict.get(PDFName.of("P"))).toBe(before.getPage(0).ref);
+		expect(after.getPage(0).node.Annots()?.asArray()).toContain(widget.ref);
+		expect(after.getPage(2).node.Annots()?.asArray()).not.toContain(widget.ref);
+		const ap = widget.dict
+			.lookup(PDFName.of("AP"), PDFDict)
+			.lookup(PDFName.of("N")) as PDFRawStream;
+		expect(ap.dict.get(PDFName.of("BBox"))?.toString()).toBe("[ 0 0 80 200 ]");
+		await verifySignatures(signed);
+		expect(await pageTexts(signed)).toEqual(await pageTexts(original));
+		emit("mixed-existing", signed);
+	});
+	it("copies shared indirect Annots before adding a widget", async () => {
+		const original = fixture("mixed-certified.pdf");
+		const signed = await signPdf(original, await id(), {
+			appearance: {
+				png,
+				placement: { page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.1 },
+			},
+			now,
+		});
+		const before = await PDFDocument.load(original);
+		const after = await PDFDocument.load(signed);
+		const ref = after.getForm().getSignature("Signature1").acroField.ref;
+		expect(after.getPage(1).node.Annots()?.asArray()).toContain(ref);
+		expect(after.getPage(2).node.Annots()?.asArray()).not.toContain(ref);
+		expect(after.getPage(2).node.get(PDFName.of("Annots"))).toBe(
+			before.getPage(2).node.get(PDFName.of("Annots")),
+		);
+		await verifySignatures(signed);
+		expect(await pageTexts(signed)).toEqual(await pageTexts(original));
+		emit("mixed-shared", signed);
+	});
+	it.each(["Lock", "SV"])(
+		"refuses an existing field's %s constraints",
+		async (constraint) => {
+			const doc = await PDFDocument.load(fixture("mixed-certified.pdf"));
+			doc
+				.getForm()
+				.getSignature("Prepared")
+				.acroField.dict.set(PDFName.of(constraint), doc.context.obj({}));
+			const original = await doc.save({ updateFieldAppearances: false });
+			await expect(
+				signPdf(original, await id(), {
+					field: "Prepared",
+					appearance: null,
+					now,
+				}),
+			).rejects.toMatchObject({ reason: "constrained" });
+		},
+	);
+	it.each([
+		["All", [], true],
+		["Include", ["Prepared"], true],
+		["Exclude", ["Other"], true],
+		["Include", ["Other"], false],
+		["Exclude", ["Prepared"], false],
+	] as const)("respects FieldMDP %s %j", async (action, names, blocked) => {
+		const doc = await PDFDocument.load(fixture("mixed-certified.pdf"));
+		const signature = doc
+			.getForm()
+			.getSignature("OriginalSignature")
+			.acroField.V() as PDFDict;
+		signature.lookup(PDFName.of("Reference"), PDFArray).push(
+			doc.context.obj({
+				TransformMethod: "FieldMDP",
+				TransformParams: {
+					Action: action,
+					Fields: names.map((name) => PDFString.of(name)),
+				},
+			}),
+		);
+		const original = await doc.save({ updateFieldAppearances: false });
+		const result = signPdf(original, await id(), {
+			field: "Prepared",
+			appearance: null,
+			now,
+		});
+		if (blocked)
+			await expect(result).rejects.toMatchObject({ reason: "constrained" });
+		else await expect(result).resolves.toBeInstanceOf(Uint8Array);
+	});
 	it("reports a CMS reservation overflow as an internal error", async () => {
 		const reserve = vi.spyOn(cms, "cmsReservation").mockResolvedValue(1);
 		try {

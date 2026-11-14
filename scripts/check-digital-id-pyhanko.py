@@ -16,6 +16,9 @@ async def check(directory):
     files = sorted(Path(directory).glob("*.pdf"))
     if not files:
         raise RuntimeError("No signed samples")
+    for name in ("mixed-existing.pdf", "mixed-shared.pdf"):
+        if not (Path(directory) / name).is_file():
+            raise RuntimeError(f"Missing mixed-structure sample: {name}")
     total = 0
     for path in files:
         with path.open("rb") as stream:

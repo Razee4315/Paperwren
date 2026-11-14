@@ -8,7 +8,13 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
-import { PDFDocument, PDFHexString, PDFName, PDFString } from "@cantoo/pdf-lib";
+import {
+	PDFDocument,
+	PDFHexString,
+	PDFName,
+	PDFString,
+	degrees,
+} from "@cantoo/pdf-lib";
 
 const directory = resolve("fixtures/digital-id");
 const temporary = mkdtempSync(join(directory, ".pdf-"));
@@ -18,10 +24,21 @@ const run = (...args) => {
 		throw new Error(result.stderr || "openssl");
 };
 try {
-	for (const certified of [false, true]) {
+	for (const certified of process.argv.includes("--mixed")
+		? ["mixed"]
+		: [false, true, "mixed"]) {
+		const mixed = certified === "mixed";
 		const doc = await PDFDocument.create({ updateMetadata: false });
 		const page = doc.addPage([600, 800]);
 		const context = doc.context;
+		if (mixed) {
+			page.setCropBox(40, 60, 500, 680);
+			page.setRotation(degrees(90));
+			page.drawText("Mixed structures keep this text", { x: 80, y: 600 });
+			const shared = context.register(context.obj([]));
+			for (let i = 0; i < 2; i++)
+				doc.addPage([600, 800]).node.set(PDFName.of("Annots"), shared);
+		}
 		const signature = context.obj({
 			Type: "Sig",
 			Filter: "Adobe.PPKLite",
@@ -42,7 +59,11 @@ try {
 					{
 						Type: "SigRef",
 						TransformMethod: "DocMDP",
-						TransformParams: { Type: "TransformParams", P: 1, V: "1.2" },
+						TransformParams: {
+							Type: "TransformParams",
+							P: mixed ? 2 : 1,
+							V: "1.2",
+						},
 					},
 				]),
 			);
@@ -70,11 +91,28 @@ try {
 		page.node.addAnnot(widget);
 		const form = doc.catalog.getOrCreateAcroForm();
 		form.addField(widget);
+		if (mixed) {
+			const prepared = context.register(
+				context.obj({
+					Type: "Annot",
+					Subtype: "Widget",
+					FT: "Sig",
+					T: PDFString.of("Prepared"),
+					Rect: [60, 100, 260, 180],
+					P: page.ref,
+					F: 4,
+				}),
+			);
+			page.node.addAnnot(prepared);
+			form.addField(prepared);
+			form.dict.set(PDFName.of("Fields"), context.register(form.Fields()));
+			page.node.set(PDFName.of("Annots"), context.register(page.node.Annots()));
+		}
 		form.dict.set(PDFName.of("SigFlags"), context.obj(3));
 		if (certified)
 			doc.catalog.set(PDFName.of("Perms"), context.obj({ DocMDP: ref }));
 		const pdf = await doc.save({
-			useObjectStreams: false,
+			useObjectStreams: mixed,
 			updateFieldAppearances: false,
 		});
 		const source = Buffer.from(pdf).toString("latin1");
@@ -138,7 +176,11 @@ try {
 		writeFileSync(
 			join(
 				directory,
-				certified ? "certified-nochanges.pdf" : "signed-once.pdf",
+				mixed
+					? "mixed-certified.pdf"
+					: certified
+						? "certified-nochanges.pdf"
+						: "signed-once.pdf",
 			),
 			pdf,
 		);

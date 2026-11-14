@@ -1382,6 +1382,8 @@ export const ru: Table = {
 		"У Paperwren нет права переименовать этот файл",
 	"That's the file you have open. Choose another name.":
 		"Это файл, который у вас открыт. Выберите другое имя.",
+	"This signature field has signing rules or locks that Paperwren can't safely follow.":
+		"В этом поле подписи есть правила или ограничения, которые Paperwren не может безопасно соблюсти.",
 	"This file has no integrity check, so it can't be told whether it was changed.":
 		"В этом файле нет проверки целостности, поэтому нельзя узнать, был ли он изменён.",
 	"Choose your digital ID (.pfx or .p12)":

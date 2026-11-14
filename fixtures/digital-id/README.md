@@ -1,5 +1,13 @@
 Throwaway keys made for tests. They sign nothing real; never trust these certificates.
 
+`node scripts/make-digital-id-pdf-fixtures.mjs --mixed` regenerates only
+`mixed-certified.pdf`. Its independent OpenSSL signature certifies with
+DocMDP P=2. The first page has a rotated CropBox with a non-zero origin
+and an empty `Prepared` signature widget. AcroForm, Fields and Annots
+are indirect objects stored in an object stream; two further pages share
+an empty Annots array. Tests emit `mixed-existing` and `mixed-shared`
+signed outputs, required by both independent CI verification scripts.
+
 `bash scripts/make-digital-id-long-issuer.sh` generates `long-issuer.p12`
 and its throwaway root. Its issuer has 80 organisational units; CMS repeats
 that Name in both the signer identifier and the signing-certificate attribute.

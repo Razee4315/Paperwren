@@ -25,7 +25,7 @@ import { DigitalIdError } from "./errors";
 import { crossReferences } from "./pdfStructure";
 import type { ImportedId } from "./pkcs12";
 
-export type SignBlocker = "encrypted" | "certified" | "damaged";
+export type SignBlocker = "encrypted" | "certified" | "damaged" | "constrained";
 export class PdfSignError extends Error {
 	constructor(readonly reason: SignBlocker) {
 		super(reason);
@@ -40,6 +40,54 @@ export interface SignOptions {
 	} | null;
 	field?: string;
 	now?: Date;
+}
+
+function fieldLocks(doc: PDFDocument, name: string) {
+	const signatures = new Set<PDFDict>();
+	for (const [, object] of doc.context.enumerateIndirectObjects()) {
+		if (
+			object instanceof PDFDict &&
+			object.get(PDFName.of("Type")) === PDFName.of("Sig")
+		)
+			signatures.add(object);
+	}
+	for (const [field] of doc.catalog.getAcroForm()?.getAllFields() ?? []) {
+		const value = field.V();
+		if (
+			value instanceof PDFDict &&
+			field.getInheritableAttribute(PDFName.of("FT")) === PDFName.of("Sig")
+		)
+			signatures.add(value);
+	}
+	const certified = doc.catalog
+		.lookupMaybe(PDFName.of("Perms"), PDFDict)
+		?.lookupMaybe(PDFName.of("DocMDP"), PDFDict);
+	if (certified) signatures.add(certified);
+	for (const signature of signatures) {
+		const references = signature.lookupMaybe(PDFName.of("Reference"), PDFArray);
+		for (const ref of references?.asArray() ?? []) {
+			const reference = doc.context.lookup(ref, PDFDict);
+			if (
+				reference.get(PDFName.of("TransformMethod")) !== PDFName.of("FieldMDP")
+			)
+				continue;
+			const params = reference.lookup(PDFName.of("TransformParams"), PDFDict);
+			const action = params.get(PDFName.of("Action"));
+			if (action === PDFName.of("All")) throw new PdfSignError("constrained");
+			if (action !== PDFName.of("Include") && action !== PDFName.of("Exclude"))
+				throw new PdfSignError("constrained");
+			const fields = params.lookup(PDFName.of("Fields"), PDFArray);
+			const listed = fields.asArray().some((value) => {
+				const field = doc.context.lookup(value);
+				if (!(field instanceof PDFString) && !(field instanceof PDFHexString))
+					throw new PdfSignError("constrained");
+				const locked = field.decodeText();
+				return name === locked || name.startsWith(`${locked}.`);
+			});
+			if (action === PDFName.of("Include") ? listed : !listed)
+				throw new PdfSignError("constrained");
+		}
+	}
 }
 
 function certified(doc: PDFDocument): boolean {
@@ -120,7 +168,9 @@ async function appearance(
 	let width = rect[2] - rect[0];
 	let height = rect[3] - rect[1];
 	if (box.turn % 180) [width, height] = [height, width];
-	if (options.appearance) {
+	if (existing && (rect.length !== 4 || rect.some((n) => !Number.isFinite(n))))
+		throw new PdfSignError("damaged");
+	if (options.appearance && !existing) {
 		const mark = options.appearance.placement;
 		if (
 			[mark.x, mark.y, mark.w, mark.h].some((n) => !Number.isFinite(n)) ||
@@ -205,6 +255,13 @@ export async function signWithId(
 	try {
 		const form = doc.catalog.getOrCreateAcroForm();
 		const fields = form.getAllFields();
+		const names = new Set(
+			fields.map(([field]) => field.getFullyQualifiedName()),
+		);
+		let number = 1;
+		while (names.has(`Signature${number}`)) number++;
+		const fieldName = options.field ?? `Signature${number}`;
+		fieldLocks(doc, fieldName);
 		const existing = options.field
 			? fields.find(
 					([field]) => field.getFullyQualifiedName() === options.field,
@@ -226,12 +283,21 @@ export async function signWithId(
 			widgetRef = kids.get(0) as PDFRef;
 			widget = context.lookup(widgetRef, PDFDict);
 		}
+		if (
+			existing &&
+			(existing.getInheritableAttribute(PDFName.of("Lock")) ||
+				existing.getInheritableAttribute(PDFName.of("SV")) ||
+				widget?.has(PDFName.of("Lock")) ||
+				widget?.has(PDFName.of("SV")))
+		)
+			throw new PdfSignError("constrained");
 		const existingPage = widgetRef
 			? doc.findPageForAnnotationRef(widgetRef)
 			: undefined;
-		const pageIndex =
-			options.appearance?.placement.page ??
-			(existingPage ? doc.getPages().indexOf(existingPage) : 0);
+		if (existing && !existingPage) throw new PdfSignError("damaged");
+		const pageIndex = existingPage
+			? doc.getPages().indexOf(existingPage)
+			: (options.appearance?.placement.page ?? 0);
 		if (
 			!Number.isInteger(pageIndex) ||
 			pageIndex < 0 ||
@@ -239,12 +305,9 @@ export async function signWithId(
 		)
 			throw new PdfSignError("damaged");
 		const page = doc.getPage(pageIndex);
-		const ap = await appearance(
-			doc,
-			pageIndex,
-			options,
-			widget?.lookupMaybe(PDFName.of("Rect"), PDFArray),
-		);
+		const rect = widget?.lookupMaybe(PDFName.of("Rect"), PDFArray);
+		if (existing && !rect) throw new PdfSignError("damaged");
+		const ap = await appearance(doc, pageIndex, options, rect);
 
 		const signature = context.obj({
 			Type: "Sig",
@@ -264,21 +327,10 @@ export async function signWithId(
 		signatureRef = context.register(signature);
 		if (existing && widget && widgetRef) {
 			existing.dict.set(PDFName.of("V"), signatureRef);
-			if (existingPage && existingPage !== page) {
-				const annots = existingPage.node.Annots();
-				if (annots) changed.add(annots);
-				const at = annots?.indexOf(widgetRef);
-				if (at !== undefined) annots?.remove(at);
-			}
 		} else {
-			let n = 1;
-			const names = new Set(
-				fields.map(([field]) => field.getFullyQualifiedName()),
-			);
-			while (names.has(`Signature${n}`)) n++;
 			widget = context.obj({
 				FT: "Sig",
-				T: PDFHexString.fromText(`Signature${n}`),
+				T: PDFHexString.fromText(fieldName),
 				V: signatureRef,
 				Type: "Annot",
 				Subtype: "Widget",
@@ -286,12 +338,24 @@ export async function signWithId(
 			widgetRef = context.register(widget);
 			form.addField(widgetRef);
 		}
-		widget.set(PDFName.of("Rect"), context.obj(ap.rect));
-		widget.set(PDFName.of("P"), page.ref);
-		widget.set(PDFName.of("F"), PDFNumber.of(132));
+		if (!existing) {
+			widget.set(PDFName.of("Rect"), context.obj(ap.rect));
+			widget.set(PDFName.of("P"), page.ref);
+			widget.set(PDFName.of("F"), PDFNumber.of(132));
+		}
 		widget.set(PDFName.of("AP"), context.obj({ N: ap.ref }));
 		// addAnnot normalises page content too. Append the annotation directly.
 		let annots = page.node.Annots();
+		if (
+			annots &&
+			annots.indexOf(widgetRef) === undefined &&
+			doc
+				.getPages()
+				.some((other) => other !== page && other.node.Annots() === annots)
+		) {
+			annots = annots.clone(context);
+			page.node.set(PDFName.of("Annots"), context.register(annots));
+		}
 		if (!annots) {
 			annots = context.obj([]);
 			page.node.set(PDFName.of("Annots"), annots);

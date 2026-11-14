@@ -116,6 +116,9 @@ export function problemMessage(reason: string | undefined): string {
 }
 
 const BLOCKERS: Record<SignBlocker, string> = {
+	constrained: msg(
+		"This signature field has signing rules or locks that Paperwren can't safely follow.",
+	),
 	encrypted: msg(
 		"This PDF is locked with a password. Remove the password first (Remove a password), then sign that copy.",
 	),
