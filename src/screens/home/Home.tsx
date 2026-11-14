@@ -11,6 +11,7 @@ import { keys } from "@/lib/keys";
 import { folderOf, sharedNames } from "@/lib/recents";
 import { samplePdf } from "@/lib/sample";
 import { loadThumb, watchThumb } from "@/lib/thumbs";
+import { traceMark } from "@/lib/trace";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
 import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
@@ -186,6 +187,8 @@ export function Home({
 	onNotes: () => void;
 }) {
 	const { entries, ready, togglePin, remove, restore } = useRecents();
+	// The first screen is on show (PAPERWREN_TRACE, lib/trace.ts).
+	useEffect(() => traceMark("Home ready"), []);
 	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState<KindFilter>("all");
 	const [sort, setSort] = useState<Sort>("opened");

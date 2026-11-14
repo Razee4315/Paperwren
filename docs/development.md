@@ -37,6 +37,10 @@ It is signed ad hoc, not by a developer account; copy it to `/Applications` to i
 
 Run all four checks (`lint`, `build`, `test`, `cargo test`) before pushing.
 
+### Tracing a slow start
+
+To find where a slow start goes, run the desktop app with `PAPERWREN_TRACE=1` (for example `PAPERWREN_TRACE=1 ./Paperwren.AppImage`, or `$env:PAPERWREN_TRACE=1` before the exe in PowerShell). It writes one line per milestone to stderr, `paperwren-trace: <ms> <milestone>`, with the milliseconds counted from the start of `run` in `src-tauri/src/lib.rs` (time the loader spends before that is not counted): process start, an `environment` line (OS, version, and on Linux `XDG_SESSION_TYPE`, the `WEBKIT_DISABLE_*` variables if set, and whether it is an AppImage), window created, page load started and finished (from the webview), `web: page loaded` (the first script running), `web: code loaded` (the rest of the scripts evaluated), `web: Home ready` and `web: first document page drawn` (open a document to see it). Without the variable nothing is written. The web layer reports through `src/lib/trace.ts`, which does nothing outside the desktop app; the lines come from the shell's one clock, so a web line is stamped when the shell receives it, a few milliseconds after it happened. A report with these lines gives numbers to work from before any WebKit setting is tried.
+
 ### Fixtures
 
 - `python3 scripts/make-office-fixtures.py`: the basic Office/ODF/RTF samples (needs python-pptx, python-docx and LibreOffice).
@@ -94,7 +98,8 @@ src/
 src-tauri/
   src/            Rust core: store.rs (atomic JSON store), imports.rs (managed copies),
                   open.rs (desktop hand-offs, the files Finder asks for),
-                  save.rs (saving a copy, renaming), error.rs
+                  save.rs (saving a copy, renaming), trace.rs (PAPERWREN_TRACE
+                  start-up timings), error.rs
   tauri.windows.conf.json   Windows only: no native frame, and the webview's
                   pinch reaches the app (the Android window is in tauri.android.conf.json)
   tauri.macos.conf.json     macOS only: the system's window buttons over the app's bar
