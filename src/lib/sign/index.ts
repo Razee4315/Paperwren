@@ -29,8 +29,9 @@ export async function prepareSigningCopy(
 export async function readDigitalId(
 	file: Uint8Array,
 	password: string,
+	signal?: AbortSignal,
 ): Promise<DigitalId> {
-	const imported = await readPkcs12(file, password);
+	const imported = await readPkcs12(file, password, signal);
 	try {
 		const id: DigitalId = {
 			summary: certificateSummary(imported),

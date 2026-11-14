@@ -1,4 +1,10 @@
 /** Decrypt-only legacy ciphers for PKCS#12 privacy. Never used for signing. */
+export class CipherPaddingError extends Error {
+	constructor() {
+		super("cipher");
+		this.name = "CipherPaddingError";
+	}
+}
 const IP = [
 	58, 50, 42, 34, 26, 18, 10, 2, 60, 52, 44, 36, 28, 20, 12, 4, 62, 54, 46, 38,
 	30, 22, 14, 6, 64, 56, 48, 40, 32, 24, 16, 8, 57, 49, 41, 33, 25, 17, 9, 1,
@@ -158,7 +164,7 @@ function cbc(
 			let bad = size < 1 || size > 8 ? 1 : 0;
 			for (let i = 1; i <= 8; i++)
 				if (i <= size) bad |= out[out.length - i] ^ size;
-			if (bad) throw new Error("cipher");
+			if (bad) throw new CipherPaddingError();
 		}
 		return out.slice(0, out.length - (padding ? size : 0));
 	} finally {

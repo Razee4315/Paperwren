@@ -20,6 +20,7 @@ import {
 } from "../sign/der";
 import { OID } from "../sign/oids";
 import { pkcs12Kdf, readPkcs12 } from "../sign/pkcs12";
+import { readDigitalId } from "../sign";
 
 const fixture = (name: string) =>
 	Uint8Array.from(readFileSync(`fixtures/digital-id/${name}`));
@@ -58,7 +59,208 @@ const keyBag = (bytes: Uint8Array, id?: number) =>
 const pfx = (...bags: Uint8Array[]) =>
 	seq(integer(3), data(seq(data(seq(...bags)))));
 
+const pbes2 = (
+	rounds: number,
+	iv = new Uint8Array(16),
+	prf: string = OID.hmacSha256,
+	length = 16,
+	cipher: string = OID.aes128,
+) =>
+	seq(
+		oid(OID.pbes2),
+		seq(
+			seq(
+				oid(OID.pbkdf2),
+				seq(
+					octet(new Uint8Array(8)),
+					integer(rounds),
+					integer(length),
+					seq(oid(prf), der(5, new Uint8Array())),
+				),
+			),
+			seq(oid(cipher), octet(iv)),
+		),
+	);
+const encryptedSafe = (algorithm: Uint8Array, bytes: Uint8Array) =>
+	seq(
+		oid(OID.encryptedData),
+		der(160, seq(integer(0), seq(oid(OID.data), algorithm, der(128, bytes)))),
+	);
+const emptySafe = (algorithm: Uint8Array) => {
+	const cipher = createCipheriv(
+		"aes-128-cbc",
+		new Uint8Array(16),
+		new Uint8Array(16),
+	);
+	return encryptedSafe(
+		algorithm,
+		Buffer.concat([cipher.update(seq()), cipher.final()]),
+	);
+};
+
 describe("PKCS#12 digital IDs", () => {
+	it("counts legacy key and IV blocks together with the MAC before doing work", async () => {
+		const algorithm = seq(
+			oid(OID.pbeTripleDes),
+			seq(octet(new Uint8Array(8)), integer(1600000)),
+		);
+		const contents = seq(encryptedSafe(algorithm, new Uint8Array(8)));
+		const file = seq(
+			integer(3),
+			data(contents),
+			seq(
+				seq(seq(oid(OID.sha1)), octet(new Uint8Array(20))),
+				octet(new Uint8Array(8)),
+				integer(1600000),
+			),
+		);
+		const start = performance.now();
+		await expect(readPkcs12(file, "wren")).rejects.toMatchObject({
+			reason: "unsupported",
+		});
+		expect(performance.now() - start).toBeLessThan(1000);
+	});
+	it("charges hidden derivations to the file's remaining work budget", async () => {
+		const keyCipher = createCipheriv(
+			"aes-128-cbc",
+			new Uint8Array(16),
+			new Uint8Array(16),
+		);
+		const keyBytes = Buffer.concat([
+			keyCipher.update(key()),
+			keyCipher.final(),
+		]);
+		const bag = seq(
+			oid(OID.shroudedKeyBag),
+			der(160, seq(pbes2(1500000), octet(keyBytes))),
+		);
+		const cipher = createCipheriv(
+			"aes-128-cbc",
+			new Uint8Array(16),
+			new Uint8Array(16),
+		);
+		const safe = Buffer.concat([
+			cipher.update(seq(...Array.from({ length: 4 }, () => bag))),
+			cipher.final(),
+		]);
+		const file = seq(
+			integer(3),
+			data(seq(encryptedSafe(pbes2(1500000), safe))),
+		);
+		const derive = vi
+			.spyOn(crypto.subtle, "deriveBits")
+			.mockResolvedValue(new ArrayBuffer(16));
+		try {
+			await expect(readPkcs12(file, "wren")).rejects.toMatchObject({
+				reason: "unsupported",
+			});
+			expect(derive).toHaveBeenCalledTimes(4);
+		} finally {
+			derive.mockRestore();
+		}
+	});
+	it("lets a caller stop waiting for a WebCrypto derivation", async () => {
+		let finish: ((value: ArrayBuffer) => void) | undefined;
+		const controller = new AbortController();
+		const derive = vi.spyOn(crypto.subtle, "deriveBits").mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					finish = resolve;
+					controller.abort();
+				}),
+		);
+		try {
+			await expect(
+				readPkcs12(
+					seq(integer(3), data(seq(emptySafe(pbes2(1))))),
+					"wren",
+					controller.signal,
+				),
+			).rejects.toMatchObject({ name: "AbortError" });
+			const bytes = new Uint8Array(16).fill(7);
+			finish?.(bytes.buffer);
+			await Promise.resolve();
+			expect(bytes.every((n) => n === 0)).toBe(true);
+		} finally {
+			derive.mockRestore();
+		}
+	});
+	it.each([
+		["content count", 9, 1],
+		["derivation cap", 1, 2000001],
+		["total work", 5, 1500000],
+	] as const)(
+		"refuses excessive %s before any expensive derivation",
+		async (_, count, rounds) => {
+			const derive = vi.spyOn(crypto.subtle, "deriveBits");
+			try {
+				const file = seq(
+					integer(3),
+					data(
+						seq(
+							...Array.from({ length: count }, () => emptySafe(pbes2(rounds))),
+						),
+					),
+				);
+				const start = performance.now();
+				await expect(readPkcs12(file, "wren")).rejects.toMatchObject({
+					reason: "unsupported",
+				});
+				expect(performance.now() - start).toBeLessThan(1000);
+				expect(derive).not.toHaveBeenCalled();
+			} finally {
+				derive.mockRestore();
+			}
+		},
+	);
+	it("yields during a legacy derivation and lets the caller cancel it", async () => {
+		const contents = seq(data(seq()));
+		const file = seq(
+			integer(3),
+			data(contents),
+			seq(
+				seq(seq(oid(OID.sha1)), octet(new Uint8Array(20))),
+				octet(new Uint8Array(8)),
+				integer(50000),
+			),
+		);
+		const controller = new AbortController();
+		let ticked = false;
+		const timer = setTimeout(() => {
+			ticked = true;
+			controller.abort();
+		}, 0);
+		try {
+			await expect(
+				readDigitalId(file, "wren", controller.signal),
+			).rejects.toMatchObject({ name: "AbortError" });
+			expect(ticked).toBe(true);
+			expect(file.every((n) => n === 0)).toBe(true);
+		} finally {
+			clearTimeout(timer);
+		}
+	});
+	it.each([
+		["AES IV", pbes2(1, new Uint8Array(15)), "not-digital-id"],
+		[
+			"3DES IV",
+			pbes2(1, new Uint8Array(7), OID.hmacSha256, 24, OID.tripleDes),
+			"not-digital-id",
+		],
+		["PRF", pbes2(1, new Uint8Array(16), OID.sha256), "unsupported"],
+		[
+			"key length",
+			pbes2(1, new Uint8Array(16), OID.hmacSha256, 32),
+			"not-digital-id",
+		],
+	] as const)(
+		"reports a malformed PBES2 %s as a structural problem",
+		async (_, algorithm, reason) => {
+			await expect(
+				readPkcs12(seq(integer(3), data(seq(emptySafe(algorithm)))), "wren"),
+			).rejects.toMatchObject({ reason });
+		},
+	);
 	it("falls back when an engine refuses an empty PBKDF2 password", async () => {
 		const original = crypto.subtle.importKey.bind(crypto.subtle);
 		const spy = vi
@@ -239,7 +441,7 @@ describe("PKCS#12 digital IDs", () => {
 				: new Uint8Array();
 			const contents = seq(data(seq(keyBag(key()), certBag(pem("rsa.pem")))));
 			const salt = Uint8Array.of(1, 2, 3, 4);
-			const derived = pkcs12Kdf("SHA-1", bytes, salt, 1, 3, 20);
+			const derived = await pkcs12Kdf("SHA-1", bytes, salt, 1, 3, 20);
 			const digest = createHmac("sha1", derived).update(contents).digest();
 			const file = seq(
 				integer(3),
@@ -253,21 +455,23 @@ describe("PKCS#12 digital IDs", () => {
 			expect((await readPkcs12(file, password)).kind).toBe("RSA");
 		}
 	});
-	it("agrees with OpenSSL PKCS12KDF for key, IV and MAC derivation", () => {
+	it("agrees with OpenSSL PKCS12KDF for key, IV and MAC derivation", async () => {
 		const password = Uint8Array.from(
 			Buffer.from("0073006d006500670000", "hex"),
 		);
 		const salt = Uint8Array.from(Buffer.from("0a58cf64530d823f", "hex"));
 		const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString("hex");
-		expect(hex(pkcs12Kdf("SHA-1", password, salt, 1, 1, 24))).toBe(
+		expect(hex(await pkcs12Kdf("SHA-1", password, salt, 1, 1, 24))).toBe(
 			"8aaae6297b6cb04642ab5b077851284eb7128f1a2a7fbca3",
 		);
-		expect(hex(pkcs12Kdf("SHA-1", password, salt, 1, 2, 8))).toBe(
+		expect(hex(await pkcs12Kdf("SHA-1", password, salt, 1, 2, 8))).toBe(
 			"79993dfe048d3b76",
 		);
-		expect(hex(pkcs12Kdf("SHA-256", password, salt, 2048, 3, 32))).toBe(
+		expect(hex(await pkcs12Kdf("SHA-256", password, salt, 2048, 3, 32))).toBe(
 			"e4388cd88983083b1d1552867406cb3426e16cbcf4358c7bf5a97cdb2a11db46",
 		);
-		expect(() => pkcs12Kdf("SHA-1", password, salt, 10000001, 1, 24)).toThrow();
+		await expect(
+			pkcs12Kdf("SHA-1", password, salt, 10000001, 1, 24),
+		).rejects.toThrow();
 	});
 });

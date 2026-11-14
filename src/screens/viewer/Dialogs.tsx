@@ -211,10 +211,10 @@ export function PasswordDialog({
 		<Dialog
 			open={open}
 			title={title ?? t("Password protected")}
-			onClose={() => !busy && onCancel()}
+			onClose={onCancel}
 			actions={
 				<>
-					<Button variant="ghost" onClick={onCancel} disabled={busy}>
+					<Button variant="ghost" onClick={onCancel}>
 						{t("Cancel")}
 					</Button>
 					<Button

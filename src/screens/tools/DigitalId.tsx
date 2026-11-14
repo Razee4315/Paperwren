@@ -82,6 +82,7 @@ export function DigitalIdFlow({
 	const pending = useRef<Id | null>(null);
 	const signed = useRef(held?.signed ?? false);
 	const alive = useRef(true);
+	const reading = useRef<AbortController | null>(null);
 
 	const wipe = () => {
 		file.current?.bytes.fill(0);
@@ -146,6 +147,7 @@ export function DigitalIdFlow({
 		}
 		return () => {
 			alive.current = false;
+			reading.current?.abort();
 			wipe();
 			pending.current?.forget();
 			pending.current = null;
@@ -156,10 +158,16 @@ export function DigitalIdFlow({
 		const picked = file.current;
 		if (!picked) return;
 		setStep({ at: "password", wrong: false, busy: true, round });
+		const controller = new AbortController();
+		reading.current = controller;
 		try {
 			const { readDigitalId } = await lib();
 			// The reader erases what it is given, so each try has a copy.
-			const id = await readDigitalId(picked.bytes.slice(), password);
+			const id = await readDigitalId(
+				picked.bytes.slice(),
+				password,
+				controller.signal,
+			);
 			if (!alive.current) return id.forget();
 			wipe();
 			pending.current = id;
@@ -211,6 +219,7 @@ export function DigitalIdFlow({
 				allowEmpty
 				onSubmit={(password) => submit(password, step.round)}
 				onCancel={() => {
+					reading.current?.abort();
 					wipe();
 					onClose();
 				}}
