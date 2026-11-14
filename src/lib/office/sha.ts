@@ -54,7 +54,12 @@ export function sha1(data: Uint8Array): Uint8Array {
 		h3 = (h3 + d) | 0;
 		h4 = (h4 + e) | 0;
 	}
-	return bytes(Int32Array.of(h0, h1, h2, h3, h4), 20);
+	const state = Int32Array.of(h0, h1, h2, h3, h4);
+	const out = bytes(state, 20);
+	state.fill(0);
+	blocks.fill(0);
+	w.fill(0);
+	return out;
 }
 
 // ---------- SHA-512 / SHA-384 ----------
@@ -197,7 +202,12 @@ function sha2Wide(data: Uint8Array, iv: Int32Array, size: number): Uint8Array {
 			h[i] = (h[i] + v[i] + ((low / 0x100000000) | 0)) | 0;
 		}
 	}
-	return bytes(h, size);
+	const out = bytes(h, size);
+	blocks.fill(0);
+	w.fill(0);
+	v.fill(0);
+	h.fill(0);
+	return out;
 }
 
 export const sha512 = (data: Uint8Array) => sha2Wide(data, IV512, 64);

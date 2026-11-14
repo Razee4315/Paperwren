@@ -198,7 +198,9 @@ export const equal = (a: Uint8Array, b: Uint8Array) => {
 
 /** WebCrypto requires an owned ArrayBuffer, including on older WebViews. */
 export const buffer = (bytes: Uint8Array): ArrayBuffer =>
-	bytes.buffer.slice(
-		bytes.byteOffset,
-		bytes.byteOffset + bytes.byteLength,
-	) as ArrayBuffer;
+	bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+		? (bytes.buffer as ArrayBuffer)
+		: (bytes.buffer.slice(
+				bytes.byteOffset,
+				bytes.byteOffset + bytes.byteLength,
+			) as ArrayBuffer);
