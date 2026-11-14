@@ -1286,4 +1286,14 @@ export const zh: Table = {
 	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
 		"此 PDF 的结构已损坏，再次签名会破坏之前的签名。",
 	"Couldn't sign the copy": "无法签署副本",
+	"Your digital signature will be added when you save.":
+		"保存时将添加你的数字签名。",
+	"Save a signed copy": "保存已签名的副本",
+	"Signing…": "正在签名…",
+	"Signed as {name}. There's no timestamp: the time comes from this device's clock.":
+		"签名人：{name}。没有时间戳：时间取自本设备的时钟。",
+	"The earlier signature stays valid: only your digital signature is added.":
+		"之前的签名仍然有效：只会添加你的数字签名。",
+	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
+		"在已签名的 PDF 中只能添加数字签名，这样之前的签名才能保持有效。请先移除你的其他更改。",
 };

@@ -1356,4 +1356,14 @@ export const hi: Table = {
 	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
 		"इस PDF की संरचना खराब है, इसलिए फिर से हस्ताक्षर करने से पिछला हस्ताक्षर टूट जाएगा।",
 	"Couldn't sign the copy": "प्रति पर हस्ताक्षर नहीं हो सके",
+	"Your digital signature will be added when you save.":
+		"सहेजते समय आपका डिजिटल हस्ताक्षर जुड़ जाएगा।",
+	"Save a signed copy": "हस्ताक्षरित प्रति सहेजें",
+	"Signing…": "हस्ताक्षर हो रहे हैं…",
+	"Signed as {name}. There's no timestamp: the time comes from this device's clock.":
+		"{name} के रूप में हस्ताक्षर। इसमें टाइमस्टैम्प नहीं है: समय इस डिवाइस की घड़ी से लिया जाता है।",
+	"The earlier signature stays valid: only your digital signature is added.":
+		"पिछला हस्ताक्षर मान्य रहता है: सिर्फ़ आपका डिजिटल हस्ताक्षर जुड़ता है।",
+	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
+		"जिस PDF पर पहले से हस्ताक्षर हैं, उसमें सिर्फ़ डिजिटल हस्ताक्षर जोड़ा जा सकता है, ताकि पिछला हस्ताक्षर मान्य रहे। पहले अपने बाकी बदलाव हटाएँ।",
 };

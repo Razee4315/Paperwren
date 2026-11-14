@@ -1397,4 +1397,14 @@ export const pt: Table = {
 	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
 		"A estrutura deste PDF está danificada, então assiná-lo de novo quebraria a assinatura anterior.",
 	"Couldn't sign the copy": "Não foi possível assinar a cópia",
+	"Your digital signature will be added when you save.":
+		"Sua assinatura digital será adicionada ao salvar.",
+	"Save a signed copy": "Salvar uma cópia assinada",
+	"Signing…": "Assinando…",
+	"Signed as {name}. There's no timestamp: the time comes from this device's clock.":
+		"Assinado como {name}. Não há carimbo de tempo: o horário vem do relógio deste dispositivo.",
+	"The earlier signature stays valid: only your digital signature is added.":
+		"A assinatura anterior continua válida: só a sua assinatura digital é adicionada.",
+	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
+		"Em um PDF já assinado, só a assinatura digital pode ser adicionada, para que a assinatura anterior continue válida. Remova suas outras alterações primeiro.",
 };

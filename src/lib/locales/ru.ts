@@ -1427,4 +1427,14 @@ export const ru: Table = {
 	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
 		"Структура этого PDF повреждена, поэтому новая подпись нарушит прежнюю.",
 	"Couldn't sign the copy": "Не удалось подписать копию",
+	"Your digital signature will be added when you save.":
+		"Цифровая подпись будет добавлена при сохранении.",
+	"Save a signed copy": "Сохранить подписанную копию",
+	"Signing…": "Подписание…",
+	"Signed as {name}. There's no timestamp: the time comes from this device's clock.":
+		"Подписант: {name}. Метки времени нет: время берётся из часов этого устройства.",
+	"The earlier signature stays valid: only your digital signature is added.":
+		"Прежняя подпись остаётся действительной: добавляется только ваша цифровая подпись.",
+	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
+		"В уже подписанный PDF можно добавить только цифровую подпись, чтобы прежняя осталась действительной. Сначала уберите остальные изменения.",
 };

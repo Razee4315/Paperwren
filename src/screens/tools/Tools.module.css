@@ -2274,3 +2274,65 @@
 	gap: 8px;
 	margin-top: 16px;
 }
+
+/* A visible digital signature on the page: the picture over its
+ * caption, marked as more than a picture. */
+.digitalMark {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	pointer-events: none;
+}
+.digitalMark > img {
+	flex: 0 0 66%;
+	min-height: 0;
+}
+.digitalCaption {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	justify-content: space-evenly;
+	align-items: center;
+	min-height: 0;
+	overflow: hidden;
+	font-size: var(--caption, 8px);
+	line-height: 1.1;
+	white-space: nowrap;
+}
+.digitalCaption > span:first-child {
+	font-weight: 600;
+}
+.digitalBadge {
+	position: absolute;
+	top: -24px;
+	inset-inline-start: 0;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: var(--accent);
+	color: var(--on-accent);
+	font-size: 11px;
+	font-weight: 650;
+	white-space: nowrap;
+	pointer-events: none;
+}
+/* Tools put aside while a signed PDF takes the digital signature
+ * alone, and one this PDF can't use. */
+.tool:disabled,
+.tool[aria-disabled="true"] {
+	opacity: 0.45;
+}
+.tool:disabled {
+	cursor: not-allowed;
+}
+.fillHint[data-warning] {
+	background: var(--surface-2);
+	color: var(--text);
+}
+.fillHint[data-warning] > svg {
+	color: var(--danger);
+}

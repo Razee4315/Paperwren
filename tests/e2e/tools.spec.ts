@@ -1684,3 +1684,272 @@ test("kept signatures can be forgotten in Settings", async ({ page }) => {
 	await page.getByRole("button", { name: "Undo" }).click();
 	await expect(forget).toBeEnabled();
 });
+
+/** Hand the next digital ID picked a fixture of fixtures/digital-id. */
+async function nextDigitalId(page: Page, fixture: string) {
+	const b64 = readFileSync(`fixtures/digital-id/${fixture}`).toString("base64");
+	await page.evaluate(
+		({ b64, name }) => {
+			const data = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+			window.__paperwrenTestDigitalId = new File([data], name);
+		},
+		{ b64, name: fixture },
+	);
+}
+
+/** The PDF's text as bytes, for finding its dictionaries. */
+const latin1 = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
+
+/** Every /ByteRange in the file, as numbers. */
+function byteRanges(bytes: Uint8Array) {
+	return [
+		...latin1(bytes).matchAll(
+			/\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g,
+		),
+	].map((m) => m.slice(1, 5).map(Number));
+}
+
+/** Choose a digital ID in Fill & sign: a wrong password first, then the
+ * right one, and the summary of whose it is. */
+async function chooseDigitalId(page: Page, fixture = "rsa-aes256.p12") {
+	await nextDigitalId(page, fixture);
+	await page.getByTestId("fill-tool-digital").click();
+	const password = page.getByTestId("digital-id-password");
+	await expect(password).toBeVisible();
+	await expect(
+		page.getByText(`Enter the password for “${fixture}”.`),
+	).toBeVisible();
+	await password.fill("sparrow");
+	await page.getByTestId("digital-id-unlock").click();
+	await expect(
+		page.getByText("That password didn't work. Try again."),
+	).toBeVisible();
+	await expect(password).toHaveValue("");
+	await password.fill("wren");
+	await page.getByTestId("digital-id-unlock").click();
+	const summary = page.getByTestId("digital-id-summary");
+	await expect(summary).toBeVisible();
+	await expect(page.getByTestId("digital-id-name")).toHaveText(
+		"Test Signer rsa",
+	);
+	await expect(page.getByTestId("digital-id-issuer")).toContainText(
+		"Paperwren Test CA",
+	);
+	await expect(page.getByTestId("digital-id-valid")).toContainText("2045");
+	await expect(page.getByTestId("digital-id-warning")).toHaveCount(0);
+	await expect(summary).toContainText(
+		"Whether the signature is trusted is decided by the app that opens the PDF, not by Paperwren.",
+	);
+	await expect(summary).toContainText("There's no timestamp");
+	return summary;
+}
+
+async function openForm(page: Page, fixture = "features/form.pdf") {
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await boot(page, {}, "?desktop");
+	await openTool(page, "sign");
+	await addFile(page, fixture);
+	await page.getByTestId("tool-go").click();
+	const editor = page.getByTestId("fill-sign");
+	await expect(editor).toBeVisible();
+	return editor;
+}
+
+// Fixme until the signing library (src/lib/sign, branch digital-id) and its fixtures are merged.
+test.describe.fixme("sign with a digital ID", () => {
+	test("an invisible signature is added to a copy, and the file opened stays as it was", async ({
+		page,
+	}) => {
+		const original = readFileSync("fixtures/features/form.pdf");
+		const editor = await openForm(page);
+		await editor.getByLabel("fullname").fill("Ayesha Khan");
+		await chooseDigitalId(page);
+		await page.getByTestId("digital-id-invisible").click();
+		await page.getByTestId("digital-id-continue").click();
+		await expect(page.getByTestId("fill-hint")).toHaveText(
+			"Your digital signature will be added when you save.",
+		);
+		await expect(page.getByTestId("fill-save")).toHaveText(
+			"Save a signed copy",
+		);
+		await page.getByTestId("fill-save").click();
+		await expect(page.getByTestId("fill-signed-as")).toContainText(
+			"Signed as Test Signer rsa.",
+		);
+		const download = page.waitForEvent("download");
+		await page.getByTestId("fill-save-go").click();
+		const file = await download;
+		const bytes = new Uint8Array(readFileSync(await file.path()));
+		expect(file.suggestedFilename()).toBe("form (signed).pdf");
+		const text = latin1(bytes);
+		expect(text).toMatch(/\/Type\s*\/Sig\b/);
+		expect(text).toContain("/SubFilter /ETSI.CAdES.detached");
+		expect(text).toMatch(/\/Rect\s*\[\s*0\s+0\s+0\s+0\s*\]/);
+		// One signature, over the whole file but its own contents.
+		const ranges = byteRanges(bytes);
+		expect(ranges).toHaveLength(1);
+		const [start, a, b, rest] = ranges[0];
+		expect(start).toBe(0);
+		expect(b + rest).toBe(bytes.length);
+		expect(text.slice(a, b)).toMatch(/^<[0-9a-fA-F]+>$/);
+		// The form was filled in on the way.
+		expect(
+			(await PDFDocument.load(bytes))
+				.getForm()
+				.getTextField("fullname")
+				.getText(),
+		).toBe("Ayesha Khan");
+		// The ID is let go once the copy is saved, and the file opened is
+		// the same bytes as before.
+		expect(readFileSync("fixtures/features/form.pdf").equals(original)).toBe(
+			true,
+		);
+		expect(latin1(new Uint8Array(original))).not.toContain("/ByteRange");
+	});
+
+	test("a visible signature goes in the form's signature field with its caption", async ({
+		page,
+	}) => {
+		const editor = await openForm(page);
+		await chooseDigitalId(page);
+		await expect(page.getByTestId("digital-id-visible")).toHaveAttribute(
+			"aria-checked",
+			"true",
+		);
+		await page.getByTestId("digital-id-continue").click();
+		// No signature kept yet: the pad makes one.
+		await expect(page.getByTestId("signature-pad")).toBeVisible();
+		await sign(page);
+		await page.getByTestId("signature-done").click();
+		await expect(page.getByTestId("fill-hint")).toContainText("Digital ID:");
+		await editor.getByTestId("fill-sign-here").click();
+		const item = editor.locator(
+			'[data-testid="fill-item"][data-kind="digital"]',
+		);
+		await expect(item).toHaveCount(1);
+		await expect(item.getByTestId("fill-digital-caption")).toContainText(
+			"Digitally signed by Test Signer rsa",
+		);
+		await expect(editor.getByTestId("fill-sign-here")).toHaveCount(0);
+		const saved = await saveCopy(page);
+		expect(saved.name).toBe("form (signed).pdf");
+		const text = latin1(saved.bytes);
+		expect(text).toContain("/SubFilter /ETSI.CAdES.detached");
+		expect(byteRanges(saved.bytes)).toHaveLength(1);
+		const doc = await PDFDocument.load(saved.bytes);
+		const field = doc.getForm().getSignature("signature");
+		const widget = field.acroField.getWidgets()[0];
+		expect(widget.getRectangle().width).toBeGreaterThan(0);
+		expect(field.acroField.dict.toString()).toMatch(/\/V\s+\d+\s+0\s+R/);
+		expect(widget.getNormalAppearance()).toBeTruthy();
+	});
+
+	test("a visible signature can be placed anywhere, one at a time", async ({
+		page,
+	}) => {
+		const editor = await openForm(page, "sample.pdf");
+		await chooseDigitalId(page, "p256.p12");
+		await page.getByTestId("digital-id-continue").click();
+		await sign(page);
+		await page.getByTestId("signature-done").click();
+		const first = await editor.getByTestId("fill-page").first().boundingBox();
+		if (!first) throw new Error("no page");
+		await page.mouse.click(
+			first.x + first.width * 0.5,
+			first.y + first.height * 0.8,
+		);
+		await expect(
+			editor.locator('[data-testid="fill-item"][data-kind="digital"]'),
+		).toHaveCount(1);
+		const saved = await saveCopy(page);
+		expect(latin1(saved.bytes)).toContain("/SubFilter /ETSI.CAdES.detached");
+		expect(byteRanges(saved.bytes)).toHaveLength(1);
+	});
+
+	test("a PDF already signed takes the digital signature alone, after its own bytes", async ({
+		page,
+	}) => {
+		const original = new Uint8Array(
+			readFileSync("fixtures/digital-id/signed-once.pdf"),
+		);
+		const editor = await openForm(page, "digital-id/signed-once.pdf");
+		const typed = editor.getByTestId("fill-field").first();
+		const hasField = (await typed.count()) > 0;
+		if (hasField) await typed.fill("changed");
+		await chooseDigitalId(page);
+		await page.getByTestId("digital-id-invisible").click();
+		await page.getByTestId("digital-id-continue").click();
+		// The other tools wait, and a change already made has to go first.
+		await expect(editor.getByTestId("fill-tool-text")).toBeDisabled();
+		if (hasField) {
+			await expect(page.getByTestId("fill-hint")).toContainText(
+				"only the digital signature can be added",
+			);
+			await page.getByTestId("fill-save").click();
+			await expect(page.getByTestId("fill-save-go")).toBeDisabled();
+			await page.keyboard.press("Escape");
+			await typed.evaluate((el: HTMLInputElement) => {
+				el.readOnly = false;
+			});
+			await typed.fill("");
+		}
+		await page.getByTestId("fill-save").click();
+		await expect(page.getByTestId("fill-save-ask")).toContainText(
+			"The earlier signature stays valid: only your digital signature is added.",
+		);
+		const download = page.waitForEvent("download");
+		await page.getByTestId("fill-save-go").click();
+		const bytes = new Uint8Array(readFileSync(await (await download).path()));
+		// Every byte of the signed file is kept as it was; the new
+		// signature covers it and what was added after.
+		expect(
+			Buffer.from(bytes.subarray(0, original.length)).equals(
+				Buffer.from(original),
+			),
+		).toBe(true);
+		const ranges = byteRanges(bytes);
+		expect(ranges).toHaveLength(2);
+		const [, , b, rest] = ranges[1];
+		expect(b + rest).toBe(bytes.length);
+	});
+
+	test("a digital ID that isn't one, or a PDF locked with a password, is refused plainly", async ({
+		page,
+	}) => {
+		await openForm(page);
+		await nextDigitalId(page, "certs-only.p12");
+		await page.getByTestId("fill-tool-digital").click();
+		await page.getByTestId("digital-id-password").fill("wren");
+		await page.getByTestId("digital-id-unlock").click();
+		await expect(page.getByTestId("digital-id-problem-text")).toHaveText(
+			"This file has a certificate but no private key, so it can't sign. Export it again with the private key included.",
+		);
+		await page.getByTestId("digital-id-problem-close").click();
+		await expect(page.getByTestId("fill-tool-digital")).toHaveAttribute(
+			"aria-pressed",
+			"false",
+		);
+		await page.getByTestId("fill-close").click();
+
+		// A locked PDF: refused before any digital ID is asked for.
+		await page.getByTestId("tools-back").click();
+		await openTool(page, "sign");
+		await nextPick(page, "viewer-regressions/locked.pdf");
+		await page.getByTestId("tool-add").click();
+		await page.getByTestId("tool-password").fill("wren");
+		await page.getByTestId("tool-unlock").click();
+		await expect(page.getByTestId("tool-file")).toHaveCount(1);
+		await page.getByTestId("tool-go").click();
+		await expect(page.getByTestId("fill-tool-digital")).toHaveAttribute(
+			"aria-disabled",
+			"true",
+		);
+		await page.getByTestId("fill-tool-digital").click();
+		await expect(
+			page.getByText(
+				"This PDF is locked with a password. Remove the password first (Remove a password), then sign that copy.",
+			),
+		).toBeVisible();
+		await expect(page.getByTestId("digital-id-password")).toHaveCount(0);
+	});
+});

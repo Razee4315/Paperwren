@@ -108,10 +108,14 @@ export function DigitalIdFlow({
 		setStep({ at: "password", wrong: false, busy: false, round: 0 });
 	};
 
+	// Once only, even where React runs an effect twice to test it: a
+	// second picker would take the place of the password asked for.
+	const started = useRef(false);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: once, when the flow opens
 	useEffect(() => {
 		alive.current = true;
-		if (!held)
+		if (!held && !started.current) {
+			started.current = true;
 			(async () => {
 				try {
 					const { canSign } = await lib();
@@ -138,6 +142,7 @@ export function DigitalIdFlow({
 				}
 				await pick();
 			})();
+		}
 		return () => {
 			alive.current = false;
 			wipe();

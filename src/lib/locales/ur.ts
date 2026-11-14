@@ -1379,4 +1379,14 @@ export const ur: Table = {
 	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
 		"اس PDF کی ساخت خراب ہے، اس لیے دوبارہ دستخط کرنے سے پہلا دستخط ٹوٹ جائے گا۔",
 	"Couldn't sign the copy": "نقل پر دستخط نہیں ہو سکے",
+	"Your digital signature will be added when you save.":
+		"محفوظ کرتے وقت آپ کا ڈیجیٹل دستخط شامل ہو جائے گا۔",
+	"Save a signed copy": "دستخط شدہ نقل محفوظ کریں",
+	"Signing…": "دستخط ہو رہے ہیں…",
+	"Signed as {name}. There's no timestamp: the time comes from this device's clock.":
+		"{name} کے طور پر دستخط۔ اس میں ٹائم اسٹیمپ نہیں: وقت اس ڈیوائس کی گھڑی سے لیا جاتا ہے۔",
+	"The earlier signature stays valid: only your digital signature is added.":
+		"پہلا دستخط درست رہتا ہے: صرف آپ کا ڈیجیٹل دستخط شامل ہوتا ہے۔",
+	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
+		"جس PDF پر پہلے سے دستخط ہوں اس میں صرف ڈیجیٹل دستخط شامل ہو سکتا ہے، تاکہ پہلا دستخط درست رہے۔ پہلے اپنی باقی تبدیلیاں ہٹائیں۔",
 };

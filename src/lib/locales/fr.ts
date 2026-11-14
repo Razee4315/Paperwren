@@ -1410,4 +1410,14 @@ export const fr: Table = {
 	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
 		"La structure de ce PDF est endommagée : le signer à nouveau casserait la signature précédente.",
 	"Couldn't sign the copy": "Impossible de signer la copie",
+	"Your digital signature will be added when you save.":
+		"Votre signature numérique sera ajoutée à l'enregistrement.",
+	"Save a signed copy": "Enregistrer une copie signée",
+	"Signing…": "Signature…",
+	"Signed as {name}. There's no timestamp: the time comes from this device's clock.":
+		"Signé en tant que {name}. Il n'y a pas d'horodatage : l'heure vient de l'horloge de cet appareil.",
+	"The earlier signature stays valid: only your digital signature is added.":
+		"La signature précédente reste valide : seule votre signature numérique est ajoutée.",
+	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
+		"Dans un PDF déjà signé, seule la signature numérique peut être ajoutée, pour que la signature précédente reste valide. Retirez d'abord vos autres modifications.",
 };

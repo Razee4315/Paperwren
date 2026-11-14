@@ -1417,4 +1417,14 @@ export const ar: Table = {
 	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
 		"بنية هذا الـ PDF تالفة، لذا فإن توقيعه مجددًا سيُبطل التوقيع السابق.",
 	"Couldn't sign the copy": "تعذّر توقيع النسخة",
+	"Your digital signature will be added when you save.":
+		"سيُضاف توقيعك الرقمي عند الحفظ.",
+	"Save a signed copy": "حفظ نسخة موقّعة",
+	"Signing…": "جارٍ التوقيع…",
+	"Signed as {name}. There's no timestamp: the time comes from this device's clock.":
+		"التوقيع باسم {name}. لا يوجد ختم زمني: الوقت مأخوذ من ساعة هذا الجهاز.",
+	"The earlier signature stays valid: only your digital signature is added.":
+		"يبقى التوقيع السابق صالحًا: يُضاف توقيعك الرقمي فقط.",
+	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
+		"في ملف PDF موقَّع مسبقًا لا يمكن إضافة سوى التوقيع الرقمي، كي يبقى التوقيع السابق صالحًا. أزِل تغييراتك الأخرى أولًا.",
 };
