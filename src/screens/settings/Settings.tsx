@@ -1,7 +1,7 @@
 import { backend, formatBytes } from "@/lib/backend";
 import { clearAllMarks, loadMarkList, restoreMarks } from "@/lib/docMarks";
 import { isDesktop, isTauri, isTouch, ownsFrame, sharesFrame } from "@/lib/env";
-import { LANGUAGES, type LanguageSetting, t, tn } from "@/lib/i18n";
+import { LANGUAGES, type LanguageSetting, msg, t, tn } from "@/lib/i18n";
 import { clearReads, readCount } from "@/lib/ocrStore";
 import { PAGE_VIEWS } from "@/lib/pageViews";
 import {
@@ -10,7 +10,13 @@ import {
 	loadSignatures,
 	loadStamps,
 } from "@/lib/signatures";
-import type { PageColor, PdfFlow, PdfZoom, ReadingFont } from "@/lib/types";
+import type {
+	PageColor,
+	PdfFlow,
+	PdfZoom,
+	ReadingBars,
+	ReadingFont,
+} from "@/lib/types";
 import { canUpdate, checkForUpdate, useUpdateState } from "@/lib/updates";
 import {
 	clearBookmarks,
@@ -71,6 +77,15 @@ function copy(value: string, done: string) {
 		.catch(() => toast(value));
 }
 
+/** What each choice of "Bars while reading" does, said under it. */
+const READING_BARS_HINTS: Record<ReadingBars, string> = {
+	always: msg("They stay, unless you tap the page"),
+	scroll: msg(
+		"They go as you read on, and come back when you scroll back or tap",
+	),
+	tap: msg("They go as you read on, and only a tap brings them back"),
+};
+
 const LICENSES: Array<[string, string]> = [
 	["pdf.js", "Apache-2.0"],
 	["docx-preview", "Apache-2.0"],
@@ -81,6 +96,8 @@ const LICENSES: Array<[string, string]> = [
 	["highlight.js", "BSD-3-Clause"],
 	["UTIF.js", "MIT"],
 	["KaTeX", "MIT"],
+	// 3D models (.glb).
+	["three.js", "MIT"],
 	["pdf-lib (Cantoo fork)", "MIT"],
 	// The scanner's page finders and the runtime its network runs on.
 	["scanic", "MIT"],
@@ -522,12 +539,17 @@ export function SettingsScreen() {
 								/>
 							)}
 							{!isDesktop && (
-								<Switch
-									label={t("Hide the bars while reading")}
-									hint={t("They come back when you scroll back or tap")}
-									checked={settings.autoHideBars}
-									onChange={(v) => update("autoHideBars", v)}
-									testId="auto-hide-bars"
+								<Segmented<ReadingBars>
+									label={t("Bars while reading")}
+									hint={t(READING_BARS_HINTS[settings.readingBars])}
+									value={settings.readingBars}
+									onChange={(v) => update("readingBars", v)}
+									options={[
+										["always", t("Always")],
+										["scroll", t("Auto-hide")],
+										["tap", t("Tap only")],
+									]}
+									testId="reading-bars"
 								/>
 							)}
 							<Switch

@@ -36,6 +36,9 @@
 	background: var(--bg);
 	overscroll-behavior: contain;
 	touch-action: pan-x pan-y;
+	/* Room for bars that float over the page (Shell.module.css). */
+	padding-block: var(--bars-top, 0px) var(--bars-bottom, 0px);
+	scroll-padding-block: var(--bars-top, 0px) var(--bars-bottom, 0px);
 }
 /* On paper the sheet supplies the margins. */
 .printed .plain,

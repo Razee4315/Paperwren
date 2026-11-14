@@ -2,6 +2,7 @@ import { hasRtl } from "@/lib/bidi";
 import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
 import { ANY_MATCH, type FindOptions, matches } from "@/lib/find";
+import { fitWhenSettled } from "@/lib/fullscreen";
 import { locale, t } from "@/lib/i18n";
 import { type Chart, readChart } from "@/lib/pptx/chart";
 import { hintFor } from "@/lib/shortcuts";
@@ -301,9 +302,13 @@ export default function SheetView({
 			setView((v) => ({ ...v, w: el.clientWidth, h: el.clientHeight }));
 		};
 		measure();
-		const ro = new ResizeObserver(measure);
+		const fit = fitWhenSettled(measure);
+		const ro = new ResizeObserver(fit.run);
 		ro.observe(el);
-		return () => ro.disconnect();
+		return () => {
+			ro.disconnect();
+			fit.stop();
+		};
 	}, [sheet]);
 
 	// The grid has the keyboard from the moment the sheet is shown, so
@@ -1064,99 +1069,105 @@ export default function SheetView({
 
 	const bottom = sheets ? (
 		<>
-			{how && sheet && parsed && (
-				<div className={s.arranged} data-testid="sheet-arranged">
-					<span>
-						{[
-							how.sort &&
-								t("Sorted by column {col}", {
-									col: colName(sheet.colOrigins[how.sort.col] ?? how.sort.col),
-								}),
-							how.filter?.text.trim() &&
-								t("Showing {shown} of {total} rows", {
-									shown: sheet.cells.size ? sheet.rows : 0,
-									total: parsed[index].rows,
-								}),
-						]
-							.filter(Boolean)
-							.join(" · ")}
-					</span>
-					<Button
-						variant="ghost"
-						onClick={() => rearrange(undefined)}
-						data-testid="sheet-arranged-clear"
-					>
-						{t("Show every row")}
-					</Button>
-				</div>
-			)}
-			{limited && (
-				<p className={s.limit} data-testid="sheet-limit">
-					{limited}
-				</p>
-			)}
-			{range && sheet && (
-				<div className={s.detail} data-testid="cell-detail">
-					<span className={s.addr}>{rangeLabel(sheet, range)}</span>
-					<span className={s.value}>
-						{single ? (
-							<>
-								{cell?.noCachedResult
-									? t("No saved result")
-									: cell?.value || t("Empty")}
-								{cell?.formula && (
-									<span className={s.formula}>{cell.formula}</span>
-								)}
-								{cell?.link && (
-									// Shown to copy: the app follows no link (LinkGuard).
-									<a
-										className={s.link}
-										href={cell.link}
-										dir="ltr"
-										data-testid="cell-link"
-									>
-										{cell.link}
-									</a>
-								)}
-								{cell?.note && (
-									<span
-										className={s.note}
-										dir="auto"
-										title={cell.note}
-										data-testid="cell-note"
-									>
-										{cell.note}
-									</span>
-								)}
-							</>
-						) : (
-							<>
-								{t("{rows} × {cols} cells", {
-									rows: range.r1 - range.r0 + 1,
-									cols: range.c1 - range.c0 + 1,
-								})}
-								{stats && (
-									<span className={s.formula} data-testid="range-stats">
-										{t("Sum {sum} · Average {average} · Count {count}", {
-											sum: format(stats.sum),
-											average: format(stats.sum / stats.count),
-											count: stats.count,
-										})}
-									</span>
-								)}
-							</>
-						)}
-					</span>
-					<IconButton
-						label={single ? t("Copy value") : t("Copy cells")}
-						disabled={single && !cell?.value}
-						onClick={copySelection}
-						data-testid="sheet-copy"
-					>
-						<Copy size={18} />
-					</IconButton>
-				</div>
-			)}
+			{/* What the rows and the chosen cell are: strips over the tabs,
+			 * or a card beside the rail on a phone held sideways. */}
+			<div className={s.notes}>
+				{how && sheet && parsed && (
+					<div className={s.arranged} data-testid="sheet-arranged">
+						<span>
+							{[
+								how.sort &&
+									t("Sorted by column {col}", {
+										col: colName(
+											sheet.colOrigins[how.sort.col] ?? how.sort.col,
+										),
+									}),
+								how.filter?.text.trim() &&
+									t("Showing {shown} of {total} rows", {
+										shown: sheet.cells.size ? sheet.rows : 0,
+										total: parsed[index].rows,
+									}),
+							]
+								.filter(Boolean)
+								.join(" · ")}
+						</span>
+						<Button
+							variant="ghost"
+							onClick={() => rearrange(undefined)}
+							data-testid="sheet-arranged-clear"
+						>
+							{t("Show every row")}
+						</Button>
+					</div>
+				)}
+				{limited && (
+					<p className={s.limit} data-testid="sheet-limit">
+						{limited}
+					</p>
+				)}
+				{range && sheet && (
+					<div className={s.detail} data-testid="cell-detail">
+						<span className={s.addr}>{rangeLabel(sheet, range)}</span>
+						<span className={s.value}>
+							{single ? (
+								<>
+									{cell?.noCachedResult
+										? t("No saved result")
+										: cell?.value || t("Empty")}
+									{cell?.formula && (
+										<span className={s.formula}>{cell.formula}</span>
+									)}
+									{cell?.link && (
+										// Shown to copy: the app follows no link (LinkGuard).
+										<a
+											className={s.link}
+											href={cell.link}
+											dir="ltr"
+											data-testid="cell-link"
+										>
+											{cell.link}
+										</a>
+									)}
+									{cell?.note && (
+										<span
+											className={s.note}
+											dir="auto"
+											title={cell.note}
+											data-testid="cell-note"
+										>
+											{cell.note}
+										</span>
+									)}
+								</>
+							) : (
+								<>
+									{t("{rows} × {cols} cells", {
+										rows: range.r1 - range.r0 + 1,
+										cols: range.c1 - range.c0 + 1,
+									})}
+									{stats && (
+										<span className={s.formula} data-testid="range-stats">
+											{t("Sum {sum} · Average {average} · Count {count}", {
+												sum: format(stats.sum),
+												average: format(stats.sum / stats.count),
+												count: stats.count,
+											})}
+										</span>
+									)}
+								</>
+							)}
+						</span>
+						<IconButton
+							label={single ? t("Copy value") : t("Copy cells")}
+							disabled={single && !cell?.value}
+							onClick={copySelection}
+							data-testid="sheet-copy"
+						>
+							<Copy size={18} />
+						</IconButton>
+					</div>
+				)}
+			</div>
 			<div className={s.bar}>
 				{sheets.filter(offered).length > 1 ? (
 					<div className={s.tabs} role="tablist" aria-label={t("Sheets")}>

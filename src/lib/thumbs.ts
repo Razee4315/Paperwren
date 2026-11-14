@@ -32,3 +32,12 @@ export async function saveThumb(id: string, url: string) {
 
 export const forgetThumb = (id: string) =>
 	backend.storeSet(key(id), null).catch(() => {});
+
+/** A file renamed where it is has a new id: its picture goes along. */
+export async function moveThumb(from: string, to: string) {
+	if (from === to) return;
+	const url = await loadThumb(from);
+	if (!url) return;
+	await saveThumb(to, url);
+	await forgetThumb(from);
+}

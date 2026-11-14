@@ -439,6 +439,19 @@
 		font-size: 12px;
 	}
 }
+/* What a searchable copy will not keep, above the buttons that save it. */
+.copyNote {
+	flex: 1 1 100%;
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.4;
+	color: var(--text-2);
+}
+@media (max-width: 560px) {
+	.actions.withLink > .copyNote {
+		grid-column: 1 / -1;
+	}
+}
 .hint {
 	flex: 1;
 	min-width: 160px;

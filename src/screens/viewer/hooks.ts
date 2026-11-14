@@ -14,7 +14,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import type { BookmarkSource } from "./Shell";
-import { goToRatio, isPaged, readRatio } from "./paged";
+import { goToRatio, isPaged, readRatio, shownBand } from "./paged";
 
 export interface ZoomOptions {
 	/** The scrolling viewport. */
@@ -521,7 +521,7 @@ const BLOCKS = "p, li, h1, h2, h3, h4, h5, h6, pre, td, th, blockquote, dt, dd";
  * a point: a menu that is still closing would answer that instead.
  */
 function wordsAtTop(scroller: HTMLElement, content: HTMLElement): string {
-	const top = scroller.getBoundingClientRect().top + 8;
+	const top = shownBand(scroller).top + 8;
 	const blocks = content.querySelectorAll<HTMLElement>(BLOCKS);
 	let lo = 0;
 	let hi = blocks.length;

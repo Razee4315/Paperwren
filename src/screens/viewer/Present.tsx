@@ -28,6 +28,7 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { inPhoneFull } from "./Shell";
 import s from "./Slides.module.css";
 
 /** How long the controls stay after the last touch or mouse move. */
@@ -198,7 +199,9 @@ export function Present({
 			}
 			return () => {
 				try {
-					shell.immersive?.(false, false);
+					// Back to how the document was: its own full screen
+					// (Shell.tsx) keeps the system's bars away.
+					shell.immersive?.(inPhoneFull(), false);
 				} catch {
 					// Nothing to undo.
 				}

@@ -174,3 +174,25 @@
 		text-align: start;
 	}
 }
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+	width: 100%;
+}
+.actionGroup,
+.saveGroup {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+	border: 0;
+	padding: 0;
+	margin: 0;
+	min-width: 0;
+}
+.saveGroup > button {
+	white-space: normal;
+}

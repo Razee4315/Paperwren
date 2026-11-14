@@ -4,6 +4,7 @@ import { toggleFullscreen, watchFullscreen } from "@/lib/fullscreen";
 import { language, subscribe, t } from "@/lib/i18n";
 import { isFullscreenKey } from "@/lib/keys";
 import { backToCaller } from "@/lib/navigation";
+import { holdOpen, onSaveRefused } from "@/lib/openFiles";
 import { matches } from "@/lib/shortcuts";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
@@ -277,6 +278,20 @@ function Root() {
 			show(fresh);
 		},
 		[show],
+	);
+	/** A file renamed from Home while a tab has it: the tab reads it from
+	 * where it is now, under its new name, and stays where it was. */
+	const renamedOpen = useCallback(
+		(from: string, now: Pick<OpenRequest, "id" | "name" | "reopen">) => {
+			if (!tabsRef.current.some((tab) => tab.request.id === from)) return;
+			tabsRef.current = tabsRef.current.map((tab) =>
+				tab.request.id === from
+					? { ...tab, request: { ...tab.request, ...now, nameVerified: true } }
+					: tab,
+			);
+			setTabs(tabsRef.current);
+		},
+		[],
 	);
 
 	// Back (Alt+Left, a mouse's back button) took the document away:
@@ -660,6 +675,19 @@ function Root() {
 		};
 	}, []);
 
+	// The documents open here (every tab, both halves side by side) are
+	// never saved over: a copy goes somewhere else, and a save the reader
+	// points at one of them is refused, saying why.
+	useEffect(() => {
+		holdOpen("documents", [
+			...tabs.map((tab) => tab.request.reopen),
+			...state.screens.map((screen) =>
+				screen.kind === "viewer" ? screen.request.reopen : undefined,
+			),
+		]);
+	}, [tabs, state.screens]);
+	useEffect(() => onSaveRefused((note) => toast(t(note))), []);
+
 	// A desktop app has no "Reload" or "Back" menu on a right-click, and
 	// the webview's own menu acts on the app, not the document (its
 	// "Print" prints the app). Fields keep their menu; selected text gets
@@ -696,6 +724,7 @@ function Root() {
 				onSettings={() => push({ kind: "settings" })}
 				onTools={(tool) => push({ kind: "tools", tool })}
 				onNotes={() => push({ kind: "notes" })}
+				onRenamed={renamedOpen}
 			/>
 			{state.screens.map((screen, i) => {
 				const atTop = i === state.screens.length - 1;

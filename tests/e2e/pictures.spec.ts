@@ -287,6 +287,113 @@ test.describe("stamps", () => {
 		await expect(editor.getByTestId("fill-item")).toHaveCount(1);
 	});
 
+	test("a photographed stamp comes out clean and red, can be adjusted, and is saved", async ({
+		page,
+	}) => {
+		const editor = await openEditor(page);
+		await pickTool(page, "stamp");
+		await page.getByTestId("stamp-upload").click();
+		// A phone photo: yellowish paper, darker to the right, a shadow in
+		// a corner, and a red stamp with words.
+		await page.evaluate(async () => {
+			const canvas = document.createElement("canvas");
+			canvas.width = 640;
+			canvas.height = 420;
+			const ctx = canvas.getContext("2d");
+			if (!ctx) throw new Error("no canvas");
+			const g = ctx.createLinearGradient(0, 0, 640, 0);
+			g.addColorStop(0, "#f1e6c4");
+			g.addColorStop(1, "#a99f86");
+			ctx.fillStyle = g;
+			ctx.fillRect(0, 0, 640, 420);
+			const shade = ctx.createRadialGradient(600, 400, 10, 600, 400, 240);
+			shade.addColorStop(0, "rgba(0,0,0,0.3)");
+			shade.addColorStop(1, "rgba(0,0,0,0)");
+			ctx.fillStyle = shade;
+			ctx.fillRect(0, 0, 640, 420);
+			ctx.globalCompositeOperation = "multiply";
+			ctx.strokeStyle = "#c62030";
+			ctx.fillStyle = "#c62030";
+			ctx.lineWidth = 9;
+			ctx.beginPath();
+			ctx.arc(330, 210, 150, 0, Math.PI * 2);
+			ctx.stroke();
+			ctx.lineWidth = 3;
+			ctx.beginPath();
+			ctx.arc(330, 210, 130, 0, Math.PI * 2);
+			ctx.stroke();
+			ctx.font = "bold 44px sans-serif";
+			ctx.textAlign = "center";
+			ctx.fillText("RECEIVED", 330, 225);
+			const blob = await new Promise<Blob | null>((done) =>
+				canvas.toBlob(done, "image/jpeg", 0.85),
+			);
+			if (!blob) throw new Error("no picture");
+			window.__paperwrenTestFile = new File([blob], "stamp.jpg", {
+				type: "image/jpeg",
+			});
+		});
+		await page.getByTestId("stamp-pick").click();
+		await expect(page.getByTestId("stamp-clear")).toBeChecked();
+		await expect(page.getByTestId("stamp-depth")).toBeVisible();
+		await expect(page.getByTestId("stamp-colours-keep")).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		/** How much of the preview is ink, and the ink's mean colour. */
+		const look = () =>
+			page.getByTestId("stamp-preview").evaluate(async (el) => {
+				const img = el as HTMLImageElement;
+				await img.decode();
+				const c = document.createElement("canvas");
+				c.width = img.naturalWidth;
+				c.height = img.naturalHeight;
+				const ctx = c.getContext("2d");
+				if (!ctx) return { share: 0, rgb: [0, 0, 0] };
+				ctx.drawImage(img, 0, 0);
+				const d = ctx.getImageData(0, 0, c.width, c.height).data;
+				let ink = 0;
+				let cover = 0;
+				const rgb = [0, 0, 0];
+				for (let i = 0; i < d.length; i += 4) {
+					cover += d[i + 3] / 255;
+					if (d[i + 3] > 200) {
+						ink++;
+						for (let k = 0; k < 3; k++) rgb[k] += d[i + k];
+					}
+				}
+				return {
+					share: cover / (d.length / 4),
+					rgb: rgb.map((v) => Math.round(v / Math.max(1, ink))),
+				};
+			});
+		// The paper, shadow and all, is gone; the stamp stays red, not
+		// brown from the paper.
+		const first = await look();
+		expect(first.share).toBeGreaterThan(0.02);
+		expect(first.share).toBeLessThan(0.3);
+		const [r, g, b] = first.rgb;
+		expect(r).toBeGreaterThan(150);
+		expect(g).toBeLessThan(80);
+		expect(b).toBeLessThan(90);
+		// Darker reads more as ink.
+		await page.getByTestId("stamp-depth").fill("1");
+		await expect
+			.poll(async () => (await look()).share)
+			.toBeGreaterThan(first.share);
+		// One ink: the stamp in the blue picked.
+		await page.getByTestId("stamp-colours-one").click();
+		await page.getByRole("button", { name: "Blue ink" }).click();
+		await expect
+			.poll(async () => (await look()).rgb)
+			.toEqual([0x1a, 0x3c, 0x8c]);
+		await page.getByTestId("stamp-done").click();
+		await tapPage(page, 0.5, 0.8);
+		await expect(editor.getByTestId("fill-item")).toHaveCount(1);
+		const saved = await saveCopy(page);
+		expect((await picturesPerPage(saved.bytes))[0]).toBeGreaterThanOrEqual(1);
+	});
+
 	test("kept stamps can be forgotten in Settings", async ({ page }) => {
 		await boot(page, {
 			stamps_v1: [

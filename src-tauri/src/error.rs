@@ -15,6 +15,8 @@ pub enum ErrorKind {
     Path,
     /// Another file already has the name asked for.
     Exists,
+    /// A copy would go over a file the reader has open.
+    IsOpen,
 }
 
 #[derive(Debug, Serialize)]

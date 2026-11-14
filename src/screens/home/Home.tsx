@@ -11,6 +11,7 @@ import { keys } from "@/lib/keys";
 import { folderOf, sharedNames } from "@/lib/recents";
 import { samplePdf } from "@/lib/sample";
 import { loadThumb, watchThumb } from "@/lib/thumbs";
+import { traceMark } from "@/lib/trace";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
 import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
@@ -176,6 +177,7 @@ export function Home({
 	onSettings,
 	onTools,
 	onNotes,
+	onRenamed,
 }: {
 	onOpenFile: () => void;
 	onOpenRecent: (entry: RecentEntry) => void;
@@ -184,8 +186,15 @@ export function Home({
 	onSettings: () => void;
 	onTools: (tool?: ToolId) => void;
 	onNotes: () => void;
+	/** A recent was renamed (`from` its old id): a tab showing it follows. */
+	onRenamed?: (
+		from: string,
+		now: Pick<OpenRequest, "id" | "name" | "reopen">,
+	) => void;
 }) {
 	const { entries, ready, togglePin, remove, restore } = useRecents();
+	// The first screen is on show (PAPERWREN_TRACE, lib/trace.ts).
+	useEffect(() => traceMark("Home ready"), []);
 	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState<KindFilter>("all");
 	const [sort, setSort] = useState<Sort>("opened");
@@ -688,6 +697,9 @@ export function Home({
 					file={refOf(renameFor)}
 					id={renameFor.id}
 					onClose={() => setRenameFor(null)}
+					onRenamed={(name, reopen, id) =>
+						onRenamed?.(renameFor.id, { id, name, reopen })
+					}
 				/>
 			)}
 			{detailsFor && (

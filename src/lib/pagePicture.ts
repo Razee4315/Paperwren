@@ -24,12 +24,15 @@ export async function drawPage(
 	{
 		dpi,
 		type,
+		quality = 0.9,
 		rotation = page.rotate,
 		viewportOf = (params) => page.getViewport(params),
 		after,
 	}: {
 		dpi: number;
 		type: PagePicture["type"];
+		/** A JPEG's quality, from 0 to 1. */
+		quality?: number;
 		rotation?: number;
 		/** How the page's box is measured (the viewer swaps in the whole
 		 * page while its margins are cropped on screen). */
@@ -57,7 +60,7 @@ export async function drawPage(
 		.promise;
 	after?.(context, viewport);
 	const blob = await new Promise<Blob | null>((done) =>
-		canvas.toBlob(done, type, type === "image/jpeg" ? 0.9 : undefined),
+		canvas.toBlob(done, type, type === "image/jpeg" ? quality : undefined),
 	);
 	const { width, height } = canvas;
 	canvas.width = canvas.height = 0;

@@ -1,9 +1,12 @@
 import { isDesktop } from "@/lib/env";
 import { msg, t } from "@/lib/i18n";
+import { type PixelImage, type ReadPhoto, inkRgb } from "@/lib/inkFromPhoto";
 import {
 	type Signature,
+	inkBounds,
 	inkFromPicture,
 	keepSignature,
+	readPicture,
 } from "@/lib/signatures";
 import { Button, Dialog, IconButton, toast } from "@/ui";
 import {
@@ -24,15 +27,9 @@ import {
 	useState,
 } from "react";
 import "@/styles/signature-fonts.css";
+import { InkChoice } from "./InkChoice";
 import s from "./Tools.module.css";
-import {
-	MAX_WIDTH,
-	copyCanvas,
-	cut,
-	hasInk,
-	pickPicture,
-	withPixels,
-} from "./pictures";
+import { MAX_WIDTH, canvasOf, cut, pickPicture, pixelsOf } from "./pictures";
 
 type Way = "draw" | "type" | "photo";
 /** A part of a photo: left, top, right, bottom, as fractions of it. */
@@ -132,27 +129,34 @@ export function SignaturePad({
 	const [drawn, setDrawn] = useState(false);
 	const [canRedo, setCanRedo] = useState(false);
 	const [fullScreen, setFullScreen] = useState(false);
-	// The picture as it was picked, the part of it kept, how dark its ink
-	// reads, and what that makes.
+	// The picture as it was picked, the part of it kept (read against its
+	// paper once), how dark its ink reads, its colours, and what that
+	// makes.
 	const [raw, setRaw] = useState<HTMLCanvasElement | null>(null);
 	const [trim, setTrim] = useState<Trim | null>(null);
+	const [read, setRead] = useState<PixelImage | ReadPhoto | null>(null);
 	const [depth, setDepth] = useState(0);
-	const [photo, setPhoto] = useState<HTMLCanvasElement | null>(null);
-	useEffect(() => {
-		if (!raw) {
-			setPhoto(null);
-			return;
-		}
-		const [x0, y0, x1, y1] = trim ?? [0, 0, 1, 1];
+	const [oneInk, setOneInk] = useState(false);
+	const photo = useMemo(() => {
+		if (!read) return null;
+		const out = inkFromPicture(read, {
+			depth,
+			ink: oneInk ? inkRgb(ink) : null,
+		});
+		return inkBounds(out.data, out.width, out.height, 0) ? canvasOf(out) : null;
+	}, [read, depth, oneInk, ink]);
+	const trimTo = (next: Trim | null) => {
+		if (!raw) return;
+		setTrim(next);
+		const [x0, y0, x1, y1] = next ?? [0, 0, 1, 1];
 		const out = document.createElement("canvas");
 		out.width = Math.max(1, Math.round((x1 - x0) * raw.width));
 		out.height = Math.max(1, Math.round((y1 - y0) * raw.height));
 		out
 			.getContext("2d", { willReadFrequently: true })
 			?.drawImage(raw, -x0 * raw.width, -y0 * raw.height);
-		withPixels(out, (data) => inkFromPicture(data, depth));
-		setPhoto(hasInk(out) ? out : null);
-	}, [raw, trim, depth]);
+		setRead(readPicture(pixelsOf(out)));
+	};
 	const pad = useRef<HTMLCanvasElement>(null);
 	const strokes = useRef<Stroke[]>([]);
 	const undone = useRef<Stroke[]>([]);
@@ -244,15 +248,16 @@ export function SignaturePad({
 		if (!canvas) return;
 		// A PNG with a clear background is used as it is; a photo of
 		// paper has its paper made clear.
-		const trial = copyCanvas(canvas);
-		withPixels(trial, inkFromPicture);
-		if (!hasInk(trial)) {
+		const picture = readPicture(pixelsOf(canvas));
+		const trial = inkFromPicture(picture);
+		if (!inkBounds(trial.data, trial.width, trial.height, 0)) {
 			toast(t("No signature was found in that picture"));
 			return;
 		}
 		setTrim(null);
 		setDepth(0);
 		setRaw(canvas);
+		setRead(picture);
 	};
 
 	/** The signature as made, drawn on a canvas of its own. */
@@ -626,7 +631,7 @@ export function SignaturePad({
 
 				{way === "photo" && (
 					<div className={s.photo}>
-						{raw && <PhotoTrim source={raw} trim={trim} onTrim={setTrim} />}
+						{raw && <PhotoTrim source={raw} trim={trim} onTrim={trimTo} />}
 						{raw && (
 							// As tall with a signature or without: the dialog must not
 							// move under a finger still dragging on the photo.
@@ -645,7 +650,7 @@ export function SignaturePad({
 								)}
 							</div>
 						)}
-						{raw && (
+						{read && "amount" in read && (
 							<label className={s.inkDepth}>
 								<span>{t("Lighter")}</span>
 								<input
@@ -660,6 +665,19 @@ export function SignaturePad({
 								/>
 								<span>{t("Darker")}</span>
 							</label>
+						)}
+						{raw && (
+							<InkChoice
+								oneInk={oneInk}
+								onOneInk={setOneInk}
+								inks={INKS.map((colour) => [
+									colour,
+									colour === INKS[0] ? t("Black ink") : t("Blue ink"),
+								])}
+								ink={ink}
+								onInk={setInk}
+								testId="signature"
+							/>
 						)}
 						{!raw && (
 							<p className={s.hint}>

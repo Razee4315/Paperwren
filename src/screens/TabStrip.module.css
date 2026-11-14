@@ -127,3 +127,12 @@
 :global(html[data-fullscreen]) .strip {
 	display: none;
 }
+/* Going into full screen or out, it fades with the bars and leaves or
+ * comes back under the veil (lib/fullscreen.ts), not at once. */
+.strip {
+	transition: opacity 120ms var(--ease);
+}
+:global(html[data-fs-bars]) .strip {
+	opacity: 0;
+	transition-duration: 80ms;
+}

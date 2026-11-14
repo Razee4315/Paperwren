@@ -1,0 +1,5 @@
+Read a PDF one page at a time: Page view, in the file's menu or in Settings.
+Change any keyboard shortcut in Settings.
+Smoother zoom, crisper text, and the first file opens twice as fast.
+A shorter menu, and Settings in sections.
+Fixed: the Close button of What's new and of menus on a phone, and the arrow keys after a click on a PDF.

@@ -18,6 +18,10 @@ describe("file names", () => {
 		expect(nameProblem("Quarterly report", ".pdf")).toBeNull();
 		expect(nameProblem("Résumé – 2026", ".docx")).toBeNull();
 		expect(nameProblem("  ")).toBe("Type a name");
+		// All of it would be dropped at the end, leaving only ".pdf".
+		expect(nameProblem("...", ".pdf")).toBe("Type a name");
+		expect(nameProblem(". .", ".pdf")).toBe("Type a name");
+		expect(nameProblem(".hidden", ".pdf")).toBeNull();
 		expect(nameProblem("a/b")).toMatch(/can't contain/);
 		expect(nameProblem("what?")).toMatch(/can't contain/);
 		expect(nameProblem("CON")).toBe("That name is kept by the system");

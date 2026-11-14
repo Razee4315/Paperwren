@@ -5,6 +5,14 @@
  */
 
 import { backend } from "./backend";
+import {
+	type InkOptions,
+	type PixelImage,
+	type ReadPhoto,
+	inkFromPhoto,
+	oneInk,
+	readPhoto,
+} from "./inkFromPhoto";
 
 export interface Signature {
 	id: string;
@@ -111,52 +119,28 @@ export function clearShare(data: Uint8ClampedArray): number {
 	return data.length ? clear / (data.length / 4) : 0;
 }
 
-/**
- * A photo of a signature on paper, made into ink on nothing: the paper
- * (light, low in colour) turns clear, the ink keeps its colour and
- * grows more solid the darker it is. Works in place on RGBA pixels.
- * A picture with no light paper in it is left as it is. `depth` moves
- * the line between paper and ink: above 0 more of the page counts as
- * ink (a faint pen), below 0 less (a shadow on the paper).
- */
-export function inkFromPaper(data: Uint8ClampedArray, depth = 0): void {
-	// The paper's brightness: the brightest tenth of what is solid. Clear
-	// pixels read as black, so they would pass for dark paper.
-	const levels = new Uint32Array(256);
-	let solidCount = 0;
-	for (let i = 0; i < data.length; i += 4) {
-		if (data[i + 3] < 250) continue;
-		levels[Math.round((data[i] + data[i + 1] + data[i + 2]) / 3)]++;
-		solidCount++;
-	}
-	let seen = 0;
-	let paper = 255;
-	const top = solidCount / 10;
-	for (let v = 255; v >= 0; v--) {
-		seen += levels[v];
-		if (seen >= top) {
-			paper = v;
-			break;
-		}
-	}
-	if (!solidCount || paper < 96) return;
-	const clear = paper * (0.86 + depth * 0.12);
-	const solid = paper * (0.45 + depth * 0.25);
-	for (let i = 0; i < data.length; i += 4) {
-		const v = (data[i] + data[i + 1] + data[i + 2]) / 3;
-		const ink = v >= clear ? 0 : v <= solid ? 1 : (clear - v) / (clear - solid);
-		data[i + 3] = Math.round(data[i + 3] * ink);
-	}
+/** A picture of a signature or a stamp, ready to be made into ink: a
+ * PNG made with a clear background as it is, a photo or a scan read
+ * against its paper (which is slow, so it is done once). */
+export function readPicture(image: PixelImage): PixelImage | ReadPhoto {
+	return clearShare(image.data) >= 0.01 ? image : readPhoto(image);
 }
 
 /**
- * A picture of a signature or a stamp, made ready to place: one already
- * on a clear background (a PNG made for it) is kept as it is; a photo or
- * a scan has its paper made clear.
+ * A picture of a signature or a stamp, made ready to place, as a new
+ * picture: one already on a clear background (a PNG made for it) is
+ * kept as it is; a photo or a scan has its paper made clear. With one
+ * ink, every mark takes that colour.
  */
-export function inkFromPicture(data: Uint8ClampedArray, depth = 0): void {
-	if (clearShare(data) >= 0.01) return;
-	inkFromPaper(data, depth);
+export function inkFromPicture(
+	picture: PixelImage | ReadPhoto,
+	options: InkOptions = {},
+): PixelImage {
+	if ("amount" in picture || clearShare(picture.data) < 0.01)
+		return inkFromPhoto(picture, options);
+	const data = new Uint8ClampedArray(picture.data);
+	if (options.ink) oneInk(data, options.ink);
+	return { data, width: picture.width, height: picture.height };
 }
 
 /** The bytes of a PNG data URL. */

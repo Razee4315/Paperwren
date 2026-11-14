@@ -13,6 +13,7 @@ import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import { canSpeak } from "@/lib/speech";
 import type { PageColor, Position } from "@/lib/types";
 import { useBookmarks } from "@/state/bookmarks";
+import { useBackClose } from "@/state/navigation";
 import { useSettings } from "@/state/settings";
 import {
 	IconButton,
@@ -46,6 +47,7 @@ import {
 	type RefObject,
 	useContext,
 	useEffect,
+	useLayoutEffect,
 	useRef,
 	useState,
 	useSyncExternalStore,
@@ -299,6 +301,37 @@ function onFullscreenChange(then: () => void) {
 const readingFullscreen = () =>
 	document.documentElement.dataset.fullscreen === "page";
 
+/** A phone's full screen (⋮, Full screen): the app's bars go and so do
+ * the system's, and a tap on the page brings the app's back until the
+ * next tap. It lasts the session, so the next document opens in it
+ * too, but not past a restart. */
+let phoneFull = false;
+const phoneFullWatchers = new Set<() => void>();
+function setPhoneFull(on: boolean) {
+	if (phoneFull === on) return;
+	phoneFull = on;
+	for (const then of phoneFullWatchers) then();
+}
+function onPhoneFullChange(then: () => void) {
+	phoneFullWatchers.add(then);
+	return () => {
+		phoneFullWatchers.delete(then);
+	};
+}
+/** Whether a phone's full screen is on (a slide show that ends leaves
+ * the system's bars as this says). */
+export const inPhoneFull = () => phoneFull;
+
+/** The system's bars over a phone's screen hidden, or shown again. A
+ * browser has no shell to ask: there only the app's bars go. */
+function systemBars(hidden: boolean) {
+	try {
+		window.__paperwrenAndroidExtras?.immersive?.(hidden, false);
+	} catch {
+		// An older shell: the app's bars still go.
+	}
+}
+
 /** A window too narrow for full screen's button in the bar: it is in
  * the menu instead. */
 const NARROW = "(max-width: 720px)";
@@ -323,7 +356,7 @@ export function Shell({
 	onPrint,
 	hud,
 	progressOf,
-	chromeHidden = false,
+	chromeHidden: chromeHiddenGiven,
 	children,
 	active,
 	pageKeys = true,
@@ -361,6 +394,9 @@ export function Shell({
 	hud?: RefObject<HTMLDivElement>;
 	/** The scroller whose reading progress the top bar shows. */
 	progressOf?: RefObject<HTMLElement | null>;
+	/** The viewer's own show and hide of the bars, turned over by a tap
+	 * on the page. A viewer without it has no phone full screen: nothing
+	 * would bring its bars back. */
 	chromeHidden?: boolean;
 	children: ReactNode;
 	active: boolean;
@@ -394,6 +430,7 @@ export function Shell({
 	speech?: SpeechSource;
 }) {
 	const { settings, update } = useSettings();
+	const chromeHidden = chromeHiddenGiven ?? false;
 	const [colorOpen, setColorOpen] = useState(false);
 	const [keysOpen, setKeysOpen] = useState(false);
 	const full = useSyncExternalStore(onFullscreenChange, readingFullscreen);
@@ -506,7 +543,16 @@ export function Shell({
 			window.__paperwrenVolumeKey = undefined;
 		};
 	}, [active, settings.volumeKeys]);
-	// Scrolling on hides the bars; scrolling back (or a tap) brings them.
+	// What the bars do while reading (Settings, "Bars while reading"):
+	// stay; go as the reader scrolls on and come back as they scroll
+	// back or tap; or go as they scroll on and come back only for a tap.
+	// A computer keeps them.
+	const barMode = isDesktop ? "always" : settings.readingBars;
+	// Only where a tap can bring the bars back: a spreadsheet opened in
+	// a session in full screen keeps its bars.
+	const canFull = !isDesktop && chromeHiddenGiven !== undefined;
+	const immersed =
+		useSyncExternalStore(onPhoneFullChange, inPhoneFull) && canFull;
 	// The viewer's tap turns its own switch over: a tap while the bars
 	// went by themselves must bring them back, so then the switch reads
 	// the other way round.
@@ -514,6 +560,8 @@ export function Shell({
 	const [tapShows, setTapShows] = useState(false);
 	const autoHiddenRef = useRef(autoHidden);
 	autoHiddenRef.current = autoHidden;
+	const chromeHiddenRef = useRef(chromeHidden);
+	chromeHiddenRef.current = chromeHidden;
 	useEffect(() => {
 		if (!autoHiddenRef.current) return;
 		setTapShows(chromeHidden);
@@ -521,7 +569,8 @@ export function Shell({
 	}, [chromeHidden]);
 	useEffect(() => {
 		const el = progressOf?.current;
-		if (isDesktop || !settings.autoHideBars || !el || !active) return;
+		if (barMode === "always" || immersed || !el || !active) return;
+		const comeBack = barMode === "scroll";
 		let last = el.scrollTop;
 		const onScroll = () => {
 			const y = el.scrollTop;
@@ -529,13 +578,86 @@ export function Shell({
 				setAutoHidden(true);
 				last = y;
 			} else if (last - y > 48) {
-				setAutoHidden(false);
+				// Shown only on a tap: scrolling back leaves them gone.
+				if (comeBack) setAutoHidden(false);
 				last = y;
 			} else if (y < last) last = Math.max(y, last - 48);
 		};
 		el.addEventListener("scroll", onScroll, { passive: true });
 		return () => el.removeEventListener("scroll", onScroll);
-	}, [progressOf, settings.autoHideBars, active]);
+	}, [progressOf, barMode, immersed, active]);
+	// In full screen the bars are gone until a tap turns the viewer's
+	// switch over, and back after the next: they show while it reads the
+	// other way from where it was on the way in. On the way out they show.
+	const [fullFrom, setFullFrom] = useState(chromeHidden);
+	const wasImmersed = useRef(immersed);
+	useLayoutEffect(() => {
+		if (wasImmersed.current === immersed) return;
+		wasImmersed.current = immersed;
+		if (immersed) setFullFrom(chromeHiddenRef.current);
+		else {
+			setTapShows(chromeHiddenRef.current);
+			setAutoHidden(false);
+		}
+	}, [immersed]);
+	const fullHere = immersed && active;
+	useEffect(() => {
+		if (!fullHere) return;
+		systemBars(true);
+		// Leaving the document, or another screen over it, gives the
+		// system its bars back; coming back to it takes them again.
+		return () => systemBars(false);
+	}, [fullHere]);
+	// Back leaves full screen before it closes the document.
+	useBackClose("phone-fullscreen", fullHere, () => setPhoneFull(false));
+	const togglePhoneFull = () => {
+		if (!phoneFull) toast(t("Tap the page to show the bars"));
+		setPhoneFull(!phoneFull);
+	};
+	// Bars that go while reading float over the document and slide away,
+	// so the document keeps its size and nothing is laid out again as
+	// they move (#82). Its scroller keeps room for them, as padding of
+	// --bars-top and --bars-bottom, so the first and the last lines are
+	// not under them while they show. Bars that are always shown stay
+	// in the layout as they were: a tap that hides them gives the
+	// document their room.
+	const floating =
+		!isDesktop && canScroll && (barMode !== "always" || immersed);
+	const topBar = useRef<HTMLElement>(null);
+	const footBar = useRef<HTMLElement>(null);
+	const footed = !!(bottom || (pager && !isDesktop));
+	// biome-ignore lint/correctness/useExhaustiveDependencies: watched again when the bottom bar comes or goes
+	useLayoutEffect(() => {
+		const root = shell.current;
+		if (!root || !floating) return;
+		const room = () => {
+			// offsetHeight is the bar's size wherever its transform has it.
+			root.style.setProperty(
+				"--bars-top",
+				`${topBar.current?.offsetHeight ?? 0}px`,
+			);
+			// A phone held sideways has the bottom bar as a rail beside the
+			// document, in a column of its own: nothing to keep clear of at
+			// the foot (Shell.module.css, --rail).
+			const rail =
+				getComputedStyle(root).getPropertyValue("--rail").trim() === "1";
+			root.style.setProperty(
+				"--bars-bottom",
+				`${rail ? 0 : (footBar.current?.offsetHeight ?? 0)}px`,
+			);
+		};
+		room();
+		// The find bar opens inside the top one and makes it taller.
+		const watch =
+			typeof ResizeObserver === "function" ? new ResizeObserver(room) : null;
+		for (const bar of [topBar.current, footBar.current])
+			if (bar) watch?.observe(bar);
+		return () => {
+			watch?.disconnect();
+			root.style.removeProperty("--bars-top");
+			root.style.removeProperty("--bars-bottom");
+		};
+	}, [floating, footed]);
 
 	const fileMenu = (close: () => void) => (
 		<>
@@ -839,7 +961,11 @@ export function Shell({
 		};
 	}, [active, finding]);
 
-	const barsHidden = (chromeHidden !== tapShows || autoHidden) && !finding;
+	const barsHidden =
+		!finding &&
+		(immersed
+			? chromeHidden === fullFrom
+			: chromeHidden !== tapShows || autoHidden);
 	const tabs = isDesktop
 		? [
 				...(side ?? []),
@@ -869,6 +995,8 @@ export function Shell({
 			ref={shell}
 			className={s.shell}
 			data-testid="viewer"
+			data-floating={floating ? "" : undefined}
+			data-immersed={immersed ? "" : undefined}
 			// A tab not on show keeps its size, its place and its drawn
 			// pages: hidden, not taken out of the layout, so showing it
 			// again redraws nothing and replays no entrance (#84). Side by
@@ -877,6 +1005,7 @@ export function Shell({
 			{...inert(!onShow(active, pane))}
 		>
 			<header
+				ref={topBar}
 				className={`${s.top} ${barsHidden ? s.hiddenTop : ""} ${finding ? s.pinned : ""}`}
 				{...inert(barsHidden)}
 			>
@@ -921,14 +1050,20 @@ export function Shell({
 						onPrint={onPrint}
 						active={active}
 						fullscreen={
-							isDesktop && narrow ? { on: full, toggle: fullscreen } : undefined
+							isDesktop
+								? narrow
+									? { on: full, toggle: fullscreen }
+									: undefined
+								: canFull
+									? { on: immersed, toggle: togglePhoneFull }
+									: undefined
 						}
 					/>
 				</div>
 				{find}
 				{progressOf && <Progress of={progressOf} value={progress} />}
 			</header>
-			<div className={s.body}>
+			<div className={s.body} data-testid="viewer-body">
 				{sideOpen && (
 					<SidePanel
 						tabs={tabs}
@@ -994,8 +1129,9 @@ export function Shell({
 					/>
 				</Sheet>
 			)}
-			{(bottom || (pager && !isDesktop)) && (
+			{footed && (
 				<footer
+					ref={footBar}
 					className={`${s.bottom} ${barsHidden ? s.hiddenBottom : ""}`}
 					{...inert(barsHidden)}
 				>

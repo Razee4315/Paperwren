@@ -9,7 +9,7 @@ export const FAQ = [
 	},
 	{
 		q: "Which files can it open?",
-		a: "PDF (including password-protected files), Word .docx, Excel .xlsx, .xlsm, .xlsb and .xls, PowerPoint .pptx, OpenDocument .odt, .ods and .odp, legacy .doc and .ppt, RTF, EPUB books, CBZ comics, CSV, TSV, Markdown, plain text, logs, JSON, XML and source code, and pictures (JPEG, PNG, GIF, WebP, SVG, AVIF, HEIC and TIFF).",
+		a: "PDF (including password-protected files), Word .docx, Excel .xlsx, .xlsm, .xlsb and .xls, PowerPoint .pptx, OpenDocument .odt, .ods and .odp, legacy .doc and .ppt, RTF, EPUB books, CBZ comics, CSV, TSV, Markdown, plain text, logs, JSON, XML and source code, contact cards (.vcf), 3D models (.glb), and pictures (JPEG, PNG, GIF, WebP, SVG, AVIF, HEIC and TIFF).",
 	},
 	{
 		q: "Can I edit documents with it?",

@@ -229,7 +229,7 @@
 /* Zoom level, shown only while a gesture is changing it. */
 .hud {
 	position: absolute;
-	top: 14px;
+	top: calc(14px + var(--bars-top, 0px));
 	left: 0;
 	right: 0;
 	margin-inline: auto;
@@ -292,6 +292,165 @@
 	margin-bottom: -80px;
 	opacity: 0;
 	pointer-events: none;
+}
+/* Bars that go while reading (Shell.tsx, `floating`) lie over the
+ * document and slide away on the compositor: the document keeps its
+ * size, so showing and hiding them lays nothing out again. What sits
+ * over the document keeps clear of them by --bars-top and
+ * --bars-bottom, which are 0 wherever the bars do not float. */
+.shell {
+	--bars-top: 0px;
+	--bars-bottom: 0px;
+}
+.shell[data-floating] > .top,
+.shell[data-floating] > .bottom {
+	position: absolute;
+	left: 0;
+	right: 0;
+	/* Over what the document lays over itself: the dimmer, the zoom
+	 * level, the read aloud bar. */
+	z-index: 10;
+	transition: transform var(--t-med) var(--ease), opacity var(--t-med)
+		var(--ease);
+}
+.shell[data-floating] > .top {
+	top: 0;
+}
+.shell[data-floating] > .bottom {
+	bottom: 0;
+}
+.shell[data-floating] > .hiddenTop {
+	margin-top: 0;
+	transform: translateY(-100%);
+}
+.shell[data-floating] > .hiddenBottom {
+	margin-bottom: 0;
+	transform: translateY(100%);
+}
+
+/* ---------- A phone held sideways ----------
+ * Height is what a sideways phone lacks: the top bar is a desktop's
+ * height, and the bottom bar is a rail at the inline end (the left in
+ * Arabic and Urdu) with its controls in a column. The rail keeps its
+ * column even while it floats, so the document never changes width;
+ * it slides aside instead of down. --rail tells Shell.tsx the bottom
+ * bar takes no room at the foot. */
+@media (orientation: landscape) and (max-height: 500px) {
+	:global(html:not(.desktop)) .shell {
+		--bar-h: 44px;
+		--rail: 1;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-rows: auto minmax(0, 1fr);
+	}
+	:global(html:not(.desktop)) .shell > .top {
+		grid-column: 1 / -1;
+	}
+	:global(html:not(.desktop)) .shell > .body {
+		grid-area: 2 / 1;
+	}
+	:global(html:not(.desktop)) .shell > .bottom {
+		grid-area: 2 / 2;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		border-top: 0;
+		border-inline-start: 1px solid var(--line);
+		padding-inline-end: var(--safe-right);
+		transition: margin-inline-end var(--t-med) var(--ease), opacity var(--t-med)
+			var(--ease);
+	}
+	:global(html[dir="rtl"]:not(.desktop)) .shell > .bottom {
+		padding-inline-end: var(--safe-left);
+	}
+	:global(html:not(.desktop)) .shell > .hiddenBottom {
+		margin-bottom: 0;
+		margin-inline-end: -120px;
+	}
+	/* Floating, the rail stays in its column (the top bar lies over its
+	 * head, so its controls start under it) and moves by transform. */
+	:global(html:not(.desktop)) .shell[data-floating] > .bottom {
+		position: relative;
+		left: auto;
+		right: auto;
+		bottom: auto;
+		/* Under the top bar, whose end it would otherwise cover. */
+		z-index: 9;
+		padding-top: var(--bars-top, 0px);
+		transition: transform var(--t-med) var(--ease), opacity var(--t-med)
+			var(--ease);
+	}
+	:global(html:not(.desktop)) .shell[data-floating] > .hiddenBottom {
+		margin-inline-end: 0;
+		transform: translateX(100%);
+	}
+	:global(html[dir="rtl"]:not(.desktop)) .shell[data-floating] > .hiddenBottom {
+		transform: translateX(-100%);
+	}
+	/* In full screen the document has the whole width, and the rail
+	 * comes back over its edge for a tap. */
+	:global(html:not(.desktop)) .shell[data-floating][data-immersed] > .bottom {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		inset-inline-end: 0;
+	}
+	/* The controls, one under another: the zoom first, then the page,
+	 * then the rest. More than the height holds scroll. Auto margins
+	 * centre them while they fit and give way when they do not. */
+	:global(html:not(.desktop)) .bottom .pager {
+		flex-direction: column;
+		justify-content: flex-start;
+		gap: 12px;
+		height: auto;
+		min-height: 0;
+		margin-block: auto;
+		padding: 8px 4px;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+	:global(html:not(.desktop)) .bottom .zoom {
+		order: -1;
+		flex-direction: column;
+		width: 44px;
+		height: auto;
+	}
+	:global(html:not(.desktop)) .bottom .zoomValue {
+		min-width: 0;
+		width: 44px;
+		height: auto;
+		min-height: 40px;
+		padding: 2px;
+		font-size: 11.5px;
+		line-height: 1.15;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		text-align: center;
+	}
+	:global(html:not(.desktop)) .bottom .group {
+		flex-direction: column;
+	}
+	:global(html:not(.desktop)) .bottom .pill {
+		flex-shrink: 0;
+		min-width: 0;
+		width: 44px;
+		height: auto;
+		min-height: 40px;
+		padding: 4px 2px;
+		border-radius: 22px;
+		font-size: 12px;
+		line-height: 1.2;
+	}
+	:global(html:not(.desktop)) .bottom .meta {
+		flex-shrink: 0;
+		width: 44px;
+		padding: 0;
+		font-size: 11px;
+		line-height: 1.2;
+		text-align: center;
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
 }
 
 .find {
@@ -385,6 +544,14 @@ button.findCount {
 :global(html.desktop) .title {
 	font-size: 14px;
 }
+/* Linux: the system's title bar already names the document. The empty
+ * title keeps the room, so the tools stay at the right. */
+:global(html.linux) .title {
+	pointer-events: none;
+}
+:global(html.linux) .title > * {
+	display: none;
+}
 :global(html.desktop) .zoom,
 :global(html.desktop) .zoom > button:first-child,
 :global(html.desktop) .zoom > button:last-child {
@@ -409,11 +576,40 @@ button.findCount {
 	right: 0;
 	transition: transform var(--t-med) var(--ease);
 }
+/* Past its own height and the reading progress line hanging below it. */
 :global(html[data-fullscreen="page"]:not([data-reveal])) .top:not(.pinned) {
-	transform: translateY(-101%);
+	transform: translateY(calc(-100% - 2px));
 }
 :global(html[data-fullscreen="page"]) .bottom {
 	display: none;
+}
+/* Going into full screen or out (lib/fullscreen.ts): the document fades
+ * to its canvas while the window changes, and back once it has settled
+ * and been fitted again, so no size on the way is seen. The bars fade
+ * while they are still in the layout, and leave it (or come back to it)
+ * only under the veil: the page never jumps where it can be seen.
+ * Reduced motion makes both instant (global.css). */
+.body {
+	position: relative;
+}
+.body::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 50;
+	background: var(--canvas);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms var(--ease);
+}
+:global(html[data-fs-veil]) .body::after {
+	opacity: 1;
+	transition-duration: 80ms;
+}
+:global(html[data-fs-bars]) .top:not(.pinned),
+:global(html[data-fs-bars]) .bottom {
+	opacity: 0;
+	transition-duration: 80ms;
 }
 
 .pager {
@@ -544,7 +740,7 @@ button.findCount {
 	right: 0;
 	margin-inline: auto;
 	width: fit-content;
-	top: 12px;
+	top: calc(12px + var(--bars-top, 0px));
 	z-index: 4;
 	max-width: calc(100% - 32px);
 	padding: 8px 14px;
@@ -563,9 +759,9 @@ button.findCount {
 .scrub {
 	display: none;
 	position: absolute;
-	top: 8px;
+	top: calc(8px + var(--bars-top, 0px));
 	right: 0;
-	bottom: 8px;
+	bottom: calc(8px + var(--bars-bottom, 0px));
 	z-index: 4;
 	width: 28px;
 	pointer-events: none;
@@ -648,7 +844,7 @@ button.findCount {
 /* Read aloud: a small bar over the foot of the document while it reads. */
 .speech {
 	position: absolute;
-	bottom: 16px;
+	bottom: calc(16px + var(--bars-bottom, 0px));
 	left: 0;
 	right: 0;
 	margin-inline: auto;
@@ -713,6 +909,12 @@ button.findCount {
 	margin: 8px 0 0;
 	font-size: 13px;
 	color: var(--danger, #b0312c);
+}
+/* Only the app's name for the file changes: said before it is done. */
+.renameNote {
+	margin: 8px 0 0;
+	font-size: 13px;
+	color: var(--text-2);
 }
 
 /* Desktop: a window's screens change in place, with a short fade; a

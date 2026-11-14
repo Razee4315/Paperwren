@@ -43,7 +43,7 @@ Grab the file for your device from the [latest release](https://github.com/Razee
 
 <img src="docs/readme/wren-open.webp" width="104" align="right" alt="" />
 
-PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, Markdown, plain text, source code, comic books and pictures. Those old `.doc`, `.xls` and `.ppt` files too, the ones nobody wants to deal with.
+PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, Markdown, plain text, source code, contact cards, 3D models, comic books and pictures. Those old `.doc`, `.xls` and `.ppt` files too, the ones nobody wants to deal with.
 
 Got a file with the wrong name or no extension at all? Paperwren looks inside the file, so it still opens in the right viewer.
 
@@ -93,9 +93,9 @@ Scanning, signing, merging, shrinking. The stuff you used to upload to random we
 |---|---|
 | A pile of paper | **Scan a document**: a straight, clean PDF from your phone's camera |
 | A plan or a draft to check | **Mark up**: draw, write, highlight, even measure lengths on a plan |
-| A PDF too big to email | **Compress PDF** |
+| A PDF too big to email | **Compress PDF**, aimed at a size such as 500 KB |
 | A scan you can't copy from | **Read text**: pulls out the words in nine languages, right on your device |
-| Five PDFs that should be one | **Merge PDFs** |
+| Five PDFs that should be one | **Merge PDFs**, picked all at once |
 | One PDF that should be five | **Split or extract pages** |
 | Pages in the wrong order | **Organize pages** |
 | Photos for a form | **Pictures to PDF**, and PDF to pictures for the trip back |
@@ -110,7 +110,8 @@ Every tool saves a new file where you choose. Your original stays exactly as it 
 - **Notes**, typed or handwritten, all searchable
 - **Read aloud** with your device's own voices
 - **Presenter view and a laser pointer** for slide decks
-- **Tabs** on Windows, one per document
+- **Tabs** on Windows and Linux, one per document, in one window
+- **Bars that step aside** while you read on a phone, and a full screen
 - **Volume keys** that turn pages on your phone
 - **Nine languages**: English, 中文, हिन्दी, Español, Français, Português, Русский, العربية and اردو
 

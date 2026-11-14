@@ -376,6 +376,64 @@
 :global(html.desktop) .bar {
 	min-height: 40px;
 }
+/* A phone held sideways: the bar is a rail beside the grid
+ * (Shell.module.css). The tabs stand on end in a column that scrolls,
+ * and what the rows and the chosen cell are is a card beside it. */
+@media (orientation: landscape) and (max-height: 500px) {
+	:global(html:not(.desktop)) .bar {
+		flex: 0 1 auto;
+		flex-direction: column;
+		min-height: 0;
+		margin-block: auto;
+		padding: 8px 4px;
+	}
+	:global(html:not(.desktop)) .tabs {
+		flex: 0 1 auto;
+		flex-direction: column;
+		align-items: center;
+		width: 44px;
+		min-height: 0;
+		overflow-x: hidden;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		padding: 0;
+	}
+	:global(html:not(.desktop)) .tab,
+	:global(html:not(.desktop)) .size {
+		writing-mode: vertical-rl;
+		flex: none;
+		width: 40px;
+		height: auto;
+		max-width: none;
+		max-height: 150px;
+		padding: 14px 0;
+	}
+	:global(html:not(.desktop)) .size {
+		padding: 0;
+	}
+	:global(html:not(.desktop)) .notes:empty {
+		display: none;
+	}
+	:global(html:not(.desktop)) .notes {
+		position: absolute;
+		inset-inline-end: calc(100% + 8px);
+		bottom: calc(8px + var(--safe-bottom));
+		z-index: 1;
+		width: min(440px, calc(100vw - 96px));
+		border: 1px solid var(--line-strong);
+		border-radius: var(--r-m);
+		background: var(--surface);
+		overflow: hidden;
+	}
+	:global(html:not(.desktop)) .notes > :last-child {
+		border-bottom: 0;
+	}
+	:global(html:not(.desktop)) .notes .limit,
+	:global(html:not(.desktop)) .notes .arranged,
+	:global(html:not(.desktop)) .notes .detail {
+		padding-inline: 12px 4px;
+	}
+}
 :global(html.desktop) .tab {
 	height: 28px;
 	font-size: 13px;

@@ -6,6 +6,7 @@ import {
 	type PageColor,
 	type PdfFlow,
 	type PdfZoom,
+	type ReadingBars,
 	type ReadingFont,
 	type ResolvedTheme,
 	type Settings,
@@ -56,6 +57,18 @@ export function resolvePageColor(
 	if (isDarkTheme(theme)) return "dark";
 	return theme === "sepia" ? "sepia" : "original";
 }
+export const READING_BARS: ReadingBars[] = ["always", "scroll", "tap"];
+
+/** What the bars do while reading, from stored settings. Before 1.8 it
+ * was a switch, "Hide the bars while reading": on is hiding them as the
+ * reader scrolls, off is keeping them. A choice made since wins. */
+export function readingBarsOf(raw: Record<string, unknown>): ReadingBars {
+	if (READING_BARS.includes(raw.readingBars as ReadingBars))
+		return raw.readingBars as ReadingBars;
+	if (raw.autoHideBars === true) return "scroll";
+	if (raw.autoHideBars === false) return "always";
+	return DEFAULT_SETTINGS.readingBars;
+}
 const LIMITS = [20, 50, 100, 500];
 const UPDATE_CHECKS: UpdateChecks[] = ["ask", "auto", "off"];
 
@@ -103,7 +116,7 @@ export function normalizeSettings(value: unknown): Settings {
 		volumeKeys: bool(raw.volumeKeys, DEFAULT_SETTINGS.volumeKeys),
 		tapToTurn: bool(raw.tapToTurn, DEFAULT_SETTINGS.tapToTurn),
 		reopenLast: bool(raw.reopenLast, DEFAULT_SETTINGS.reopenLast),
-		autoHideBars: bool(raw.autoHideBars, DEFAULT_SETTINGS.autoHideBars),
+		readingBars: readingBarsOf(raw),
 		dim: range(raw.dim, 0, MAX_DIM, DEFAULT_SETTINGS.dim),
 		scrollSpeed: range(
 			raw.scrollSpeed,

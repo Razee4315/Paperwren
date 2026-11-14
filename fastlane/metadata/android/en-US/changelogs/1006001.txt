@@ -1,0 +1,5 @@
+Two plain themes, Light and Dark. Paper, Sand and Ink stay.
+A long dialog in a short window keeps its buttons in view.
+Notes have a roomy place to write, with the highlighted words above the box.
+The bar on a highlight sits above it instead of over its words.
+File details no longer say "PDF - PDF".

@@ -11,6 +11,7 @@ import {
 } from "@/lib/ocr";
 import { loadRead, saveRead } from "@/lib/ocrStore";
 import { addTextLayer } from "@/lib/pdfTools";
+import { copyNote } from "@/lib/protection";
 import { holdScreen } from "@/lib/wake";
 import { useBackClose } from "@/state/navigation";
 import { Button, IconButton, toast } from "@/ui";
@@ -646,6 +647,11 @@ export function ReadText({
 			)}
 			{phase === "done" && words > 0 && (
 				<footer className={`${s.actions} ${s.withLink}`}>
+					{source.pdf && scanned.length > 0 && copyNote(source.protection) && (
+						<p className={s.copyNote} data-testid="copy-note">
+							{copyNote(source.protection)}
+						</p>
+					)}
 					{missing.length > 0 && (
 						<Button onClick={run} data-testid="read-more">
 							<Play size={16} />

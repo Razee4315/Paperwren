@@ -718,8 +718,6 @@ ROWS = [
     ("Down for the next page, up for the one before", "نیچے والا اگلے صفحے کے لیے، اوپر والا پچھلے کے لیے", "خفض الصوت للصفحة التالية، ورفعه للسابقة", "音量减翻到下一页，音量加翻回上一页", "नीचे वाला अगले पृष्ठ के लिए, ऊपर वाला पिछले के लिए", "Bajar para la siguiente página, subir para la anterior", "Bas pour la page suivante, haut pour la précédente", "Вниз — следующая страница, вверх — предыдущая", "Para baixo, a próxima página; para cima, a anterior"),
     ("Tap the sides to turn pages", "صفحے پلٹنے کے لیے کناروں پر تھپتھپائیں", "انقر على الجانبين لقلب الصفحات", "点按两侧翻页", "पृष्ठ पलटने के लिए किनारों पर टैप करें", "Tocar los lados para pasar páginas", "Toucher les bords pour tourner les pages", "Листать страницы касанием по краям", "Tocar nas laterais para virar páginas"),
     ("The left edge goes back, the right edge on", "بایاں کنارہ پیچھے، دایاں آگے", "الحافة اليسرى للرجوع واليمنى للتقدم", "左边缘后退，右边缘前进", "बायाँ किनारा पीछे, दायाँ आगे", "El borde izquierdo retrocede, el derecho avanza", "Le bord gauche recule, le bord droit avance", "Левый край — назад, правый — вперёд", "A borda esquerda volta, a direita avança"),
-    ("Hide the bars while reading", "پڑھتے وقت بار چھپائیں", "إخفاء الأشرطة أثناء القراءة", "阅读时隐藏工具栏", "पढ़ते समय बार छिपाएँ", "Ocultar las barras al leer", "Masquer les barres pendant la lecture", "Скрывать панели при чтении", "Ocultar as barras durante a leitura"),
-    ("They come back when you scroll back or tap", "واپس سکرول کرنے یا تھپتھپانے پر واپس آ جاتے ہیں", "تعود عند التمرير للخلف أو النقر", "向回滚动或点按即可重新显示", "वापस स्क्रॉल करने या टैप करने पर लौट आते हैं", "Vuelven al desplazarte hacia atrás o tocar", "Elles reviennent quand vous remontez ou touchez l'écran", "Они вернутся, когда вы прокрутите назад или коснётесь экрана", "Elas voltam quando você rola para trás ou toca na tela"),
     # ---- pictures ----
     ("Mirror left to right", "بائیں سے دائیں الٹیں", "قلب من اليسار إلى اليمين", "左右翻转", "बाएँ से दाएँ पलटें", "Reflejar de izquierda a derecha", "Retourner de gauche à droite", "Отразить слева направо", "Espelhar da esquerda para a direita"),
     ("Mirror top to bottom", "اوپر سے نیچے الٹیں", "قلب من الأعلى إلى الأسفل", "上下翻转", "ऊपर से नीचे पलटें", "Reflejar de arriba abajo", "Retourner de haut en bas", "Отразить сверху вниз", "Espelhar de cima para baixo"),
@@ -823,3 +821,39 @@ ROWS += AUDIT_UX_ROWS
 # Words for the 1.7.1 fixes: tabs and pictures added many at once.
 from fixes_171_ux import ROWS as FIXES_171_UX_ROWS
 ROWS += FIXES_171_UX_ROWS
+
+# Words for Compress PDF in 1.8: a size to aim for, pages as pictures
+# and keeping quality.
+from compress_18 import ROWS as COMPRESS_18_ROWS
+ROWS += COMPRESS_18_ROWS
+
+# Words for reading in 1.8: what the bars do, and a phone's full screen.
+from reading_18 import ROWS as READING_18_ROWS
+ROWS += READING_18_ROWS
+
+# Words for vCard contact cards in 1.8.
+from vcf_18 import ROWS as VCF_18_ROWS
+ROWS += VCF_18_ROWS
+
+# Words for signatures and stamps from photos in 1.8: their own
+# colours or one ink.
+from ink_18 import ROWS as INK_18_ROWS
+ROWS += INK_18_ROWS
+
+# Words for saving a cropped copy in 1.8.
+from crop_18 import ROWS as CROP_18_ROWS
+ROWS += CROP_18_ROWS
+
+# Words for opening 3D models (.glb) in 1.8.
+from model_18 import ROWS as MODEL_18_ROWS
+ROWS += MODEL_18_ROWS
+
+# Words for renaming in 1.8: when only Paperwren's name for a file
+# changes, and why a rename was refused.
+from rename_18 import ROWS as RENAME_18_ROWS
+ROWS += RENAME_18_ROWS
+
+# Words for saying that a copy of a protected PDF keeps neither its
+# password nor its limits.
+from protected_18 import ROWS as PROTECTED_18_ROWS
+ROWS += PROTECTED_18_ROWS

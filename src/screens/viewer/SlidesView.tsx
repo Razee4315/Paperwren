@@ -1,5 +1,6 @@
 import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
+import { fitWhenSettled } from "@/lib/fullscreen";
 import { t, uiDir } from "@/lib/i18n";
 import type { DeckResult } from "@/lib/parseWorker";
 import {
@@ -744,9 +745,13 @@ export default function SlidesView({
 			setMeasured(true);
 		};
 		measure();
-		const ro = new ResizeObserver(measure);
+		const fit = fitWhenSettled(measure);
+		const ro = new ResizeObserver(fit.run);
 		ro.observe(el);
-		return () => ro.disconnect();
+		return () => {
+			ro.disconnect();
+			fit.stop();
+		};
 	}, [deck]);
 
 	const { zoomBy, zoomTo } = useZoom({

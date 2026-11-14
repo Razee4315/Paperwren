@@ -708,9 +708,6 @@ export const hi: Table = {
 		"नीचे वाला अगले पृष्ठ के लिए, ऊपर वाला पिछले के लिए",
 	"Tap the sides to turn pages": "पृष्ठ पलटने के लिए किनारों पर टैप करें",
 	"The left edge goes back, the right edge on": "बायाँ किनारा पीछे, दायाँ आगे",
-	"Hide the bars while reading": "पढ़ते समय बार छिपाएँ",
-	"They come back when you scroll back or tap":
-		"वापस स्क्रॉल करने या टैप करने पर लौट आते हैं",
 	"Mirror left to right": "बाएँ से दाएँ पलटें",
 	"Mirror top to bottom": "ऊपर से नीचे पलटें",
 	"Size in pixels": "पिक्सेल में आकार",
@@ -1228,4 +1225,97 @@ export const hi: Table = {
 	"Adding {n} of {total}…": "{total} में से {n} जोड़ी जा रही है…",
 	"Sort by name": "नाम से क्रमबद्ध करें",
 	"Only the first {n} were added": "केवल पहली {n} जोड़ी गईं",
+	"Or aim for a size": "या कोई आकार तय करें",
+	"Or type a size": "या आकार लिखें",
+	KB: "KB",
+	MB: "MB",
+	"Trying settings, {n} of up to {total}…":
+		"सेटिंग आज़माई जा रही हैं, अधिकतम {total} में से {n}…",
+	"This PDF is already under {size}, so no copy was made.":
+		"यह PDF पहले से ही {size} से छोटी है, इसलिए कोई प्रति नहीं बनी।",
+	"The smallest this PDF can be with its text kept is {size}.":
+		"पाठ बनाए रखते हुए यह PDF कम से कम {size} की हो सकती है।",
+	"As pictures its pages can be smaller, but their text can no longer be selected or searched.":
+		"तस्वीरों के रूप में इसके पृष्ठ छोटे हो सकते हैं, लेकिन फिर उनका पाठ न चुना जा सकेगा, न खोजा जा सकेगा।",
+	"In grey, for a smaller file": "धूसर रंग में, छोटी फ़ाइल के लिए",
+	"Turn pages into pictures": "पृष्ठों को तस्वीरों में बदलें",
+	"Drawing page {page} of {pages}, try {n} of up to {total}…":
+		"पृष्ठ {page} / {pages} बनाया जा रहा है, अधिकतम {total} में से प्रयास {n}…",
+	"Its pages are now pictures: their text can't be selected or searched.":
+		"अब इसके पृष्ठ तस्वीरें हैं: उनका पाठ न चुना जा सकता है, न खोजा जा सकता है।",
+	"Even as pictures, the smallest this PDF can be is {size}, so no copy was made.":
+		"तस्वीरों के रूप में भी यह PDF कम से कम {size} की है, इसलिए कोई प्रति नहीं बनी।",
+	"Or keep every picture as it is": "या हर तस्वीर को जैसी है वैसी रखें",
+	"Keep quality (lossless)": "गुणवत्ता बनाए रखें (लॉसलेस)",
+	"No picture is changed: only what nothing uses is taken out, and the rest is packed tighter.":
+		"कोई तस्वीर नहीं बदलती: सिर्फ़ वह हटाया जाता है जिसका कहीं उपयोग नहीं होता, और बाकी को और कसकर पैक किया जाता है।",
+	"No picture was changed.": "कोई तस्वीर नहीं बदली।",
+	"Without changing a picture this PDF gets only {n}% smaller, so no copy was made.":
+		"कोई तस्वीर बदले बिना यह PDF सिर्फ़ {n}% छोटी होती है, इसलिए कोई प्रति नहीं बनी।",
+	"Bars while reading": "पढ़ते समय बार",
+	Always: "हमेशा",
+	"Auto-hide": "अपने-आप",
+	"Tap only": "सिर्फ़ टैप",
+	"They stay, unless you tap the page": "ये बने रहते हैं, जब तक आप पृष्ठ पर टैप न करें",
+	"They go as you read on, and come back when you scroll back or tap":
+		"आगे पढ़ने पर छिप जाते हैं, और वापस स्क्रॉल करने या टैप करने पर लौट आते हैं",
+	"They go as you read on, and only a tap brings them back":
+		"आगे पढ़ने पर छिप जाते हैं, और सिर्फ़ टैप करने से लौटते हैं",
+	"Tap the page to show the bars": "बार दिखाने के लिए पृष्ठ पर टैप करें",
+	Mobile: "मोबाइल",
+	Home: "घर",
+	Work: "कार्यालय",
+	Fax: "फ़ैक्स",
+	Main: "मुख्य",
+	Phone: "फ़ोन",
+	Email: "ईमेल",
+	Address: "पता",
+	Organisation: "संस्था",
+	"Job title": "पद",
+	Website: "वेबसाइट",
+	Birthday: "जन्मदिन",
+	"Contacts: {n}": "संपर्क: {n}",
+	"No contacts found": "कोई संपर्क नहीं मिला",
+	"Unnamed contact": "बिना नाम का संपर्क",
+	"Keep colours": "रंग बनाए रखें",
+	"One ink": "एक स्याही",
+	"Save a cropped copy": "काटी हुई प्रति सहेजें",
+	cropped: "काटी हुई",
+	"Can't show this model": "यह मॉडल दिखाया नहीं जा सकता",
+	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
+		"फ़ाइल खराब है या ऐसा बाइनरी glTF (.glb) मॉडल नहीं है जिसे Paperwren दिखाता है।",
+	"This is an older kind of binary glTF. Paperwren shows glTF 2.0 models.":
+		"यह बाइनरी glTF का पुराना प्रकार है। Paperwren glTF 2.0 मॉडल दिखाता है।",
+	"This model is squeezed with Draco, meshopt or KTX2, which Paperwren can't unpack. Open it in another app from the menu.":
+		"यह मॉडल Draco, meshopt या KTX2 से दबाया गया है, जिसे Paperwren खोल नहीं सकता। मेनू से इसे किसी दूसरे ऐप में खोलें।",
+	"This model keeps parts of itself in other files or on the web. Paperwren shows .glb files that hold everything inside them, and it never fetches anything.":
+		"यह मॉडल अपने कुछ हिस्से दूसरी फ़ाइलों में या वेब पर रखता है। Paperwren वे .glb फ़ाइलें दिखाता है जिनमें सब कुछ भीतर ही हो, और यह कभी कुछ डाउनलोड नहीं करता।",
+	"This model is too large for Paperwren to show.":
+		"यह मॉडल Paperwren के दिखाने के लिए बहुत बड़ा है।",
+	"This device can't draw 3D graphics (WebGL), so the model can't be shown.":
+		"यह डिवाइस 3D ग्राफ़िक्स (WebGL) नहीं बना सकता, इसलिए मॉडल दिखाया नहीं जा सकता।",
+	"The device took back the 3D view. It will return in a moment, or close the model and open it again.":
+		"डिवाइस ने 3D दृश्य वापस ले लिया है। यह कुछ देर में लौट आएगा, या मॉडल बंद करके दोबारा खोलें।",
+	"3D model: {name}. Drag to turn it, pinch or scroll to zoom.":
+		"3D मॉडल: {name}। घुमाने के लिए खींचें, ज़ूम के लिए पिंच करें या स्क्रॉल करें।",
+	"Reset view": "दृश्य रीसेट करें",
+	"Play animation": "एनिमेशन चलाएँ",
+	"Pause animation": "एनिमेशन रोकें",
+	Triangles: "त्रिभुज",
+	Vertices: "शीर्ष",
+	Animations: "एनिमेशन",
+	"This changes the name in Paperwren only. The original file keeps its name.":
+		"इससे नाम सिर्फ़ Paperwren में बदलता है। मूल फ़ाइल का नाम वही रहेगा।",
+	"Renamed to {name} in Paperwren. The original file keeps its name.":
+		"Paperwren में नाम बदलकर {name} किया गया। मूल फ़ाइल का नाम वही है।",
+	"Another app is using this file. Close it there, then try again.":
+		"यह फ़ाइल किसी और ऐप में खुली है। उसे वहाँ बंद करें, फिर दोबारा कोशिश करें।",
+	"Paperwren isn't allowed to rename this file":
+		"Paperwren को इस फ़ाइल का नाम बदलने की अनुमति नहीं है",
+	"That's the file you have open. Choose another name.":
+		"यह वही फ़ाइल है जो आपने खोल रखी है। कोई और नाम चुनें।",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		'कॉपी बिना पासवर्ड के खुलेगी। इसे फिर से लॉक करने के लिए "पासवर्ड लगाएँ" इस्तेमाल करें।',
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"इस PDF में पढ़ने वाले पर कुछ पाबंदियाँ हैं, जैसे कॉपी करना। कॉपी पर कोई पाबंदी नहीं होगी।",
 };

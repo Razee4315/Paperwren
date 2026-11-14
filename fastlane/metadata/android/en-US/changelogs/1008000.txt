@@ -1,0 +1,9 @@
+Bars while reading: Always, Auto-hide or Tap only.
+Full screen from the menu; held sideways, the controls sit in a rail at the side.
+Back on a file another app opened goes back to that app.
+PDFs made from phone photos no longer show turned pages.
+Rename renames the file itself where Android allows it.
+Merge and Pictures to PDF take many files at once.
+Compress PDF can aim for a size, such as 500 KB.
+Cleaner photos of signatures and stamps.
+Contact cards (.vcf) and 3D models (.glb) open.

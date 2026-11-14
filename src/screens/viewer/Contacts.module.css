@@ -1,0 +1,92 @@
+.scroll {
+	position: absolute;
+	inset: 0;
+	overflow: auto;
+	padding: 20px 12px;
+	padding-block: calc(var(--bars-top, 0px) + 20px)
+		calc(var(--bars-bottom, 0px) + 20px);
+	scroll-padding-block: var(--bars-top, 0px) var(--bars-bottom, 0px);
+}
+.list {
+	max-width: 720px;
+	margin-inline: auto;
+}
+.card {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 400px;
+	border: 1px solid var(--line);
+	border-radius: 12px;
+	padding: 16px;
+	margin-bottom: 16px;
+	background: var(--surface);
+}
+.list[data-finding] .card {
+	content-visibility: visible;
+}
+.heading {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 12px;
+}
+.heading h2 {
+	font-size: 21px;
+	min-width: 0;
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+.photo {
+	width: 64px;
+	height: 64px;
+	object-fit: cover;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+.name,
+.field {
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: 0;
+	text-align: start;
+	cursor: pointer;
+}
+.name {
+	padding: 8px 0;
+}
+.field {
+	position: relative;
+	display: block;
+	width: 100%;
+	padding: 10px 28px 10px 0;
+	padding-inline: 0 28px;
+	border-top: 1px solid var(--line);
+}
+.field:hover,
+.field:focus-visible,
+.name:hover {
+	background: var(--bg);
+}
+.label {
+	display: flex;
+	gap: 4px;
+	font-size: 12px;
+	color: var(--text-2);
+	margin-bottom: 3px;
+}
+.value {
+	display: block;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	unicode-bidi: plaintext;
+}
+.copy {
+	position: absolute;
+	inset-inline-end: 0;
+	top: 50%;
+	color: var(--text-2);
+}
+
+.count {
+	padding-inline: 12px;
+}
