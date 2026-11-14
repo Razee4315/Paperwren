@@ -686,20 +686,34 @@ const UNPACKED = [
 	"/RunLengthDecode",
 ];
 
-/**
- * A smaller copy: its pictures stored again, each only if that saves
- * something, and the file's structure packed. Masks, CMYK and palette
- * pictures, and anything else a JPEG would change, stay as they are.
- */
-export async function compressPdf(
-	bytes: Uint8Array,
-	recode: Recode,
-	{ password }: { password?: string } = {},
-): Promise<Uint8Array> {
+/** A picture that could be stored again: where it is, the stream it
+ * was, and what it holds. */
+interface FoundPicture {
+	ref: PDFRef;
+	image: RawStream;
+	picture: Omit<StoredPicture, "bytes">;
+	/** Its samples (or JPEG), kept while they are not too many. */
+	kept: Uint8Array | null;
+	unpack: () => Uint8Array;
+}
+
+/** A PDF opened once, with the pictures that could be stored again
+ * found and unpacked: written at one setting, or at several in turn. */
+export interface PictureSet {
+	doc: Doc;
+	found: FoundPicture[];
+}
+
+/** How much unpacked picture is kept between writes; past it, a picture
+ * is unpacked again for each one. */
+const KEEP_UNPACKED = 64 * 1024 * 1024;
+
+/** The pictures of an open PDF that a JPEG would not change: masks,
+ * CMYK and palette pictures, and the like, are left out. */
+export async function picturesOf(doc: Doc): Promise<PictureSet> {
 	const names = await lib();
 	const { PDFArray, PDFName, PDFNumber, PDFRawStream, decodePDFRawStream } =
 		names;
-	const doc = await open(bytes, password);
 	const { context } = doc;
 	const key = (name: string) => PDFName.of(name);
 	const images = context
@@ -715,6 +729,8 @@ export async function compressPdf(
 			.map(([, image]) => image.dict.get(key("SMask")))
 			.filter((mask) => mask !== undefined),
 	);
+	const found: FoundPicture[] = [];
+	let kept = 0;
 	for (const [ref, image] of images) {
 		const { dict } = image;
 		if (
@@ -751,16 +767,19 @@ export async function compressPdf(
 			(bits instanceof PDFNumber && bits.asNumber() !== 8)
 		)
 			continue;
-		let samples: Uint8Array;
-		try {
+		const unpack = () => {
 			const unwrapped = dict.clone(context);
 			unwrapped.delete(key("Filter"));
 			if (wraps.length)
 				unwrapped.set(key("Filter"), context.obj(wraps as never));
 			// Through the stream's own decryption, for a locked file.
-			samples = decodePDFRawStream(
+			return decodePDFRawStream(
 				PDFRawStream.of(unwrapped, image.contents, image.transform),
 			).decode();
+		};
+		let samples: Uint8Array;
+		try {
+			samples = unpack();
 		} catch {
 			continue;
 		}
@@ -769,24 +788,76 @@ export async function compressPdf(
 			samples.length < width.asNumber() * height.asNumber() * channels
 		)
 			continue;
-		const made = await recode({
-			bytes: samples,
-			raw: !jpeg,
-			width: width.asNumber(),
-			height: height.asNumber(),
-			channels,
-		}).catch(() => null);
-		// Not worth a generation of JPEG loss for less than a tenth.
-		if (!made || made.bytes.length > image.contents.length * 0.9) continue;
-		const next = dict.clone(context);
-		next.set(key("Filter"), key("DCTDecode"));
-		next.set(key("ColorSpace"), key("DeviceRGB"));
-		next.set(key("BitsPerComponent"), PDFNumber.of(8));
-		next.set(key("Width"), PDFNumber.of(made.width));
-		next.set(key("Height"), PDFNumber.of(made.height));
-		context.assign(ref, PDFRawStream.of(next, made.bytes));
+		const keep = kept + samples.length <= KEEP_UNPACKED;
+		if (keep) kept += samples.length;
+		found.push({
+			ref,
+			image,
+			picture: {
+				raw: !jpeg,
+				width: width.asNumber(),
+				height: height.asNumber(),
+				channels,
+			},
+			kept: keep ? samples : null,
+			unpack,
+		});
 	}
-	return doc.save({ useObjectStreams: true, updateFieldAppearances: false });
+	return { doc, found };
+}
+
+/**
+ * The PDF with its pictures stored again as `recode` makes them, each
+ * only if that saves something, and the file's structure packed. The
+ * set is left as it was, ready for another setting.
+ */
+export async function writePictures(
+	{ doc, found }: PictureSet,
+	recode: Recode,
+): Promise<Uint8Array> {
+	const { PDFName, PDFNumber, PDFRawStream } = await lib();
+	const { context } = doc;
+	const key = (name: string) => PDFName.of(name);
+	const changed: FoundPicture[] = [];
+	try {
+		for (const one of found) {
+			const { ref, image } = one;
+			const made = await recode({
+				...one.picture,
+				bytes: one.kept ?? one.unpack(),
+			}).catch(() => null);
+			// Not worth a generation of JPEG loss for less than a tenth.
+			if (!made || made.bytes.length > image.contents.length * 0.9) continue;
+			const next = image.dict.clone(context);
+			next.set(key("Filter"), key("DCTDecode"));
+			next.set(key("ColorSpace"), key("DeviceRGB"));
+			next.set(key("BitsPerComponent"), PDFNumber.of(8));
+			next.set(key("Width"), PDFNumber.of(made.width));
+			next.set(key("Height"), PDFNumber.of(made.height));
+			context.assign(ref, PDFRawStream.of(next, made.bytes));
+			changed.push(one);
+		}
+		return await doc.save({
+			useObjectStreams: true,
+			updateFieldAppearances: false,
+		});
+	} finally {
+		// The pictures as they were, for the next setting.
+		for (const { ref, image } of changed) context.assign(ref, image);
+	}
+}
+
+/**
+ * A smaller copy: its pictures stored again, each only if that saves
+ * something, and the file's structure packed. Masks, CMYK and palette
+ * pictures, and anything else a JPEG would change, stay as they are.
+ */
+export async function compressPdf(
+	bytes: Uint8Array,
+	recode: Recode,
+	{ password }: { password?: string } = {},
+): Promise<Uint8Array> {
+	return writePictures(await picturesOf(await open(bytes, password)), recode);
 }
 
 /** What a locked copy lets its reader do; each is allowed unless set
