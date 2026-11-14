@@ -1338,4 +1338,45 @@ export const ur: Table = {
 		"اپنی ڈیجیٹل آئی ڈی منتخب کریں (.pfx یا .p12)",
 	"Digital IDs": "ڈیجیٹل آئی ڈیز",
 	"All files": "تمام فائلیں",
+	"Sign with a digital ID": "ڈیجیٹل آئی ڈی سے دستخط کریں",
+	"Digital ID": "ڈیجیٹل آئی ڈی",
+	"Digital ID password": "ڈیجیٹل آئی ڈی کا پاس ورڈ",
+	Continue: "جاری رکھیں",
+	"Signed as": "دستخط کنندہ",
+	"Issued by": "جاری کنندہ",
+	"Made by its owner (self-signed)": "اس کے مالک نے خود بنایا (سیلف سائنڈ)",
+	"Valid from {from} to {until}": "{from} سے {until} تک درست",
+	"This certificate expired on {date}. Readers will show the signature as not valid.":
+		"اس سرٹیفکیٹ کی میعاد {date} کو ختم ہو گئی۔ PDF کھولنے والی ایپس دستخط کو غیر درست دکھائیں گی۔",
+	"This certificate isn't valid until {date}. Readers will show the signature as not valid.":
+		"یہ سرٹیفکیٹ {date} سے پہلے درست نہیں۔ PDF کھولنے والی ایپس دستخط کو غیر درست دکھائیں گی۔",
+	"This certificate isn't meant for signing documents. Readers may not accept the signature.":
+		"یہ سرٹیفکیٹ دستاویزات پر دستخط کے لیے نہیں بنا۔ ہو سکتا ہے PDF کھولنے والی ایپس دستخط قبول نہ کریں۔",
+	"Readers show who signed only if they've been told to trust this certificate.":
+		"PDF کھولنے والی ایپس دستخط کنندہ کا نام تبھی دکھاتی ہیں جب انہیں اس سرٹیفکیٹ پر بھروسا کرنے کا کہا گیا ہو۔",
+	"Whether the signature is trusted is decided by the app that opens the PDF, not by Paperwren.":
+		"دستخط قابلِ بھروسا ہے یا نہیں، یہ PDF کھولنے والی ایپ طے کرتی ہے، Paperwren نہیں۔",
+	"There's no timestamp: the signing time comes from this device's clock.":
+		"اس میں ٹائم اسٹیمپ نہیں: دستخط کا وقت اس ڈیوائس کی گھڑی سے لیا جاتا ہے۔",
+	"Show it on the page": "صفحے پر دکھائیں",
+	"No mark on the page": "صفحے پر کوئی نشان نہیں",
+	"Sign anyway": "پھر بھی دستخط کریں",
+	"Use a different digital ID": "کوئی اور ڈیجیٹل آئی ڈی استعمال کریں",
+	"Digitally signed by {name}": "{name} کے ڈیجیٹل دستخط",
+	"This file isn't a digital ID.": "یہ فائل ڈیجیٹل آئی ڈی نہیں ہے۔",
+	"This digital ID is protected in a way Paperwren can't open. Export it again with AES-256 or TripleDES.":
+		"یہ ڈیجیٹل آئی ڈی ایسے طریقے سے محفوظ ہے جسے Paperwren نہیں کھول سکتی۔ اسے AES-256 یا TripleDES کے ساتھ دوبارہ ایکسپورٹ کریں۔",
+	"This file has a certificate but no private key, so it can't sign. Export it again with the private key included.":
+		"اس فائل میں سرٹیفکیٹ ہے مگر پرائیویٹ کی نہیں، اس لیے اس سے دستخط نہیں ہو سکتے۔ اسے پرائیویٹ کی سمیت دوبارہ ایکسپورٹ کریں۔",
+	"Paperwren signs with RSA and ECDSA keys (P-256, P-384, P-521). This digital ID uses another kind.":
+		"Paperwren صرف RSA اور ECDSA کیز (P-256, P-384, P-521) سے دستخط کرتی ہے۔ یہ ڈیجیٹل آئی ڈی کسی اور قسم کی کی استعمال کرتی ہے۔",
+	"The key and the certificate in this file don't belong together.":
+		"اس فائل کی کی اور سرٹیفکیٹ ایک دوسرے کے نہیں ہیں۔",
+	"This PDF is locked with a password. Remove the password first (Remove a password), then sign that copy.":
+		"یہ PDF پاس ورڈ سے مقفل ہے۔ پہلے “پاس ورڈ ہٹائیں” سے پاس ورڈ ہٹا دیں، پھر اس نقل پر دستخط کریں۔",
+	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
+		"اس PDF کے مصنف نے اسے کسی تبدیلی کی اجازت کے بغیر سرٹیفائی کیا ہے، اس لیے اس پر دوبارہ دستخط نہیں ہو سکتے۔",
+	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
+		"اس PDF کی ساخت خراب ہے، اس لیے دوبارہ دستخط کرنے سے پہلا دستخط ٹوٹ جائے گا۔",
+	"Couldn't sign the copy": "نقل پر دستخط نہیں ہو سکے",
 };

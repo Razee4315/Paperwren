@@ -1384,4 +1384,47 @@ export const ru: Table = {
 		"Выберите цифровое удостоверение (.pfx или .p12)",
 	"Digital IDs": "Цифровые удостоверения",
 	"All files": "Все файлы",
+	"Sign with a digital ID": "Подписать цифровым удостоверением",
+	"Digital ID": "Цифровое удостоверение",
+	"Digital ID password": "Пароль цифрового удостоверения",
+	Continue: "Продолжить",
+	"Signed as": "Подписант",
+	"Issued by": "Кем выдан",
+	"Made by its owner (self-signed)":
+		"Создан самим владельцем (самоподписанный)",
+	"Valid from {from} to {until}": "Действителен с {from} по {until}",
+	"This certificate expired on {date}. Readers will show the signature as not valid.":
+		"Срок действия этого сертификата истёк {date}. Программы для чтения PDF покажут подпись как недействительную.",
+	"This certificate isn't valid until {date}. Readers will show the signature as not valid.":
+		"Этот сертификат действителен только с {date}. Программы для чтения PDF покажут подпись как недействительную.",
+	"This certificate isn't meant for signing documents. Readers may not accept the signature.":
+		"Этот сертификат не предназначен для подписи документов. Программы для чтения PDF могут не принять подпись.",
+	"Readers show who signed only if they've been told to trust this certificate.":
+		"Программы для чтения PDF показывают, кто подписал, только если им указано доверять этому сертификату.",
+	"Whether the signature is trusted is decided by the app that opens the PDF, not by Paperwren.":
+		"Доверять ли подписи, решает приложение, в котором открывают PDF, а не Paperwren.",
+	"There's no timestamp: the signing time comes from this device's clock.":
+		"Метки времени нет: время подписи берётся из часов этого устройства.",
+	"Show it on the page": "Показать на странице",
+	"No mark on the page": "Без отметки на странице",
+	"Sign anyway": "Всё равно подписать",
+	"Use a different digital ID": "Выбрать другое цифровое удостоверение",
+	"Digitally signed by {name}": "Подписано цифровой подписью: {name}",
+	"This file isn't a digital ID.":
+		"Этот файл не является цифровым удостоверением.",
+	"This digital ID is protected in a way Paperwren can't open. Export it again with AES-256 or TripleDES.":
+		"Это цифровое удостоверение защищено способом, который Paperwren не может открыть. Экспортируйте его заново с AES-256 или TripleDES.",
+	"This file has a certificate but no private key, so it can't sign. Export it again with the private key included.":
+		"В этом файле есть сертификат, но нет закрытого ключа, поэтому подписать им нельзя. Экспортируйте его заново вместе с закрытым ключом.",
+	"Paperwren signs with RSA and ECDSA keys (P-256, P-384, P-521). This digital ID uses another kind.":
+		"Paperwren подписывает ключами RSA и ECDSA (P-256, P-384, P-521). В этом цифровом удостоверении ключ другого типа.",
+	"The key and the certificate in this file don't belong together.":
+		"Ключ и сертификат в этом файле не соответствуют друг другу.",
+	"This PDF is locked with a password. Remove the password first (Remove a password), then sign that copy.":
+		"Этот PDF защищён паролем. Сначала уберите пароль («Убрать пароль»), затем подпишите полученную копию.",
+	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
+		"Автор заверил этот PDF без права изменений, поэтому подписать его ещё раз нельзя.",
+	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
+		"Структура этого PDF повреждена, поэтому новая подпись нарушит прежнюю.",
+	"Couldn't sign the copy": "Не удалось подписать копию",
 };

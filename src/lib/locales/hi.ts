@@ -1315,4 +1315,45 @@ export const hi: Table = {
 	"Choose your digital ID (.pfx or .p12)": "अपनी डिजिटल आईडी चुनें (.pfx या .p12)",
 	"Digital IDs": "डिजिटल आईडी",
 	"All files": "सभी फ़ाइलें",
+	"Sign with a digital ID": "डिजिटल आईडी से हस्ताक्षर करें",
+	"Digital ID": "डिजिटल आईडी",
+	"Digital ID password": "डिजिटल आईडी का पासवर्ड",
+	Continue: "जारी रखें",
+	"Signed as": "हस्ताक्षरकर्ता",
+	"Issued by": "जारीकर्ता",
+	"Made by its owner (self-signed)": "इसके मालिक ने खुद बनाया (सेल्फ़-साइन्ड)",
+	"Valid from {from} to {until}": "{from} से {until} तक मान्य",
+	"This certificate expired on {date}. Readers will show the signature as not valid.":
+		"यह प्रमाणपत्र {date} को समाप्त हो गया। PDF खोलने वाले ऐप हस्ताक्षर को अमान्य दिखाएँगे।",
+	"This certificate isn't valid until {date}. Readers will show the signature as not valid.":
+		"यह प्रमाणपत्र {date} से पहले मान्य नहीं है। PDF खोलने वाले ऐप हस्ताक्षर को अमान्य दिखाएँगे।",
+	"This certificate isn't meant for signing documents. Readers may not accept the signature.":
+		"यह प्रमाणपत्र दस्तावेज़ों पर हस्ताक्षर के लिए नहीं है। PDF खोलने वाले ऐप शायद हस्ताक्षर स्वीकार न करें।",
+	"Readers show who signed only if they've been told to trust this certificate.":
+		"PDF खोलने वाले ऐप हस्ताक्षरकर्ता तभी दिखाते हैं जब उन्हें इस प्रमाणपत्र पर भरोसा करने को कहा गया हो।",
+	"Whether the signature is trusted is decided by the app that opens the PDF, not by Paperwren.":
+		"हस्ताक्षर भरोसेमंद है या नहीं, यह PDF खोलने वाला ऐप तय करता है, Paperwren नहीं।",
+	"There's no timestamp: the signing time comes from this device's clock.":
+		"इसमें टाइमस्टैम्प नहीं है: हस्ताक्षर का समय इस डिवाइस की घड़ी से लिया जाता है।",
+	"Show it on the page": "पृष्ठ पर दिखाएँ",
+	"No mark on the page": "पृष्ठ पर कोई निशान नहीं",
+	"Sign anyway": "फिर भी हस्ताक्षर करें",
+	"Use a different digital ID": "कोई दूसरी डिजिटल आईडी इस्तेमाल करें",
+	"Digitally signed by {name}": "{name} द्वारा डिजिटल हस्ताक्षरित",
+	"This file isn't a digital ID.": "यह फ़ाइल डिजिटल आईडी नहीं है।",
+	"This digital ID is protected in a way Paperwren can't open. Export it again with AES-256 or TripleDES.":
+		"यह डिजिटल आईडी ऐसे तरीके से सुरक्षित है जिसे Paperwren नहीं खोल सकता। इसे AES-256 या TripleDES के साथ फिर से एक्सपोर्ट करें।",
+	"This file has a certificate but no private key, so it can't sign. Export it again with the private key included.":
+		"इस फ़ाइल में प्रमाणपत्र है पर निजी कुंजी नहीं, इसलिए इससे हस्ताक्षर नहीं हो सकते। इसे निजी कुंजी के साथ फिर से एक्सपोर्ट करें।",
+	"Paperwren signs with RSA and ECDSA keys (P-256, P-384, P-521). This digital ID uses another kind.":
+		"Paperwren RSA और ECDSA कुंजियों (P-256, P-384, P-521) से हस्ताक्षर करता है। यह डिजिटल आईडी किसी और तरह की कुंजी इस्तेमाल करती है।",
+	"The key and the certificate in this file don't belong together.":
+		"इस फ़ाइल की कुंजी और प्रमाणपत्र एक-दूसरे के नहीं हैं।",
+	"This PDF is locked with a password. Remove the password first (Remove a password), then sign that copy.":
+		"यह PDF पासवर्ड से बंद है। पहले “पासवर्ड हटाएँ” से पासवर्ड हटाएँ, फिर उस प्रति पर हस्ताक्षर करें।",
+	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
+		"इस PDF के लेखक ने इसे बिना किसी बदलाव की अनुमति के प्रमाणित किया है, इसलिए इस पर फिर से हस्ताक्षर नहीं हो सकते।",
+	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
+		"इस PDF की संरचना खराब है, इसलिए फिर से हस्ताक्षर करने से पिछला हस्ताक्षर टूट जाएगा।",
+	"Couldn't sign the copy": "प्रति पर हस्ताक्षर नहीं हो सके",
 };

@@ -2189,3 +2189,88 @@
 		flex-shrink: 0;
 	}
 }
+
+/* ---------- Signing with a digital ID ---------- */
+/* Whose ID it is, what readers will make of it, and how it shows. */
+.certificate {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	font-size: 14px;
+	line-height: 1.45;
+}
+.certFacts {
+	display: grid;
+	gap: 8px;
+	margin: 0;
+	padding: 12px 14px;
+	border-radius: var(--r-m);
+	background: var(--surface-2);
+}
+.certFacts > div {
+	display: grid;
+	grid-template-columns: minmax(84px, auto) minmax(0, 1fr);
+	gap: 12px;
+}
+.certFacts dt {
+	color: var(--text-2);
+}
+.certFacts dd {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+.certValid {
+	margin: 0;
+	color: var(--text-2);
+}
+.certWarning {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 0;
+	padding: 10px 12px;
+	border-radius: var(--r-m);
+	/* An older web engine without color-mix gets the plain grey. */
+	background: var(--surface-2);
+	background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+	color: var(--text);
+}
+.certWarning > svg {
+	flex-shrink: 0;
+	margin-top: 2px;
+	color: var(--danger);
+}
+.certNotes {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+	padding-inline-start: 18px;
+	color: var(--text-2);
+	font-size: 13px;
+}
+.certificate .ways {
+	margin: 4px 0 0;
+}
+.certificate .way {
+	height: auto;
+	min-height: 38px;
+	padding: 6px 8px;
+	line-height: 1.25;
+}
+.certOther {
+	align-self: flex-start;
+	padding: 6px 0;
+	color: var(--accent);
+	font-weight: 650;
+	text-decoration: underline;
+}
+.certActions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 16px;
+}

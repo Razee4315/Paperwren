@@ -1245,4 +1245,45 @@ export const zh: Table = {
 	"Choose your digital ID (.pfx or .p12)": "选择你的数字身份证（.pfx 或 .p12）",
 	"Digital IDs": "数字身份证",
 	"All files": "所有文件",
+	"Sign with a digital ID": "使用数字身份证签名",
+	"Digital ID": "数字身份证",
+	"Digital ID password": "数字身份证密码",
+	Continue: "继续",
+	"Signed as": "签名人",
+	"Issued by": "颁发者",
+	"Made by its owner (self-signed)": "由持有人自己制作（自签名）",
+	"Valid from {from} to {until}": "有效期 {from} 至 {until}",
+	"This certificate expired on {date}. Readers will show the signature as not valid.":
+		"此证书已于 {date} 过期。PDF 阅读器会将签名显示为无效。",
+	"This certificate isn't valid until {date}. Readers will show the signature as not valid.":
+		"此证书在 {date} 之前无效。PDF 阅读器会将签名显示为无效。",
+	"This certificate isn't meant for signing documents. Readers may not accept the signature.":
+		"此证书并非用于签署文档。PDF 阅读器可能不接受该签名。",
+	"Readers show who signed only if they've been told to trust this certificate.":
+		"只有被设置为信任此证书时，PDF 阅读器才会显示签名人。",
+	"Whether the signature is trusted is decided by the app that opens the PDF, not by Paperwren.":
+		"签名是否可信由打开该 PDF 的应用判断，而不是 Paperwren。",
+	"There's no timestamp: the signing time comes from this device's clock.":
+		"没有时间戳：签名时间取自本设备的时钟。",
+	"Show it on the page": "在页面上显示",
+	"No mark on the page": "页面上不显示",
+	"Sign anyway": "仍然签名",
+	"Use a different digital ID": "使用其他数字身份证",
+	"Digitally signed by {name}": "由 {name} 数字签名",
+	"This file isn't a digital ID.": "此文件不是数字身份证。",
+	"This digital ID is protected in a way Paperwren can't open. Export it again with AES-256 or TripleDES.":
+		"此数字身份证的保护方式 Paperwren 无法打开。请使用 AES-256 或 TripleDES 重新导出。",
+	"This file has a certificate but no private key, so it can't sign. Export it again with the private key included.":
+		"此文件只有证书，没有私钥，因此无法签名。请重新导出并包含私钥。",
+	"Paperwren signs with RSA and ECDSA keys (P-256, P-384, P-521). This digital ID uses another kind.":
+		"Paperwren 使用 RSA 和 ECDSA 密钥（P-256、P-384、P-521）签名。此数字身份证使用的是其他类型。",
+	"The key and the certificate in this file don't belong together.":
+		"此文件中的密钥与证书不匹配。",
+	"This PDF is locked with a password. Remove the password first (Remove a password), then sign that copy.":
+		"此 PDF 受密码保护。请先用“移除密码”去掉密码，再签署得到的副本。",
+	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
+		"此 PDF 已由作者认证且不允许任何更改，因此无法再次签名。",
+	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
+		"此 PDF 的结构已损坏，再次签名会破坏之前的签名。",
+	"Couldn't sign the copy": "无法签署副本",
 };

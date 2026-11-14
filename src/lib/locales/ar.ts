@@ -1376,4 +1376,45 @@ export const ar: Table = {
 	"Choose your digital ID (.pfx or .p12)": "اختر معرّفك الرقمي (.pfx أو .p12)",
 	"Digital IDs": "المعرّفات الرقمية",
 	"All files": "كل الملفات",
+	"Sign with a digital ID": "التوقيع بمعرّف رقمي",
+	"Digital ID": "معرّف رقمي",
+	"Digital ID password": "كلمة مرور المعرّف الرقمي",
+	Continue: "متابعة",
+	"Signed as": "الموقِّع",
+	"Issued by": "جهة الإصدار",
+	"Made by its owner (self-signed)": "أنشأه صاحبه بنفسه (موقّع ذاتيًا)",
+	"Valid from {from} to {until}": "صالح من {from} إلى {until}",
+	"This certificate expired on {date}. Readers will show the signature as not valid.":
+		"انتهت صلاحية هذه الشهادة في {date}. ستعرض برامج قراءة PDF التوقيع على أنه غير صالح.",
+	"This certificate isn't valid until {date}. Readers will show the signature as not valid.":
+		"لا تصبح هذه الشهادة صالحة قبل {date}. ستعرض برامج قراءة PDF التوقيع على أنه غير صالح.",
+	"This certificate isn't meant for signing documents. Readers may not accept the signature.":
+		"هذه الشهادة غير مخصّصة لتوقيع المستندات. قد لا تقبل برامج قراءة PDF التوقيع.",
+	"Readers show who signed only if they've been told to trust this certificate.":
+		"لا تعرض برامج قراءة PDF هوية الموقِّع إلا إذا طُلب منها الوثوق بهذه الشهادة.",
+	"Whether the signature is trusted is decided by the app that opens the PDF, not by Paperwren.":
+		"التطبيق الذي يفتح الـ PDF هو الذي يقرّر الوثوق بالتوقيع، وليس Paperwren.",
+	"There's no timestamp: the signing time comes from this device's clock.":
+		"لا يوجد ختم زمني: وقت التوقيع مأخوذ من ساعة هذا الجهاز.",
+	"Show it on the page": "إظهاره على الصفحة",
+	"No mark on the page": "بلا علامة على الصفحة",
+	"Sign anyway": "التوقيع على أي حال",
+	"Use a different digital ID": "استخدام معرّف رقمي آخر",
+	"Digitally signed by {name}": "موقّع رقميًا من {name}",
+	"This file isn't a digital ID.": "هذا الملف ليس معرّفًا رقميًا.",
+	"This digital ID is protected in a way Paperwren can't open. Export it again with AES-256 or TripleDES.":
+		"هذا المعرّف الرقمي محميّ بطريقة لا يستطيع Paperwren فتحها. صدّره مجددًا باستخدام AES-256 أو TripleDES.",
+	"This file has a certificate but no private key, so it can't sign. Export it again with the private key included.":
+		"يحتوي هذا الملف على شهادة دون مفتاح خاص، لذا لا يمكن التوقيع به. صدّره مجددًا مع تضمين المفتاح الخاص.",
+	"Paperwren signs with RSA and ECDSA keys (P-256, P-384, P-521). This digital ID uses another kind.":
+		"يوقّع Paperwren بمفاتيح RSA وECDSA (P-256, P-384, P-521). يستخدم هذا المعرّف الرقمي نوعًا آخر.",
+	"The key and the certificate in this file don't belong together.":
+		"المفتاح والشهادة في هذا الملف لا يتطابقان.",
+	"This PDF is locked with a password. Remove the password first (Remove a password), then sign that copy.":
+		"هذا الـ PDF مقفل بكلمة مرور. أزِل كلمة المرور أولًا (“إزالة كلمة مرور”)، ثم وقّع تلك النسخة.",
+	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
+		"صادق مؤلف هذا الـ PDF عليه دون السماح بأي تغيير، لذا لا يمكن توقيعه مجددًا.",
+	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
+		"بنية هذا الـ PDF تالفة، لذا فإن توقيعه مجددًا سيُبطل التوقيع السابق.",
+	"Couldn't sign the copy": "تعذّر توقيع النسخة",
 };

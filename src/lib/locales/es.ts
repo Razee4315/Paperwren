@@ -1353,4 +1353,45 @@ export const es: Table = {
 	"Choose your digital ID (.pfx or .p12)": "Elige tu ID digital (.pfx o .p12)",
 	"Digital IDs": "IDs digitales",
 	"All files": "Todos los archivos",
+	"Sign with a digital ID": "Firmar con un ID digital",
+	"Digital ID": "ID digital",
+	"Digital ID password": "Contraseña del ID digital",
+	Continue: "Continuar",
+	"Signed as": "Firmante",
+	"Issued by": "Emitido por",
+	"Made by its owner (self-signed)": "Creado por su propietario (autofirmado)",
+	"Valid from {from} to {until}": "Válido del {from} al {until}",
+	"This certificate expired on {date}. Readers will show the signature as not valid.":
+		"Este certificado caducó el {date}. Los lectores de PDF mostrarán la firma como no válida.",
+	"This certificate isn't valid until {date}. Readers will show the signature as not valid.":
+		"Este certificado no es válido hasta el {date}. Los lectores de PDF mostrarán la firma como no válida.",
+	"This certificate isn't meant for signing documents. Readers may not accept the signature.":
+		"Este certificado no está pensado para firmar documentos. Es posible que los lectores de PDF no acepten la firma.",
+	"Readers show who signed only if they've been told to trust this certificate.":
+		"Los lectores de PDF solo muestran quién firmó si se les ha indicado que confíen en este certificado.",
+	"Whether the signature is trusted is decided by the app that opens the PDF, not by Paperwren.":
+		"Si la firma es de confianza lo decide la aplicación que abre el PDF, no Paperwren.",
+	"There's no timestamp: the signing time comes from this device's clock.":
+		"No hay sello de tiempo: la hora de la firma es la del reloj de este dispositivo.",
+	"Show it on the page": "Mostrarla en la página",
+	"No mark on the page": "Sin marca en la página",
+	"Sign anyway": "Firmar de todos modos",
+	"Use a different digital ID": "Usar otro ID digital",
+	"Digitally signed by {name}": "Firmado digitalmente por {name}",
+	"This file isn't a digital ID.": "Este archivo no es un ID digital.",
+	"This digital ID is protected in a way Paperwren can't open. Export it again with AES-256 or TripleDES.":
+		"Este ID digital está protegido de una forma que Paperwren no puede abrir. Vuelve a exportarlo con AES-256 o TripleDES.",
+	"This file has a certificate but no private key, so it can't sign. Export it again with the private key included.":
+		"Este archivo tiene un certificado pero no la clave privada, así que no puede firmar. Vuelve a exportarlo incluyendo la clave privada.",
+	"Paperwren signs with RSA and ECDSA keys (P-256, P-384, P-521). This digital ID uses another kind.":
+		"Paperwren firma con claves RSA y ECDSA (P-256, P-384, P-521). Este ID digital usa otro tipo.",
+	"The key and the certificate in this file don't belong together.":
+		"La clave y el certificado de este archivo no se corresponden.",
+	"This PDF is locked with a password. Remove the password first (Remove a password), then sign that copy.":
+		"Este PDF está protegido con contraseña. Quita primero la contraseña (Quitar una contraseña) y luego firma esa copia.",
+	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
+		"El autor certificó este PDF sin permitir cambios, así que no se puede volver a firmar.",
+	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
+		"La estructura de este PDF está dañada, así que volver a firmarlo rompería la firma anterior.",
+	"Couldn't sign the copy": "No se pudo firmar la copia",
 };
