@@ -279,6 +279,27 @@ add("indirect wrong stream Length", (b) => {
 	);
 	return b.finish();
 });
+add(
+	"ordinary indirect stream Length",
+	(b) => {
+		const data = "BT /F1 18 Tf 40 700 Td (Reader shown) Tj ET";
+		b.object(8, String(data.length));
+		b.object(4, `<< /Length 8 0 R >>\nstream\n${data}\nendstream`);
+		return b.finish();
+	},
+	"accepted-and-equal",
+);
+add(
+	"indirect Length spans an embedded endstream marker",
+	(b) => {
+		const data =
+			"BT /F1 18 Tf 40 700 Td (Reader shown) Tj ET\n% endstream\nBT /F1 18 Tf 40 650 Td (Also shown) Tj ET";
+		b.object(8, String(data.length));
+		b.object(4, `<< /Length 8 0 R >>\nstream\n${data}\nendstream`);
+		return b.finish();
+	},
+	"refused",
+);
 for (const key of ["Contents", "Resources", "MediaBox", "Rotate"])
 	add(`Pages inheritance of ${key}`, (b, o) => {
 		const values: Record<string, string> = {

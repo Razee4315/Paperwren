@@ -341,6 +341,24 @@ export function crossReferences(
 					!(loaded instanceof PDFRawStream) &&
 					object.toString() === loaded.toString();
 		if (!same) throw new Error("damaged");
+		if (object instanceof PDFRawStream) {
+			const length = object.dict.get(PDFName.of("Length"));
+			// pdf-lib scans to endstream for indirect lengths, while pdf.js
+			// resolves Length first. Embedded markers can truncate a rewrite.
+			if (length instanceof PDFRef) {
+				const entry = entries.get(length.objectNumber);
+				const value = objects.get(length.objectNumber);
+				if (
+					!entry ||
+					entry.type === 0 ||
+					length.generationNumber !==
+						(entry.type === 2 ? 0 : entry.generation) ||
+					!(value instanceof PDFNumber) ||
+					value.asNumber() !== object.getContents().length
+				)
+					throw new Error("damaged");
+			}
+		}
 	}
 	const seen = new Set<PDFObject>();
 	const pending: PDFObject[] = [doc.catalog, ...Object.values(trailer)];
