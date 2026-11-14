@@ -1,5 +1,6 @@
 import { type SavedFile, backend, requestForSaved } from "@/lib/backend";
 import { unreadNote } from "@/lib/errors";
+import { byName } from "@/lib/fileName";
 import { t, tn } from "@/lib/i18n";
 import { openPdf } from "@/lib/pdfEngine";
 import { ToolError, pageCount } from "@/lib/pdfTools";
@@ -9,6 +10,7 @@ import { PasswordDialog } from "@/screens/viewer/Dialogs";
 import { Button, IconButton, toast } from "@/ui";
 import {
 	ArrowDown,
+	ArrowDownAZ,
 	ArrowUp,
 	Check,
 	FilePlus2,
@@ -41,6 +43,9 @@ let keys = 0;
 
 /** What the tools take in. */
 export type Takes = "pdf" | "image" | "any";
+
+/** The most files one pick adds: a few hundred pictures is a book. */
+export const MOST_AT_ONCE = 200;
 
 /** Ask for a PDF's password until it opens or the reader gives up. */
 function usePassword() {
@@ -76,13 +81,22 @@ function usePassword() {
 }
 
 /**
- * The files a tool works on: picked one at a time (or handed in), kept
- * in order, moved up and down, taken away. PDFs are opened to count
- * their pages, asking for a password when one is needed.
+ * The files a tool works on: picked (many at once, for a tool that puts
+ * `several` together) or handed in, kept in order, moved up and down,
+ * sorted by name, taken away. PDFs are opened to count their pages,
+ * asking for a password when one is needed.
  */
-export function useToolFiles(takes: Takes, initial?: OpenRequest) {
+export function useToolFiles(
+	takes: Takes,
+	initial?: OpenRequest,
+	{ several = false }: { several?: boolean } = {},
+) {
 	const [files, setFiles] = useState<ToolFile[]>([]);
 	const [busy, setBusy] = useState(false);
+	/** Files of one pick coming in, one after another. */
+	const [adding, setAdding] = useState<{ done: number; total: number } | null>(
+		null,
+	);
 	const picking = useRef(false);
 	const password = usePassword();
 
@@ -147,14 +161,30 @@ export function useToolFiles(takes: Takes, initial?: OpenRequest) {
 		if (picking.current || busy) return;
 		picking.current = true;
 		try {
-			const picked = await backend.pickFile();
-			if (picked) await adopt(picked);
+			if (!several) {
+				const picked = await backend.pickFile();
+				if (picked) await adopt(picked);
+				return;
+			}
+			const picked = await backend.pickFiles({ pictures: takes === "image" });
+			if (picked.length > MOST_AT_ONCE)
+				toast(t("Only the first {n} were added", { n: MOST_AT_ONCE }));
+			const taken = picked.slice(0, MOST_AT_ONCE);
+			// In the order picked; one that can't be read is said and
+			// skipped, the others still come in. Those past the most are
+			// never made ready, so nothing of them is copied in.
+			for (const [i, ready] of taken.entries()) {
+				if (taken.length > 1) setAdding({ done: i + 1, total: taken.length });
+				await adopt(await ready());
+			}
 		} catch {
 			toast(t("Couldn't open the file picker"));
 		} finally {
+			setAdding(null);
 			picking.current = false;
 		}
 	};
+	const sortByName = () => setFiles((list) => byName(list));
 	const move = (key: number, by: -1 | 1) =>
 		setFiles((list) => {
 			const at = list.findIndex((f) => f.key === key);
@@ -166,7 +196,18 @@ export function useToolFiles(takes: Takes, initial?: OpenRequest) {
 		});
 	const remove = (key: number) =>
 		setFiles((list) => list.filter((f) => f.key !== key));
-	return { files, busy, takes, add, move, remove, dialog: password.dialog };
+	return {
+		files,
+		busy: busy || adding !== null,
+		adding,
+		takes,
+		several,
+		add,
+		move,
+		remove,
+		sortByName,
+		dialog: password.dialog,
+	};
 }
 
 /** The files, in order, with a button to add one. */
@@ -180,13 +221,25 @@ export function FileList({
 	several: boolean;
 	addLabel: string;
 }) {
-	const { files, busy, add, move, remove } = kit;
+	const { files, busy, add, move, remove, adding, sortByName } = kit;
 	return (
 		<div className={s.files} aria-busy={busy}>
 			{files.length > 0 && (
 				<div className={s.fileHeading}>
 					<Check size={16} />
 					<span>{t("Selected files")}</span>
+					{several && files.length > 2 && (
+						<button
+							type="button"
+							className={s.sortFiles}
+							onClick={sortByName}
+							disabled={busy}
+							data-testid="tool-files-sort"
+						>
+							<ArrowDownAZ size={15} />
+							{t("Sort by name")}
+						</button>
+					)}
 				</div>
 			)}
 			{files.map((file, i) => (
@@ -257,7 +310,15 @@ export function FileList({
 						disabled={busy}
 						data-testid="tool-add"
 					>
-						<FilePlus2 size={18} /> {busy ? t("Opening…") : addLabel}
+						<FilePlus2 size={18} />{" "}
+						{adding
+							? t("Adding {n} of {total}…", {
+									n: adding.done,
+									total: adding.total,
+								})
+							: busy
+								? t("Opening…")
+								: addLabel}
 					</Button>
 				</div>
 			)}

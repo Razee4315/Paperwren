@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { PDFDocument } from "@cantoo/pdf-lib";
 import { type Page, expect, test } from "@playwright/test";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import { boot, openFixture, pickTool } from "./helpers";
+import { boot, openFixture, pickTool, solidPng } from "./helpers";
 
 test.describe("rename", () => {
 	test("a file is renamed from its menu, keeping its extension", async ({
@@ -915,6 +915,34 @@ async function nextPick(
 	);
 }
 
+/** Hand the next pick of several these files, in this order. */
+async function nextPicks(
+	page: Page,
+	files: Array<{ name: string; bytes: Uint8Array }>,
+) {
+	await page.evaluate(
+		(list) => {
+			window.__paperwrenTestFiles = list.map(
+				({ name, b64 }) =>
+					new File([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], name),
+			);
+		},
+		files.map(({ name, bytes }) => ({
+			name,
+			b64: Buffer.from(bytes).toString("base64"),
+		})),
+	);
+}
+
+/** A fixture, to be picked with others. */
+function fixtureFile(fixture: string, name = fixture.split("/").pop() ?? "") {
+	return { name, bytes: new Uint8Array(readFileSync(`fixtures/${fixture}`)) };
+}
+
+/** The names in the tool's list of files, top to bottom. */
+const listed = (page: Page) =>
+	page.getByTestId("tool-file").locator("span[dir=auto]");
+
 /** Add a file to the open tool. */
 async function addFile(
 	page: Page,
@@ -1185,6 +1213,183 @@ test.describe("PDF tools", () => {
 		expect(
 			(await texts(open.bytes)).map((p) => p.text.match(/page (\d)/)?.[1]),
 		).toEqual(["1", "2", "3"]);
+	});
+
+	test("several pictures come in at once, sort by name, and make a PDF in that order", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openTool(page, "images");
+		// Wider pictures are later: the width shows which page is which.
+		const wide = (name: string, px: number) => ({
+			name,
+			bytes: solidPng(px, 40),
+		});
+		await nextPicks(page, [
+			wide("Scan 10.png", 160),
+			wide("Scan 2.png", 80),
+			wide("scan 1.png", 40),
+			wide("Scan 3.png", 120),
+		]);
+		await page.getByTestId("tool-add").click();
+		// In the order the picker gave them, none of them lost.
+		await expect(listed(page)).toHaveText([
+			"Scan 10.png",
+			"Scan 2.png",
+			"scan 1.png",
+			"Scan 3.png",
+		]);
+		await expect(page.getByTestId("tool-add")).toHaveText("Add pictures");
+		// Sorted as a person reads: 2 before 10, whatever the case.
+		await page.getByTestId("tool-files-sort").click();
+		await expect(listed(page)).toHaveText([
+			"scan 1.png",
+			"Scan 2.png",
+			"Scan 3.png",
+			"Scan 10.png",
+		]);
+		// Moved, and one taken away.
+		await page
+			.getByTestId("tool-file")
+			.first()
+			.getByRole("button", { name: "Move down" })
+			.click();
+		await page.getByRole("button", { name: "Remove Scan 10.png" }).click();
+		await expect(listed(page)).toHaveText([
+			"Scan 2.png",
+			"scan 1.png",
+			"Scan 3.png",
+		]);
+		await page.getByTestId("tool-paper-fit").click();
+		const made = await runTool(page);
+		expect(made.name).toBe("Scan 2 (pictures).pdf");
+		const doc = await PDFDocument.load(made.bytes);
+		expect(doc.getPageCount()).toBe(3);
+		// 96 pixels to the inch, as points: 80, 40 and 120 pixels wide.
+		expect(doc.getPages().map((p) => Math.round(p.getWidth()))).toEqual([
+			60, 30, 90,
+		]);
+	});
+
+	test("a file that is not a PDF is said and skipped, the rest of the pick still comes in", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openTool(page, "merge");
+		await nextPicks(page, [
+			fixtureFile("sample.pdf"),
+			fixtureFile("sample.txt"),
+			fixtureFile("features/form.pdf"),
+			fixtureFile("features/pictures.pdf"),
+		]);
+		await page.getByTestId("tool-add").click();
+		await expect(page.getByTestId("toast")).toContainText(
+			"sample.txt isn't a PDF",
+		);
+		await expect(listed(page)).toHaveText([
+			"sample.pdf",
+			"form.pdf",
+			"pictures.pdf",
+		]);
+		await expect(page.getByText("8 pages in all")).toBeVisible();
+		const out = await runTool(page);
+		expect(out.name).toBe("sample (merged).pdf");
+		const pages = await texts(out.bytes);
+		expect(pages).toHaveLength(8);
+		expect(pages[0].text).toContain("Paperwren test page 1 of 3");
+		expect(pages[2].text).toContain("Paperwren test page 3 of 3");
+		expect(pages[3].text).not.toContain("Paperwren test page");
+		expect(pages[5].text).not.toContain("Paperwren test page");
+	});
+
+	test("a protected PDF in a pick asks for its password, and can be skipped or tried again", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openTool(page, "merge");
+		await nextPicks(page, [
+			fixtureFile("sample.pdf"),
+			fixtureFile("viewer-regressions/locked.pdf"),
+			fixtureFile("features/form.pdf"),
+		]);
+		await page.getByTestId("tool-add").click();
+		await expect(page.getByText("Enter the password for")).toBeVisible();
+		// Cancelled: that one is left out, the one after it still comes in.
+		await page.getByRole("button", { name: "Cancel" }).click();
+		await expect(listed(page)).toHaveText(["sample.pdf", "form.pdf"]);
+		await expect(page.getByTestId("tool-add")).toHaveText("Add PDFs");
+
+		await nextPicks(page, [fixtureFile("viewer-regressions/locked.pdf")]);
+		await page.getByTestId("tool-add").click();
+		await page.getByTestId("tool-password").fill("sparrow");
+		await page.getByTestId("tool-unlock").click();
+		await expect(page.getByText("That password didn't work")).toBeVisible();
+		await page.getByTestId("tool-password").fill("wren");
+		await page.getByTestId("tool-unlock").click();
+		await expect(listed(page)).toHaveText([
+			"sample.pdf",
+			"form.pdf",
+			"locked.pdf",
+		]);
+		await expect(page.getByText("7 pages in all")).toBeVisible();
+		const pages = await texts((await runTool(page)).bytes);
+		expect(pages).toHaveLength(7);
+		expect(pages[5].text).toContain("Locked fixture, page 1");
+	});
+
+	test("a cancelled pick changes nothing, and one pick adds no more than 200", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openTool(page, "images");
+		await nextPicks(page, [
+			{ name: "one.png", bytes: solidPng(8, 8) },
+			{ name: "two.png", bytes: solidPng(8, 8) },
+		]);
+		await page.getByTestId("tool-add").click();
+		await expect(page.getByTestId("tool-file")).toHaveCount(2);
+		// Cancelled: the list stays, and the button can be used again.
+		await nextPicks(page, []);
+		await page.getByTestId("tool-add").click();
+		await expect(page.getByTestId("tool-add")).toBeEnabled();
+		await expect(listed(page)).toHaveText(["one.png", "two.png"]);
+
+		// What the button said while the files came in.
+		await page.evaluate(() => {
+			const seen: string[] = [];
+			(window as unknown as { seen: string[] }).seen = seen;
+			new MutationObserver(() => {
+				const text = document.querySelector(
+					'[data-testid="tool-add"]',
+				)?.textContent;
+				if (text) seen.push(text.trim());
+			}).observe(document.body, {
+				subtree: true,
+				childList: true,
+				characterData: true,
+			});
+		});
+		const tiny = solidPng(1, 1);
+		await nextPicks(
+			page,
+			Array.from({ length: 203 }, (_, i) => ({
+				name: `page ${i + 1}.png`,
+				bytes: tiny,
+			})),
+		);
+		await page.getByTestId("tool-add").click();
+		await expect(page.getByTestId("toast")).toContainText(
+			"Only the first 200 were added",
+		);
+		await expect(page.getByTestId("tool-file")).toHaveCount(202, {
+			timeout: 30_000,
+		});
+		await expect(page.getByTestId("tool-add")).toHaveText("Add pictures");
+		await expect(listed(page).last()).toHaveText("page 200.png");
+		const seen = await page.evaluate(
+			() => (window as unknown as { seen: string[] }).seen,
+		);
+		expect(seen).toContain("Adding 200 of 200…");
 	});
 });
 

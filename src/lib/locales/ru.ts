@@ -462,8 +462,6 @@ export const ru: Table = {
 	"Remove a password": "Убрать пароль",
 	"A copy that opens without one, if you know it":
 		"Копия, которая открывается без пароля, если вы его знаете",
-	"Add a PDF": "Добавить PDF",
-	"Add a picture": "Добавить изображение",
 	"Add the watermark": "Добавить водяной знак",
 	"All of them": "Все",
 	"Choose a PDF": "Выбрать PDF",
@@ -1290,4 +1288,11 @@ export const ru: Table = {
 	"Close tabs after this one": "Закрыть вкладки после этой",
 	"Show side by side": "Показать рядом",
 	"Move the tab back or on": "Переместить вкладку назад или вперёд",
+	"Add pictures": "Добавить изображения",
+	"Add PDFs": "Добавить PDF",
+	"Choose pictures": "Выберите изображения",
+	"Choose documents": "Выберите документы",
+	"Adding {n} of {total}…": "Добавляется {n} из {total}…",
+	"Sort by name": "Сортировать по имени",
+	"Only the first {n} were added": "Добавлены только первые {n}",
 };

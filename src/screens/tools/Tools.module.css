@@ -1406,6 +1406,22 @@
 	font-weight: 750;
 	margin-bottom: 4px;
 }
+/* Put the files in order of their names (pictures of a scan, pages). */
+.sortFiles {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-inline-start: auto;
+	padding: 4px 8px;
+	border-radius: var(--r-s);
+	color: var(--text-2);
+	font-size: 12px;
+	font-weight: 650;
+}
+.sortFiles:hover:not(:disabled) {
+	background: var(--surface-2);
+	color: var(--text);
+}
 .fileBadge {
 	display: grid;
 	place-items: center;

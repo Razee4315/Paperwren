@@ -90,9 +90,17 @@ export interface DropHandlers {
 /** What a signature or a stamp can be picked from. */
 const PICTURE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "bmp"];
 
+/** One of several picked files, made ready when called. */
+export type PickedFile = () => Promise<OpenRequest>;
+
 interface Backend {
 	/** Ask for a document to open; with `pictures`, for a picture only. */
 	pickFile(options?: { pictures?: boolean }): Promise<OpenRequest | null>;
+	/** Ask for several at once (a tool that puts many together), in the
+	 * order the picker gives them. None when the reader cancels. Each is
+	 * made ready only when asked for (on Android that copies it in), so
+	 * the caller can show how far it is and leave the rest alone. */
+	pickFiles(options?: { pictures?: boolean }): Promise<PickedFile[]>;
 	/** Files dragged onto the window (desktop). Returns an unsubscribe. */
 	onFileDrop(handlers: DropHandlers): () => void;
 	/** True where the user can pick a folder to browse. */
@@ -238,6 +246,8 @@ declare global {
 		__paperwrenImported?: (token: string, copy: ManagedCopy | null) => void;
 		/** Test hook: the next pick returns this file. */
 		__paperwrenTestFile?: File;
+		/** Test hook: the next pick of several returns these files. */
+		__paperwrenTestFiles?: File[];
 		/** Test hook: when the open file was last changed. */
 		__paperwrenTestStamp?: number;
 		/** Test hook: the bytes of copies Android "delivered" (by path),
@@ -266,6 +276,29 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 
 const liveFiles = new Map<string, File>();
 const browserFolders = new Map<string, File[]>();
+
+/** Several files from the browser's own picker. */
+function browserPickMany(extensions = PICKER_EXTENSIONS): Promise<File[]> {
+	const injected = window.__paperwrenTestFiles;
+	if (injected) {
+		window.__paperwrenTestFiles = undefined;
+		return Promise.resolve(injected);
+	}
+	const one = window.__paperwrenTestFile;
+	if (one) {
+		window.__paperwrenTestFile = undefined;
+		return Promise.resolve([one]);
+	}
+	return new Promise((resolve) => {
+		const input = document.createElement("input");
+		input.type = "file";
+		input.multiple = true;
+		input.accept = extensions.map((e) => `.${e}`).join(",");
+		input.onchange = () => resolve(Array.from(input.files ?? []));
+		input.oncancel = () => resolve([]);
+		input.click();
+	});
+}
 
 function browserPick(extensions = PICKER_EXTENSIONS): Promise<File | null> {
 	const injected = window.__paperwrenTestFile;
@@ -357,6 +390,12 @@ const browserBackend: Backend = {
 			options?.pictures ? PICTURE_EXTENSIONS : undefined,
 		);
 		return file ? adoptBrowserFile(file) : null;
+	},
+	async pickFiles(options) {
+		const files = await browserPickMany(
+			options?.pictures ? PICTURE_EXTENSIONS : undefined,
+		);
+		return files.map((file) => async () => adoptBrowserFile(file));
 	},
 	onFileDrop({ hover, drop }) {
 		// dragenter/dragleave fire per element crossed; count the depth.
@@ -685,6 +724,24 @@ function nativeTarget(file: FileRef): string {
 	return reopen.path;
 }
 
+/** A file the system picker gave: a path on a computer, or on Android
+ * a content:// document, copied in where the bridge can (so Recent
+ * files can open it again after a restart). */
+async function requestForPicked(picked: string): Promise<OpenRequest> {
+	if (picked.startsWith("content://")) {
+		const copy = await importPicked(picked);
+		if (copy) {
+			return request(copy.name, true, copy.size, {
+				kind: "managed",
+				path: copy.path,
+			});
+		}
+		const { name, verified, size } = androidName(picked);
+		return request(name, verified, size, { kind: "uri", uri: picked });
+	}
+	return requestForPath(picked);
+}
+
 /** A desktop file as an open request. Its size is asked for so a very
  * large file can be warned about before it is read; a refused stat
  * leaves it unknown. */
@@ -719,18 +776,19 @@ const tauriBackend: Backend = {
 				: [{ name: t("Documents"), extensions: PICKER_EXTENSIONS }],
 		});
 		if (!picked || typeof picked !== "string") return null;
-		if (picked.startsWith("content://")) {
-			const copy = await importPicked(picked);
-			if (copy) {
-				return request(copy.name, true, copy.size, {
-					kind: "managed",
-					path: copy.path,
-				});
-			}
-			const { name, verified, size } = androidName(picked);
-			return request(name, verified, size, { kind: "uri", uri: picked });
-		}
-		return requestForPath(picked);
+		return requestForPicked(picked);
+	},
+	async pickFiles(options) {
+		const { open } = await import("@tauri-apps/plugin-dialog");
+		const picked = await open({
+			multiple: true,
+			title: options?.pictures ? t("Choose pictures") : t("Choose documents"),
+			filters: options?.pictures
+				? [{ name: t("Pictures"), extensions: PICTURE_EXTENSIONS }]
+				: [{ name: t("Documents"), extensions: PICKER_EXTENSIONS }],
+		});
+		const list = Array.isArray(picked) ? picked : picked ? [picked] : [];
+		return list.map((path) => () => requestForPicked(path));
 	},
 	onFileDrop({ hover, drop }) {
 		// The webview reports drags natively (with real paths), which the

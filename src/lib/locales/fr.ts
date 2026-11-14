@@ -459,8 +459,6 @@ export const fr: Table = {
 	"Remove a password": "Retirer un mot de passe",
 	"A copy that opens without one, if you know it":
 		"Une copie qui s'ouvre sans, si vous le connaissez",
-	"Add a PDF": "Ajouter un PDF",
-	"Add a picture": "Ajouter une image",
 	"Add the watermark": "Ajouter le filigrane",
 	"All of them": "Toutes",
 	"Choose a PDF": "Choisir un PDF",
@@ -1274,4 +1272,11 @@ export const fr: Table = {
 	"Close tabs after this one": "Fermer les onglets suivants",
 	"Show side by side": "Afficher côte à côte",
 	"Move the tab back or on": "Déplacer l'onglet avant ou après",
+	"Add pictures": "Ajouter des images",
+	"Add PDFs": "Ajouter des PDF",
+	"Choose pictures": "Choisir des images",
+	"Choose documents": "Choisir des documents",
+	"Adding {n} of {total}…": "Ajout de {n} sur {total}…",
+	"Sort by name": "Trier par nom",
+	"Only the first {n} were added": "Seuls les {n} premiers ont été ajoutés",
 };

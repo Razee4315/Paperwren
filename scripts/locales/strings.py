@@ -445,8 +445,6 @@ ROWS = [
     ("A copy that asks for a password to open", "ایسی کاپی جو کھلنے کے لیے پاس ورڈ مانگے", "نسخة تطلب كلمة مرور لفتحها", "打开时需要密码的副本", "ऐसी कॉपी जो खुलने के लिए पासवर्ड माँगे", "Una copia que pide contraseña para abrirse", "Une copie qui demande un mot de passe à l'ouverture", "Копия, которая запрашивает пароль при открытии", "Uma cópia que pede senha para abrir"),
     ("Remove a password", "پاس ورڈ ہٹائیں", "إزالة كلمة مرور", "移除密码", "पासवर्ड हटाएँ", "Quitar una contraseña", "Retirer un mot de passe", "Убрать пароль", "Remover uma senha"),
     ("A copy that opens without one, if you know it", "ایسی کاپی جو اس کے بغیر کھلے، اگر آپ اسے جانتے ہوں", "نسخة تُفتح بدونها، إن كنت تعرفها", "如果你知道密码，可保存无需密码即可打开的副本", "ऐसी कॉपी जो इसके बिना खुले, अगर आप इसे जानते हैं", "Una copia que se abre sin ella, si la conoces", "Une copie qui s'ouvre sans, si vous le connaissez", "Копия, которая открывается без пароля, если вы его знаете", "Uma cópia que abre sem senha, se você a souber"),
-    ("Add a PDF", "PDF شامل کریں", "إضافة ملف PDF", "添加 PDF", "PDF जोड़ें", "Añadir un PDF", "Ajouter un PDF", "Добавить PDF", "Adicionar um PDF"),
-    ("Add a picture", "تصویر شامل کریں", "إضافة صورة", "添加图片", "चित्र जोड़ें", "Añadir una imagen", "Ajouter une image", "Добавить изображение", "Adicionar uma imagem"),
     ("Add the watermark", "واٹر مارک لگائیں", "إضافة العلامة المائية", "添加水印", "वॉटरमार्क लगाएँ", "Añadir la marca de agua", "Ajouter le filigrane", "Добавить водяной знак", "Adicionar a marca d'água"),
     ("All of them", "سب", "كلها", "全部", "सभी", "Todas", "Toutes", "Все", "Todas"),
     ("Choose a PDF", "کوئی PDF چنیں", "اختر ملف PDF", "选择 PDF", "कोई PDF चुनें", "Elegir un PDF", "Choisir un PDF", "Выбрать PDF", "Escolher um PDF"),

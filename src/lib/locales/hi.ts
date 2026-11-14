@@ -440,8 +440,6 @@ export const hi: Table = {
 	"Remove a password": "पासवर्ड हटाएँ",
 	"A copy that opens without one, if you know it":
 		"ऐसी कॉपी जो इसके बिना खुले, अगर आप इसे जानते हैं",
-	"Add a PDF": "PDF जोड़ें",
-	"Add a picture": "चित्र जोड़ें",
 	"Add the watermark": "वॉटरमार्क लगाएँ",
 	"All of them": "सभी",
 	"Choose a PDF": "कोई PDF चुनें",
@@ -1223,4 +1221,11 @@ export const hi: Table = {
 	"Close tabs after this one": "इसके बाद वाले टैब बंद करें",
 	"Show side by side": "साथ-साथ दिखाएँ",
 	"Move the tab back or on": "टैब को पीछे या आगे करें",
+	"Add pictures": "चित्र जोड़ें",
+	"Add PDFs": "PDF जोड़ें",
+	"Choose pictures": "चित्र चुनें",
+	"Choose documents": "दस्तावेज़ चुनें",
+	"Adding {n} of {total}…": "{total} में से {n} जोड़ी जा रही है…",
+	"Sort by name": "नाम से क्रमबद्ध करें",
+	"Only the first {n} were added": "केवल पहली {n} जोड़ी गईं",
 };

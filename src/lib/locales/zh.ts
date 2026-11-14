@@ -419,8 +419,6 @@ export const zh: Table = {
 	"Remove a password": "移除密码",
 	"A copy that opens without one, if you know it":
 		"如果你知道密码，可保存无需密码即可打开的副本",
-	"Add a PDF": "添加 PDF",
-	"Add a picture": "添加图片",
 	"Add the watermark": "添加水印",
 	"All of them": "全部",
 	"Choose a PDF": "选择 PDF",
@@ -1153,4 +1151,11 @@ export const zh: Table = {
 	"Close tabs after this one": "关闭此后的标签页",
 	"Show side by side": "并排显示",
 	"Move the tab back or on": "将标签页前移或后移",
+	"Add pictures": "添加图片",
+	"Add PDFs": "添加 PDF",
+	"Choose pictures": "选择图片",
+	"Choose documents": "选择文档",
+	"Adding {n} of {total}…": "正在添加第 {n} 个，共 {total} 个…",
+	"Sort by name": "按名称排序",
+	"Only the first {n} were added": "只添加了前 {n} 个",
 };

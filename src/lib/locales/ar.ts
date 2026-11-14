@@ -454,8 +454,6 @@ export const ar: Table = {
 	"Remove a password": "إزالة كلمة مرور",
 	"A copy that opens without one, if you know it":
 		"نسخة تُفتح بدونها، إن كنت تعرفها",
-	"Add a PDF": "إضافة ملف PDF",
-	"Add a picture": "إضافة صورة",
 	"Add the watermark": "إضافة العلامة المائية",
 	"All of them": "كلها",
 	"Choose a PDF": "اختر ملف PDF",
@@ -1284,4 +1282,11 @@ export const ar: Table = {
 	"Close tabs after this one": "إغلاق علامات التبويب التي بعد هذه",
 	"Show side by side": "اعرض جنبًا إلى جنب",
 	"Move the tab back or on": "حرّك علامة التبويب للخلف أو للأمام",
+	"Add pictures": "أضف صورًا",
+	"Add PDFs": "أضف ملفات PDF",
+	"Choose pictures": "اختر صورًا",
+	"Choose documents": "اختر مستندات",
+	"Adding {n} of {total}…": "جارٍ إضافة {n} من {total}…",
+	"Sort by name": "رتّب حسب الاسم",
+	"Only the first {n} were added": "أُضيفت أول {n} فقط",
 };
