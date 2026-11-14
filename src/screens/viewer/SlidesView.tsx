@@ -732,6 +732,8 @@ export default function SlidesView({
 		// only the width would show half a slide. The list's padding sits
 		// inside the zoomed box and scales with it.
 		const measure = () => {
+			// A tab not on show has no size: nothing to fit to.
+			if (!el.clientWidth || !el.clientHeight) return;
 			setFit(
 				Math.min(
 					2,

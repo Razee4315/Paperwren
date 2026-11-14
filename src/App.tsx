@@ -3,10 +3,11 @@ import { isDesktop, isMac, isTauri, sharesFrame } from "@/lib/env";
 import { toggleFullscreen, watchFullscreen } from "@/lib/fullscreen";
 import { language, subscribe, t } from "@/lib/i18n";
 import { isFullscreenKey } from "@/lib/keys";
+import { backToCaller } from "@/lib/navigation";
 import { matches } from "@/lib/shortcuts";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
-import { type Tab, TabStrip } from "@/screens/TabStrip";
+import { type Tab, TabStrip, moveTab } from "@/screens/TabStrip";
 import { UpdateHost } from "@/screens/Updates";
 import { Home } from "@/screens/home/Home";
 import { SettingsScreen } from "@/screens/settings/Settings";
@@ -66,6 +67,8 @@ const Onboarding = lazy(() => import("@/screens/onboarding/Onboarding"));
 const WARM_AFTER = 1500;
 function warmReader() {
 	void import("@/screens/viewer/ViewerScreen").catch(() => {});
+	// The PDF reader is a chunk of its own, behind the screen above.
+	void import("@/screens/viewer/PdfView").catch(() => {});
 	void import("@/lib/pdfEngine").then((m) => m.loadEngine()).catch(() => {});
 	// Then Tools and Notes, at the next quiet moment: each is opened
 	// from Home, and should come up as quickly as the reader does.
@@ -104,7 +107,14 @@ const windowWidth = () => window.innerWidth;
 
 declare global {
 	interface Window {
-		__paperwrenFiles?: Array<{ path: string; name: string; size: number }>;
+		__paperwrenFiles?: Array<{
+			path: string;
+			name: string;
+			size: number;
+			/** Another app opened it with Paperwren, which that start
+			 * "started" or "woken" (index.html). */
+			caller?: string | null;
+		}>;
 	}
 }
 
@@ -112,7 +122,7 @@ function Root() {
 	// Every screen is drawn from here, so a change of language redraws
 	// them all.
 	const lang = useSyncExternalStore(subscribe, language);
-	const { state, push, replace, back, close, reset } = useNav();
+	const { state, push, replace, back, close, reset, onLeave } = useNav();
 	const { entries, remove, ready: recentsReady } = useRecents();
 	const { settings, ready: settingsReady } = useSettings();
 	const nextKey = useRef(1);
@@ -201,6 +211,28 @@ function Root() {
 		leaving.current = true;
 		reset([]);
 	}, [reset]);
+	/** Put the tab of `key` at index `to` in the row. */
+	const moveTabTo = useCallback((key: number, to: number) => {
+		const next = moveTab(tabsRef.current, key, to);
+		if (next === tabsRef.current) return;
+		tabsRef.current = next;
+		setTabs(next);
+	}, []);
+	/** Close every tab but `keep`'s (`which: "others"`), or every one
+	 * after it in the row (`"after"`). The tab kept is shown. */
+	const closeAround = useCallback(
+		(keep: Tab, which: "others" | "after") => {
+			const list = tabsRef.current;
+			const at = list.findIndex((tab) => tab.key === keep.key);
+			if (at < 0) return;
+			const gone = list.filter((_, i) =>
+				which === "others" ? i !== at : i > at,
+			);
+			if (gone.some((tab) => tab.key === current)) show(keep);
+			for (const tab of gone) closeTab(tab.key);
+		},
+		[current, show, closeTab],
+	);
 
 	const open = useCallback(
 		(request: OpenRequest) => {
@@ -387,6 +419,9 @@ function Root() {
 	// Android "Open with": MainActivity copies the file into private
 	// storage and calls window.__paperwrenOpenFile (see index.html);
 	// payloads queue until this effect drains them.
+	/** The document another app opened with Paperwren, and whether that
+	 * started Paperwren: Back on it goes back to that app (#83). */
+	const caller = useRef<{ id: string; started: boolean } | null>(null);
 	useEffect(() => {
 		const drain = () => {
 			const queue = window.__paperwrenFiles ?? [];
@@ -394,13 +429,34 @@ function Root() {
 			// A file shared into the app IS the onboarding: go straight to it.
 			if (files.length) finishWelcome();
 			for (const f of files) {
-				open(requestForManagedCopy(f.path, f.name, f.size));
+				const request = requestForManagedCopy(f.path, f.name, f.size);
+				if (f.caller && !isDesktop)
+					caller.current = { id: request.id, started: f.caller === "started" };
+				open(request);
 			}
 		};
 		drain();
 		window.addEventListener("paperwren-file", drain);
 		return () => window.removeEventListener("paperwren-file", drain);
 	}, [open, finishWelcome]);
+
+	// Back on that document, with nothing over it, goes back to the app
+	// that opened it, as a viewer does: WhatsApp, a file manager. Started
+	// for it, Paperwren ends; already running, it steps behind that app
+	// with the document put away, and what was open before stays.
+	useEffect(
+		() =>
+			onLeave((now) => {
+				const from = caller.current;
+				if (!from || !backToCaller(now, from.id)) return false;
+				const leave = window.__paperwrenAndroidExtras?.leaveToCaller;
+				if (!leave?.(from.started)) return false;
+				caller.current = null;
+				if (!from.started) close();
+				return true;
+			}),
+		[onLeave, close],
+	);
 
 	// Desktop: files handed to the window open straight away, a tab
 	// each.
@@ -476,6 +532,22 @@ function Root() {
 							: Math.min(Number(e.key) - 1, list.length - 1);
 				show(list[to]);
 			} else if (
+				isDesktop &&
+				e.ctrlKey &&
+				e.shiftKey &&
+				!e.altKey &&
+				(e.key === "PageUp" || e.key === "PageDown") &&
+				shownKey.current !== null &&
+				!modalOpen()
+			) {
+				// Ctrl+Shift+Page Up and Down move the tab on show one place
+				// back or on in the row, as in a browser.
+				e.preventDefault();
+				const at = tabsRef.current.findIndex(
+					(tab) => tab.key === shownKey.current,
+				);
+				moveTabTo(shownKey.current, at + (e.key === "PageUp" ? -1 : 1));
+			} else if (
 				e.altKey &&
 				!e.ctrlKey &&
 				e.key === "ArrowLeft" &&
@@ -511,7 +583,7 @@ function Root() {
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [pick, back, close, closeTab, show, deep]);
+	}, [pick, back, close, closeTab, show, deep, moveTabTo]);
 
 	// Ctrl+wheel, which is also how a trackpad pinch arrives: the same
 	// rule as the zoom keys above. A viewer takes it for its document
@@ -739,6 +811,10 @@ function Root() {
 					onShow={show}
 					onClose={(tab) => closeTab(tab.key)}
 					onHome={goHome}
+					onMove={(tab, to) => moveTabTo(tab.key, to)}
+					onCloseOthers={(tab) => closeAround(tab, "others")}
+					onCloseAfter={(tab) => closeAround(tab, "after")}
+					onBeside={sideBySide.room ? sideBySide.beside : undefined}
 				/>
 			)}
 			{welcome && (

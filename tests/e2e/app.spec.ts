@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 import { boot, openFixture } from "./helpers";
 
 test("empty Home explains what the app opens", async ({ page }) => {
@@ -337,4 +337,97 @@ test("recents sort by name, and a removal can be undone", async ({ page }) => {
 	await expect(recents).toHaveCount(1);
 	await page.getByRole("button", { name: "Undo" }).click();
 	await expect(recents).toHaveCount(2);
+});
+
+test.describe("a file another app opened with Paperwren (#83)", () => {
+	/** Android hands over a copy of the file, saying whether that start
+	 * began Paperwren ("started") or found it running ("woken"). */
+	const deliver = async (page: Page, name: string, caller: string | null) => {
+		const b64 = readFileSync("fixtures/sample.pdf").toString("base64");
+		await page.evaluate(
+			({ b64, name, caller }) => {
+				const path = `/data/files/imports/ab/${name}`;
+				const w = window as unknown as {
+					__paperwrenTestCopies: Record<string, Blob>;
+					__paperwrenOpenFile: (
+						path: string,
+						name: string,
+						size: number,
+						caller: string | null,
+					) => boolean;
+				};
+				w.__paperwrenTestCopies ??= {};
+				w.__paperwrenTestCopies[path] = new Blob([
+					Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)),
+				]);
+				w.__paperwrenOpenFile(path, name, 100, caller);
+			},
+			{ b64, name, caller },
+		);
+		await expect(page.locator(".pdfViewer .page").first()).toBeVisible({
+			timeout: 20_000,
+		});
+	};
+	const pressBack = (page: Page) =>
+		page.evaluate(() => window.__paperwrenHandleBack?.());
+	const left = (page: Page) =>
+		page.evaluate(() => (window as unknown as { left?: boolean }).left);
+
+	test.beforeEach(async ({ page }) => {
+		await page.addInitScript(() => {
+			const w = window as unknown as {
+				__paperwrenAndroidExtras: Record<string, unknown>;
+				left?: boolean;
+			};
+			w.__paperwrenAndroidExtras = {
+				leaveToCaller: (started: boolean) => {
+					w.left = started;
+					return true;
+				},
+			};
+		});
+	});
+
+	test("Back goes back to that app, ending Paperwren it started", async ({
+		page,
+	}) => {
+		await boot(page);
+		await deliver(page, "from-whatsapp.pdf", "started");
+		// Something over the document is closed first.
+		await page.getByTestId("file-more").click();
+		await expect(page.getByTestId("file-menu")).toBeVisible();
+		expect(await pressBack(page)).toBe(true);
+		await expect(page.getByTestId("file-menu")).toHaveCount(0);
+		expect(await left(page)).toBeUndefined();
+		// Then Back leaves, to the app that opened it.
+		expect(await pressBack(page)).toBe(true);
+		expect(await left(page)).toBe(true);
+	});
+
+	test("Paperwren already running steps aside, and keeps what was open", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openFixture(page, "sample.txt");
+		await expect(page.getByTestId("viewer")).toContainText("plain text");
+		await deliver(page, "from-files.pdf", "woken");
+		expect(await pressBack(page)).toBe(true);
+		expect(await left(page)).toBe(false);
+		// Coming back, the document read before is there, as it was.
+		await expect(page.locator(".pdfViewer")).toHaveCount(0);
+		await expect(page.getByTestId("viewer")).toContainText("plain text");
+		// Back from it now is the app's own again: Home.
+		expect(await pressBack(page)).toBe(true);
+		await expect(page.getByTestId("home")).toBeVisible();
+	});
+
+	test("a file opened inside the app goes back to Home as before", async ({
+		page,
+	}) => {
+		await boot(page);
+		await deliver(page, "shared.pdf", null);
+		expect(await pressBack(page)).toBe(true);
+		await expect(page.getByTestId("home")).toBeVisible();
+		expect(await left(page)).toBeUndefined();
+	});
 });

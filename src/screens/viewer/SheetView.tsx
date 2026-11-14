@@ -295,8 +295,11 @@ export default function SheetView({
 	useLayoutEffect(() => {
 		const el = scroller.current;
 		if (!el || !sheet) return;
-		const measure = () =>
+		const measure = () => {
+			// A tab not on show has no size: keep the last one.
+			if (!el.clientWidth) return;
 			setView((v) => ({ ...v, w: el.clientWidth, h: el.clientHeight }));
+		};
 		measure();
 		const ro = new ResizeObserver(measure);
 		ro.observe(el);
@@ -527,7 +530,8 @@ export default function SheetView({
 			return;
 		}
 		const paging = e.key === "PageDown" || e.key === "PageUp";
-		if (mod && paging) {
+		// With Shift they move the window's tab instead (App.tsx).
+		if (mod && paging && !e.shiftKey) {
 			// Ctrl+Page Down and Up: the next and the previous sheet.
 			const shown = sheets.map((sh, i) => (offered(sh) ? i : -1));
 			const tabs = shown.filter((i) => i >= 0);

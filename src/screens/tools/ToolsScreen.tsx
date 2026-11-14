@@ -651,12 +651,12 @@ function ReadTool({ file, onOpen }: ToolProps) {
 }
 
 function MergeTool({ file, onOpen }: ToolProps) {
-	const kit = useToolFiles("pdf", file);
+	const kit = useToolFiles("pdf", file, { several: true });
 	const { running, run, feedback } = useRun(onOpen);
 	const total = kit.files.reduce((n, f) => n + (f.pages ?? 0), 0);
 	return (
 		<>
-			<FileList kit={kit} several addLabel={t("Add a PDF")} />
+			<FileList kit={kit} several addLabel={t("Add PDFs")} />
 			{kit.dialog}
 			{kit.files.length < 2 && (
 				<p className={s.hint}>{t("Add at least two PDFs to continue.")}</p>
@@ -996,14 +996,14 @@ async function asPageImage(
 }
 
 function ImagesTool({ file, onOpen }: ToolProps) {
-	const kit = useToolFiles("image", file);
+	const kit = useToolFiles("image", file, { several: true });
 	const { running, run, feedback } = useRun(onOpen);
 	const [paper, setPaper] = useState<"fit" | keyof typeof PAPER>("a4");
 	const [turn, setTurn] = useState<PaperTurn>("auto");
 	const [margin, setMargin] = useState<"0" | "12" | "24">("24");
 	return (
 		<>
-			<FileList kit={kit} several addLabel={t("Add a picture")} />
+			<FileList kit={kit} several addLabel={t("Add pictures")} />
 			<Choice
 				label={t("Page size")}
 				value={paper}
