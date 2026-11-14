@@ -851,6 +851,7 @@ class MainActivity : TauriActivity() {
       "image/bmp" -> "bmp"
       "text/markdown" -> "md"
       "text/vcard", "text/x-vcard", "text/directory" -> "vcf"
+      "model/gltf-binary" -> "glb"
       "text/plain" -> "txt"
       else -> null
     }

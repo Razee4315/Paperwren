@@ -1331,4 +1331,27 @@ export const fr: Table = {
 	"Unnamed contact": "Contact sans nom",
 	"Keep colours": "Garder les couleurs",
 	"One ink": "Une seule encre",
+	"Can't show this model": "Impossible d'afficher ce modèle",
+	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
+		"Le fichier est endommagé ou n'est pas un modèle glTF binaire (.glb) que Paperwren affiche.",
+	"This is an older kind of binary glTF. Paperwren shows glTF 2.0 models.":
+		"C'est une ancienne version du glTF binaire. Paperwren affiche les modèles glTF 2.0.",
+	"This model is squeezed with Draco, meshopt or KTX2, which Paperwren can't unpack. Open it in another app from the menu.":
+		"Ce modèle est compressé avec Draco, meshopt ou KTX2, que Paperwren ne sait pas décompresser. Ouvrez-le dans une autre application depuis le menu.",
+	"This model keeps parts of itself in other files or on the web. Paperwren shows .glb files that hold everything inside them, and it never fetches anything.":
+		"Ce modèle garde certaines de ses parties dans d'autres fichiers ou sur le web. Paperwren affiche les fichiers .glb qui contiennent tout, et ne télécharge jamais rien.",
+	"This model is too large for Paperwren to show.":
+		"Ce modèle est trop volumineux pour que Paperwren l'affiche.",
+	"This device can't draw 3D graphics (WebGL), so the model can't be shown.":
+		"Cet appareil ne peut pas dessiner de graphismes 3D (WebGL), le modèle ne peut donc pas être affiché.",
+	"The device took back the 3D view. It will return in a moment, or close the model and open it again.":
+		"L'appareil a repris la vue 3D. Elle reviendra dans un instant, ou fermez le modèle et rouvrez-le.",
+	"3D model: {name}. Drag to turn it, pinch or scroll to zoom.":
+		"Modèle 3D : {name}. Faites glisser pour le tourner, pincez ou faites défiler pour zoomer.",
+	"Reset view": "Réinitialiser la vue",
+	"Play animation": "Lancer l'animation",
+	"Pause animation": "Mettre l'animation en pause",
+	Triangles: "Triangles",
+	Vertices: "Sommets",
+	Animations: "Animations",
 };

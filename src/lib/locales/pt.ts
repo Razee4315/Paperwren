@@ -1319,4 +1319,27 @@ export const pt: Table = {
 	"Unnamed contact": "Contato sem nome",
 	"Keep colours": "Manter as cores",
 	"One ink": "Uma só tinta",
+	"Can't show this model": "Não é possível mostrar este modelo",
+	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
+		"O arquivo está danificado ou não é um modelo glTF binário (.glb) que o Paperwren mostra.",
+	"This is an older kind of binary glTF. Paperwren shows glTF 2.0 models.":
+		"Este é um tipo mais antigo de glTF binário. O Paperwren mostra modelos glTF 2.0.",
+	"This model is squeezed with Draco, meshopt or KTX2, which Paperwren can't unpack. Open it in another app from the menu.":
+		"Este modelo está comprimido com Draco, meshopt ou KTX2, que o Paperwren não consegue descompactar. Abra-o em outro app pelo menu.",
+	"This model keeps parts of itself in other files or on the web. Paperwren shows .glb files that hold everything inside them, and it never fetches anything.":
+		"Este modelo guarda partes de si mesmo em outros arquivos ou na web. O Paperwren mostra arquivos .glb que têm tudo dentro e nunca baixa nada.",
+	"This model is too large for Paperwren to show.":
+		"Este modelo é grande demais para o Paperwren mostrar.",
+	"This device can't draw 3D graphics (WebGL), so the model can't be shown.":
+		"Este dispositivo não consegue desenhar gráficos 3D (WebGL), então o modelo não pode ser mostrado.",
+	"The device took back the 3D view. It will return in a moment, or close the model and open it again.":
+		"O dispositivo retomou a vista 3D. Ela volta em instantes, ou feche o modelo e abra-o de novo.",
+	"3D model: {name}. Drag to turn it, pinch or scroll to zoom.":
+		"Modelo 3D: {name}. Arraste para girá-lo; pince ou role para dar zoom.",
+	"Reset view": "Redefinir vista",
+	"Play animation": "Reproduzir animação",
+	"Pause animation": "Pausar animação",
+	Triangles: "Triângulos",
+	Vertices: "Vértices",
+	Animations: "Animações",
 };

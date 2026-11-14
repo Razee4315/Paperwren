@@ -96,6 +96,8 @@ const LICENSES: Array<[string, string]> = [
 	["highlight.js", "BSD-3-Clause"],
 	["UTIF.js", "MIT"],
 	["KaTeX", "MIT"],
+	// 3D models (.glb).
+	["three.js", "MIT"],
 	["pdf-lib (Cantoo fork)", "MIT"],
 	// The scanner's page finders and the runtime its network runs on.
 	["scanic", "MIT"],

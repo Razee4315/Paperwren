@@ -25,6 +25,7 @@ export type FileFormat =
 	| "txt"
 	| "image"
 	| "cbz"
+	| "glb"
 	| "unknown";
 
 /** The family drives colour, icon, and filter chips. */
@@ -56,6 +57,7 @@ export const ALL_FORMATS: FileFormat[] = [
 	"txt",
 	"image",
 	"cbz",
+	"glb",
 	"unknown",
 ];
 
@@ -178,6 +180,7 @@ const EXTENSIONS: Record<string, FileFormat> = {
 	tif: "image",
 	tiff: "image",
 	cbz: "cbz",
+	glb: "glb",
 	...Object.fromEntries(CODE_EXTENSIONS.map((ext) => [ext, "txt" as const])),
 };
 
@@ -325,6 +328,7 @@ const MIME: Record<FileFormat, string> = {
 	txt: "text/plain",
 	image: "image/*",
 	cbz: "application/vnd.comicbook+zip",
+	glb: "model/gltf-binary",
 	unknown: "application/octet-stream",
 };
 

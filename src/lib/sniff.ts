@@ -6,6 +6,7 @@
  */
 
 import { type FileFormat, formatFromName } from "./formats";
+import { isGlb } from "./glb";
 import { guardedUnzip } from "./safeZip";
 import { decodeText } from "./text";
 
@@ -231,6 +232,7 @@ export function sniffFormat(buffer: ArrayBuffer, nameHint = ""): FileFormat {
 	if (startsWith(bytes, OLE_MAGIC)) return oleFamily(bytes);
 	if (latin1.decode(head.subarray(0, 5)) === "{\\rtf") return "rtf";
 	if (sniffImageType(bytes)) return "image";
+	if (isGlb(bytes)) return "glb";
 
 	const utf16 =
 		startsWith(bytes, [0xff, 0xfe]) || startsWith(bytes, [0xfe, 0xff]);
@@ -241,6 +243,9 @@ export function sniffFormat(buffer: ArrayBuffer, nameHint = ""): FileFormat {
 	)
 		return "vcf";
 	if (hinted === "vcf") return "vcf";
+	// Named a model but not one by its bytes: the viewer says so, which
+	// is plainer than "unsupported".
+	if (hinted === "glb") return "glb";
 	if (!utf16 && !looksLikeText(head)) return "unknown";
 	if (hinted === "csv" || hinted === "md") return hinted;
 	return "txt";

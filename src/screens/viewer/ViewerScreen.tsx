@@ -37,6 +37,7 @@ const slides = lazy(() => import("./SlidesView"));
 const reflow = lazy(() => import("./ReflowView"));
 const epub = lazy(() => import("./EpubView"));
 const contacts = lazy(() => import("./ContactsView"));
+const model = lazy(() => import("./ModelView"));
 const text = lazy(() => import("./TextView"));
 const image = lazy(() => import("./ImageView"));
 Object.assign(VIEWERS, {
@@ -56,6 +57,7 @@ Object.assign(VIEWERS, {
 	md: text,
 	txt: text,
 	vcf: contacts,
+	glb: model,
 	image,
 	cbz: image,
 });

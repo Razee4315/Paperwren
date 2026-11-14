@@ -35,6 +35,19 @@ describe("sniffFormat", () => {
 		).toBe("vcf");
 	});
 
+	it("recognises a binary glTF by its first bytes, not its name", () => {
+		expect(sniffFormat(fixture("model.glb"))).toBe("glb");
+		expect(sniffFormat(fixture("model.glb"), "model.bin")).toBe("glb");
+		expect(sniffFormat(fixture("model-truncated.glb"), "m.txt")).toBe("glb");
+		// Named a model, but only text: the viewer says what is wrong.
+		const text = new TextEncoder().encode('{"asset":{"version":"2.0"}}');
+		expect(sniffFormat(text.buffer as ArrayBuffer, "scene.glb")).toBe("glb");
+		expect(sniffFormat(text.buffer as ArrayBuffer, "scene.json")).toBe("txt");
+		expect(formatFromName("Duck.GLB")).toBe("glb");
+		expect(PICKER_EXTENSIONS).toContain("glb");
+		expect(kindOf("glb")).toBe("other");
+	});
+
 	it.each([
 		["sample.pdf", "pdf"],
 		["sample.docx", "docx"],

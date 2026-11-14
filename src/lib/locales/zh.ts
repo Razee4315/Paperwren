@@ -1210,4 +1210,27 @@ export const zh: Table = {
 	"Unnamed contact": "未命名联系人",
 	"Keep colours": "保留颜色",
 	"One ink": "单一墨色",
+	"Can't show this model": "无法显示此模型",
+	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
+		"文件已损坏，或不是 Paperwren 可显示的二进制 glTF (.glb) 模型。",
+	"This is an older kind of binary glTF. Paperwren shows glTF 2.0 models.":
+		"这是较旧的二进制 glTF。Paperwren 显示 glTF 2.0 模型。",
+	"This model is squeezed with Draco, meshopt or KTX2, which Paperwren can't unpack. Open it in another app from the menu.":
+		"此模型使用 Draco、meshopt 或 KTX2 压缩，Paperwren 无法解压。请从菜单中用其他应用打开。",
+	"This model keeps parts of itself in other files or on the web. Paperwren shows .glb files that hold everything inside them, and it never fetches anything.":
+		"此模型的部分内容存放在其他文件中或网络上。Paperwren 只显示内容全部包含在内的 .glb 文件，并且绝不会下载任何内容。",
+	"This model is too large for Paperwren to show.":
+		"此模型太大，Paperwren 无法显示。",
+	"This device can't draw 3D graphics (WebGL), so the model can't be shown.":
+		"此设备无法绘制 3D 图形 (WebGL)，因此无法显示该模型。",
+	"The device took back the 3D view. It will return in a moment, or close the model and open it again.":
+		"设备收回了 3D 视图。它稍后会恢复，也可以关闭模型后重新打开。",
+	"3D model: {name}. Drag to turn it, pinch or scroll to zoom.":
+		"3D 模型：{name}。拖动可旋转，双指捏合或滚动滚轮可缩放。",
+	"Reset view": "重置视图",
+	"Play animation": "播放动画",
+	"Pause animation": "暂停动画",
+	Triangles: "三角形",
+	Vertices: "顶点",
+	Animations: "动画",
 };

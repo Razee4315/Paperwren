@@ -1340,4 +1340,27 @@ export const ar: Table = {
 	"Unnamed contact": "جهة اتصال بلا اسم",
 	"Keep colours": "أبقِ الألوان",
 	"One ink": "حبر واحد",
+	"Can't show this model": "تعذّر عرض هذا النموذج",
+	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
+		"الملف تالف أو ليس نموذج glTF ثنائيًا (.glb) يعرضه Paperwren.",
+	"This is an older kind of binary glTF. Paperwren shows glTF 2.0 models.":
+		"هذا نوع أقدم من glTF الثنائي. يعرض Paperwren نماذج glTF 2.0.",
+	"This model is squeezed with Draco, meshopt or KTX2, which Paperwren can't unpack. Open it in another app from the menu.":
+		"هذا النموذج مضغوط بـ Draco أو meshopt أو KTX2، ولا يستطيع Paperwren فك ضغطه. افتحه في تطبيق آخر من القائمة.",
+	"This model keeps parts of itself in other files or on the web. Paperwren shows .glb files that hold everything inside them, and it never fetches anything.":
+		"يحتفظ هذا النموذج ببعض أجزائه في ملفات أخرى أو على الويب. يعرض Paperwren ملفات .glb التي تحتوي على كل شيء بداخلها، ولا يجلب أي شيء أبدًا.",
+	"This model is too large for Paperwren to show.":
+		"هذا النموذج أكبر من أن يعرضه Paperwren.",
+	"This device can't draw 3D graphics (WebGL), so the model can't be shown.":
+		"لا يستطيع هذا الجهاز رسم الرسومات ثلاثية الأبعاد (WebGL)، لذا لا يمكن عرض النموذج.",
+	"The device took back the 3D view. It will return in a moment, or close the model and open it again.":
+		"سحب الجهاز عرض الأبعاد الثلاثية. سيعود بعد قليل، أو أغلق النموذج وافتحه مجددًا.",
+	"3D model: {name}. Drag to turn it, pinch or scroll to zoom.":
+		"نموذج ثلاثي الأبعاد: {name}. اسحب لتدويره، واضغط بإصبعين أو مرّر العجلة للتكبير.",
+	"Reset view": "إعادة ضبط العرض",
+	"Play animation": "تشغيل الحركة",
+	"Pause animation": "إيقاف الحركة مؤقتًا",
+	Triangles: "المثلثات",
+	Vertices: "الرؤوس",
+	Animations: "الحركات",
 };

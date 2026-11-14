@@ -46,6 +46,7 @@ To find where a slow start goes, run the desktop app with `PAPERWREN_TRACE=1` (f
 - `python3 scripts/make-office-fixtures.py`: the basic Office/ODF/RTF samples (needs python-pptx, python-docx and LibreOffice).
 - `python3 scripts/make-rich-fixtures.py`: styled and frozen workbooks, chart and effect decks, right-to-left text, a picture, and password-protected PDF and Office files (needs openpyxl, Pillow, python-pptx, reportlab, msoffcrypto-tool). The password is `wren`.
 - `python3 scripts/make-feature-fixtures.py`: the files for the reading features in `fixtures/features/` (a PDF with pictures, comments, attachments, layers and wide margins, an EPUB and a locked one, a comic book, pictures in newer formats, a workbook with conditional formatting and a CSV in a Windows code page; needs reportlab, pypdf, Pillow, pillow-heif and openpyxl). `notes.md`, `data.json` and `wren.py` there are written by hand.
+- `node scripts/make-model-fixtures.mjs`: the 3D model files in `fixtures/` (`model.glb`, a cube with a colour on every face; `model-animated.glb`, the same cube turning; `model-compressed.glb` and `model-external.glb`, which Paperwren must refuse; `model-truncated.glb`). Each is a few kilobytes, written with no libraries. The browser tests for the model viewer need a Chromium that can draw WebGL.
 - `fixtures/legacy/` and `fixtures/odf/` are real files from the Apache POI and LibreOffice test suites; see the README in each.
 
 ### Translations

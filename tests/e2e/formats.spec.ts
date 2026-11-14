@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type Locator, type Page, expect, test } from "@playwright/test";
 import { boot, openFixture } from "./helpers";
 
 test("vCard contacts open, copy, find and sniff with Unicode names", async ({
@@ -41,6 +41,189 @@ test("vCard contacts open, copy, find and sniff with Unicode names", async ({
 				(img: HTMLImageElement) => img.complete && img.naturalWidth > 0,
 			),
 	).toBe(true);
+});
+
+/** How many pixels of a canvas differ from its corner: a drawn model
+ * has some, an empty room has none. */
+async function inkOf(page: Page, canvas: Locator): Promise<number> {
+	const png = (await canvas.screenshot()).toString("base64");
+	return page.evaluate(async (b64) => {
+		const image = new Image();
+		image.src = `data:image/png;base64,${b64}`;
+		await image.decode();
+		const flat = document.createElement("canvas");
+		flat.width = image.width;
+		flat.height = image.height;
+		const context = flat.getContext("2d");
+		if (!context) return 0;
+		context.drawImage(image, 0, 0);
+		const { data } = context.getImageData(0, 0, flat.width, flat.height);
+		let ink = 0;
+		for (let i = 0; i < data.length; i += 4)
+			if (
+				Math.abs(data[i] - data[0]) +
+					Math.abs(data[i + 1] - data[1]) +
+					Math.abs(data[i + 2] - data[2]) >
+				24
+			)
+				ink++;
+		return ink;
+	}, png);
+}
+
+const hasWebGL = (page: Page) =>
+	page.evaluate(() => !!document.createElement("canvas").getContext("webgl2"));
+
+test("a 3D model opens, turns, zooms, plays and resets", async ({ page }) => {
+	const errors: string[] = [];
+	page.on("pageerror", (e) => errors.push(e.message));
+	page.on("console", (m) => {
+		if (m.type() === "error") errors.push(m.text());
+	});
+	await boot(page);
+	test.skip(!(await hasWebGL(page)), "this browser cannot draw WebGL");
+	await openFixture(page, "model-animated.glb");
+	const stage = page.getByTestId("model-stage");
+	await expect(stage).toHaveAttribute("data-phase", "ready", {
+		timeout: 20_000,
+	});
+	const canvas = page.getByTestId("model-canvas");
+	await expect(canvas).toBeVisible();
+	expect(await inkOf(page, canvas)).toBeGreaterThan(2000);
+
+	// Dragging turns it, and Reset view frames it again. The bars that
+	// come with the model change the room's size once; wait for that.
+	await expect
+		.poll(async () => {
+			const seen = await stage.getAttribute("data-view");
+			await page.waitForTimeout(250);
+			return seen === (await stage.getAttribute("data-view"));
+		})
+		.toBe(true);
+	const first = await stage.getAttribute("data-view");
+	const box = (await canvas.boundingBox()) ?? {
+		x: 0,
+		y: 0,
+		width: 0,
+		height: 0,
+	};
+	const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+	await page.mouse.move(x, y);
+	await page.mouse.down();
+	await page.mouse.move(x + 90, y + 30, { steps: 6 });
+	await page.mouse.up();
+	await expect(stage).not.toHaveAttribute("data-view", first ?? "");
+	await page.getByTestId("model-reset").click();
+	await expect(stage).toHaveAttribute("data-view", first ?? "");
+
+	// Zoom from the shared control; its level is a share of the first fit.
+	const scale = page.getByTestId("model-scale");
+	await expect(scale).toContainText("Fit");
+	await page.getByTestId("model-zoom-in").click();
+	await expect(scale).toContainText("125%");
+	await page.getByTestId("model-zoom-out").click();
+	await page.getByTestId("model-zoom-out").click();
+	await expect(scale).toContainText("80%");
+	await scale.click();
+	await expect(scale).toContainText("Fit");
+	await expect(stage).toHaveAttribute("data-view", first ?? "");
+
+	// The keys: an arrow turns it, + comes closer, 0 goes back.
+	await page.keyboard.press("ArrowRight");
+	await expect(stage).not.toHaveAttribute("data-view", first ?? "");
+	await page.keyboard.press("+");
+	await expect(scale).toContainText("125%");
+	await page.keyboard.press("0");
+	await expect(stage).toHaveAttribute("data-view", first ?? "");
+
+	// It plays from the start; paused, the picture holds still.
+	const play = page.getByTestId("model-play");
+	await expect(play).toHaveAttribute("data-playing", "");
+	const before = await canvas.screenshot();
+	await expect
+		.poll(async () => !(await canvas.screenshot()).equals(before))
+		.toBe(true);
+	await play.click();
+	await expect(play).not.toHaveAttribute("data-playing", "");
+	await page.waitForTimeout(300);
+	const held = await canvas.screenshot();
+	await page.waitForTimeout(500);
+	expect((await canvas.screenshot()).equals(held)).toBe(true);
+
+	// What the file holds is in its details.
+	await page.getByTestId("file-more").click();
+	await page.getByTestId("file-details-open").click();
+	const details = page.getByTestId("file-details");
+	await expect(details).toContainText("Triangles");
+	await expect(details).toContainText("12");
+	await expect(details).toContainText("Animations");
+	await details.getByRole("button", { name: "Done" }).click();
+
+	await page.getByTestId("viewer-back").click();
+	await expect(page.getByTestId("viewer")).toBeHidden();
+	expect(errors).toEqual([]);
+});
+
+test("a still model, named with no extension, has no play button", async ({
+	page,
+}) => {
+	await boot(page);
+	test.skip(!(await hasWebGL(page)), "this browser cannot draw WebGL");
+	await openFixture(page, "model.glb", "download");
+	await expect(page.getByTestId("model-stage")).toHaveAttribute(
+		"data-phase",
+		"ready",
+		{ timeout: 20_000 },
+	);
+	await expect(page.getByTestId("model-reset")).toBeVisible();
+	await expect(page.getByTestId("model-play")).toHaveCount(0);
+});
+
+for (const [file, words] of [
+	["model-truncated.glb", "damaged"],
+	["model-compressed.glb", "Draco"],
+	["model-external.glb", "never fetches"],
+]) {
+	test(`${file} says why it is not shown`, async ({ page }) => {
+		const asked: string[] = [];
+		page.on("request", (r) => {
+			if (r.url().includes("example.invalid")) asked.push(r.url());
+		});
+		await boot(page);
+		await openFixture(page, file);
+		const error = page.getByTestId("model-error");
+		await expect(error).toContainText("show this model", {
+			timeout: 20_000,
+		});
+		await expect(error).toContainText(words);
+		await expect(page.getByTestId("model-canvas")).toHaveCount(0);
+		await error.getByRole("button", { name: "Close" }).click();
+		await expect(page.getByTestId("home")).toBeVisible();
+		expect(asked).toEqual([]);
+	});
+}
+
+test("with no WebGL a model says so", async ({ page }) => {
+	await page.addInitScript(() => {
+		const original = HTMLCanvasElement.prototype.getContext;
+		HTMLCanvasElement.prototype.getContext = function (
+			this: HTMLCanvasElement,
+			type: string,
+			...rest: unknown[]
+		) {
+			if (/webgl/i.test(type)) return null;
+			return (original as (...args: unknown[]) => unknown).call(
+				this,
+				type,
+				...rest,
+			);
+		} as typeof original;
+	});
+	await boot(page);
+	await openFixture(page, "model.glb");
+	await expect(page.getByTestId("model-error")).toContainText("WebGL", {
+		timeout: 20_000,
+	});
 });
 
 const CASES: Array<[string, string]> = [

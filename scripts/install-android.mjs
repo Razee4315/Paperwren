@@ -79,6 +79,7 @@ export const MIME_TYPES = [
 	"text/vcard",
 	"text/x-vcard",
 	"text/directory",
+	"model/gltf-binary",
 	"text/csv",
 	"text/comma-separated-values",
 	"text/tab-separated-values",

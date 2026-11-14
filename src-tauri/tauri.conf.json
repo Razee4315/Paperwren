@@ -69,6 +69,14 @@
         "mimeType": "text/vcard"
       },
       {
+        "ext": ["glb"],
+        "name": "3D model",
+        "description": "3D model",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "mimeType": "model/gltf-binary"
+      },
+      {
         "ext": [
           "pdf"
         ],
