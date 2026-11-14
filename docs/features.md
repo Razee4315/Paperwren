@@ -61,7 +61,7 @@ The bytes decide the format, not the file name: content URIs without extensions 
 
 ## Tools
 
-The PDF jobs people otherwise upload to a website for, on the device. Open them from **Tools** on Home, from a PDF's menu (**Fill & sign**, **Mark up**, **More PDF tools**), or from a photo's (**Scan this photo**). Each tool saves a new file where you choose, in the system's own save screen; the files you started with are not changed.
+The PDF jobs people otherwise upload to a website for, on the device. Open them from **Tools** on Home, from a PDF's menu (**Fill & sign**, **Mark up**, **More PDF tools**), or from a photo's (**Scan this photo**). Each tool saves a new file where you choose, in the system's own save screen; the files you started with are not changed. A copy made from a password-protected PDF has no password and none of the limits the original set, and the tool says so before it saves.
 
 | Tool | What it does |
 |---|---|

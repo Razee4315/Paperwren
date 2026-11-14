@@ -1,5 +1,22 @@
 # What's new
 
+## 1.8.0
+
+- Bars while reading, in Settings: Always, Auto-hide or Tap only. On a phone the bars slide over the page without a stutter.
+- Full screen on a phone, from the ⋮ menu. Held sideways, the controls move to a rail at the side and leave more room for the page.
+- One window on Windows and Linux: a file opened while Paperwren runs becomes a tab. Tabs can be dragged into another order, moved with Ctrl+Shift+Page Up and Page Down, and have a right-click menu. Switching tabs is instant.
+- Full screen on Windows goes in and out in one step, and Linux shows the document's name once, in the window's title.
+- Merge PDFs and Pictures to PDF take many files in one pick, and Sort by name puts them in order.
+- Compress PDF can aim for a size: 200 KB, 500 KB, 1 MB, 2 MB or one you type. When the text alone is too big, it can turn the pages into pictures. Keep quality (lossless) makes a file smaller without changing its pictures.
+- Photos of a signature or stamp come out clean, in the ink's own colour, with Lighter and Darker, and Keep colours or One ink.
+- Crop pages can save a cropped copy, which opens cropped in other apps too.
+- Contact cards (.vcf) open as a list of contacts, and 3D models (.glb) open to be turned and zoomed.
+- Android: Back on a file another app opened goes back to that app, and PDFs made from phone photos no longer show turned pages.
+- Rename on a phone renames the file itself where Android allows it, and says so when only the name in Paperwren changes. A rename that fails says why.
+- A copy of a password-protected PDF says it will open without the password, and PDFs that only limit copying or changes now work in the tools.
+- On a computer, a saved copy can no longer go over a file you have open.
+- Two quick presses of Esc or Back are no longer lost.
+
 ## 1.7.0
 
 - Two documents side by side on a computer: ⋮ → Side by side. Click a half to work in it, drag the line between them, or swap sides.
