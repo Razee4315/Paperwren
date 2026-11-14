@@ -544,6 +544,14 @@ button.findCount {
 :global(html.desktop) .title {
 	font-size: 14px;
 }
+/* Linux: the system's title bar already names the document. The empty
+ * title keeps the room, so the tools stay at the right. */
+:global(html.linux) .title {
+	pointer-events: none;
+}
+:global(html.linux) .title > * {
+	display: none;
+}
 :global(html.desktop) .zoom,
 :global(html.desktop) .zoom > button:first-child,
 :global(html.desktop) .zoom > button:last-child {

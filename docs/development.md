@@ -25,7 +25,7 @@ npm i --no-save @playwright/test && npx playwright install chromium
 npm run build && npx playwright test
 ```
 
-The browser shows the phone layout. Add `?desktop` to the address for the desktop one, `?desktop&frame` to see the window buttons the app draws on Windows, and `?desktop&lights` for the room a Mac's bar leaves for the system's buttons, with the Mac's keys (`tests/e2e/desktop.spec.ts` covers them).
+The browser shows the phone layout. Add `?desktop` to the address for the desktop one, `?desktop&frame` to see the window buttons the app draws on Windows, and `?desktop&lights` for the room a Mac's bar leaves for the system's buttons, with the Mac's keys (`tests/e2e/desktop.spec.ts` covers them). `?desktop&linux` shows Linux: the system keeps its title bar, so the app's bar leaves out the file name.
 
 The Mac app is built on a Mac, with Rust and the Xcode command line tools:
 

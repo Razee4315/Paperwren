@@ -14,6 +14,7 @@ const params =
 const agent = typeof navigator === "undefined" ? "" : navigator.userAgent;
 const isPhoneAgent = /Android|iPhone|iPad/i.test(agent);
 const isMacAgent = /Macintosh|Mac OS X/i.test(agent) && !isPhoneAgent;
+const isLinuxAgent = /Linux/i.test(agent) && !isPhoneAgent;
 
 /** Touch-first device (phones, tablets) or the ?touch dev override. */
 export const isTouch: boolean = (() => {
@@ -49,6 +50,13 @@ export const ownsFrame: boolean =
 export const sharesFrame: boolean =
 	typeof window !== "undefined" &&
 	((isTauri && isMacAgent) || (isDesktop && params.has("lights")));
+
+/** The window keeps the system's own title bar (GNOME, KDE), which
+ * already names the document, so the app's bar does not repeat the
+ * name. ?linux shows that in the dev server. */
+export const isLinux: boolean =
+	typeof window !== "undefined" &&
+	((isTauri && isLinuxAgent) || (isDesktop && params.has("linux")));
 
 /** A Mac: ⌘ where Windows has Ctrl, and the keys a Mac reader expects.
  * ?frame, the Windows look, keeps the Windows keys on any machine. */

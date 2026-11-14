@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { type Page, expect, test } from "@playwright/test";
 import { boot, longPdf, openFixture } from "./helpers";
 
@@ -775,6 +776,95 @@ test.describe("the desktop layout on a Mac", () => {
 		// ⌘W closes the document.
 		await page.keyboard.press("Meta+w");
 		await expect(page.getByTestId("viewer")).toHaveCount(0);
+	});
+});
+
+/** The window keeps the system's own title bar there (GNOME, KDE), which
+ * names the document; `&linux` asks for that look in a browser. */
+test.describe("the desktop layout on Linux", () => {
+	test.use({ viewport: { width: 1280, height: 800 } });
+	const LINUX = "?desktop&linux";
+
+	/** What the open document's screen shows, as a reader sees it: text that
+	 * is hidden is not in it. */
+	const seen = async (page: Page) =>
+		(await page.getByTestId("viewer").first().innerText()).replace(/\s/g, "");
+	const barText = (page: Page) =>
+		page
+			.locator('[data-testid="viewer"] header')
+			.evaluateAll((all) => all.map((el) => (el as HTMLElement).innerText));
+	const openMore = async (page: Page, fixture: string) => {
+		const b64 = readFileSync(`fixtures/${fixture}`).toString("base64");
+		await page.evaluate(
+			({ b64, name }) => {
+				const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+				window.__paperwrenTestFile = new File([bytes], name);
+			},
+			{ b64, name: fixture },
+		);
+		await page.keyboard.press("Control+o");
+	};
+
+	test("one document: the name is in the window's title, not in the app's bar", async ({
+		page,
+	}) => {
+		await boot(page, {}, LINUX);
+		await expect(page.getByTestId("window-controls")).toHaveCount(0);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		// The window's title carries the name; the app's bar does not repeat it.
+		await expect(page).toHaveTitle("sample.pdf - Paperwren");
+		expect(await seen(page)).not.toContain("sample.pdf");
+		expect((await barText(page)).join("")).not.toContain("sample");
+		await expect(page.getByTestId("tab-strip")).toHaveCount(0);
+
+		// The bar keeps its controls, the tools still at the right.
+		await expect(page.getByTestId("viewer-back")).toBeVisible();
+		const more = await page.getByTestId("file-more").boundingBox();
+		expect((more?.x ?? 0) + (more?.width ?? 0)).toBeGreaterThan(1240);
+		const zoom = await page.getByTestId("pdf-zoom-in").boundingBox();
+		expect(zoom?.x ?? 0).toBeGreaterThan(600);
+
+		// What the name was for is still there: the file menu and rename.
+		await page.getByTestId("file-more").click();
+		await expect(page.getByTestId("file-menu")).toBeVisible();
+		await page.getByTestId("file-rename").click();
+		await expect(page.getByTestId("rename-input")).toHaveValue("sample");
+	});
+
+	test("two documents show their tabs; one again hides the row", async ({
+		page,
+	}) => {
+		await boot(page, {}, LINUX);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		await openMore(page, "sample.txt");
+		const tabs = page.getByTestId("tab");
+		await expect(tabs).toHaveText(["sample.pdf", "sample.txt"]);
+		await expect(page).toHaveTitle("sample.txt - Paperwren");
+		// The tabs name the documents; the bar under them does not again.
+		expect((await barText(page)).join("")).not.toContain("sample");
+
+		await tabs.first().getByRole("tab").click();
+		await expect(page).toHaveTitle("sample.pdf - Paperwren");
+		await tabs.first().getByTestId("tab-close").click();
+		await expect(page.getByTestId("tab-strip")).toHaveCount(0);
+		await expect(page).toHaveTitle("sample.txt - Paperwren");
+	});
+
+	test("without &linux the bar names the document, as before", async ({
+		page,
+	}) => {
+		await boot(page, {}, DESKTOP);
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		expect(await seen(page)).toContain("sample.pdf");
 	});
 });
 
