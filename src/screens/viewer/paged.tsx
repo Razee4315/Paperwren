@@ -68,8 +68,20 @@ export function reveal(el: HTMLElement, rect: DOMRect, margin = 40) {
 		el.scrollLeft = pageAt(el, rect.left) * el.clientWidth;
 		return;
 	}
-	if (rect.top < view.top + margin || rect.bottom > view.bottom - margin)
+	const shown = shownBand(el);
+	if (rect.top < shown.top + margin || rect.bottom > shown.bottom - margin)
 		el.scrollTop += rect.top - view.top - view.height / 3;
+}
+
+/** The part of a scroller the reader sees: all of it, less what bars
+ * floating over it cover (its scroll-padding, Shell.module.css). */
+export function shownBand(el: HTMLElement) {
+	const view = el.getBoundingClientRect();
+	const style = getComputedStyle(el);
+	return {
+		top: view.top + (Number.parseFloat(style.scrollPaddingTop) || 0),
+		bottom: view.bottom - (Number.parseFloat(style.scrollPaddingBottom) || 0),
+	};
 }
 
 /** Go to where an element begins (a heading, a chapter): its top just
@@ -80,7 +92,7 @@ export function jumpTo(el: HTMLElement, target: Element, offset = 12) {
 		el.scrollLeft = pageAt(el, rect.left) * el.clientWidth;
 		return;
 	}
-	el.scrollTop += rect.top - el.getBoundingClientRect().top - offset;
+	el.scrollTop += rect.top - shownBand(el).top - offset;
 }
 
 /** Where a layout that was just taken down had its reader. */

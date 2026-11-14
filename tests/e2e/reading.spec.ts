@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { type Page, expect, test } from "@playwright/test";
-import { boot, openFixture } from "./helpers";
+import { boot, longPdf, openFixture } from "./helpers";
 
 /** The colour at the middle of the first copied picture of a PDF page. */
 const pictureMiddle = (page: Page) =>
@@ -1106,6 +1106,108 @@ test.describe("reading on a phone", () => {
 			el.scrollTop -= 100;
 		});
 		await expect.poll(() => barsHidden(page)).toBe(false);
+	});
+
+	test("bars that go while reading slide over the page, which keeps its size", async ({
+		page,
+	}) => {
+		await boot(page, { settings_v2: { autoHideBars: true } });
+		const pdf = longPdf(12);
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, pdf);
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toContainText("/ 12", {
+			timeout: 20_000,
+		});
+		const scroller = page.getByTestId("pdf-scroll");
+		await expect(scroller.locator("canvas").first()).toBeVisible();
+		const height = await scroller.evaluate((el) => el.clientHeight);
+		// The first page's drawing, to tell whether it is drawn again.
+		await scroller
+			.locator("canvas")
+			.first()
+			.evaluate((c) => {
+				c.dataset.first = "";
+			});
+		// Scroll, then the scroller's height on every frame while the bars
+		// move.
+		const scrollAndWatch = (by: number) =>
+			scroller.evaluate(
+				(el, by) =>
+					new Promise<number[]>((done) => {
+						const seen = [el.clientHeight];
+						el.scrollTop += by;
+						const start = performance.now();
+						const frame = () => {
+							seen.push(el.clientHeight);
+							if (performance.now() - start < 700) requestAnimationFrame(frame);
+							else done(seen);
+						};
+						requestAnimationFrame(frame);
+					}),
+				by,
+			);
+		const bars = () =>
+			page.getByTestId("viewer").evaluate((shell) => {
+				const top = shell.querySelector("header") as HTMLElement;
+				const foot = shell.querySelector("footer") as HTMLElement;
+				const [a, b] = [getComputedStyle(top), getComputedStyle(foot)];
+				return {
+					hidden: top.hasAttribute("inert") && foot.hasAttribute("inert"),
+					margins: [a.marginTop, b.marginBottom],
+					moved: a.transform !== "none" && b.transform !== "none",
+				};
+			});
+
+		await expect.poll(bars).toEqual({
+			hidden: false,
+			margins: ["0px", "0px"],
+			moved: false,
+		});
+		expect(new Set(await scrollAndWatch(500))).toEqual(new Set([height]));
+		await expect.poll(bars).toEqual({
+			hidden: true,
+			margins: ["0px", "0px"],
+			moved: true,
+		});
+		expect(new Set(await scrollAndWatch(-100))).toEqual(new Set([height]));
+		await expect.poll(bars).toEqual({
+			hidden: false,
+			margins: ["0px", "0px"],
+			moved: false,
+		});
+		await expect(scroller.locator("canvas[data-first]")).toHaveCount(1);
+
+		// At the top, the first page starts below the bar over it.
+		await scroller.evaluate((el) => {
+			el.scrollTop = 0;
+		});
+		await expect.poll(() => barsHidden(page)).toBe(false);
+		const under = await page.getByTestId("viewer").evaluate((shell) => {
+			const bar = (shell.querySelector("header") as HTMLElement).offsetHeight;
+			const first = shell.querySelector(".page") as HTMLElement;
+			return (
+				first.getBoundingClientRect().top -
+				shell.getBoundingClientRect().top -
+				bar
+			);
+		});
+		expect(under).toBeGreaterThanOrEqual(0);
+
+		// At the end, the last page ends above where the bottom bar shows.
+		const above = await page.getByTestId("viewer").evaluate((shell) => {
+			const foot = shell.querySelector("footer") as HTMLElement;
+			const box = shell.querySelector(
+				'[data-testid="pdf-scroll"]',
+			) as HTMLElement;
+			box.scrollTop = box.scrollHeight;
+			const pages = box.querySelectorAll(".page");
+			const last = pages[pages.length - 1].getBoundingClientRect();
+			return foot.offsetTop - (last.bottom - shell.getBoundingClientRect().top);
+		});
+		expect(above).toBeGreaterThanOrEqual(0);
+		expect(await scroller.evaluate((el) => el.clientHeight)).toBe(height);
 	});
 
 	test("the screen dims, and the document scrolls by itself", async ({

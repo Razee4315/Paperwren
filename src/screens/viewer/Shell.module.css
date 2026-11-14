@@ -229,7 +229,7 @@
 /* Zoom level, shown only while a gesture is changing it. */
 .hud {
 	position: absolute;
-	top: 14px;
+	top: calc(14px + var(--bars-top, 0px));
 	left: 0;
 	right: 0;
 	margin-inline: auto;
@@ -292,6 +292,40 @@
 	margin-bottom: -80px;
 	opacity: 0;
 	pointer-events: none;
+}
+/* Bars that go while reading (Shell.tsx, `floating`) lie over the
+ * document and slide away on the compositor: the document keeps its
+ * size, so showing and hiding them lays nothing out again. What sits
+ * over the document keeps clear of them by --bars-top and
+ * --bars-bottom, which are 0 wherever the bars do not float. */
+.shell {
+	--bars-top: 0px;
+	--bars-bottom: 0px;
+}
+.shell[data-floating] > .top,
+.shell[data-floating] > .bottom {
+	position: absolute;
+	left: 0;
+	right: 0;
+	/* Over what the document lays over itself: the dimmer, the zoom
+	 * level, the read aloud bar. */
+	z-index: 10;
+	transition: transform var(--t-med) var(--ease), opacity var(--t-med)
+		var(--ease);
+}
+.shell[data-floating] > .top {
+	top: 0;
+}
+.shell[data-floating] > .bottom {
+	bottom: 0;
+}
+.shell[data-floating] > .hiddenTop {
+	margin-top: 0;
+	transform: translateY(-100%);
+}
+.shell[data-floating] > .hiddenBottom {
+	margin-bottom: 0;
+	transform: translateY(100%);
 }
 
 .find {
@@ -544,7 +578,7 @@ button.findCount {
 	right: 0;
 	margin-inline: auto;
 	width: fit-content;
-	top: 12px;
+	top: calc(12px + var(--bars-top, 0px));
 	z-index: 4;
 	max-width: calc(100% - 32px);
 	padding: 8px 14px;
@@ -563,9 +597,9 @@ button.findCount {
 .scrub {
 	display: none;
 	position: absolute;
-	top: 8px;
+	top: calc(8px + var(--bars-top, 0px));
 	right: 0;
-	bottom: 8px;
+	bottom: calc(8px + var(--bars-bottom, 0px));
 	z-index: 4;
 	width: 28px;
 	pointer-events: none;
@@ -648,7 +682,7 @@ button.findCount {
 /* Read aloud: a small bar over the foot of the document while it reads. */
 .speech {
 	position: absolute;
-	bottom: 16px;
+	bottom: calc(16px + var(--bars-bottom, 0px));
 	left: 0;
 	right: 0;
 	margin-inline: auto;

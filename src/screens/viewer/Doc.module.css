@@ -8,6 +8,9 @@
 	overscroll-behavior: contain;
 	touch-action: pan-x pan-y;
 	background: var(--canvas);
+	/* Room for bars that float over the page (Shell.module.css). */
+	padding-block: var(--bars-top, 0px) var(--bars-bottom, 0px);
+	scroll-padding-block: var(--bars-top, 0px) var(--bars-bottom, 0px);
 }
 /* The stage is what a pinch scales on the compositor; the page box
  * inside it carries the real (CSS) zoom and is centred when it is

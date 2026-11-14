@@ -48,6 +48,7 @@ import {
 	PageCount,
 	SidewaysItem,
 	jumpTo,
+	shownBand,
 	usePaged,
 	useSideways,
 } from "./paged";
@@ -259,8 +260,7 @@ export default function DocxView({
 		const el = scroller.current;
 		const target = sheets.current[n - 1];
 		if (!el || !target) return;
-		el.scrollTop +=
-			target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+		el.scrollTop += target.getBoundingClientRect().top - shownBand(el).top - 8;
 	};
 	const goToHeading = (heading: Heading) => {
 		const el = scroller.current;

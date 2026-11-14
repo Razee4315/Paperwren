@@ -7,6 +7,25 @@
 	touch-action: pan-x pan-y;
 	outline: none;
 	background: var(--canvas);
+	scroll-padding-block: var(--bars-top, 0px) var(--bars-bottom, 0px);
+}
+/* Room for bars that float over the page (Shell.module.css). The pages
+ * are moved down from under the top one by `translate`, which pdf.js
+ * does not see: it scrolls a page to its top by offsetTop, and the page
+ * then lands just under the bar rather than beneath it. The foot makes
+ * room for that move and for the bottom bar. */
+:global([data-floating]) .container {
+	padding-bottom: calc(var(--bars-top, 0px) + var(--bars-bottom, 0px));
+}
+:global([data-floating]) .container > :global(.pdfViewer) {
+	translate: 0 var(--bars-top, 0px);
+}
+/* A webview too old for `translate`: plain padding, so the first page
+ * still starts clear of the bar. */
+@supports not (translate: 0) {
+	:global([data-floating]) .container {
+		padding-block: var(--bars-top, 0px) var(--bars-bottom, 0px);
+	}
 }
 /* Pages run edge to edge with a thin strip of canvas between them. */
 .container :global(.pdfViewer) {
@@ -71,7 +90,7 @@
 .trail {
 	position: absolute;
 	inset-inline-start: 12px;
-	bottom: 16px;
+	bottom: calc(16px + var(--bars-bottom, 0px));
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -92,7 +111,7 @@
 .scanOffer {
 	position: absolute;
 	z-index: 5;
-	bottom: 16px;
+	bottom: calc(16px + var(--bars-bottom, 0px));
 	left: 0;
 	right: 0;
 	margin-inline: auto;

@@ -46,6 +46,7 @@ import {
 	type RefObject,
 	useContext,
 	useEffect,
+	useLayoutEffect,
 	useRef,
 	useState,
 	useSyncExternalStore,
@@ -536,6 +537,42 @@ export function Shell({
 		el.addEventListener("scroll", onScroll, { passive: true });
 		return () => el.removeEventListener("scroll", onScroll);
 	}, [progressOf, settings.autoHideBars, active]);
+	// Bars that go while reading float over the document and slide away,
+	// so the document keeps its size and nothing is laid out again as
+	// they move (#82). Its scroller keeps room for them, as padding of
+	// --bars-top and --bars-bottom, so the first and the last lines are
+	// not under them while they show.
+	const floating = !isDesktop && settings.autoHideBars && canScroll;
+	const topBar = useRef<HTMLElement>(null);
+	const footBar = useRef<HTMLElement>(null);
+	const footed = !!(bottom || (pager && !isDesktop));
+	// biome-ignore lint/correctness/useExhaustiveDependencies: watched again when the bottom bar comes or goes
+	useLayoutEffect(() => {
+		const root = shell.current;
+		if (!root || !floating) return;
+		const room = () => {
+			// offsetHeight is the bar's size wherever its transform has it.
+			root.style.setProperty(
+				"--bars-top",
+				`${topBar.current?.offsetHeight ?? 0}px`,
+			);
+			root.style.setProperty(
+				"--bars-bottom",
+				`${footBar.current?.offsetHeight ?? 0}px`,
+			);
+		};
+		room();
+		// The find bar opens inside the top one and makes it taller.
+		const watch =
+			typeof ResizeObserver === "function" ? new ResizeObserver(room) : null;
+		for (const bar of [topBar.current, footBar.current])
+			if (bar) watch?.observe(bar);
+		return () => {
+			watch?.disconnect();
+			root.style.removeProperty("--bars-top");
+			root.style.removeProperty("--bars-bottom");
+		};
+	}, [floating, footed]);
 
 	const fileMenu = (close: () => void) => (
 		<>
@@ -869,6 +906,7 @@ export function Shell({
 			ref={shell}
 			className={s.shell}
 			data-testid="viewer"
+			data-floating={floating ? "" : undefined}
 			// A tab not on show keeps its size, its place and its drawn
 			// pages: hidden, not taken out of the layout, so showing it
 			// again redraws nothing and replays no entrance (#84). Side by
@@ -877,6 +915,7 @@ export function Shell({
 			{...inert(!onShow(active, pane))}
 		>
 			<header
+				ref={topBar}
 				className={`${s.top} ${barsHidden ? s.hiddenTop : ""} ${finding ? s.pinned : ""}`}
 				{...inert(barsHidden)}
 			>
@@ -994,8 +1033,9 @@ export function Shell({
 					/>
 				</Sheet>
 			)}
-			{(bottom || (pager && !isDesktop)) && (
+			{footed && (
 				<footer
+					ref={footBar}
 					className={`${s.bottom} ${barsHidden ? s.hiddenBottom : ""}`}
 					{...inert(barsHidden)}
 				>
