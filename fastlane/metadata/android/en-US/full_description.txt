@@ -1,0 +1,38 @@
+Paperwren is a document viewer and a small set of PDF tools. It opens PDF, Word, Excel and PowerPoint files in about a second. It has no ads, no account and no tracking, and the app has no network access: your files never leave your phone. It asks for no Android permissions at all.
+
+<b>What it opens</b>
+• PDF: find in document, table of contents, password-protected files, page view
+• Word (DOCX): the document's own page layout, with tables and images
+• Excel (XLSX, XLS, ODS, CSV): frozen headers, merged cells, every sheet tab
+• PowerPoint (PPTX): slides with theme colours, charts and speaker notes
+• Also DOC, ODT, RTF, PPT, ODP, EPUB, comic books (CBZ), Markdown, plain text, source code and pictures
+
+The format is decided by what is inside the file, so a file with the wrong name or no extension still opens in the right viewer.
+
+<b>Mark up and sign</b>
+• Select words in a PDF and tap a colour to highlight; underline, strike out or add a note. Marks stay on the device and the PDF is not changed.
+• Fill in form fields, add a typed, drawn or photographed signature, the date, a tick or a stamp
+• Draw and write on pages with a finger or stylus
+• Notes, typed or handwritten, searchable
+
+<b>PDF tools, on the device</b>
+• Scan a document into a PDF
+• Read text from a PDF, a scan or a photo (nine languages)
+• Merge, split, extract and organize pages
+• Compress, add or remove a password
+• Pictures to PDF and PDF to pictures
+• Page numbers and watermark
+
+Every tool saves a new file where you choose. The original stays as it was.
+
+<b>Reading</b>
+• Three themes: Paper, Sand and Ink, plus Light and Dark
+• Picks up on the page where you stopped
+• Read aloud with the device's own voices
+• Open from any app with "Open with" or "Share", or set it as the default viewer
+• Interface in English, Chinese, Hindi, Spanish, French, Portuguese, Russian, Arabic and Urdu
+
+<b>Privacy</b>
+No analytics, no account, no ads. The release APK requests no Android permissions, and the release build fails if one appears. The scanner and text reader run on the device with bundled models and engines; nothing is downloaded.
+
+Open source, MIT licence. Source and full feature list: https://github.com/Razee4315/Paperwren

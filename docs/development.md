@@ -124,3 +124,7 @@ Only run [Actions → Release](https://github.com/Razee4315/Paperwren/actions/wo
 
 Installed copies on Windows and macOS update from that release. The pipeline signs their updates with the key in the `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` secrets; its public half is `plugins.updater.pubkey` in `tauri.conf.json`, and the release's `latest.json` is the feed. Without the key secret a release still ships, with a warning, but installed copies are not offered it. Keep the private key safe: an update signed with any other key is refused, so losing it means installed copies can no longer update.
 
+
+### Store metadata for F-Droid and IzzyOnDroid
+
+`fastlane/metadata/android/en-US/` holds the title, short and full description, icon, phone screenshots and one changelog per released version for F-Droid-style catalogues. A changelog is named after the Android `versionCode`, which Tauri derives from the version as `major * 1000000 + minor * 1000 + patch` (1.7.0 is `1007000`). Add `changelogs/<versionCode>.txt` (500 characters at most) for each release. The Play Store text is in `store/LISTING.md`.
