@@ -53,6 +53,65 @@ jobs:
           path: dist
           if-no-files-found: error
 
+  digital-id:
+    name: Digital ID check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install independent PDF verifiers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils qpdf
+          python -m pip install 'pyHanko==0.38.0'
+
+      - name: Sign samples and check the library
+        env:
+          PAPERWREN_SIGN_OUT: ${{ runner.temp }}/digital-id
+          PAPERWREN_LINEARIZED_INPUT: ${{ runner.temp }}/linearized.pdf
+        run: |
+          node --input-type=module <<'JS'
+          import { PDFDocument } from '@cantoo/pdf-lib';
+          import { writeFileSync } from 'node:fs';
+          const doc = await PDFDocument.create();
+          doc.addPage([600, 800]);
+          writeFileSync(`${process.env.RUNNER_TEMP}/before-linearize.pdf`, await doc.save());
+          JS
+          qpdf --linearize "$RUNNER_TEMP/before-linearize.pdf" "$PAPERWREN_LINEARIZED_INPUT"
+          npx vitest run src/lib/__tests__/der.test.ts
+          npx vitest run src/lib/__tests__/legacyCiphers.test.ts
+          npx vitest run src/lib/__tests__/pkcs12.test.ts
+          npx vitest run src/lib/__tests__/x509.test.ts
+          npx vitest run src/lib/__tests__/cms.test.ts
+          npx vitest run src/lib/__tests__/pades.test.ts
+
+      - name: Check PDF structure and all signature byte ranges
+        run: node scripts/check-digital-id-signatures.mjs "${{ runner.temp }}/digital-id"
+
+      - name: Check signatures and incremental changes with pyHanko
+        run: python scripts/check-digital-id-pyhanko.py "${{ runner.temp }}/digital-id"
+
+      - name: Upload independently checked signatures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digital-id-signatures
+          path: ${{ runner.temp }}/digital-id
+          if-no-files-found: error
+
   rust:
     name: Rust check
     runs-on: ubuntu-latest

@@ -1244,6 +1244,66 @@ export const zh: Table = {
 	"Paperwren isn't allowed to rename this file": "Paperwren 无权重命名此文件",
 	"That's the file you have open. Choose another name.":
 		"这是你正打开的文件。请换一个名称。",
+	"This certified PDF cannot accept a new visible signature safely. Choose signing without a visible mark, or use an existing signature field.":
+		"此认证 PDF 无法安全添加新的可见签名。请选择无可见标记的签名，或使用现有签名字段。",
+	"This signature field has signing rules or locks that Paperwren can't safely follow.":
+		"此签名字段的签名规则或锁定限制，Paperwren 无法安全遵循。",
+	"This file has no integrity check, so it can't be told whether it was changed.":
+		"此文件没有完整性校验，无法判断它是否被修改过。",
+	"Choose your digital ID (.pfx or .p12)": "选择你的数字身份证（.pfx 或 .p12）",
+	"Digital IDs": "数字身份证",
+	"All files": "所有文件",
+	"Sign with a digital ID": "使用数字身份证签名",
+	"Digital ID": "数字身份证",
+	"Digital ID password": "数字身份证密码",
+	Continue: "继续",
+	"Signed as": "签名人",
+	"Issued by": "颁发者",
+	"Made by its owner (self-signed)": "由持有人自己制作（自签名）",
+	"Valid from {from} to {until}": "有效期 {from} 至 {until}",
+	"This certificate expired on {date}. Readers will show the signature as not valid.":
+		"此证书已于 {date} 过期。PDF 阅读器会将签名显示为无效。",
+	"This certificate isn't valid until {date}. Readers will show the signature as not valid.":
+		"此证书在 {date} 之前无效。PDF 阅读器会将签名显示为无效。",
+	"This certificate isn't meant for signing documents. Readers may not accept the signature.":
+		"此证书并非用于签署文档。PDF 阅读器可能不接受该签名。",
+	"Readers show who signed only if they've been told to trust this certificate.":
+		"只有被设置为信任此证书时，PDF 阅读器才会显示签名人。",
+	"Whether the signature is trusted is decided by the app that opens the PDF, not by Paperwren.":
+		"签名是否可信由打开该 PDF 的应用判断，而不是 Paperwren。",
+	"There's no timestamp: the signing time comes from this device's clock.":
+		"没有时间戳：签名时间取自本设备的时钟。",
+	"Show it on the page": "在页面上显示",
+	"No mark on the page": "页面上不显示",
+	"Sign anyway": "仍然签名",
+	"Use a different digital ID": "使用其他数字身份证",
+	"Digitally signed by {name}": "由 {name} 数字签名",
+	"This file isn't a digital ID.": "此文件不是数字身份证。",
+	"This digital ID is protected in a way Paperwren can't open. Export it again with AES-256 or TripleDES.":
+		"此数字身份证的保护方式 Paperwren 无法打开。请使用 AES-256 或 TripleDES 重新导出。",
+	"This file has a certificate but no private key, so it can't sign. Export it again with the private key included.":
+		"此文件只有证书，没有私钥，因此无法签名。请重新导出并包含私钥。",
+	"Paperwren signs with RSA and ECDSA keys (P-256, P-384, P-521). This digital ID uses another kind.":
+		"Paperwren 使用 RSA 和 ECDSA 密钥（P-256、P-384、P-521）签名。此数字身份证使用的是其他类型。",
+	"The key and the certificate in this file don't belong together.":
+		"此文件中的密钥与证书不匹配。",
+	"This PDF is locked with a password. Remove the password first (Remove a password), then sign that copy.":
+		"此 PDF 受密码保护。请先用“移除密码”去掉密码，再签署得到的副本。",
+	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
+		"此 PDF 已由作者认证且不允许任何更改，因此无法再次签名。",
+	"This PDF's structure is damaged or ambiguous, so it can't be signed safely.":
+		"此 PDF 的结构已损坏或存在歧义，无法安全签名。",
+	"Couldn't sign the copy": "无法签署副本",
+	"Your digital signature will be added when you save.":
+		"保存时将添加你的数字签名。",
+	"Save a signed copy": "保存已签名的副本",
+	"Signing…": "正在签名…",
+	"Signed as {name}. There's no timestamp: the time comes from this device's clock.":
+		"签名人：{name}。没有时间戳：时间取自本设备的时钟。",
+	"The earlier signature stays valid: only your digital signature is added.":
+		"之前的签名仍然有效：只会添加你的数字签名。",
+	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
+		"在已签名的 PDF 中只能添加数字签名，这样之前的签名才能保持有效。请先移除你的其他更改。",
 	"The copy will open without a password. To lock it again, use Add a password.":
 		"副本打开时不需要密码。如需重新加密，请使用“添加密码”。",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":

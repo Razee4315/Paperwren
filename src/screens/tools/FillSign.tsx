@@ -10,6 +10,7 @@ import {
 	fillAndSign,
 	standardText,
 } from "@/lib/pdfTools";
+import type { SignBlocker } from "@/lib/sign";
 import {
 	type Signature,
 	forgetSignature,
@@ -35,6 +36,7 @@ import {
 	CalendarDays,
 	Check,
 	Ellipsis,
+	FileKey,
 	Info,
 	Minus,
 	PenLine,
@@ -59,14 +61,33 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { whole } from "../viewer/pdfCrop";
+import {
+	type Chosen,
+	DigitalIdFlow,
+	PICTURE_SHARE,
+	signatureAppearance,
+} from "./DigitalId";
 import { CopyWarnings } from "./MarkUp";
 import { SignaturePad } from "./SignaturePad";
 import { StampPad } from "./StampPad";
 import s from "./Tools.module.css";
+import { blockerMessage, signatureCaption } from "./certificate";
 
-type Tool = "sign" | "initials" | "stamp" | "text" | "date" | "check" | "cross";
+/** `digital`: the place of a digital signature (a digital ID's), with
+ * the picture it shows. */
+type Tool =
+	| "sign"
+	| "initials"
+	| "stamp"
+	| "text"
+	| "date"
+	| "check"
+	| "cross"
+	| "digital";
 /** What is put on a page as a picture the reader made or picked. */
 type Kept = "sign" | "initials" | "stamp";
+/** What a signature's picture is chosen or made for. */
+type Signing = "sign" | "initials" | "digital";
 
 /** A box on a page as shown: fractions of its width and height. */
 interface Box {
@@ -99,6 +120,9 @@ interface Item extends Box {
 	/** A signature's or a stamp's picture. */
 	src?: string;
 	text?: string;
+	/** A digital signature put in the form's own signature field: its
+	 * full name. */
+	field?: string;
 }
 
 /** The one ink for all that is added, the signature too: blue unless
@@ -321,8 +345,18 @@ export function FillSign({
 	const [editing, setEditing] = useState<string | null>(null);
 	const [signatures, setSignatures] = useState<Signature[]>([]);
 	const [stamps, setStamps] = useState<Signature[]>([]);
-	const [chooser, setChooser] = useState<Kept | null>(null);
-	const [padFor, setPadFor] = useState<"sign" | "initials" | null>(null);
+	const [chooser, setChooser] = useState<Kept | "digital" | null>(null);
+	const [padFor, setPadFor] = useState<Signing | null>(null);
+	// The digital ID chosen to sign with: held here only, for this
+	// session, and forgotten when it is saved, dropped or left.
+	const [digital, setDigital] = useState<Chosen | null>(null);
+	const heldId = useRef<Chosen | null>(null);
+	const [idFlow, setIdFlow] = useState<"new" | "held" | null>(null);
+	// Why this PDF can't be signed with a digital ID; one opened with a
+	// password is known to be locked from the start.
+	const [blocker, setBlocker] = useState<SignBlocker | null>(
+		password ? "encrypted" : null,
+	);
 	const [stampPad, setStampPad] = useState(false);
 	const [chosen, setChosen] = useState<Signature | null>(null);
 	const [chosenStamp, setChosenStamp] = useState<Signature | null>(null);
@@ -398,7 +432,37 @@ export function FillSign({
 		}
 		return out;
 	}, [fields, values]);
-	const dirty = items.length > 0 || changedFields.length > 0;
+	const digitalItem = items.find((item) => item.kind === "digital");
+	// A digital signature to add when saving: one that shows has its
+	// place on a page.
+	const signing = !!digital && (!digital.visible || !!digitalItem);
+	// A PDF already signed takes the digital signature alone, so the
+	// earlier one stays valid.
+	const onlyDigital = !!digital && (digital.signed || signed);
+	const othersPending =
+		onlyDigital &&
+		(items.some((item) => item.kind !== "digital") || changedFields.length > 0);
+	const dirty = items.length > 0 || changedFields.length > 0 || signing;
+
+	/** Hold this digital ID, letting go of the one held before. */
+	const holdDigital = useCallback((next: Chosen | null) => {
+		if (heldId.current && heldId.current.id !== next?.id)
+			heldId.current.id.forget();
+		heldId.current = next;
+		setDigital(next);
+	}, []);
+	// Fill & sign closing lets go of it too.
+	useEffect(
+		() => () => {
+			heldId.current?.id.forget();
+			heldId.current = null;
+		},
+		[],
+	);
+	const dropDigital = () => {
+		holdDigital(null);
+		setItems((list) => list.filter((item) => item.kind !== "digital"));
+	};
 
 	const close = useCallback(() => {
 		if (dirty) setLeaving(true);
@@ -406,6 +470,8 @@ export function FillSign({
 	}, [dirty, onClose]);
 	useBackClose("fill-sign", true, close);
 	useModalFocus(editor, () => {
+		if (tool === "digital" && !items.some((item) => item.kind === "digital"))
+			holdDigital(null);
 		if (tool || selected) {
 			setTool(null);
 			setSelected(null);
@@ -418,6 +484,9 @@ export function FillSign({
 			list.map((item) => (item.id === id ? { ...item, ...change } : item)),
 		);
 	const remove = (id: string) => {
+		// Without its mark, a digital signature that shows is not wanted.
+		if (items.some((item) => item.id === id && item.kind === "digital"))
+			holdDigital(null);
 		setItems((list) => list.filter((item) => item.id !== id));
 		setSelected(null);
 		setEditing(null);
@@ -511,12 +580,34 @@ export function FillSign({
 		setStampPad(false);
 		setTool("stamp");
 	};
-	const signWith = (signature: Signature, kind: "sign" | "initials") => {
+	const signWith = (signature: Signature, kind: Signing) => {
 		setChosen(signature);
 		setChooser(null);
 		setPadFor(null);
 		const into = target.current;
 		target.current = null;
+		if (into && kind === "digital") {
+			// The field itself is its place: the picture and its caption
+			// share the box.
+			const item: Item = {
+				id: newId(),
+				page: into.page,
+				kind,
+				src: signature.src,
+				x: into.x,
+				y: into.y,
+				w: into.w,
+				h: into.h,
+				field: into.name,
+			};
+			setItems((list) => [
+				...list.filter((other) => other.kind !== "digital"),
+				item,
+			]);
+			setSelected(item.id);
+			setTool(null);
+			return;
+		}
 		if (into) {
 			// As large as fits the field, keeping its shape, in its middle.
 			const [pw, ph] = sizes[into.page] ?? [600, 800];
@@ -546,11 +637,41 @@ export function FillSign({
 	};
 	const signInto = (field: Field) => {
 		target.current = field;
-		setTool(null);
 		setSelected(null);
+		// The digital signature in hand goes into the field tapped.
+		if (tool === "digital" && chosen) {
+			signWith(chosen, "digital");
+			return;
+		}
+		setTool(null);
 		const kept = signatures.filter((sig) => !sig.initials);
 		if (kept.length) setChooser("sign");
 		else setPadFor("sign");
+	};
+
+	/** Sign with a digital ID: chosen, or its summary again. */
+	const startDigital = () => {
+		if (blocker) {
+			toast(blockerMessage(blocker));
+			return;
+		}
+		setTool(null);
+		setAgain(null);
+		setSelected(null);
+		setEditing(null);
+		setIdFlow(digital ? "held" : "new");
+	};
+	/** A digital ID was chosen; one that shows needs its picture. */
+	const chooseDigital = (next: Chosen) => {
+		holdDigital(next);
+		if (!next.visible) {
+			setItems((list) => list.filter((item) => item.kind !== "digital"));
+			return;
+		}
+		// Its mark is already on the page: the new ID signs there.
+		if (items.some((item) => item.kind === "digital")) return;
+		if (signatures.some((sig) => !sig.initials)) setChooser("digital");
+		else setPadFor("digital");
 	};
 
 	/** Put the chosen thing where the page was tapped. */
@@ -567,6 +688,13 @@ export function FillSign({
 			src = chosen.src;
 			w = tool === "sign" ? 0.3 : 0.12;
 			h = (w * pw) / (chosen.w / chosen.h) / ph;
+		} else if (tool === "digital") {
+			if (!chosen) return;
+			src = chosen.src;
+			// The picture as a signature's, with room for the caption under
+			// it.
+			w = 0.3;
+			h = Math.min(0.5, (w * pw) / (chosen.w / chosen.h) / ph / PICTURE_SHARE);
 		} else if (tool === "stamp") {
 			if (!chosenStamp) return;
 			src = chosenStamp.src;
@@ -594,7 +722,11 @@ export function FillSign({
 			x: Math.min(1 - w, Math.max(0, u - (tool === "text" ? 0 : w / 2))),
 			y: Math.min(1 - h, Math.max(0, v - h / 2)),
 		};
-		setItems((list) => [...list, item]);
+		// One digital signature at most.
+		setItems((list) => [
+			...list.filter((other) => tool !== "digital" || other.kind !== "digital"),
+			item,
+		]);
 		setSelected(item.id);
 		if (tool === "text") setEditing(item.id);
 		// One at a time, so a later touch on the page can't add another by
@@ -605,54 +737,113 @@ export function FillSign({
 		);
 	};
 
+	/** What was put on the pages, as the PDF tools take it. */
+	const marksOf = async (list: Item[]): Promise<Mark[]> => {
+		const marks: Mark[] = [];
+		for (const item of list) {
+			const [pw, ph] = sizes[item.page] ?? [600, 800];
+			const box = {
+				page: item.page,
+				x: item.x,
+				y: item.y,
+				w: item.w,
+				h: item.h,
+			};
+			if (item.src)
+				marks.push({ ...box, kind: "image", png: pngBytes(item.src) });
+			else if (
+				(item.kind === "text" || item.kind === "date") &&
+				standardText(item.text ?? "")
+			)
+				marks.push({
+					...box,
+					kind: "text",
+					text: item.text ?? "",
+					color: INKS[ink],
+				});
+			else if (
+				item.text?.trim() ||
+				item.kind === "check" ||
+				item.kind === "cross"
+			)
+				marks.push({
+					...box,
+					kind: "image",
+					png: await picture(item, pw, ph, INKS[ink]),
+				});
+		}
+		return marks;
+	};
+
+	/** The copy signed with the digital ID. A PDF not signed yet is
+	 * filled in and marked as usual first; one already signed keeps its
+	 * bytes as they are, and the signature is added after them, so the
+	 * earlier one stays valid. */
+	const signCopy = async (held: Chosen, original: Uint8Array) => {
+		const { signPdf, prepareSigningCopy } = await import("@/lib/sign");
+		// One time for the caption and the signature.
+		const now = new Date();
+		let appearance = null;
+		if (held.visible && digitalItem?.src) {
+			const [pw, ph] = sizes[digitalItem.page] ?? [600, 800];
+			const look = await signatureAppearance(
+				digitalItem.src,
+				signatureCaption(held.id.summary.name, now),
+				digitalItem.w * pw,
+				digitalItem.h * ph,
+				INKS[ink],
+			);
+			appearance = {
+				placement: {
+					page: digitalItem.page,
+					x: digitalItem.x,
+					y: digitalItem.y,
+					w: digitalItem.w,
+					h: digitalItem.h,
+				},
+				png: pngBytes(look),
+			};
+		}
+		const earlier = held.signed || signed;
+		const preparedMarks = earlier
+			? []
+			: await marksOf(items.filter((item) => item.kind !== "digital"));
+		const base = earlier
+			? original
+			: await prepareSigningCopy(original, () =>
+					fillAndSign(original, {
+						password,
+						fields: changedFields,
+						marks: preparedMarks,
+						flatten,
+					}),
+				);
+		return signPdf(base, held.id, {
+			appearance,
+			// A form made flat has no fields left to sign in.
+			field: earlier || !flatten ? digitalItem?.field : undefined,
+			now,
+		});
+	};
+
 	const save = async () => {
 		setSaving("busy");
+		const held = signing ? heldId.current : null;
 		try {
-			const marks: Mark[] = [];
-			for (const item of items) {
-				const [pw, ph] = sizes[item.page] ?? [600, 800];
-				const box = {
-					page: item.page,
-					x: item.x,
-					y: item.y,
-					w: item.w,
-					h: item.h,
-				};
-				if (item.src)
-					marks.push({ ...box, kind: "image", png: pngBytes(item.src) });
-				else if (
-					(item.kind === "text" || item.kind === "date") &&
-					standardText(item.text ?? "")
-				)
-					marks.push({
-						...box,
-						kind: "text",
-						text: item.text ?? "",
-						color: INKS[ink],
-					});
-				else if (
-					item.text?.trim() ||
-					item.kind === "check" ||
-					item.kind === "cross"
-				)
-					marks.push({
-						...box,
-						kind: "image",
-						png: await picture(item, pw, ph, INKS[ink]),
-					});
-			}
 			// pdf.js holds the file's bytes (the ones read were handed to it).
-			const bytes = await fillAndSign(await doc.getData(), {
-				password,
-				fields: changedFields,
-				marks,
-				flatten,
-			});
-			const signed = items.some(
-				(i) => i.kind === "sign" || i.kind === "initials",
-			);
+			const original = await doc.getData();
+			const bytes = held
+				? await signCopy(held, original)
+				: await fillAndSign(original, {
+						password,
+						fields: changedFields,
+						marks: await marksOf(items),
+						flatten,
+					});
+			const signedCopy =
+				!!held || items.some((i) => i.kind === "sign" || i.kind === "initials");
 			const saved = await backend.saveFile(
-				copyName(name, signed ? t("signed") : t("filled in")),
+				copyName(name, signedCopy ? t("signed") : t("filled in")),
 				bytes,
 				"application/pdf",
 			);
@@ -660,15 +851,28 @@ export function FillSign({
 				setSaving("ask");
 				return;
 			}
+			// Signed: the ID is let go at once.
+			if (held) holdDigital(null);
 			setSaving(null);
 			onSaved?.(saved);
 			onClose();
 		} catch (err) {
+			if (held) {
+				const { PdfSignError } = await import("@/lib/sign");
+				if (err instanceof PdfSignError) {
+					setSaving(null);
+					toast(blockerMessage(err.reason));
+					if (err.reason === "certified-visible") setIdFlow("held");
+					return;
+				}
+			}
 			setSaving("ask");
 			toast(
 				err instanceof ToolError && err.reason === "password"
 					? t("This PDF's password is needed to save a copy")
-					: t("Couldn't save a copy"),
+					: held
+						? t("Couldn't sign the copy")
+						: t("Couldn't save a copy"),
 			);
 		}
 	};
@@ -694,14 +898,39 @@ export function FillSign({
 		: tools;
 	const pageWidth = Math.max(200, width) * ZOOMS[zoom];
 	const keysHint = useId();
+	const toolName = (kind: Tool) =>
+		kind === "digital"
+			? t("Digital ID")
+			: (tools.find(([other]) => other === kind)?.[1] ?? "");
+	const saveWord = signing ? t("Save a signed copy") : t("Save a copy");
 	const saveButton = (
 		<Button
 			onClick={() => setSaving("ask")}
 			disabled={!dirty || saving === "busy"}
 			data-testid="fill-save"
 		>
-			{t("Save a copy")}
+			{/* A phone's bar beside the title has no room for the longer
+			 * words in most languages; the hint, the mark and the save
+			 * dialog's title say that it signs. */}
+			{compact && signing ? t("Save") : saveWord}
 		</Button>
+	);
+	// Signing with a digital ID: a rare tool, in More on a phone.
+	const digitalHint = blocker ? blockerMessage(blocker) : undefined;
+	const digitalTool = (
+		<button
+			type="button"
+			className={s.tool}
+			title={digitalHint ?? t("Sign with a digital ID")}
+			aria-pressed={!!digital || tool === "digital"}
+			aria-disabled={!!blocker || undefined}
+			data-blocked={blocker ?? undefined}
+			onClick={startDigital}
+			data-testid="fill-tool-digital"
+		>
+			<FileKey size={20} />
+			<span>{t("Digital ID")}</span>
+		</button>
 	);
 
 	return createPortal(
@@ -740,6 +969,8 @@ export function FillSign({
 							className={s.tool}
 							title={label}
 							aria-pressed={tool === kind}
+							// An already signed PDF takes the digital signature alone.
+							disabled={onlyDigital}
 							// From the keyboard (no pointer: detail 0) it is placed at once.
 							onClick={(e) => pick(kind, e.detail === 0)}
 							data-testid={`fill-tool-${kind}`}
@@ -748,13 +979,18 @@ export function FillSign({
 							<span>{label}</span>
 						</button>
 					))}
+					{!compact && digitalTool}
 					{compact && (
 						<button
 							type="button"
 							className={s.tool}
 							title={t("More")}
 							aria-haspopup="dialog"
-							aria-pressed={!!tool && rare.includes(tool)}
+							aria-pressed={
+								(!!tool && rare.includes(tool)) ||
+								tool === "digital" ||
+								!!digital
+							}
 							onClick={() => setMoreOpen(true)}
 							data-testid="fill-tool-more"
 						>
@@ -792,27 +1028,41 @@ export function FillSign({
 					"Move it with the arrow keys, change its size with + and −, or remove it with Delete.",
 				)}
 			</p>
-			{(!compact || tool || again) && (
-				<div className={s.fillHint} data-testid="fill-guidance">
+			{(!compact ||
+				tool ||
+				again ||
+				othersPending ||
+				(digital && !digital.visible)) && (
+				<div
+					className={s.fillHint}
+					data-testid="fill-guidance"
+					data-warning={othersPending || undefined}
+				>
 					<Info size={17} aria-hidden="true" />
 					<p aria-live="polite" data-testid="fill-hint">
-						{selected && !editing && isDesktop
+						{othersPending
 							? t(
-									"Move it with the arrow keys, change its size with + and −, or remove it with Delete.",
+									"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.",
 								)
-							: tool
-								? t("{tool}: select a spot on the page to place it.", {
-										tool: tools.find(([kind]) => kind === tool)?.[1] ?? "",
-									})
-								: fields?.length
-									? t(
-											"Type into the form's fields, or add to the page from the tools",
-										)
-									: canMark
-										? t(
-												"Choose Text or Signature above, then select a spot on the page.",
-											)
-										: t("Type into the form's fields")}
+							: selected && !editing && isDesktop
+								? t(
+										"Move it with the arrow keys, change its size with + and −, or remove it with Delete.",
+									)
+								: tool
+									? t("{tool}: select a spot on the page to place it.", {
+											tool: toolName(tool),
+										})
+									: digital && !digital.visible
+										? t("Your digital signature will be added when you save.")
+										: fields?.length
+											? t(
+													"Type into the form's fields, or add to the page from the tools",
+												)
+											: canMark
+												? t(
+														"Choose Text or Signature above, then select a spot on the page.",
+													)
+												: t("Type into the form's fields")}
 					</p>
 					{/* Here rather than in the tool bar: the ink for everything
 					 * added, the signature too. A phone has it in More. */}
@@ -857,9 +1107,38 @@ export function FillSign({
 						<button
 							type="button"
 							className={s.cancelTool}
-							onClick={() => setTool(null)}
+							onClick={() => {
+								// A digital signature that shows is not wanted without
+								// its place.
+								if (tool === "digital" && !digitalItem) holdDigital(null);
+								setTool(null);
+							}}
 						>
 							{t("Cancel")}
+						</button>
+					)}
+					{!tool && digital && !compact && (
+						<button
+							type="button"
+							className={s.cancelTool}
+							onClick={() => {
+								// The mark stays where it is, for the next ID to sign.
+								holdDigital(null);
+								setIdFlow("new");
+							}}
+							data-testid="fill-digital-other"
+						>
+							{t("Use a different digital ID")}
+						</button>
+					)}
+					{!tool && digital && !digital.visible && (
+						<button
+							type="button"
+							className={s.cancelTool}
+							onClick={dropDigital}
+							data-testid="fill-digital-remove"
+						>
+							{t("Remove")}
 						</button>
 					)}
 					{!tool && again && (
@@ -917,10 +1196,13 @@ export function FillSign({
 								<FieldInput
 									key={`${f.name}-${i}`}
 									onSign={
-										canMark && !signedIn(f, items)
+										canMark &&
+										!signedIn(f, items) &&
+										(!onlyDigital || tool === "digital")
 											? () => signInto(f)
 											: undefined
 									}
+									locked={onlyDigital}
 									field={f}
 									value={value(f)}
 									pageHeight={(pageWidth * ph) / pw}
@@ -941,7 +1223,12 @@ export function FillSign({
 									label={
 										item.kind === "text"
 											? item.text || t("Text")
-											: (tools.find(([kind]) => kind === item.kind)?.[1] ?? "")
+											: toolName(item.kind)
+									}
+									caption={
+										item.kind === "digital" && digital
+											? signatureCaption(digital.id.summary.name, new Date())
+											: undefined
 									}
 									describedBy={keysHint}
 									selected={selected === item.id}
@@ -983,6 +1270,7 @@ export function FillSign({
 							key={kind}
 							icon={icon}
 							checked={tool === kind}
+							disabled={onlyDigital}
 							onClick={() => {
 								setMoreOpen(false);
 								pick(kind, false);
@@ -992,6 +1280,18 @@ export function FillSign({
 							{label}
 						</SheetItem>
 					))}
+				<SheetItem
+					icon={<FileKey size={20} />}
+					hint={digitalHint}
+					checked={!!digital || tool === "digital"}
+					onClick={() => {
+						setMoreOpen(false);
+						startDigital();
+					}}
+					testId="fill-tool-digital"
+				>
+					{t("Sign with a digital ID")}
+				</SheetItem>
 				<SheetDivider />
 				{(["blue", "black"] as const).map((colour) => (
 					<SheetItem
@@ -1049,6 +1349,8 @@ export function FillSign({
 					}
 					onClose={() => {
 						target.current = null;
+						// No picture for the digital signature: it is not wanted.
+						if (chooser === "digital" && !digitalItem) holdDigital(null);
 						setChooser(null);
 					}}
 					testId="signature-chooser"
@@ -1120,6 +1422,7 @@ export function FillSign({
 					onInk={(hex) => setInk(hex === INKS.black ? "black" : "blue")}
 					onClose={() => {
 						target.current = null;
+						if (padFor === "digital" && !digitalItem) holdDigital(null);
 						setPadFor(null);
 					}}
 					onDone={(sig) => {
@@ -1143,10 +1446,32 @@ export function FillSign({
 					}}
 				/>
 			)}
+			{idFlow && (
+				<DigitalIdFlow
+					name={name}
+					pdf={() => doc.getData()}
+					held={idFlow === "held" ? digital : null}
+					onBlocked={setBlocker}
+					onDrop={() => holdDigital(null)}
+					onReady={(next) => {
+						setIdFlow(null);
+						chooseDigital(next);
+					}}
+					onClose={() => {
+						setIdFlow(null);
+						// No ID now (none chosen, or the held one put aside): no
+						// mark of one either.
+						if (!heldId.current)
+							setItems((list) =>
+								list.filter((item) => item.kind !== "digital"),
+							);
+					}}
+				/>
+			)}
 			{saving && (
 				<Dialog
 					open
-					title={t("Save a copy")}
+					title={saveWord}
 					onClose={() => saving !== "busy" && setSaving(null)}
 					testId="fill-save-ask"
 					actions={
@@ -1160,10 +1485,14 @@ export function FillSign({
 							</Button>
 							<Button
 								onClick={save}
-								disabled={saving === "busy"}
+								disabled={saving === "busy" || (signing && othersPending)}
 								data-testid="fill-save-go"
 							>
-								{saving === "busy" ? t("Saving…") : t("Save")}
+								{saving !== "busy"
+									? t("Save")
+									: signing
+										? t("Signing…")
+										: t("Saving…")}
 							</Button>
 						</>
 					}
@@ -1171,8 +1500,30 @@ export function FillSign({
 					<p className={s.hint}>
 						{t("A new PDF is made; the file you opened stays as it was.")}
 					</p>
-					<CopyWarnings signed={signed} protection={protection} />
-					{changedFields.length > 0 && (
+					{signing && digital ? (
+						<>
+							<p className={s.hint} data-testid="fill-signed-as">
+								{t(
+									"Signed as {name}. There's no timestamp: the time comes from this device's clock.",
+									{ name: digital.id.summary.name },
+								)}
+							</p>
+							{onlyDigital && (
+								<p className={s.hint}>
+									{othersPending
+										? t(
+												"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.",
+											)
+										: t(
+												"The earlier signature stays valid: only your digital signature is added.",
+											)}
+								</p>
+							)}
+						</>
+					) : (
+						<CopyWarnings signed={signed} protection={protection} />
+					)}
+					{changedFields.length > 0 && !onlyDigital && (
 						<label className={s.keep}>
 							<input
 								type="checkbox"
@@ -1222,7 +1573,7 @@ function signedIn(field: Field, items: Item[]): boolean {
 	return items.some(
 		(i) =>
 			i.page === field.page &&
-			(i.kind === "sign" || i.kind === "initials") &&
+			(i.kind === "sign" || i.kind === "initials" || i.kind === "digital") &&
 			i.x + i.w / 2 > field.x &&
 			i.x + i.w / 2 < field.x + field.w &&
 			i.y + i.h / 2 > field.y &&
@@ -1396,7 +1747,10 @@ export function FillPage({
 				down.current = null;
 			}}
 		>
-			<canvas ref={canvas} className={s.fillCanvas} />
+			{/* The page's own text is drawn left to right whatever the app's
+			 * language: pdf.js places each letter, and a right-to-left
+			 * canvas would anchor each one at its right edge. */}
+			<canvas ref={canvas} dir="ltr" className={s.fillCanvas} />
 			{children}
 		</div>
 	);
@@ -1415,12 +1769,16 @@ function FieldInput({
 	pageHeight,
 	onChange,
 	onSign,
+	locked = false,
 }: {
 	field: Field;
 	value: string | boolean;
 	pageHeight: number;
 	onChange: (value: string | boolean) => void;
 	onSign?: () => void;
+	/** Not to be changed now (a signed PDF takes the digital signature
+	 * alone). */
+	locked?: boolean;
 }) {
 	const px = field.h * pageHeight;
 	if (field.kind === "signature")
@@ -1459,6 +1817,7 @@ function FieldInput({
 				aria-label={label}
 				className={`${s.fieldBox} ${field.kind === "radio" ? s.fieldRadio : ""}`}
 				style={at(field)}
+				disabled={locked}
 				onClick={() =>
 					onChange(field.kind === "check" ? !on : on ? "" : (field.on ?? ""))
 				}
@@ -1480,6 +1839,7 @@ function FieldInput({
 				style={{ ...at(field), fontSize: font }}
 				value={String(value)}
 				aria-label={label}
+				disabled={locked}
 				onChange={(e) => onChange(e.target.value)}
 				data-testid="fill-field"
 			>
@@ -1499,6 +1859,7 @@ function FieldInput({
 			value={String(value)}
 			maxLength={field.maxLength}
 			aria-label={label}
+			readOnly={locked}
 			dir="auto"
 			onChange={(
 				e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -1512,6 +1873,7 @@ function FieldInput({
 function PlacedItem({
 	item,
 	label,
+	caption,
 	describedBy,
 	pageWidth,
 	pageHeight,
@@ -1529,6 +1891,8 @@ function PlacedItem({
 	item: Item;
 	/** What it is, said aloud ("Signature", the words typed). */
 	label: string;
+	/** A digital signature's words under its picture. */
+	caption?: string[];
 	/** The keys that move it, said aloud. */
 	describedBy: string;
 	pageWidth: number;
@@ -1558,6 +1922,7 @@ function PlacedItem({
 	const tap = useRef<Press | null>(null);
 	const input = useRef<HTMLInputElement>(null);
 	const self = useRef<HTMLDivElement>(null);
+	const fixed = item.kind === "digital" && !!item.field;
 	useEffect(() => {
 		if (editing) input.current?.focus();
 	}, [editing]);
@@ -1571,7 +1936,7 @@ function PlacedItem({
 	 * its shape; Enter edits typed text. Delete and Escape are the
 	 * editor's (they work on whatever is picked). */
 	const onKey = (e: React.KeyboardEvent) => {
-		if (editing || e.target !== e.currentTarget) return;
+		if (fixed || editing || e.target !== e.currentTarget) return;
 		const step = e.shiftKey ? 0.05 : 0.005;
 		const by: Record<string, [number, number]> = {
 			ArrowLeft: [-step, 0],
@@ -1602,6 +1967,11 @@ function PlacedItem({
 	};
 
 	const start = (mode: "move" | "size") => (e: React.PointerEvent) => {
+		if (fixed) {
+			e.stopPropagation();
+			onSelect();
+			return;
+		}
 		if (editing && mode === "move") return;
 		e.stopPropagation();
 		// One finger at a time moves it; a second one is the page's.
@@ -1688,7 +2058,7 @@ function PlacedItem({
 		<div
 			ref={self}
 			className={s.item}
-			style={at(item)}
+			style={{ ...at(item), cursor: fixed ? "default" : undefined }}
 			data-selected={selected ? "" : undefined}
 			data-kind={item.kind}
 			// biome-ignore lint/a11y/noNoninteractiveTabindex: a mark is moved and sized from the keyboard
@@ -1696,7 +2066,7 @@ function PlacedItem({
 			// biome-ignore lint/a11y/useSemanticElements: a mark on the page, not a form group
 			role="group"
 			aria-label={label}
-			aria-describedby={describedBy}
+			aria-describedby={fixed ? undefined : describedBy}
 			onFocus={(e) => {
 				if (e.target === e.currentTarget && !selected) onSelect();
 			}}
@@ -1707,7 +2077,37 @@ function PlacedItem({
 			onPointerCancel={end}
 			data-testid="fill-item"
 		>
-			{item.src ? (
+			{item.kind === "digital" ? (
+				<>
+					{/* Picked, it has its remove button there instead. */}
+					{!selected && (
+						<span className={s.digitalBadge} aria-hidden="true">
+							<FileKey size={12} />
+							{t("Digital ID")}
+						</span>
+					)}
+					<span
+						className={s.digitalMark}
+						style={
+							{
+								// Two lines in the share of the box under the picture.
+								"--caption": `${Math.max(4, ((item.h * pageHeight * (1 - PICTURE_SHARE)) / 2) * 0.72)}px`,
+								color: ink,
+							} as CSSProperties
+						}
+					>
+						<img src={item.src} alt={t("Your signature")} draggable={false} />
+						<span
+							className={s.digitalCaption}
+							data-testid="fill-digital-caption"
+						>
+							{caption?.map((line) => (
+								<span key={line}>{line}</span>
+							))}
+						</span>
+					</span>
+				</>
+			) : item.src ? (
 				<img
 					src={item.src}
 					alt={item.kind === "stamp" ? t("Stamp") : t("Your signature")}
@@ -1768,14 +2168,16 @@ function PlacedItem({
 					>
 						<Trash2 size={14} />
 					</button>
-					<span
-						className={s.itemSize}
-						onPointerDown={start("size")}
-						onPointerMove={move}
-						onPointerUp={end}
-						aria-hidden="true"
-						data-testid="fill-item-size"
-					/>
+					{!fixed && (
+						<span
+							className={s.itemSize}
+							onPointerDown={start("size")}
+							onPointerMove={move}
+							onPointerUp={end}
+							aria-hidden="true"
+							data-testid="fill-item-size"
+						/>
+					)}
 				</>
 			)}
 		</div>

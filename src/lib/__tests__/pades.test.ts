@@ -1,0 +1,1154 @@
+// @vitest-environment node
+import { X509Certificate } from "node:crypto";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+	PDFArray,
+	PDFBool,
+	PDFContext,
+	PDFDict,
+	PDFDocument,
+	PDFHeader,
+	PDFHexString,
+	PDFName,
+	PDFNumber,
+	PDFRawStream,
+	PDFRef,
+	PDFString,
+	StandardFonts,
+	decodePDFRawStream,
+	degrees,
+} from "@cantoo/pdf-lib";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import { describe, expect, it, vi } from "vitest";
+import { fillAndSign, protect } from "../pdfTools";
+import { ecdsaRaw } from "../sign/cms";
+import * as cms from "../sign/cms";
+import { buffer, concat, der, objectId, read, sequence } from "../sign/der";
+import {
+	PdfSignError,
+	canSign,
+	prepareSigningCopy,
+	readDigitalId,
+	signPdf,
+} from "../sign/index";
+import { OID } from "../sign/oids";
+import { signWithId } from "../sign/pades";
+import { crossReferences } from "../sign/pdfStructure";
+import { readPkcs12 } from "../sign/pkcs12";
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+	"../../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+	import.meta.url,
+).toString();
+const now = new Date("2026-11-14T00:00:00Z");
+const fixture = (name: string) =>
+	Uint8Array.from(readFileSync(`fixtures/digital-id/${name}`));
+const id = (name = "rsa-aes256.p12") => readDigitalId(fixture(name), "wren");
+const png = Uint8Array.from(
+	Buffer.from(
+		"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5WQAAAAASUVORK5CYII=",
+		"base64",
+	),
+);
+
+async function pages(stream = false, turn = 0) {
+	const doc = await PDFDocument.create();
+	const page = doc.addPage([600, 800]);
+	page.setRotation(degrees(turn));
+	page.drawText("The original page", {
+		x: 40,
+		y: 700,
+		font: await doc.embedFont(StandardFonts.Helvetica),
+	});
+	return doc.save({ useObjectStreams: stream });
+}
+
+async function pageTexts(pdf: Uint8Array) {
+	const reader = await pdfjs.getDocument({ data: pdf.slice(), verbosity: 0 })
+		.promise;
+	try {
+		const pages = [];
+		for (let n = 1; n <= reader.numPages; n++)
+			pages.push(
+				(await (await reader.getPage(n)).getTextContent()).items.map((item) =>
+					"str" in item ? item.str : "",
+				),
+			);
+		return pages;
+	} finally {
+		await reader.destroy();
+	}
+}
+
+function signatures(pdf: Uint8Array) {
+	const source = Buffer.from(pdf).toString("latin1");
+	return [
+		...source.matchAll(
+			/\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g,
+		),
+	].map((match) => {
+		const [zero, a, b, rest] = match.slice(1).map(Number);
+		expect(zero).toBe(0);
+		expect(source[a]).toBe("<");
+		expect(source[b - 1]).toBe(">");
+		const padded = Uint8Array.from(
+			Buffer.from(source.slice(a + 1, b - 1), "hex"),
+		);
+		let size = padded[1];
+		let header = 2;
+		if (size & 128) {
+			const count = size & 127;
+			size = 0;
+			for (let i = 0; i < count; i++) size = size * 256 + padded[header++];
+		}
+		const cms = padded.subarray(0, header + size);
+		const ranges = concat(pdf.subarray(0, a), pdf.subarray(b, b + rest));
+		return { a, b, rest, cms, ranges };
+	});
+}
+
+async function verifySignatures(pdf: Uint8Array) {
+	const found = signatures(pdf);
+	for (const sig of found) {
+		const signed = sequence(sequence(read(sig.cms))[1].children[0]);
+		const signer = sequence(signed[4].children[0]);
+		const hashId = objectId(sequence(signer[2])[0]);
+		const hash =
+			hashId === OID.sha384
+				? "SHA-384"
+				: hashId === OID.sha512
+					? "SHA-512"
+					: "SHA-256";
+		const digest = new Uint8Array(
+			await crypto.subtle.digest(hash, buffer(sig.ranges)),
+		);
+		const digestAttribute = signer[3].children.find(
+			(attr) => objectId(sequence(attr)[0]) === OID.messageDigest,
+		);
+		expect(sequence(digestAttribute)[1].children[0].value).toEqual(digest);
+		const sid = sequence(signer[1]);
+		const cert = signed[3].children.find((cert) => {
+			const x509 = new X509Certificate(cert.raw);
+			return (
+				x509.serialNumber.toLowerCase() ===
+				Buffer.from(sid[1].value).toString("hex").replace(/^00/, "")
+			);
+		});
+		expect(cert).toBeDefined();
+		const publicKey = new X509Certificate(cert?.raw ?? new Uint8Array())
+			.publicKey;
+		const rsa = publicKey.asymmetricKeyType === "rsa";
+		const curve = publicKey.asymmetricKeyDetails?.namedCurve;
+		const namedCurve =
+			curve === "secp384r1"
+				? "P-384"
+				: curve === "secp521r1"
+					? "P-521"
+					: "P-256";
+		const key = await crypto.subtle.importKey(
+			"spki",
+			publicKey.export({ type: "spki", format: "der" }),
+			rsa ? { name: "RSASSA-PKCS1-v1_5", hash } : { name: "ECDSA", namedCurve },
+			false,
+			["verify"],
+		);
+		const signature = rsa
+			? signer[5].value
+			: ecdsaRaw(
+					signer[5].value,
+					namedCurve === "P-521" ? 66 : namedCurve === "P-384" ? 48 : 32,
+				);
+		expect(
+			await crypto.subtle.verify(
+				rsa ? "RSASSA-PKCS1-v1_5" : { name: "ECDSA", hash },
+				key,
+				buffer(signature),
+				buffer(der(49, signer[3].value)),
+			),
+		).toBe(true);
+	}
+	const last = found[found.length - 1];
+	expect(last.b + last.rest).toBe(pdf.length);
+	return found;
+}
+
+function emit(name: string, pdf: Uint8Array) {
+	const out = process.env.PAPERWREN_SIGN_OUT;
+	if (!out) return;
+	mkdirSync(out, { recursive: true });
+	writeFileSync(join(out, `${name}.pdf`), pdf);
+	signatures(pdf).forEach((sig, i) => {
+		writeFileSync(join(out, `${name}-${i + 1}.cms`), sig.cms);
+		writeFileSync(join(out, `${name}-${i + 1}.ranges`), sig.ranges);
+	});
+}
+
+// Model Annex F's first-page -> main xref ordering without requiring qpdf.
+// The main trailer deliberately omits Root and has older metadata and Size.
+function linearizedStyle(kind: "table" | "stream" | "hybrid") {
+	const offsets = new Map<number, number>();
+	let source = "%PDF-1.7\n";
+	const first = source.length;
+	const newest = "/Size 100 /Root 1 0 R /Info 4 0 R /ID [<aaaa> <aaaa>]";
+	const entries = (numbers: number[]) =>
+		numbers
+			.map(
+				(n) =>
+					`${String(offsets.get(n) ?? 0).padStart(10, "0")} ${n === 3 ? "00007" : n === 0 ? "65535" : "00000"} ${n === 0 ? "f" : "n"} \n`,
+			)
+			.join("");
+	const stream = (number: number, numbers: number[], trailer: string) => {
+		const bytes = Buffer.alloc(numbers.length * 7);
+		numbers.forEach((n, i) => {
+			bytes[i * 7] = n === 0 ? 0 : 1;
+			bytes.writeUInt32BE(offsets.get(n) ?? 0, i * 7 + 1);
+			bytes.writeUInt16BE(n === 3 ? 7 : n === 0 ? 65535 : 0, i * 7 + 5);
+		});
+		return `${number} 0 obj\n<< /Type /XRef /W [1 4 2] /Index [${numbers[0]} ${numbers.length}] ${trailer} /Length ${bytes.length} >>\nstream\n${bytes.toString("latin1")}\nendstream\nendobj\n`;
+	};
+	source = source.padEnd(1024, " ");
+	for (const [n, body] of [
+		[1, "<< /Type /Catalog /Pages 2 0 R >>"],
+		[2, "<< /Type /Pages /Kids [3 7 R] /Count 1 >>"],
+		[3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] >>"],
+		[4, "<< /Title (Newest) >>"],
+		[5, "<< /Title (Oldest) >>"],
+	] as const) {
+		offsets.set(n, source.length);
+		source += `${n} ${n === 3 ? 7 : 0} obj\n${body}\nendobj\n`;
+	}
+	let hybrid = "";
+	if (kind === "hybrid") {
+		offsets.set(6, source.length);
+		hybrid = ` /XRefStm ${source.length}`;
+		// A supplement's Prev is ignored, even when it points at its own table.
+		source += stream(6, [6], `/Size 100 /Prev ${first}`);
+	}
+	const main = source.length;
+	const older = "/Size 8 /Info 5 0 R /ID [<bbbb> <bbbb>]";
+	if (kind === "stream") {
+		offsets.set(6, first);
+		offsets.set(7, main);
+		source += stream(7, [0, 1, 2, 3, 4, 5, 6, 7], older);
+	} else {
+		source += `xref\n0 6\n${entries([0, 1, 2, 3, 4, 5])}trailer\n<< ${older} >>\n`;
+	}
+	const initial =
+		kind === "stream"
+			? stream(6, [6], `${newest} /Prev ${main}`)
+			: `xref\n1 1\n${entries([1])}trailer\n<< ${newest} /Prev ${main}${hybrid} >>\n`;
+	source =
+		source.slice(0, first) + initial + source.slice(first + initial.length);
+	source += `startxref\n${first}\n%%EOF\n`;
+	return Uint8Array.from(Buffer.from(source, "latin1"));
+}
+
+async function checkLinearized(original: Uint8Array, name?: string) {
+	const before = await PDFDocument.load(original);
+	const count = signatures(original).length;
+	expect(await canSign(original)).toEqual({ signed: count > 0 });
+	if (count) await verifySignatures(original);
+	const first = await signWithId(
+		original,
+		await readPkcs12(fixture("rsa-aes256.p12"), "wren"),
+		"Test",
+		{ appearance: null, now },
+	);
+	expect(first.subarray(0, original.length)).toEqual(original);
+	expect(await verifySignatures(first)).toHaveLength(count + 1);
+	if (name) emit(`once-${name}`, first);
+	expect(await canSign(first)).toEqual({ signed: true });
+	const second = await signPdf(first, await id(), { appearance: null, now });
+	expect(second.subarray(0, first.length)).toEqual(first);
+	expect(await verifySignatures(second)).toHaveLength(count + 2);
+	for (const [before, after] of [
+		[original, first],
+		[first, second],
+	]) {
+		const previous = Buffer.from(before)
+			.toString("latin1")
+			.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1];
+		expect(
+			Buffer.from(after.subarray(before.length)).toString("latin1"),
+		).toContain(`/Prev ${previous}`);
+	}
+	for (const pdf of [first, second]) {
+		const reopened = await PDFDocument.load(pdf);
+		expect(reopened.getPageCount()).toBe(before.getPageCount());
+		expect(reopened.getPage(0).ref.generationNumber).toBe(
+			before.getPage(0).ref.generationNumber,
+		);
+		const reader = await pdfjs.getDocument({
+			data: pdf.slice(),
+			isEvalSupported: false,
+			verbosity: 0,
+		}).promise;
+		expect(reader.numPages).toBe(before.getPageCount());
+		await reader.destroy();
+	}
+	if (name) emit(`${count ? "appended" : "twice"}-${name}`, second);
+	return second;
+}
+
+describe("incremental PAdES signatures", () => {
+	it("refuses a reachable unindexed object and accepts the same indexed incremental update", async () => {
+		const original = await pages();
+		const doc = await PDFDocument.load(original);
+		const root = doc.context.trailerInfo.Root as PDFRef;
+		const orphan = doc.context.largestObjectNumber + 1;
+		const catalog = doc.catalog.clone();
+		catalog.set(PDFName.of("OpenAction"), PDFRef.of(orphan));
+		const source = Buffer.from(original).toString("latin1");
+		const previous = source.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1];
+		let update = `${root.objectNumber} 0 obj\n${catalog}\nendobj\n`;
+		const at = original.length + update.length;
+		update += `${orphan} 0 obj\n<< /S /GoTo /D [0 /Fit] >>\nendobj\n`;
+		const tail = `trailer\n<< /Size ${orphan + 1} /Root ${root} /Prev ${previous} >>\nstartxref\n${original.length + update.length}\n%%EOF\n`;
+		const xref = `xref\n${root.objectNumber} 1\n${String(original.length).padStart(10, "0")} 00000 n \n`;
+		const missing = Uint8Array.from(
+			Buffer.from(source + update + xref + tail, "latin1"),
+		);
+		expect(await canSign(missing)).toMatchObject({ blocker: "damaged" });
+		const valid = Uint8Array.from(
+			Buffer.from(
+				`${source}${update}${xref}${orphan} 1\n${String(at).padStart(10, "0")} 00000 n \n${tail}`,
+				"latin1",
+			),
+		);
+		expect(await canSign(valid)).toEqual({ signed: false });
+		const signed = await signPdf(valid, await id(), { appearance: null, now });
+		expect(await pageTexts(signed)).toEqual(await pageTexts(valid));
+	});
+	it.each(["Root", "Info"] as const)(
+		"refuses a recovered %s that the newest xref marks free",
+		async (key) => {
+			const original = await pages();
+			const doc = await PDFDocument.load(original);
+			const root = doc.context.trailerInfo.Root as PDFRef;
+			const freed = doc.context.trailerInfo[key] as PDFRef;
+			const source = Buffer.from(original).toString("latin1");
+			const previous = source.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1];
+			const pdf = Uint8Array.from(
+				Buffer.from(
+					`${source}xref\n${freed.objectNumber} 1\n0000000000 00001 f \ntrailer\n<< /Size ${doc.context.largestObjectNumber + 1} /Root ${root} /Prev ${previous} >>\nstartxref\n${source.length}\n%%EOF\n`,
+					"latin1",
+				),
+			);
+			expect(await canSign(pdf)).toMatchObject({ blocker: "damaged" });
+		},
+	);
+	it("checks stream definitions without marking original streams for rewriting", async () => {
+		const original = await pages(true);
+		const doc = await PDFDocument.load(original, {
+			forIncrementalUpdate: true,
+			updateMetadata: false,
+		});
+		const streams = doc.context
+			.enumerateIndirectObjects()
+			.filter(([, object]) => object instanceof PDFRawStream);
+		const before = streams.map(([ref]) =>
+			doc.context.snapshot?.shouldSave(ref.objectNumber),
+		);
+		crossReferences(original, doc);
+		expect(
+			streams.map(([ref]) =>
+				doc.context.snapshot?.shouldSave(ref.objectNumber),
+			),
+		).toEqual(before);
+	});
+	it("sanitizes the name written into the signature dictionary", async () => {
+		const signed = await signWithId(
+			await pages(),
+			await readPkcs12(fixture("rsa-aes256.p12"), "wren"),
+			"A\u202e\u000a\u2066yesha",
+			{ appearance: null, now },
+		);
+		const after = await PDFDocument.load(signed);
+		const signature = after
+			.getForm()
+			.getSignature("Signature1")
+			.acroField.V() as PDFDict;
+		expect(
+			signature.lookup(PDFName.of("Name"), PDFHexString).decodeText(),
+		).toBe("Ayesha");
+	});
+	it("keeps a prepared widget on its own cropped rotated page under DocMDP P=2", async () => {
+		const original = fixture("mixed-certified.pdf");
+		expect(await canSign(original)).toEqual({ signed: true });
+		const signed = await signPdf(original, await id(), {
+			field: "Prepared",
+			appearance: {
+				png,
+				placement: { page: 2, x: 0.6, y: 0.6, w: 0.1, h: 0.1 },
+			},
+			now,
+		});
+		const before = await PDFDocument.load(original);
+		const after = await PDFDocument.load(signed);
+		const form = before.catalog.getAcroForm();
+		const compressed = new Set(
+			before.context.enumerateIndirectObjects().flatMap(([, object]) => {
+				if (
+					!(object instanceof PDFRawStream) ||
+					object.dict.get(PDFName.of("Type")) !== PDFName.of("ObjStm")
+				)
+					return [];
+				const first = object.dict
+					.lookup(PDFName.of("First"), PDFNumber)
+					.asNumber();
+				return new TextDecoder()
+					.decode(decodePDFRawStream(object).decode().subarray(0, first))
+					.trim()
+					.split(/\s+/)
+					.map(Number)
+					.filter((_, i) => i % 2 === 0);
+			}),
+		);
+		for (const ref of [
+			before.catalog.get(PDFName.of("AcroForm")),
+			form?.dict.get(PDFName.of("Fields")),
+			before.getPage(0).node.get(PDFName.of("Annots")),
+		]) {
+			expect(ref).toBeInstanceOf(PDFRef);
+			expect(compressed.has((ref as PDFRef).objectNumber)).toBe(true);
+		}
+		const widget = after.getForm().getSignature("Prepared").acroField;
+		expect(widget.dict.get(PDFName.of("Rect"))?.toString()).toBe(
+			"[ 60 100 260 180 ]",
+		);
+		expect(widget.dict.get(PDFName.of("P"))).toBe(before.getPage(0).ref);
+		expect(after.getPage(0).node.Annots()?.asArray()).toContain(widget.ref);
+		expect(after.getPage(2).node.Annots()?.asArray()).not.toContain(widget.ref);
+		const ap = widget.dict
+			.lookup(PDFName.of("AP"), PDFDict)
+			.lookup(PDFName.of("N")) as PDFRawStream;
+		expect(ap.dict.get(PDFName.of("BBox"))?.toString()).toBe("[ 0 0 80 200 ]");
+		await verifySignatures(signed);
+		expect(await pageTexts(signed)).toEqual(await pageTexts(original));
+		emit("mixed-existing", signed);
+	});
+	it("refuses a new visible field after certification, but signs invisibly", async () => {
+		const original = fixture("mixed-certified.pdf");
+		await expect(
+			signPdf(original, await id(), {
+				appearance: {
+					png,
+					placement: { page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.1 },
+				},
+				now,
+			}),
+		).rejects.toMatchObject({ reason: "certified-visible" });
+		const signed = await signPdf(original, await id(), {
+			appearance: null,
+			now,
+		});
+		const after = await PDFDocument.load(signed);
+		expect(
+			after
+				.getForm()
+				.getSignature("Signature1")
+				.acroField.dict.get(PDFName.of("Rect"))
+				?.toString(),
+		).toBe("[ 0 0 0 0 ]");
+		expect(signed.subarray(0, original.length)).toEqual(original);
+		expect(await verifySignatures(signed)).toHaveLength(2);
+		emit("mixed-shared", signed);
+	});
+	it.each([false, true])(
+		"copies shared Annots onto one page (earlier approval = %s)",
+		async (earlier) => {
+			const doc = await PDFDocument.create();
+			const annots = doc.context.register(doc.context.obj([]));
+			for (let i = 0; i < 3; i++)
+				doc.addPage([600, 800]).node.set(PDFName.of("Annots"), annots);
+			let original: Uint8Array = await doc.save({ useObjectStreams: false });
+			if (earlier)
+				original = await signPdf(original, await id(), {
+					appearance: null,
+					now,
+				});
+			const signed = await signPdf(original, await id(), {
+				appearance: {
+					png,
+					placement: { page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.1 },
+				},
+				now,
+			});
+			const after = await PDFDocument.load(signed);
+			const ref = after
+				.getForm()
+				.getSignature(earlier ? "Signature2" : "Signature1").acroField.ref;
+			for (let i = 0; i < 3; i++)
+				expect(after.getPage(i).node.Annots()?.asArray().includes(ref)).toBe(
+					i === 1,
+				);
+			expect(signed.subarray(0, original.length)).toEqual(original);
+			await verifySignatures(signed);
+			emit(
+				earlier ? "shared-approval-visible" : "shared-unsigned-visible",
+				signed,
+			);
+		},
+	);
+	it("keeps an earlier signature's bytes when signing a shared array invisibly", async () => {
+		const doc = await PDFDocument.create();
+		const annots = doc.context.register(doc.context.obj([]));
+		for (let i = 0; i < 3; i++)
+			doc.addPage().node.set(PDFName.of("Annots"), annots);
+		const original = await signPdf(await doc.save(), await id(), {
+			appearance: {
+				png,
+				placement: { page: 2, x: 0.1, y: 0.5, w: 0.3, h: 0.1 },
+			},
+			now,
+		});
+		const signed = await signPdf(original, await id(), {
+			appearance: null,
+			now,
+		});
+		expect(signed.subarray(0, original.length)).toEqual(original);
+		expect(await verifySignatures(signed)).toHaveLength(2);
+		emit("shared-approval-invisible", signed);
+	});
+	it.each(["absent", "direct", "indirect", "direct-fields"])(
+		"adds Annots with a direct AcroForm (%s)",
+		async (kind) => {
+			const doc = await PDFDocument.create();
+			doc.addPage();
+			const target = doc.addPage();
+			if (kind !== "absent" && kind !== "direct-fields")
+				target.node.set(
+					PDFName.of("Annots"),
+					kind === "direct"
+						? doc.context.obj([])
+						: doc.context.register(doc.context.obj([])),
+				);
+			const form = doc.catalog.getOrCreateAcroForm();
+			form.dict.set(
+				PDFName.of("Fields"),
+				kind === "direct-fields"
+					? doc.context.obj([])
+					: doc.context.register(doc.context.obj([])),
+			);
+			doc.catalog.set(PDFName.of("AcroForm"), form.dict);
+			const original = await signPdf(
+				await doc.save({ useObjectStreams: false }),
+				await id(),
+				{ appearance: null, now },
+			);
+			const signed = await signPdf(original, await id(), {
+				appearance: {
+					png,
+					placement: { page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.1 },
+				},
+				now,
+			});
+			expect(signed.subarray(0, original.length)).toEqual(original);
+			expect(await verifySignatures(signed)).toHaveLength(2);
+			emit(`annots-${kind}-direct-form`, signed);
+		},
+	);
+	it.each(["Lock", "SV"])(
+		"refuses an existing field's %s constraints",
+		async (constraint) => {
+			const doc = await PDFDocument.load(fixture("mixed-certified.pdf"));
+			doc
+				.getForm()
+				.getSignature("Prepared")
+				.acroField.dict.set(PDFName.of(constraint), doc.context.obj({}));
+			const original = await doc.save({ updateFieldAppearances: false });
+			await expect(
+				signPdf(original, await id(), {
+					field: "Prepared",
+					appearance: null,
+					now,
+				}),
+			).rejects.toMatchObject({ reason: "constrained" });
+		},
+	);
+	it.each([
+		["All", [], true],
+		["Include", ["Prepared"], true],
+		["Exclude", ["Other"], true],
+		["Include", ["Other"], false],
+		["Exclude", ["Prepared"], false],
+	] as const)("respects FieldMDP %s %j", async (action, names, blocked) => {
+		const doc = await PDFDocument.load(fixture("mixed-certified.pdf"));
+		const signature = doc
+			.getForm()
+			.getSignature("OriginalSignature")
+			.acroField.V() as PDFDict;
+		signature.lookup(PDFName.of("Reference"), PDFArray).push(
+			doc.context.obj({
+				TransformMethod: "FieldMDP",
+				TransformParams: {
+					Action: action,
+					Fields: names.map((name) => PDFString.of(name)),
+				},
+			}),
+		);
+		const original = await doc.save({ updateFieldAppearances: false });
+		const result = signPdf(original, await id(), {
+			field: "Prepared",
+			appearance: null,
+			now,
+		});
+		if (blocked)
+			await expect(result).rejects.toMatchObject({ reason: "constrained" });
+		else await expect(result).resolves.toBeInstanceOf(Uint8Array);
+	});
+	it("reports a CMS reservation overflow as an internal error", async () => {
+		const reserve = vi.spyOn(cms, "cmsReservation").mockResolvedValue(1);
+		try {
+			await expect(
+				signPdf(await pages(), await id(), { appearance: null, now }),
+			).rejects.toThrow("CMS signature exceeded its reservation");
+		} finally {
+			reserve.mockRestore();
+		}
+	});
+	it.each(
+		readdirSync("fixtures/digital-id").filter(
+			(name) =>
+				name.endsWith(".p12") &&
+				!["certs-only.p12", "rsa-aes192.p12"].includes(name),
+		),
+	)("reserves enough CMS space for %s", async (name) => {
+		const password = name.includes("empty-password")
+			? ""
+			: name.includes("unicode")
+				? "wrénøß"
+				: "wren";
+		const loaded = await readDigitalId(fixture(name), password);
+		const original = await pages();
+		const signed = await signPdf(original, loaded, { appearance: null, now });
+		await verifySignatures(signed);
+	});
+	it("signs 3000 pages without constructing objects under incremental tracking", async () => {
+		const doc = await PDFDocument.create({ updateMetadata: false });
+		for (let i = 0; i < 3000; i++) doc.addPage([600, 800]);
+		const original = await doc.save({ useObjectStreams: false });
+		const initial = doc.context.largestObjectNumber;
+		const make = PDFContext.prototype.obj;
+		let tracked = 0;
+		const spy = vi
+			.spyOn(PDFContext.prototype, "obj")
+			.mockImplementation(function (
+				this: PDFContext,
+				literal: Parameters<typeof make>[0],
+			) {
+				if (this.snapshot) tracked++;
+				return make.call(this, literal);
+			});
+		try {
+			const start = performance.now();
+			const signed = await signPdf(original, await id(), {
+				appearance: null,
+				now,
+			});
+			expect(performance.now() - start).toBeLessThan(15000);
+			expect(tracked).toBe(0);
+			const increment = Buffer.from(signed.subarray(original.length)).toString(
+				"latin1",
+			);
+			const refs = [...increment.matchAll(/(?:^|\n)(\d+) 0 obj/g)]
+				.map((m) => Number(m[1]))
+				.sort((a, b) => a - b);
+			expect(refs).toEqual(
+				[doc.catalog, doc.getPage(0).node]
+					.map((obj) => doc.context.getObjectRef(obj)?.objectNumber)
+					.concat([initial + 1, initial + 2, initial + 3, initial + 4])
+					.sort((a, b) => (a ?? 0) - (b ?? 0)),
+			);
+		} finally {
+			spy.mockRestore();
+		}
+	}, 25000);
+	it("checks compressed objects and catalog references to free or absent entries", async () => {
+		const compressed = await pages(true);
+		const loaded = await PDFDocument.load(compressed);
+		const page = loaded.getPage(0);
+		const source = Buffer.from(compressed).toString("latin1");
+		const shadow = source.replace(
+			/startxref(?=\s+\d+\s+%%EOF\s*$)/,
+			`${page.ref.objectNumber} 0 obj\n<< /Type /Page /Parent 1 0 R /MediaBox [0 0 10 10] >>\nendobj\nstartxref`,
+		);
+		expect(
+			await canSign(Uint8Array.from(Buffer.from(shadow, "latin1"))),
+		).toMatchObject({ blocker: "damaged" });
+		const plain = Buffer.from(await pages()).toString("latin1");
+		const doc = await PDFDocument.load(Buffer.from(plain, "latin1"));
+		const n = doc.getPage(0).ref.objectNumber;
+		const previous = Number(plain.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1]);
+		const free = `${plain}xref\n${n} 1\n0000000000 00001 f \ntrailer\n<< /Size ${doc.context.largestObjectNumber + 1} /Root ${doc.context.trailerInfo.Root} /Prev ${previous} >>\nstartxref\n${plain.length}\n%%EOF\n`;
+		expect(
+			await canSign(Uint8Array.from(Buffer.from(free, "latin1"))),
+		).toMatchObject({
+			blocker: "damaged",
+		});
+		const absent = plain
+			.replace(new RegExp(`${n} 0 obj`), "999 0 obj")
+			.replace(new RegExp(`/Kids \\[ ${n} 0 R`), "/Kids [ 999 0 R");
+		expect(
+			await canSign(Uint8Array.from(Buffer.from(absent, "latin1"))),
+		).toMatchObject({
+			blocker: "damaged",
+		});
+	});
+	it.each(["unsigned", "signed"])(
+		"refuses the shadowed page on the %s path",
+		async (kind) => {
+			const original = fixture(`shadow-${kind}.pdf`);
+			if (kind === "signed") {
+				const first = signatures(original)[0];
+				expect(first.b + first.rest).toBeLessThan(original.length);
+				expect(
+					await verifySignatures(original.subarray(0, first.b + first.rest)),
+				).toHaveLength(1);
+			}
+			const reader = await pdfjs.getDocument({
+				data: original.slice(),
+				verbosity: 0,
+			}).promise;
+			const text = await (await reader.getPage(1)).getTextContent();
+			expect(
+				text.items.map((item) => ("str" in item ? item.str : "")).join(""),
+			).toBe("PAY 100");
+			await reader.destroy();
+			const loaded = await PDFDocument.load(original);
+			expect(
+				loaded.getPage(0).node.get(PDFName.of("Contents"))?.toString(),
+			).toBe("5 0 R");
+			expect(await canSign(original)).toEqual({
+				signed: kind === "signed",
+				blocker: "damaged",
+			});
+			await expect(
+				signPdf(original, await id(), { appearance: null }),
+			).rejects.toMatchObject({ reason: "damaged" });
+			const rewrite = vi.fn(() =>
+				fillAndSign(original, { fields: [], marks: [] }),
+			);
+			await expect(prepareSigningCopy(original, rewrite)).rejects.toMatchObject(
+				{ reason: "damaged" },
+			);
+			expect(rewrite).not.toHaveBeenCalled();
+		},
+	);
+	it.each([false, true])(
+		"keeps every page's pdf.js text after signing (rewrite = %s)",
+		async (rewrite) => {
+			const original = await pages(true);
+			const base = rewrite
+				? await prepareSigningCopy(original, () =>
+						fillAndSign(original, { fields: [], marks: [] }),
+					)
+				: original;
+			const output = await signPdf(base, await id(), { appearance: null, now });
+			const texts = [];
+			for (const pdf of [original, output]) {
+				const reader = await pdfjs.getDocument({
+					data: pdf.slice(),
+					verbosity: 0,
+				}).promise;
+				const pages = [];
+				for (let n = 1; n <= reader.numPages; n++)
+					pages.push(
+						(await (await reader.getPage(n)).getTextContent()).items.map(
+							(item) => ("str" in item ? item.str : ""),
+						),
+					);
+				texts.push(pages);
+				await reader.destroy();
+			}
+			expect(texts[1]).toEqual(texts[0]);
+		},
+	);
+	it.each(["stream", "table", "multi", "signed"])(
+		"accepts real qpdf %s output",
+		async (kind) => {
+			const original = fixture(`linearized-${kind}.pdf`);
+			const doc = await PDFDocument.load(original, {
+				forIncrementalUpdate: true,
+				updateMetadata: false,
+			});
+			crossReferences(original, doc);
+			await checkLinearized(original, `linearized-${kind}`);
+		},
+	);
+	it.each([
+		["Columns 3", "Columns 4"],
+		["Predictor 12", "Predictor 11"],
+	])("refuses unsupported xref prediction: %s", async (from, to) => {
+		const original = fixture("linearized-stream.pdf");
+		const damaged = Uint8Array.from(
+			Buffer.from(
+				Buffer.from(original).toString("latin1").replace(from, to),
+				"latin1",
+			),
+		);
+		expect(await canSign(damaged)).toMatchObject({ blocker: "damaged" });
+		await expect(
+			signPdf(damaged, await id(), { appearance: null, now }),
+		).rejects.toMatchObject({ reason: "damaged" });
+	});
+	it("accepts 128 sections and still refuses bad generations and hybrid targets", async () => {
+		let source = Buffer.from(linearizedStyle("table")).toString("latin1");
+		let previous = Number(source.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1]);
+		for (let i = 0; i < 126; i++) {
+			const offset = source.length;
+			source += `xref\n0 1\n0000000000 65535 f \ntrailer\n<< /Size 100 /Root 1 0 R /Prev ${previous} >>\nstartxref\n${offset}\n%%EOF\n`;
+			previous = offset;
+		}
+		expect(
+			await canSign(Uint8Array.from(Buffer.from(source, "latin1"))),
+		).toEqual({ signed: false });
+		for (const damaged of [
+			Buffer.from(linearizedStyle("table"))
+				.toString("latin1")
+				.replace("3 7 obj", "3 8 obj"),
+			Buffer.from(linearizedStyle("hybrid"))
+				.toString("latin1")
+				.replace(
+					/\/XRefStm (\d+)/,
+					(_, n: string) => `/XRefStm ${"9".repeat(n.length)}`,
+				),
+		]) {
+			expect(
+				await canSign(Uint8Array.from(Buffer.from(damaged, "latin1"))),
+			).toMatchObject({ blocker: "damaged" });
+		}
+	});
+	it.each(["table", "stream", "hybrid"] as const)(
+		"signs twice across a forward Prev in a %s layout",
+		async (kind) => {
+			const original = linearizedStyle(kind);
+			const doc = await PDFDocument.load(original, {
+				forIncrementalUpdate: true,
+				updateMetadata: false,
+			});
+			crossReferences(original, doc);
+			expect(doc.context.trailerInfo.Info?.toString()).toBe("4 0 R");
+			expect(doc.context.trailerInfo.ID?.toString()).toBe("[ <aaaa> <aaaa> ]");
+			expect(doc.context.trailerInfo.Size?.asNumber()).toBe(100);
+			const signed = await checkLinearized(original);
+			const after = await PDFDocument.load(signed);
+			expect(after.context.trailerInfo.Info?.toString()).toBe("4 0 R");
+			expect(after.context.trailerInfo.Size?.asNumber()).toBeGreaterThan(100);
+			expect(after.getPage(0).ref.generationNumber).toBe(7);
+		},
+	);
+	it.skipIf(!process.env.PAPERWREN_LINEARIZED_INPUT)(
+		"signs a qpdf-linearized sample twice for independent verification",
+		async () => {
+			const original = Uint8Array.from(
+				readFileSync(process.env.PAPERWREN_LINEARIZED_INPUT ?? ""),
+			);
+			emit("twice-linearized", await checkLinearized(original));
+		},
+	);
+	it.each(["cycle", "outside", "long"])(
+		"refuses a %s Prev chain",
+		async (kind) => {
+			let source = Buffer.from(linearizedStyle("table")).toString("latin1");
+			const first = Number(source.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1]);
+			if (kind === "long") {
+				let previous = first;
+				for (let i = 0; i < 127; i++) {
+					const offset = source.length;
+					source += `xref\n0 1\n0000000000 65535 f \ntrailer\n<< /Size 100 /Root 1 0 R /Prev ${previous} >>\nstartxref\n${offset}\n%%EOF\n`;
+					previous = offset;
+				}
+			} else {
+				source = source.replace(
+					/\/Prev (\d+)/,
+					(_, value: string) =>
+						`/Prev ${String(kind === "cycle" ? first : 9999).padStart(value.length, "0")}`,
+				);
+			}
+			const pdf = Uint8Array.from(Buffer.from(source, "latin1"));
+			expect(await canSign(pdf)).toMatchObject({ blocker: "damaged" });
+			await expect(
+				signPdf(pdf, await id(), { appearance: null, now }),
+			).rejects.toMatchObject({ reason: "damaged" });
+		},
+	);
+	it("signs a PDF 1.4 table and refuses captions that need a browser font renderer", async () => {
+		const doc = await PDFDocument.load(await pages());
+		doc.context.header = PDFHeader.forVersion(1, 4);
+		const original = await doc.save({ useObjectStreams: false });
+		const loaded = await id();
+		const signed = await signPdf(original, loaded, { appearance: null, now });
+		expect(new TextDecoder().decode(signed.subarray(0, 8))).toBe("%PDF-1.4");
+		await verifySignatures(signed);
+		await expect(
+			signPdf(original, loaded, {
+				appearance: {
+					png,
+					placement: { page: 0, x: 0, y: 0, w: 0.3, h: 0.1 },
+					caption: "鳥",
+				},
+				now,
+			}),
+		).rejects.toMatchObject({ reason: "unsupported" });
+		emit("rsa-table14", signed);
+	});
+	it.each([false, true])(
+		"signs a PDF with xref streams = %s, preserving all original bytes",
+		async (stream) => {
+			const original = await pages(stream);
+			const signed = await signPdf(original, await id(), {
+				appearance: null,
+				now,
+			});
+			expect(signed.subarray(0, original.length)).toEqual(original);
+			expect(await canSign(signed)).toEqual({ signed: true });
+			expect(await verifySignatures(signed)).toHaveLength(1);
+			const reopened = await PDFDocument.load(signed);
+			expect(reopened.getPageCount()).toBe(1);
+			const signature = reopened.getForm().getSignature("Signature1");
+			expect(
+				signature.acroField.dict
+					.lookup(PDFName.of("Rect"), PDFArray)
+					.asArray()
+					.map((n) => (n as PDFNumber).asNumber()),
+			).toEqual([0, 0, 0, 0]);
+			const value = signature.acroField.V() as PDFDict;
+			expect(value.get(PDFName.of("SubFilter"))).toBe(
+				PDFName.of("ETSI.CAdES.detached"),
+			);
+			const source = Buffer.from(signed).toString("latin1");
+			const xref = Number(source.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1]);
+			expect(source.slice(xref, xref + 4) === "xref").toBe(!stream);
+			const reader = await pdfjs.getDocument({
+				data: signed.slice(),
+				isEvalSupported: false,
+				verbosity: 0,
+			}).promise;
+			expect(reader.numPages).toBe(1);
+			expect(
+				(await (await reader.getPage(1)).getAnnotations()).some(
+					(a) => a.fieldType === "Sig",
+				),
+			).toBe(true);
+			await reader.destroy();
+			emit(stream ? "rsa-stream" : "rsa-table", signed);
+		},
+	);
+	it.each([
+		"p256.p12",
+		"p384.p12",
+		"p521.p12",
+		"rsa4096.p12",
+		"self-signed.p12",
+	])("signs using %s", async (file) => {
+		const original = await pages();
+		const signed = await signPdf(original, await id(file), {
+			appearance: null,
+			now,
+		});
+		expect(signed.subarray(0, original.length)).toEqual(original);
+		await verifySignatures(signed);
+		emit(file.replace(".p12", ""), signed);
+	});
+	it("keeps an independently signed revision and its CMS bytes unchanged", async () => {
+		const original = fixture("signed-once.pdf");
+		await verifySignatures(original);
+		const first = signatures(original)[0];
+		const signed = await signPdf(original, await id("p256.p12"), {
+			appearance: null,
+			now,
+		});
+		expect(signed.subarray(0, original.length)).toEqual(original);
+		const found = await verifySignatures(signed);
+		expect(found).toHaveLength(2);
+		expect(found[0].cms).toEqual(first.cms);
+		emit("twice-signed", signed);
+	});
+	it("adds a visible widget to an already signed PDF without changing page content", async () => {
+		const original = fixture("signed-once.pdf");
+		const signed = await signPdf(original, await id(), {
+			appearance: {
+				png,
+				placement: { page: 0, x: 0.1, y: 0.7, w: 0.3, h: 0.1 },
+			},
+			now,
+		});
+		expect(signed.subarray(0, original.length)).toEqual(original);
+		const before = await PDFDocument.load(original);
+		const after = await PDFDocument.load(signed);
+		expect(after.getPage(0).node.Contents()?.toString()).toBe(
+			before.getPage(0).node.Contents()?.toString(),
+		);
+		expect(await verifySignatures(signed)).toHaveLength(2);
+		emit("twice-visible", signed);
+	});
+	it.each([2, 3])("allows DocMDP permission %i", async (permission) => {
+		const doc = await PDFDocument.load(await pages());
+		const signature = doc.context.register(
+			doc.context.obj({
+				Type: "Sig",
+				Reference: [
+					{ TransformMethod: "DocMDP", TransformParams: { P: permission } },
+				],
+			}),
+		);
+		doc.catalog.set(
+			PDFName.of("Perms"),
+			doc.context.obj({ DocMDP: signature }),
+		);
+		const original = await doc.save({ useObjectStreams: false });
+		expect((await canSign(original)).blocker).toBeUndefined();
+		await verifySignatures(
+			await signPdf(original, await id(), { appearance: null, now }),
+		);
+	});
+	it.each([0, 90, 180, 270])(
+		"draws only a widget appearance on a page turned %i degrees",
+		async (turn) => {
+			const original = await pages(false, turn);
+			const signed = await signPdf(original, await id(), {
+				appearance: {
+					png,
+					placement: { page: 0, x: 0.1, y: 0.2, w: 0.3, h: 0.1 },
+					caption: "Signed for testing",
+				},
+				now,
+			});
+			const before = await PDFDocument.load(original);
+			const after = await PDFDocument.load(signed);
+			expect(after.getPage(0).node.Contents()?.toString()).toBe(
+				before.getPage(0).node.Contents()?.toString(),
+			);
+			const widget = after.getForm().getSignature("Signature1").acroField.dict;
+			const ap = widget
+				.lookup(PDFName.of("AP"), PDFDict)
+				.lookup(PDFName.of("N"));
+			if (!(ap instanceof PDFRawStream)) throw new Error("appearance");
+			const width = 0.3 * (turn % 180 ? 800 : 600);
+			const height = 0.1 * (turn % 180 ? 600 : 800);
+			const matrix =
+				turn === 90
+					? [0, 1, -1, 0, height, 0]
+					: turn === 180
+						? [-1, 0, 0, -1, width, height]
+						: turn === 270
+							? [0, -1, 1, 0, 0, width]
+							: [1, 0, 0, 1, 0, 0];
+			expect(
+				ap.dict
+					.lookup(PDFName.of("Matrix"), PDFArray)
+					.asArray()
+					.map((n) => (n as PDFNumber).asNumber()),
+			).toEqual(matrix);
+			expect(
+				new TextDecoder().decode(decodePDFRawStream(ap).decode()),
+			).toContain("/Image Do");
+			const old = new Map(
+				before.context
+					.enumerateIndirectObjects()
+					.map(([ref, obj]) => [ref.toString(), obj.toString()]),
+			);
+			const allowed = new Set([
+				before.context.trailerInfo.Root?.toString(),
+				before.getPage(0).ref.toString(),
+			]);
+			for (const [ref, obj] of after.context.enumerateIndirectObjects())
+				if (
+					old.has(ref.toString()) &&
+					old.get(ref.toString()) !== obj.toString()
+				)
+					expect(allowed.has(ref.toString()), `rewritten ${ref}`).toBe(true);
+			const reader = await pdfjs.getDocument({
+				data: signed.slice(),
+				isEvalSupported: false,
+				verbosity: 0,
+			}).promise;
+			await (await reader.getPage(1)).getOperatorList();
+			await reader.destroy();
+			await verifySignatures(signed);
+			if (!turn) emit("visible", signed);
+		},
+	);
+	it("fills an existing empty signature widget, retaining its name and rectangle", async () => {
+		const doc = await PDFDocument.load(await pages());
+		const page = doc.getPage(0);
+		const widget = doc.context.register(
+			doc.context.obj({
+				FT: "Sig",
+				T: PDFString.of("Prepared"),
+				Type: "Annot",
+				Subtype: "Widget",
+				Rect: [10, 20, 110, 70],
+				P: page.ref,
+			}),
+		);
+		page.node.addAnnot(widget);
+		const form = doc.catalog.getOrCreateAcroForm();
+		form.addField(widget);
+		form.dict.set(PDFName.of("NeedAppearances"), PDFBool.True);
+		const original = await doc.save({
+			useObjectStreams: false,
+			updateFieldAppearances: false,
+		});
+		const signed = await signPdf(original, await id(), {
+			field: "Prepared",
+			appearance: null,
+			now,
+		});
+		const after = await PDFDocument.load(signed);
+		const field = after.getForm().getSignature("Prepared").acroField;
+		expect(field.V()).toBeInstanceOf(PDFDict);
+		expect(
+			field.dict
+				.lookup(PDFName.of("Rect"), PDFArray)
+				.asArray()
+				.map((n) => (n as PDFNumber).asNumber()),
+		).toEqual([10, 20, 110, 70]);
+		expect(
+			after.getForm().acroForm.dict.get(PDFName.of("NeedAppearances")),
+		).toBe(PDFBool.True);
+		await expect(
+			signPdf(signed, await id(), { field: "Prepared", appearance: null }),
+		).rejects.toBeInstanceOf(PdfSignError);
+	});
+	it("refuses encrypted, no-changes certified and damaged inputs with reason codes", async () => {
+		const plain = await pages();
+		const damaged = plain.slice();
+		const source = Buffer.from(damaged).toString("latin1");
+		const match = source.match(/startxref\s+(\d+)/);
+		if (!match) throw new Error("xref");
+		damaged.set(
+			Buffer.from("0".repeat(match[1].length)),
+			(match.index ?? 0) + match[0].indexOf(match[1]),
+		);
+		for (const [pdf, reason] of [
+			[await protect(plain, "wren"), "encrypted"],
+			[fixture("certified-nochanges.pdf"), "certified"],
+			[damaged, "damaged"],
+			[Uint8Array.of(1, 2), "damaged"],
+		] as const) {
+			expect((await canSign(pdf)).blocker).toBe(reason);
+			await expect(
+				signPdf(pdf, await id(), { appearance: null }),
+			).rejects.toMatchObject({ reason });
+		}
+	});
+	it("forgets the private session and refuses forged or forgotten IDs", async () => {
+		const loaded = await id();
+		expect(Object.keys(loaded).sort()).toEqual(["forget", "summary"]);
+		loaded.forget();
+		loaded.forget();
+		await expect(
+			signPdf(await pages(), loaded, { appearance: null }),
+		).rejects.toMatchObject({ reason: "no-key" });
+		await expect(
+			signPdf(
+				await pages(),
+				{ summary: loaded.summary, forget() {} },
+				{ appearance: null },
+			),
+		).rejects.toMatchObject({ reason: "no-key" });
+	});
+});

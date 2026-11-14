@@ -1354,6 +1354,67 @@ export const pt: Table = {
 		"O Paperwren não tem permissão para renomear este arquivo",
 	"That's the file you have open. Choose another name.":
 		"Esse é o arquivo que você tem aberto. Escolha outro nome.",
+	"This certified PDF cannot accept a new visible signature safely. Choose signing without a visible mark, or use an existing signature field.":
+		"Este PDF certificado não pode receber uma nova assinatura visível com segurança. Escolha assinar sem uma marca visível ou use um campo de assinatura existente.",
+	"This signature field has signing rules or locks that Paperwren can't safely follow.":
+		"Este campo de assinatura tem regras ou bloqueios que o Paperwren não consegue seguir com segurança.",
+	"This file has no integrity check, so it can't be told whether it was changed.":
+		"Este arquivo não tem verificação de integridade, então não é possível saber se foi alterado.",
+	"Choose your digital ID (.pfx or .p12)":
+		"Escolha sua ID digital (.pfx ou .p12)",
+	"Digital IDs": "IDs digitais",
+	"All files": "Todos os arquivos",
+	"Sign with a digital ID": "Assinar com uma ID digital",
+	"Digital ID": "ID digital",
+	"Digital ID password": "Senha da ID digital",
+	Continue: "Continuar",
+	"Signed as": "Signatário",
+	"Issued by": "Emitido por",
+	"Made by its owner (self-signed)": "Criado pelo próprio dono (autoassinado)",
+	"Valid from {from} to {until}": "Válido de {from} a {until}",
+	"This certificate expired on {date}. Readers will show the signature as not valid.":
+		"Este certificado expirou em {date}. Os leitores de PDF mostrarão a assinatura como inválida.",
+	"This certificate isn't valid until {date}. Readers will show the signature as not valid.":
+		"Este certificado só é válido a partir de {date}. Os leitores de PDF mostrarão a assinatura como inválida.",
+	"This certificate isn't meant for signing documents. Readers may not accept the signature.":
+		"Este certificado não é destinado a assinar documentos. Os leitores de PDF podem não aceitar a assinatura.",
+	"Readers show who signed only if they've been told to trust this certificate.":
+		"Os leitores de PDF só mostram quem assinou se tiverem sido configurados para confiar neste certificado.",
+	"Whether the signature is trusted is decided by the app that opens the PDF, not by Paperwren.":
+		"Quem decide se a assinatura é confiável é o aplicativo que abre o PDF, não o Paperwren.",
+	"There's no timestamp: the signing time comes from this device's clock.":
+		"Não há carimbo de tempo: o horário da assinatura vem do relógio deste dispositivo.",
+	"Show it on the page": "Mostrar na página",
+	"No mark on the page": "Sem marca na página",
+	"Sign anyway": "Assinar mesmo assim",
+	"Use a different digital ID": "Usar outra ID digital",
+	"Digitally signed by {name}": "Assinado digitalmente por {name}",
+	"This file isn't a digital ID.": "Este arquivo não é uma ID digital.",
+	"This digital ID is protected in a way Paperwren can't open. Export it again with AES-256 or TripleDES.":
+		"Esta ID digital está protegida de um jeito que o Paperwren não consegue abrir. Exporte-a novamente com AES-256 ou TripleDES.",
+	"This file has a certificate but no private key, so it can't sign. Export it again with the private key included.":
+		"Este arquivo tem um certificado, mas não a chave privada, então não pode assinar. Exporte-o novamente incluindo a chave privada.",
+	"Paperwren signs with RSA and ECDSA keys (P-256, P-384, P-521). This digital ID uses another kind.":
+		"O Paperwren assina com chaves RSA e ECDSA (P-256, P-384, P-521). Esta ID digital usa outro tipo.",
+	"The key and the certificate in this file don't belong together.":
+		"A chave e o certificado deste arquivo não combinam.",
+	"This PDF is locked with a password. Remove the password first (Remove a password), then sign that copy.":
+		"Este PDF está protegido por senha. Remova a senha primeiro (Remover uma senha) e depois assine essa cópia.",
+	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
+		"O autor certificou este PDF sem permitir alterações, então ele não pode ser assinado novamente.",
+	"This PDF's structure is damaged or ambiguous, so it can't be signed safely.":
+		"A estrutura deste PDF está danificada ou é ambígua, então não é possível assiná-lo com segurança.",
+	"Couldn't sign the copy": "Não foi possível assinar a cópia",
+	"Your digital signature will be added when you save.":
+		"Sua assinatura digital será adicionada ao salvar.",
+	"Save a signed copy": "Salvar uma cópia assinada",
+	"Signing…": "Assinando…",
+	"Signed as {name}. There's no timestamp: the time comes from this device's clock.":
+		"Assinado como {name}. Não há carimbo de tempo: o horário vem do relógio deste dispositivo.",
+	"The earlier signature stays valid: only your digital signature is added.":
+		"A assinatura anterior continua válida: só a sua assinatura digital é adicionada.",
+	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
+		"Em um PDF já assinado, só a assinatura digital pode ser adicionada, para que a assinatura anterior continue válida. Remova suas outras alterações primeiro.",
 	"The copy will open without a password. To lock it again, use Add a password.":
 		"A cópia vai abrir sem senha. Para protegê-la de novo, use «Adicionar uma senha».",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":

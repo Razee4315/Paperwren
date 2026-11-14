@@ -104,6 +104,14 @@ const PICTURE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "bmp"];
 
 /** One of several picked files, made ready when called. */
 export type PickedFile = () => Promise<OpenRequest>;
+/** What a digital ID (a certificate with its private key) comes in. */
+const DIGITAL_ID_EXTENSIONS = ["pfx", "p12"];
+
+/** A digital ID the reader picked, read into memory. */
+export interface PickedDigitalId {
+	name: string;
+	bytes: Uint8Array;
+}
 
 interface Backend {
 	/** Ask for a document to open; with `pictures`, for a picture only. */
@@ -113,6 +121,11 @@ interface Backend {
 	 * made ready only when asked for (on Android that copies it in), so
 	 * the caller can show how far it is and leave the rest alone. */
 	pickFiles(options?: { pictures?: boolean }): Promise<PickedFile[]>;
+	/** Ask for a digital ID (.pfx, .p12) and read it into memory. It is
+	 * never copied, kept among the recent files or stored: it holds a
+	 * private key, and is wanted for one signing only. Null when the
+	 * reader cancels. */
+	pickDigitalId(): Promise<PickedDigitalId | null>;
 	/** Files dragged onto the window (desktop). Returns an unsubscribe. */
 	onFileDrop(handlers: DropHandlers): () => void;
 	/** True where the user can pick a folder to browse. */
@@ -291,6 +304,8 @@ declare global {
 		__paperwrenTestFile?: File;
 		/** Test hook: the next pick of several returns these files. */
 		__paperwrenTestFiles?: File[];
+		/** Test hook: the next digital ID picked is this file. */
+		__paperwrenTestDigitalId?: File;
 		/** Test hook: when the open file was last changed. */
 		__paperwrenTestStamp?: number;
 		/** Test hook: the bytes of copies Android "delivered" (by path),
@@ -453,6 +468,24 @@ const browserBackend: Backend = {
 			options?.pictures ? PICTURE_EXTENSIONS : undefined,
 		);
 		return files.map((file) => async () => adoptBrowserFile(file));
+	},
+	async pickDigitalId() {
+		// Read once and let go: not adopted as a document, so it is in no
+		// list of files and not in the browser's file store.
+		const injected = window.__paperwrenTestDigitalId;
+		window.__paperwrenTestDigitalId = undefined;
+		const file =
+			injected ??
+			(await new Promise<File | null>((resolve) => {
+				const input = document.createElement("input");
+				input.type = "file";
+				input.accept = DIGITAL_ID_EXTENSIONS.map((e) => `.${e}`).join(",");
+				input.onchange = () => resolve(input.files?.[0] ?? null);
+				input.oncancel = () => resolve(null);
+				input.click();
+			}));
+		if (!file) return null;
+		return { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
 	},
 	onFileDrop({ hover, drop }) {
 		// dragenter/dragleave fire per element crossed; count the depth.
@@ -963,6 +996,37 @@ const tauriBackend: Backend = {
 		});
 		const list = Array.isArray(picked) ? picked : picked ? [picked] : [];
 		return list.map((path) => () => requestForPicked(path));
+	},
+	async pickDigitalId() {
+		const { open } = await import("@tauri-apps/plugin-dialog");
+		const phone = !!window.__paperwrenAndroid;
+		const picked = await open({
+			multiple: false,
+			title: t("Choose your digital ID (.pfx or .p12)"),
+			// A phone's file managers often call a .pfx "application/
+			// octet-stream", and a filter would grey it out: any file can be
+			// picked there, and what it is is found from its contents.
+			filters: phone
+				? undefined
+				: [
+						{ name: t("Digital IDs"), extensions: DIGITAL_ID_EXTENSIONS },
+						{ name: t("All files"), extensions: ["*"] },
+					],
+		});
+		if (!picked || typeof picked !== "string") return null;
+		// Read straight into memory, a phone's content:// URI too: never
+		// through importPicked, which keeps a copy for the recent files.
+		const { readFile } = await import("@tauri-apps/plugin-fs");
+		let bytes: Uint8Array;
+		try {
+			bytes = await readFile(picked);
+		} catch (err) {
+			throw new OpenError(classifyError(err), String(err));
+		}
+		const name = picked.startsWith("content://")
+			? androidName(picked).name
+			: picked.split(/[\\/]/).pop() || picked;
+		return { name, bytes };
 	},
 	onFileDrop({ hover, drop }) {
 		// The webview reports drags natively (with real paths), which the

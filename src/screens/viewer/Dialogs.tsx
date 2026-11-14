@@ -173,7 +173,8 @@ export function PageJump(props: PageJumpProps) {
 	);
 }
 
-/** Asks for the password of a protected file (PDF, Office). */
+/** Asks for the password of a protected file (PDF, Office), or of a
+ * digital ID. */
 export function PasswordDialog({
 	open,
 	name,
@@ -181,6 +182,10 @@ export function PasswordDialog({
 	onSubmit,
 	onCancel,
 	testId,
+	title,
+	action,
+	allowEmpty = false,
+	busy = false,
 }: {
 	open: boolean;
 	name: string;
@@ -189,14 +194,23 @@ export function PasswordDialog({
 	onSubmit: (password: string) => void;
 	onCancel: () => void;
 	testId: string;
+	/** In place of "Password protected". */
+	title?: string;
+	/** The button's word, in place of "Open". */
+	action?: string;
+	/** No password is a password too (some digital IDs have none). */
+	allowEmpty?: boolean;
+	/** The password is being tried. */
+	busy?: boolean;
 }) {
 	const [password, setPassword] = useState("");
 	// A long password typed blind on a phone is easy to get wrong.
 	const [shown, setShown] = useState(false);
+	const ready = (allowEmpty || !!password) && !busy;
 	return (
 		<Dialog
 			open={open}
-			title={t("Password protected")}
+			title={title ?? t("Password protected")}
 			onClose={onCancel}
 			actions={
 				<>
@@ -205,10 +219,10 @@ export function PasswordDialog({
 					</Button>
 					<Button
 						onClick={() => onSubmit(password)}
-						disabled={!password}
+						disabled={!ready}
 						data-testid={`${testId}-unlock`}
 					>
-						{t("Open")}
+						{busy ? t("Opening…") : (action ?? t("Open"))}
 					</Button>
 				</>
 			}
@@ -216,7 +230,7 @@ export function PasswordDialog({
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
-					if (password) onSubmit(password);
+					if (ready) onSubmit(password);
 				}}
 			>
 				<p className={s.passwordHint}>
@@ -229,9 +243,11 @@ export function PasswordDialog({
 						className={s.input}
 						type={shown ? "text" : "password"}
 						autoComplete="off"
+						autoCorrect="off"
 						autoCapitalize="off"
 						spellCheck={false}
 						value={password}
+						readOnly={busy}
 						onChange={(e) => setPassword(e.target.value)}
 						aria-label={t("Password")}
 						data-testid={`${testId}-password`}
