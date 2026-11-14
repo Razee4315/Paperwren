@@ -10,6 +10,36 @@ import {
 	decodePDFRawStream,
 } from "@cantoo/pdf-lib";
 
+function xrefBytes(object: PDFRawStream, columns: number): Uint8Array {
+	const bytes = decodePDFRawStream(object).decode();
+	const params = object.dict.lookupMaybe(PDFName.of("DecodeParms"), PDFDict);
+	const number = (key: string, fallback: number) =>
+		params?.lookupMaybe(PDFName.of(key), PDFNumber)?.asNumber() ?? fallback;
+	const predictor = number("Predictor", 1);
+	if (predictor === 1) return bytes;
+	// pdf-lib inflates streams without undoing PNG prediction. qpdf uses
+	// one Up-filtered row per xref entry, including a leading filter byte.
+	if (
+		object.dict.get(PDFName.of("Filter")) !== PDFName.of("FlateDecode") ||
+		predictor !== 12 ||
+		number("Columns", 1) !== columns ||
+		number("Colors", 1) !== 1 ||
+		number("BitsPerComponent", 8) !== 8 ||
+		bytes.length % (columns + 1) !== 0
+	)
+		throw new Error("damaged");
+	const decoded = new Uint8Array((bytes.length / (columns + 1)) * columns);
+	for (let row = 0; row < decoded.length / columns; row++) {
+		const at = row * (columns + 1);
+		if (bytes[at] !== 2) throw new Error("damaged");
+		for (let column = 0; column < columns; column++) {
+			const to = row * columns + column;
+			decoded[to] = bytes[at + 1 + column] + (row ? decoded[to - columns] : 0);
+		}
+	}
+	return decoded;
+}
+
 /** pdf-lib repairs cross-reference offsets while reading. Signing must refuse that repair. */
 export function crossReferences(
 	pdf: Uint8Array,
@@ -116,7 +146,10 @@ export function crossReferences(
 					return n.asNumber();
 				}) ?? [0, size];
 			if (index.length % 2) throw new Error("damaged");
-			const bytes = decodePDFRawStream(object).decode();
+			const bytes = xrefBytes(
+				object,
+				widths.reduce((sum, n) => sum + n, 0),
+			);
 			let at = 0;
 			for (let pair = 0; pair < index.length; pair += 2) {
 				const [first, count] = index.slice(pair, pair + 2);

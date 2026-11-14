@@ -217,7 +217,11 @@ function linearizedStyle(kind: "table" | "stream" | "hybrid") {
 	return Uint8Array.from(Buffer.from(source, "latin1"));
 }
 
-async function checkLinearized(original: Uint8Array) {
+async function checkLinearized(original: Uint8Array, name?: string) {
+	const before = await PDFDocument.load(original);
+	const count = signatures(original).length;
+	expect(await canSign(original)).toEqual({ signed: count > 0 });
+	if (count) await verifySignatures(original);
 	const first = await signWithId(
 		original,
 		await readPkcs12(fixture("rsa-aes256.p12"), "wren"),
@@ -225,10 +229,12 @@ async function checkLinearized(original: Uint8Array) {
 		{ appearance: null, now },
 	);
 	expect(first.subarray(0, original.length)).toEqual(original);
+	expect(await verifySignatures(first)).toHaveLength(count + 1);
+	if (name) emit(`once-${name}`, first);
 	expect(await canSign(first)).toEqual({ signed: true });
 	const second = await signPdf(first, await id(), { appearance: null, now });
 	expect(second.subarray(0, first.length)).toEqual(first);
-	expect(await verifySignatures(second)).toHaveLength(2);
+	expect(await verifySignatures(second)).toHaveLength(count + 2);
 	for (const [before, after] of [
 		[original, first],
 		[first, second],
@@ -240,22 +246,53 @@ async function checkLinearized(original: Uint8Array) {
 			Buffer.from(after.subarray(before.length)).toString("latin1"),
 		).toContain(`/Prev ${previous}`);
 	}
-	const reopened = await PDFDocument.load(second);
-	expect(reopened.getPageCount()).toBe(1);
-	expect(reopened.getPage(0).ref.generationNumber).toBe(
-		(await PDFDocument.load(original)).getPage(0).ref.generationNumber,
-	);
-	const reader = await pdfjs.getDocument({
-		data: second.slice(),
-		isEvalSupported: false,
-		verbosity: 0,
-	}).promise;
-	expect(reader.numPages).toBe(1);
-	await reader.destroy();
+	for (const pdf of [first, second]) {
+		const reopened = await PDFDocument.load(pdf);
+		expect(reopened.getPageCount()).toBe(before.getPageCount());
+		expect(reopened.getPage(0).ref.generationNumber).toBe(
+			before.getPage(0).ref.generationNumber,
+		);
+		const reader = await pdfjs.getDocument({
+			data: pdf.slice(),
+			isEvalSupported: false,
+			verbosity: 0,
+		}).promise;
+		expect(reader.numPages).toBe(before.getPageCount());
+		await reader.destroy();
+	}
+	if (name) emit(`${count ? "appended" : "twice"}-${name}`, second);
 	return second;
 }
 
 describe("incremental PAdES signatures", () => {
+	it.each(["stream", "table", "multi", "signed"])(
+		"accepts real qpdf %s output",
+		async (kind) => {
+			const original = fixture(`linearized-${kind}.pdf`);
+			const doc = await PDFDocument.load(original, {
+				forIncrementalUpdate: true,
+				updateMetadata: false,
+			});
+			crossReferences(original, doc);
+			await checkLinearized(original, `linearized-${kind}`);
+		},
+	);
+	it.each([
+		["Columns 3", "Columns 4"],
+		["Predictor 12", "Predictor 11"],
+	])("refuses unsupported xref prediction: %s", async (from, to) => {
+		const original = fixture("linearized-stream.pdf");
+		const damaged = Uint8Array.from(
+			Buffer.from(
+				Buffer.from(original).toString("latin1").replace(from, to),
+				"latin1",
+			),
+		);
+		expect(await canSign(damaged)).toMatchObject({ blocker: "damaged" });
+		await expect(
+			signPdf(damaged, await id(), { appearance: null, now }),
+		).rejects.toMatchObject({ reason: "damaged" });
+	});
 	it("accepts 128 sections and still refuses bad generations and hybrid targets", async () => {
 		let source = Buffer.from(linearizedStyle("table")).toString("latin1");
 		let previous = Number(source.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1]);

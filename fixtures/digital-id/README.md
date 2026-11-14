@@ -24,6 +24,46 @@ the signing library. The main generator also runs it (Node and the existing
 pdf-lib dependency are needed). Both have classic xref tables. PDF tests
 generate xref streams and rotated pages in memory.
 
+The checked-in `linearized-stream.pdf`, `linearized-table.pdf`, and
+`linearized-multi.pdf` were made with the official qpdf 12.4.2 MSVC64
+portable Windows release. The first two share a one-page pdf-lib input;
+the third has three pages. All pages are blank, 600 by 800 points. These
+are real Annex F files, with a linearization dictionary, hint stream,
+first-page xref and forward Prev to the main xref. The stream fixtures
+use FlateDecode with PNG Up prediction (`Predictor 12`, `W [1 2 0]`),
+unlike the unfiltered synthetic xref fixtures in the tests.
+
+To regenerate, set `QPDF` to the absolute path of a separately downloaded
+qpdf executable and `SCRATCH` to an existing directory outside the repo.
+The following commands use a Bash shell:
+
+```sh
+export SCRATCH
+node --input-type=module <<'JS'
+import { PDFDocument } from '@cantoo/pdf-lib';
+import { writeFileSync } from 'node:fs';
+const doc = await PDFDocument.create();
+doc.addPage([600, 800]);
+writeFileSync(`${process.env.SCRATCH}/before-linearize.pdf`, await doc.save());
+doc.addPage([600, 800]);
+doc.addPage([600, 800]);
+writeFileSync(`${process.env.SCRATCH}/multi.pdf`, await doc.save());
+JS
+"$QPDF" --linearize "$SCRATCH/before-linearize.pdf" fixtures/digital-id/linearized-stream.pdf
+"$QPDF" --linearize --object-streams=disable "$SCRATCH/before-linearize.pdf" fixtures/digital-id/linearized-table.pdf
+"$QPDF" --linearize "$SCRATCH/multi.pdf" fixtures/digital-id/linearized-multi.pdf
+PAPERWREN_SIGN_OUT="$SCRATCH/signed" npx vitest run src/lib/__tests__/pades.test.ts -t 'accepts real qpdf stream output'
+cp "$SCRATCH/signed/once-linearized-stream.pdf" fixtures/digital-id/linearized-signed.pdf
+```
+
+`linearized-signed.pdf` is the stream fixture signed once by this library
+with `rsa-aes256.p12`, signer name `Test`, and time 2026-11-14T00:00:00Z.
+It is about 19 KB because the signature reserves 8192 bytes of CMS space.
+Appending makes the original linearization hints stale, as Annex F allows;
+the original bytes and first signature remain intact. The static tests
+need no qpdf and verify every signature with WebCrypto, preserve each
+prefix and Prev, and reopen each signed revision in pdf-lib and pdf.js.
+
 The stage A library has no canvas or font renderer. Optional text captions
 use the standard PDF font's WinAnsi characters; other scripts must be drawn
 into the supplied appearance PNG by the caller. A non-WinAnsi `caption`
