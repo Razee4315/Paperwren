@@ -1,6 +1,6 @@
 import { webcrypto } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { sha1, sha384, sha512 } from "./sha";
+import { sha1, sha256, sha384, sha512 } from "./sha";
 
 const hex = (b: Uint8Array) =>
 	Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
@@ -11,6 +11,9 @@ describe("synchronous SHA", () => {
 	it("matches the published SHA-1 and SHA-512 digests of 'abc'", () => {
 		const abc = new TextEncoder().encode("abc");
 		expect(hex(sha1(abc))).toBe("a9993e364706816aba3e25717850c26c9cd0d89d");
+		expect(hex(sha256(abc))).toBe(
+			"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+		);
 		expect(hex(sha512(abc))).toBe(
 			"ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f",
 		);
@@ -28,6 +31,9 @@ describe("synchronous SHA", () => {
 		for (let n = 0; n <= 300; n++) {
 			const data = noise(n);
 			expect(hex(sha1(data)), `sha1 ${n}`).toBe(await reference("SHA-1", data));
+			expect(hex(sha256(data)), `sha256 ${n}`).toBe(
+				await reference("SHA-256", data),
+			);
 			expect(hex(sha512(data)), `sha512 ${n}`).toBe(
 				await reference("SHA-512", data),
 			);

@@ -1,5 +1,5 @@
 /**
- * SHA-1, SHA-384 and SHA-512, synchronous.
+ * SHA-1, SHA-256, SHA-384 and SHA-512, synchronous.
  *
  * Unlocking an Office file hashes its password 50,000 to 100,000
  * times over, each round fed by the last. WebCrypto can only do that
@@ -202,6 +202,58 @@ function sha2Wide(data: Uint8Array, iv: Int32Array, size: number): Uint8Array {
 
 export const sha512 = (data: Uint8Array) => sha2Wide(data, IV512, 64);
 export const sha384 = (data: Uint8Array) => sha2Wide(data, IV384, 48);
+
+// ---------- SHA-256 ----------
+
+const rotate = (n: number, bits: number) => (n >>> bits) | (n << (32 - bits));
+
+export function sha256(data: Uint8Array): Uint8Array {
+	const blocks = padded(data, 64, 8);
+	const h = Int32Array.from({ length: 8 }, (_, i) => IV512[i * 2]);
+	const w = new Int32Array(64);
+	for (let at = 0; at < blocks.length; at += 64) {
+		for (let t = 0; t < 16; t++) w[t] = word(blocks, at + t * 4);
+		for (let t = 16; t < 64; t++) {
+			const a = w[t - 15];
+			const b = w[t - 2];
+			w[t] =
+				(w[t - 16] +
+					(rotate(a, 7) ^ rotate(a, 18) ^ (a >>> 3)) +
+					w[t - 7] +
+					(rotate(b, 17) ^ rotate(b, 19) ^ (b >>> 10))) |
+				0;
+		}
+		let [a, b, c, d, e, f, g, j] = h;
+		for (let t = 0; t < 64; t++) {
+			const first =
+				(j +
+					(rotate(e, 6) ^ rotate(e, 11) ^ rotate(e, 25)) +
+					((e & f) ^ (~e & g)) +
+					K[t * 2] +
+					w[t]) |
+				0;
+			const second =
+				((rotate(a, 2) ^ rotate(a, 13) ^ rotate(a, 22)) +
+					((a & b) ^ (a & c) ^ (b & c))) |
+				0;
+			j = g;
+			g = f;
+			f = e;
+			e = (d + first) | 0;
+			d = c;
+			c = b;
+			b = a;
+			a = (first + second) | 0;
+		}
+		const state = [a, b, c, d, e, f, g, j];
+		for (let i = 0; i < 8; i++) h[i] = (h[i] + state[i]) | 0;
+	}
+	const out = bytes(h, 32);
+	blocks.fill(0);
+	w.fill(0);
+	h.fill(0);
+	return out;
+}
 
 // ---------- Shared ----------
 
