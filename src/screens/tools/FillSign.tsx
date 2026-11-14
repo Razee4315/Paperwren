@@ -1729,7 +1729,10 @@ export function FillPage({
 				down.current = null;
 			}}
 		>
-			<canvas ref={canvas} className={s.fillCanvas} />
+			{/* The page's own text is drawn left to right whatever the app's
+			 * language: pdf.js places each letter, and a right-to-left
+			 * canvas would anchor each one at its right edge. */}
+			<canvas ref={canvas} dir="ltr" className={s.fillCanvas} />
 			{children}
 		</div>
 	);
