@@ -84,6 +84,21 @@ export function crossReferences(
 			throw new Error("damaged");
 		visited.add(offset);
 		const current = new Map<number, Entry>();
+		const put = (n: number, entry: Entry) => {
+			// pdf.js keeps the first entry, including a free entry, across
+			// repeated subsections and hybrid supplements. A later live
+			// definition must not change the graph validated for rewriting.
+			const first = current.get(n);
+			if (
+				first &&
+				(first.type !== 0 || entry.type !== 0) &&
+				(first.type !== entry.type ||
+					first.offset !== entry.offset ||
+					first.generation !== entry.generation)
+			)
+				throw new Error("damaged");
+			current.set(n, entry);
+		};
 		let dict: PDFDict;
 		if (source.slice(offset, offset + 4) === "xref") {
 			if (supplement) throw new Error("damaged");
@@ -107,7 +122,7 @@ export function crossReferences(
 					at += entry[0].length;
 					if (entry[3] === "n")
 						header(Number(entry[1]), first + i, Number(entry[2]));
-					current.set(first + i, {
+					put(first + i, {
 						type: entry[3] === "n" ? 1 : 0,
 						offset: Number(entry[1]),
 						generation: Number(entry[2]),
@@ -186,7 +201,7 @@ export function crossReferences(
 					if (values[0] === 1) header(values[1], first + i, values[2]);
 					else if (values[0] !== 0 && values[0] !== 2)
 						throw new Error("damaged");
-					current.set(first + i, {
+					put(first + i, {
 						type: values[0],
 						offset: values[1],
 						generation: values[2],
@@ -223,17 +238,7 @@ export function crossReferences(
 		const hybrid = dict.lookupMaybe(PDFName.of("XRefStm"), PDFNumber);
 		if (hybrid)
 			for (const [n, entry] of section(hybrid.asNumber(), true)) {
-				// pdf.js keeps live table entries when reading a supplement.
-				// Replacing one here would validate a different reader graph.
-				const table = current.get(n);
-				if (
-					table?.type === 1 &&
-					(table.type !== entry.type ||
-						table.offset !== entry.offset ||
-						table.generation !== entry.generation)
-				)
-					throw new Error("damaged");
-				current.set(n, entry);
+				put(n, entry);
 			}
 		for (const [n, entry] of current)
 			if (!entries.has(n)) entries.set(n, entry);

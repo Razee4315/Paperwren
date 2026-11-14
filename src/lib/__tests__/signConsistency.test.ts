@@ -250,6 +250,28 @@ add(
 	},
 	"accepted-and-equal",
 );
+add(
+	"hybrid supplement revives a free content entry",
+	(b) => {
+		const at = b.object(4, content("Supplement only"), false);
+		b.entries.set(4, [0, 0, 1]);
+		return b.finish("hybrid", new Map([[4, [1, at, 0]]]));
+	},
+	"refused",
+);
+add(
+	"repeated table subsection selects a different content offset",
+	(b) => {
+		const at = b.object(4, content("Repeated subsection"), false);
+		return bytes(
+			text(b.finish()).replace(
+				"trailer\n",
+				`4 1\n${String(at).padStart(10, "0")} 00000 n \ntrailer\n`,
+			),
+		);
+	},
+	"refused",
+);
 add("linearized-style forward Prev disagreement", (b) => {
 	const firstXref = b.source.length;
 	const oldPrev = b.previous;
