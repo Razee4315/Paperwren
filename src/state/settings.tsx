@@ -14,6 +14,7 @@ import {
 	STORAGE_KEYS,
 	type Settings,
 } from "@/lib/types";
+import { paintWindowBackground } from "@/lib/windowBackground";
 import {
 	type ReactNode,
 	createContext,
@@ -130,6 +131,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 		} catch {
 			// A shell from before this was added: the phone's choice stands.
 		}
+		// On Windows the window shows its own colour wherever a resize is
+		// ahead of the page's painting: the theme's canvas, not a blank.
+		paintWindowBackground();
 	}, [theme]);
 
 	// The interface language follows the setting as soon as it is known

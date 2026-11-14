@@ -4,13 +4,13 @@
  *
  * In the desktop app it is the window's full screen. On a Mac the green
  * button and the View menu ask for the same one, and the app follows
- * the window. On Windows the window has no frame of its own, and a
- * frameless window that is maximised keeps the screen minus the taskbar
- * when it goes full screen (a strip shows where the taskbar is), so it
- * is restored first and maximised again after. Being the window's, not
- * the page's, Escape reaches the app: it leaves full screen only when
- * no dialog is open (the dialog takes it first). In a browser the
- * page's own full screen is used.
+ * the window. On Windows the window has no frame of its own, and it goes
+ * full screen from maximised and back in one change of size (tao 0.37.2
+ * and later no longer keep a maximised frameless window off the taskbar
+ * in full screen, #58). Being the window's, not the page's, Escape
+ * reaches the app: it leaves full screen only when no dialog is open
+ * (the dialog takes it first). In a browser the page's own full screen
+ * is used.
  *
  * While it is on, <html> carries data-fullscreen ("page" for reading,
  * "part" when the slide show asked for it), which is what hides the
@@ -23,7 +23,7 @@
  * browser tests stand in for the window with window.__paperwrenWindow.
  */
 
-import { isDesktop, isTauri, ownsFrame } from "./env";
+import { isDesktop, isTauri } from "./env";
 
 const REVEAL_AT = 2;
 const HIDE_PAST = 140;
@@ -32,21 +32,14 @@ const HIDE_PAST = 140;
 export interface FullscreenWindow {
 	isFullscreen(): Promise<boolean>;
 	setFullscreen(on: boolean): Promise<void>;
-	isMaximized(): Promise<boolean>;
-	maximize(): Promise<void>;
-	unmaximize(): Promise<void>;
 }
 
 /**
- * Full screen of a window, one change at a time. With `restoreMaximized`
- * (Windows) a maximised window is restored before it goes full screen
- * and maximised again when it leaves.
+ * Full screen of a window, one change at a time. A maximised window goes
+ * straight to full screen and comes back maximised: the window keeps
+ * that itself.
  */
-export function windowFullscreen(
-	win: FullscreenWindow,
-	{ restoreMaximized }: { restoreMaximized: boolean },
-) {
-	let wasMaximized = false;
+export function windowFullscreen(win: FullscreenWindow) {
 	let busy = false;
 	let queue: Promise<void> = Promise.resolve();
 	const run = (step: () => Promise<void>) => {
@@ -63,26 +56,10 @@ export function windowFullscreen(
 		return queue;
 	};
 	const enter = async () => {
-		if (await win.isFullscreen()) return;
-		wasMaximized = restoreMaximized && (await win.isMaximized());
-		if (wasMaximized) await win.unmaximize();
-		try {
-			await win.setFullscreen(true);
-		} catch (error) {
-			// Turned down: the window goes back to how it was.
-			if (wasMaximized) {
-				wasMaximized = false;
-				await win.maximize();
-			}
-			throw error;
-		}
+		if (!(await win.isFullscreen())) await win.setFullscreen(true);
 	};
 	const leave = async () => {
 		if (await win.isFullscreen()) await win.setFullscreen(false);
-		if (wasMaximized) {
-			wasMaximized = false;
-			await win.maximize();
-		}
 	};
 	return {
 		enter: () => run(enter),
@@ -121,24 +98,24 @@ const appWindow = (): Promise<AppWindow> =>
 		? Promise.resolve(standIn)
 		: import("@tauri-apps/api/window").then((api) => api.getCurrentWindow());
 const windowControl = async () => {
-	control ??= windowFullscreen(await appWindow(), {
-		restoreMaximized: ownsFrame,
-	});
+	control ??= windowFullscreen(await appWindow());
 	return control;
 };
 
 /**
  * Resolves once `read` has given the same answer `frames` frames running,
- * or after `max` milliseconds. While it still gives `from` (the size
- * before the change, which the window may not have begun yet) it waits
- * three times as long.
+ * or after `max` milliseconds. While it still gives `from`, the size
+ * before the change, it waits three times as long: the window answers
+ * once it has changed, but the web view (WebView2 most of all) can hand
+ * the page its new size a frame or two later, and a size held only
+ * because the news has not come yet is not the one to fit to.
  */
 export function untilSteady(
 	read: () => string,
 	{
 		from,
 		frames = 2,
-		max = 400,
+		max = 250,
 		frame = (then: () => void) => requestAnimationFrame(then),
 		now = () => performance.now(),
 	}: {
@@ -166,13 +143,12 @@ export function untilSteady(
 }
 
 // Going into full screen or out of it: the document fades to its canvas
-// (the veil, Shell.module.css), the window changes, and once its size
-// has held the viewers fit it once and the veil lifts. A frameless
-// window on Windows passes through a size of its own on the way (it is
-// restored before it goes full screen), which nobody should see the
-// pages fitted to.
+// (the veil, Shell.module.css), the window changes size once, and once
+// that size has held the viewers fit it once and the veil lifts. The
+// bars leave the layout as it changes, which nobody should see the
+// pages jump for.
 const VEIL_IN = 80;
-const SETTLE_MAX = 400;
+const SETTLE_MAX = 250;
 /** A window that has not answered by then is not waited for. */
 const ANSWER_MAX = 2000;
 
@@ -234,7 +210,10 @@ function change(step: (c: ReturnType<typeof windowFullscreen>) => unknown) {
 		} finally {
 			// Refused, failed or done: the page follows the window as it is.
 			await within(Promise.resolve().then(syncNow), SETTLE_MAX);
-			await within(untilSteady(windowSize, { from }), SETTLE_MAX);
+			await within(
+				untilSteady(windowSize, { from, max: SETTLE_MAX }),
+				SETTLE_MAX,
+			);
 			changes--;
 			if (changes === 0) {
 				const fits = [...waiting];

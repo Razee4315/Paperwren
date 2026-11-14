@@ -1142,9 +1142,9 @@ test.describe("a file changed by another app", () => {
 });
 
 /** The desktop app's window, stood in for (lib/fullscreen.ts): maximised
- * on a screen of 1280 × 800 whose taskbar takes the foot, and smaller when
- * restored. A frameless window on Windows is restored before it goes full
- * screen (#58), so the page sees every size on the way, as it would. */
+ * on a screen of 1280 × 800 whose taskbar takes the foot. It goes from
+ * maximised to full screen and back in one change of size, as a
+ * frameless window on Windows does with tao 0.37.2 and later. */
 test.describe("full screen from a maximised window (#86)", () => {
 	test.use({ viewport: { width: 1280, height: 752 } });
 
@@ -1158,29 +1158,13 @@ test.describe("full screen from a maximised window (#86)", () => {
 					__resizeTo(width: number, height: number): Promise<void>;
 				}
 			).__resizeTo;
-			const state = { full: false, max: true };
-			const apply = () =>
-				state.full
-					? resize(1280, 800)
-					: state.max
-						? resize(1280, 752)
-						: resize(860, 600);
+			const state = { full: false };
 			window.__paperwrenWindow = {
 				isFullscreen: async () => state.full,
-				isMaximized: async () => state.max,
 				setFullscreen: async (on) => {
 					if (refuse) throw new Error("refused");
 					state.full = on;
-					await apply();
-				},
-				maximize: async () => {
-					if (refuse) throw new Error("refused");
-					state.max = true;
-					await apply();
-				},
-				unmaximize: async () => {
-					state.max = false;
-					await apply();
+					await (on ? resize(1280, 800) : resize(1280, 752));
 				},
 				onResized: async (then) => {
 					window.addEventListener("resize", then);
@@ -1291,8 +1275,9 @@ test.describe("full screen from a maximised window (#86)", () => {
 			else await expect(html).not.toHaveAttribute("data-fullscreen", /./);
 			await settled(page);
 			const rec = await taken(page);
-			// Never fitted to the restored window on the way: the window
-			// ends as wide as it began, so the pages keep their one size...
+			// One change of size, and no narrower one on the way: the
+			// window ends as wide as it began, so the pages keep their one
+			// size...
 			expect([...new Set(rec.frames.map((f) => f.width))]).toHaveLength(1);
 			// ...and each page on show is drawn once at most.
 			for (const times of Object.values(rec.drawn))
@@ -1340,16 +1325,20 @@ test.describe("full screen from a maximised window (#86)", () => {
 		const wide = async () => (await third.boundingBox())?.width ?? 0;
 		const before = await wide();
 		await page.keyboard.press("F11");
-		// Restored, and refused both full screen and maximised again: the
-		// window is left smaller, and the page fits it.
-		await expect.poll(() => page.evaluate(() => innerWidth)).toBe(860);
+		await expect(page.locator("html")).toHaveAttribute("data-fs-veil");
+		// Refused: the window is left as it was, and so is the page.
 		await settled(page);
 		await expect(page.locator("html")).not.toHaveAttribute(
 			"data-fullscreen",
 			/./,
 		);
-		await expect.poll(wide).toBeLessThan(before);
+		expect(await page.evaluate(() => [innerWidth, innerHeight])).toEqual([
+			1280, 752,
+		]);
+		expect(Math.abs((await wide()) - before)).toBeLessThanOrEqual(1);
 		// And it goes on following the window.
+		await page.setViewportSize({ width: 860, height: 600 });
+		await expect.poll(wide).toBeLessThan(before);
 		await page.setViewportSize({ width: 1280, height: 752 });
 		await expect.poll(wide).toBeGreaterThan(before - 2);
 	});
