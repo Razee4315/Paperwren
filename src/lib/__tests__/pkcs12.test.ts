@@ -329,7 +329,9 @@ describe("PKCS#12 digital IDs", () => {
 				name.includes("unicode") ||
 				name === "self-signed.p12"
 				? 1
-				: 3,
+				: name === "long-issuer.p12"
+					? 2
+					: 3,
 		);
 		expect(result.chain[0].length).toBeGreaterThan(300);
 		if (result.chain.length === 3) {

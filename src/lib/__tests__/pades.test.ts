@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { X509Certificate } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
 	PDFArray,
@@ -21,6 +21,7 @@ import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { describe, expect, it, vi } from "vitest";
 import { fillAndSign, protect } from "../pdfTools";
 import { ecdsaRaw } from "../sign/cms";
+import * as cms from "../sign/cms";
 import { buffer, concat, der, objectId, read, sequence } from "../sign/der";
 import {
 	PdfSignError,
@@ -272,6 +273,33 @@ async function checkLinearized(original: Uint8Array, name?: string) {
 }
 
 describe("incremental PAdES signatures", () => {
+	it("reports a CMS reservation overflow as an internal error", async () => {
+		const reserve = vi.spyOn(cms, "cmsReservation").mockResolvedValue(1);
+		try {
+			await expect(
+				signPdf(await pages(), await id(), { appearance: null, now }),
+			).rejects.toThrow("CMS signature exceeded its reservation");
+		} finally {
+			reserve.mockRestore();
+		}
+	});
+	it.each(
+		readdirSync("fixtures/digital-id").filter(
+			(name) =>
+				name.endsWith(".p12") &&
+				!["certs-only.p12", "rsa-aes192.p12"].includes(name),
+		),
+	)("reserves enough CMS space for %s", async (name) => {
+		const password = name.includes("empty-password")
+			? ""
+			: name.includes("unicode")
+				? "wrénøß"
+				: "wren";
+		const loaded = await readDigitalId(fixture(name), password);
+		const original = await pages();
+		const signed = await signPdf(original, loaded, { appearance: null, now });
+		await verifySignatures(signed);
+	});
 	it("signs 3000 pages without constructing objects under incremental tracking", async () => {
 		const doc = await PDFDocument.create({ updateMetadata: false });
 		for (let i = 0; i < 3000; i++) doc.addPage([600, 800]);

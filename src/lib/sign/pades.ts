@@ -19,7 +19,7 @@ import {
 	shownBox,
 	standardText,
 } from "../pdfTools";
-import { createCms, verifyCms } from "./cms";
+import { cmsReservation, createCms, verifyCms } from "./cms";
 import { buffer, concat, equal } from "./der";
 import { DigitalIdError } from "./errors";
 import { crossReferences } from "./pdfStructure";
@@ -192,15 +192,7 @@ export async function signWithId(
 	const now = options.now ?? new Date();
 	if (!Number.isFinite(now.getTime())) throw new PdfSignError("damaged");
 	const context = doc.context;
-	const sigBytes =
-		id.kind === "RSA" ? Math.ceil(id.bits / 8) : 2 * Math.ceil(id.bits / 8) + 9;
-	const reserve = Math.max(
-		8192,
-		Math.ceil(
-			(id.chain.reduce((n, cert) => n + cert.length, 0) + sigBytes + 1500) /
-				1024,
-		) * 1024,
-	);
+	const reserve = await cmsReservation(id);
 	const snapshot = context.snapshot;
 	if (!snapshot) throw new Error("Missing signing snapshot");
 	const firstNew = context.largestObjectNumber;
@@ -360,7 +352,8 @@ export async function signWithId(
 		),
 	);
 	const cms = await createCms(digest, id);
-	if (cms.length > reserve) throw new PdfSignError("damaged");
+	if (cms.length > reserve)
+		throw new Error("CMS signature exceeded its reservation");
 	const hex = Array.from(cms, (n) => n.toString(16).padStart(2, "0")).join("");
 	output.set(new TextEncoder().encode(hex), a + 1);
 	const reopened = await PDFDocument.load(output, {

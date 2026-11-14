@@ -120,3 +120,4 @@ done
 cd "$root"
 node scripts/make-digital-id-pdf-fixtures.mjs
 node scripts/make-digital-id-shadow-fixtures.mjs
+bash scripts/make-digital-id-long-issuer.sh

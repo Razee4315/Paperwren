@@ -1,5 +1,11 @@
 Throwaway keys made for tests. They sign nothing real; never trust these certificates.
 
+`bash scripts/make-digital-id-long-issuer.sh` generates `long-issuer.p12`
+and its throwaway root. Its issuer has 80 organisational units; CMS repeats
+that Name in both the signer identifier and the signing-certificate attribute.
+This checks reservation against the actual encoding instead of a chain-size
+estimate. It has a two-certificate chain and uses the existing test RSA key.
+
 `node scripts/make-digital-id-shadow-fixtures.mjs` generates the two
 `shadow-*.pdf` attack samples. Their xref selects a page saying PAY 100,
 but an unindexed later page definition says PAY 99999. The signed variant

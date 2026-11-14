@@ -93,12 +93,22 @@ export async function createCms(
 ): Promise<Uint8Array> {
 	const expected = id.hash === "SHA-384" ? 48 : id.hash === "SHA-512" ? 64 : 32;
 	if (digest.length !== expected) throw new DigitalIdError("not-digital-id");
-	const cert = certificate(id.chain[0]);
 	const attrs = await attributes(digest, id);
 	const raw = new Uint8Array(
 		await crypto.subtle.sign(algorithm(id), id.key, buffer(attrs)),
 	);
 	const signature = id.kind === "RSA" ? raw : ecdsaDer(raw);
+	const cms = encodeCms(attrs, id, signature);
+	if (!(await verifyCms(cms, digest, id))) throw new DigitalIdError("mismatch");
+	return cms;
+}
+
+function encodeCms(
+	attrs: Uint8Array,
+	id: ImportedId,
+	signature: Uint8Array,
+): Uint8Array {
+	const cert = certificate(id.chain[0]);
 	const hash = seq(oid(digestId(id)));
 	const signer = seq(
 		integer(1),
@@ -121,8 +131,20 @@ export async function createCms(
 			),
 		),
 	);
-	if (!(await verifyCms(cms, digest, id))) throw new DigitalIdError("mismatch");
 	return cms;
+}
+
+/** The real CMS encoding, with the largest possible signature and DER lengths. */
+export async function cmsReservation(id: ImportedId): Promise<number> {
+	const digest = new Uint8Array(
+		id.hash === "SHA-384" ? 48 : id.hash === "SHA-512" ? 64 : 32,
+	);
+	const raw = new Uint8Array(
+		(id.kind === "RSA" ? 1 : 2) * Math.ceil(id.bits / 8),
+	).fill(255);
+	const signature = id.kind === "RSA" ? raw : ecdsaDer(raw);
+	const size = encodeCms(await attributes(digest, id), id, signature).length;
+	return Math.ceil((size + 64) / 256) * 256;
 }
 
 /** Verify the bytes read back from the PDF against this session's certificate. */
