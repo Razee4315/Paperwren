@@ -501,8 +501,16 @@ export async function signatureAppearance(
 	ctx.direction = document.documentElement.dir === "rtl" ? "rtl" : "ltr";
 	const family = getComputedStyle(document.body).fontFamily;
 	caption.forEach((text, i) => {
-		ctx.font = `${i === 0 ? 600 : 400} ${line * 0.72}px ${family}`;
-		ctx.fillText(text, w / 2, room + line * (i + 0.5), w * 0.98);
+		const weight = i === 0 ? 600 : 400;
+		let size = line * 0.72;
+		ctx.font = `${weight} ${size}px ${family}`;
+		// Smaller rather than squeezed when a line is wider than the box.
+		const wide = ctx.measureText(text).width;
+		if (wide > w * 0.98) {
+			size *= (w * 0.98) / wide;
+			ctx.font = `${weight} ${size}px ${family}`;
+		}
+		ctx.fillText(text, w / 2, room + line * (i + 0.5));
 	});
 	return canvas.toDataURL("image/png");
 }
