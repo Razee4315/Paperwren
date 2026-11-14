@@ -332,7 +332,7 @@ export function crossReferences(
 		if (!same) throw new Error("damaged");
 	}
 	const seen = new Set<PDFObject>();
-	const pending: PDFObject[] = [doc.catalog];
+	const pending: PDFObject[] = [doc.catalog, ...Object.values(trailer)];
 	while (pending.length) {
 		const object = pending.pop() as PDFObject;
 		if (seen.has(object)) continue;

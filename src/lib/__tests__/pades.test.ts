@@ -292,6 +292,52 @@ async function checkLinearized(original: Uint8Array, name?: string) {
 }
 
 describe("incremental PAdES signatures", () => {
+	it("refuses a reachable unindexed object and accepts the same indexed incremental update", async () => {
+		const original = await pages();
+		const doc = await PDFDocument.load(original);
+		const root = doc.context.trailerInfo.Root as PDFRef;
+		const orphan = doc.context.largestObjectNumber + 1;
+		const catalog = doc.catalog.clone();
+		catalog.set(PDFName.of("OpenAction"), PDFRef.of(orphan));
+		const source = Buffer.from(original).toString("latin1");
+		const previous = source.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1];
+		let update = `${root.objectNumber} 0 obj\n${catalog}\nendobj\n`;
+		const at = original.length + update.length;
+		update += `${orphan} 0 obj\n<< /S /GoTo /D [0 /Fit] >>\nendobj\n`;
+		const tail = `trailer\n<< /Size ${orphan + 1} /Root ${root} /Prev ${previous} >>\nstartxref\n${original.length + update.length}\n%%EOF\n`;
+		const xref = `xref\n${root.objectNumber} 1\n${String(original.length).padStart(10, "0")} 00000 n \n`;
+		const missing = Uint8Array.from(
+			Buffer.from(source + update + xref + tail, "latin1"),
+		);
+		expect(await canSign(missing)).toMatchObject({ blocker: "damaged" });
+		const valid = Uint8Array.from(
+			Buffer.from(
+				`${source}${update}${xref}${orphan} 1\n${String(at).padStart(10, "0")} 00000 n \n${tail}`,
+				"latin1",
+			),
+		);
+		expect(await canSign(valid)).toEqual({ signed: false });
+		const signed = await signPdf(valid, await id(), { appearance: null, now });
+		expect(await pageTexts(signed)).toEqual(await pageTexts(valid));
+	});
+	it.each(["Root", "Info"] as const)(
+		"refuses a recovered %s that the newest xref marks free",
+		async (key) => {
+			const original = await pages();
+			const doc = await PDFDocument.load(original);
+			const root = doc.context.trailerInfo.Root as PDFRef;
+			const freed = doc.context.trailerInfo[key] as PDFRef;
+			const source = Buffer.from(original).toString("latin1");
+			const previous = source.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1];
+			const pdf = Uint8Array.from(
+				Buffer.from(
+					`${source}xref\n${freed.objectNumber} 1\n0000000000 00001 f \ntrailer\n<< /Size ${doc.context.largestObjectNumber + 1} /Root ${root} /Prev ${previous} >>\nstartxref\n${source.length}\n%%EOF\n`,
+					"latin1",
+				),
+			);
+			expect(await canSign(pdf)).toMatchObject({ blocker: "damaged" });
+		},
+	);
 	it("checks stream definitions without marking original streams for rewriting", async () => {
 		const original = await pages(true);
 		const doc = await PDFDocument.load(original, {
@@ -532,17 +578,21 @@ describe("incremental PAdES signatures", () => {
 			await canSign(Uint8Array.from(Buffer.from(shadow, "latin1"))),
 		).toMatchObject({ blocker: "damaged" });
 		const plain = Buffer.from(await pages()).toString("latin1");
-		const doc = await PDFDocument.load(Buffer.from(plain));
+		const doc = await PDFDocument.load(Buffer.from(plain, "latin1"));
 		const n = doc.getPage(0).ref.objectNumber;
 		const previous = Number(plain.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1]);
 		const free = `${plain}xref\n${n} 1\n0000000000 00001 f \ntrailer\n<< /Size ${doc.context.largestObjectNumber + 1} /Root ${doc.context.trailerInfo.Root} /Prev ${previous} >>\nstartxref\n${plain.length}\n%%EOF\n`;
-		expect(await canSign(Uint8Array.from(Buffer.from(free)))).toMatchObject({
+		expect(
+			await canSign(Uint8Array.from(Buffer.from(free, "latin1"))),
+		).toMatchObject({
 			blocker: "damaged",
 		});
 		const absent = plain
 			.replace(new RegExp(`${n} 0 obj`), "999 0 obj")
 			.replace(new RegExp(`/Kids \\[ ${n} 0 R`), "/Kids [ 999 0 R");
-		expect(await canSign(Uint8Array.from(Buffer.from(absent)))).toMatchObject({
+		expect(
+			await canSign(Uint8Array.from(Buffer.from(absent, "latin1"))),
+		).toMatchObject({
 			blocker: "damaged",
 		});
 	});
