@@ -144,6 +144,248 @@ test.describe("rename", () => {
 		await expect(page).toHaveTitle(/Q3\.pdf/);
 	});
 
+	/** Stand in for the Android shell: `picker` gives it the system's own
+	 * document picker (as 1.8 does; without it, the old picker is used),
+	 * `refuse` is what its provider answers a rename with. What the page
+	 * asks of it is kept in window.__shell. */
+	async function androidShell(
+		page: Page,
+		shell: { picker?: "works" | "fails"; refuse?: string } = {},
+	) {
+		await page.addInitScript((shell) => {
+			const w = window as unknown as Record<string, unknown>;
+			const asked = {
+				picks: [] as unknown[],
+				renames: [] as string[][],
+				kept: [] as string[],
+				released: [] as string[],
+			};
+			w.__shell = asked;
+			const docs: Record<string, { name: string; bytes: string }> = {};
+			w.__shellDocs = docs;
+			const copies: Record<string, Blob> = {};
+			window.__paperwrenTestCopies = copies;
+			const later = (fn: () => void) => window.setTimeout(fn, 10);
+			w.__paperwrenAndroid = {
+				displayName: (uri: string) => docs[uri]?.name ?? "",
+				contentSize: () => 0,
+				importPicked(uri: string, token: string) {
+					const doc = docs[uri];
+					const path = `/data/files/imports/${Object.keys(docs).indexOf(uri)}/${doc.name}`;
+					copies[path] = new Blob([
+						Uint8Array.from(atob(doc.bytes), (c) => c.charCodeAt(0)),
+					]);
+					later(() =>
+						window.__paperwrenImported?.(token, {
+							path,
+							name: doc.name,
+							size: copies[path].size,
+						}),
+					);
+					return true;
+				},
+			};
+			const extras: Record<string, unknown> = {
+				keepAwake() {},
+				releaseFolder: (uri: string) => asked.released.push(uri),
+				renameDocument(uri: string, name: string, token: string) {
+					asked.renames.push([uri, name]);
+					later(() =>
+						window.__paperwrenRenamed?.(
+							token,
+							shell.refuse ?? { uri: `${uri}-renamed`, name },
+						),
+					);
+					return true;
+				},
+			};
+			if (shell.picker) {
+				extras.pickDocuments = (
+					token: string,
+					pictures: boolean,
+					multiple: boolean,
+				) => {
+					asked.picks.push({ pictures, multiple });
+					if (shell.picker === "fails") return false;
+					later(() => window.__paperwrenPicked?.(token, Object.keys(docs)));
+					return true;
+				};
+				extras.keepDocument = (uri: string) => asked.kept.push(uri);
+				extras.canRenameDocument = () => !shell.refuse;
+			}
+			w.__paperwrenAndroidExtras = extras;
+		}, shell);
+	}
+
+	/** A document the shell's picker gives, at `uri`. */
+	async function inPicker(page: Page, uri: string, fixture: string) {
+		const bytes = readFileSync(`fixtures/${fixture}`).toString("base64");
+		await page.evaluate(
+			({ uri, name, bytes }) => {
+				const w = window as unknown as {
+					__shellDocs: Record<string, { name: string; bytes: string }>;
+				};
+				w.__shellDocs[uri] = { name, bytes };
+			},
+			{ uri, name: fixture, bytes },
+		);
+	}
+
+	const shellAsked = (page: Page) =>
+		page.evaluate(
+			() =>
+				(
+					window as unknown as {
+						__shell: {
+							picks: unknown[];
+							renames: string[][];
+							kept: string[];
+							released: string[];
+						};
+					}
+				).__shell,
+		);
+
+	const ORIGINAL =
+		"content://com.android.providers.downloads.documents/document/msf%3A31";
+
+	test("Android: a file picked with Open file is renamed where it is", async ({
+		page,
+	}) => {
+		await androidShell(page, { picker: "works" });
+		await boot(page);
+		await inPicker(page, ORIGINAL, "sample.pdf");
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+		// Its original is kept over restarts, as Recent files names it.
+		await expect
+			.poll(async () => (await shellAsked(page)).kept)
+			.toEqual([ORIGINAL]);
+		expect((await shellAsked(page)).picks).toEqual([
+			{ pictures: false, multiple: false },
+		]);
+
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-rename").click();
+		// The original is renamed: nothing to warn about.
+		await expect(page.getByTestId("rename-input")).toHaveValue("sample");
+		await expect(page.getByTestId("rename-in-app")).toHaveCount(0);
+		await page.getByTestId("rename-input").fill("Q3");
+		await page.getByTestId("rename-go").click();
+		const toast = page.getByTestId("toast");
+		await expect(toast).toContainText("Renamed to Q3.pdf");
+		await expect(toast).not.toContainText("in Paperwren");
+		const asked = await shellAsked(page);
+		expect(asked.renames).toEqual([[ORIGINAL, "Q3.pdf"]]);
+		await expect(page.getByTestId("viewer").locator("header")).toContainText(
+			"Q3.pdf",
+		);
+		// Its new address is held, and the old one let go.
+		await expect
+			.poll(async () => (await shellAsked(page)).kept)
+			.toEqual([ORIGINAL, `${ORIGINAL}-renamed`]);
+		expect((await shellAsked(page)).released).toEqual([ORIGINAL]);
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+
+		// Recent files has it under its new name, and a second rename asks
+		// for the original at its new address.
+		await page.getByTestId("viewer-back").click();
+		const recent = page.getByTestId("recent");
+		await expect(recent).toHaveCount(1);
+		await expect(recent.first()).toContainText("Q3.pdf");
+		const stored = await page.evaluate(() =>
+			JSON.parse(localStorage.getItem("paperwren.recents_v2") ?? "[]"),
+		);
+		expect(stored[0].reopen).toMatchObject({
+			kind: "managed",
+			origin: `${ORIGINAL}-renamed`,
+		});
+		await recent
+			.first()
+			.getByRole("button", { name: /More actions/ })
+			.click();
+		await page.getByTestId("menu-rename").click();
+		await expect(page.getByTestId("rename-in-app")).toHaveCount(0);
+		await page.getByTestId("rename-input").fill("Q4");
+		await page.getByTestId("rename-go").click();
+		await expect(recent.first()).toContainText("Q4.pdf");
+		expect((await shellAsked(page)).renames[1]).toEqual([
+			`${ORIGINAL}-renamed`,
+			"Q4.pdf",
+		]);
+
+		// Removed from Recent files, its original is let go once Undo has
+		// passed.
+		await recent
+			.first()
+			.getByRole("button", { name: /More actions/ })
+			.click();
+		await page.getByTestId("menu-remove").click();
+		await expect(recent).toHaveCount(0);
+		await expect
+			.poll(async () => (await shellAsked(page)).released, { timeout: 10_000 })
+			.toContain(`${ORIGINAL}-renamed-renamed`);
+	});
+
+	test("Android: a provider that will not rename the original says so", async ({
+		page,
+	}) => {
+		await androidShell(page, { picker: "works", refuse: "unsupported" });
+		await boot(page);
+		await inPicker(page, ORIGINAL, "sample.pdf");
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+			timeout: 20_000,
+		});
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("file-rename").click();
+		await expect(page.getByTestId("rename-in-app")).toContainText(
+			"in Paperwren only",
+		);
+		await page.getByTestId("rename-input").fill("Q3");
+		await page.getByTestId("rename-go").click();
+		await expect(page.getByTestId("toast")).toContainText(
+			"Renamed to Q3.pdf in Paperwren. The original file keeps its name.",
+		);
+		await expect(page.getByTestId("viewer").locator("header")).toContainText(
+			"Q3.pdf",
+		);
+		// The original out of reach for good, its address is let go.
+		await expect
+			.poll(async () => (await shellAsked(page)).released)
+			.toEqual([ORIGINAL]);
+		await page.getByTestId("viewer-back").click();
+		await expect(page.getByTestId("recent").first()).toContainText("Q3.pdf");
+	});
+
+	for (const picker of [undefined, "fails"] as const)
+		test(`Android: ${picker ? "a picker that fails" : "an older shell"} still opens the file the old way`, async ({
+			page,
+		}) => {
+			await androidShell(page, { picker });
+			await boot(page);
+			await openFixture(page, "sample.pdf");
+			await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+				timeout: 20_000,
+			});
+			expect((await shellAsked(page)).picks).toHaveLength(picker ? 1 : 0);
+			await page.getByTestId("file-more").click();
+			await page.getByTestId("file-rename").click();
+			await expect(page.getByTestId("rename-in-app")).toContainText(
+				"in Paperwren only",
+			);
+			await page.getByTestId("rename-input").fill("Q3");
+			await page.getByTestId("rename-go").click();
+			await expect(page.getByTestId("toast")).toContainText(
+				"in Paperwren. The original file keeps its name.",
+			);
+			expect((await shellAsked(page)).renames).toEqual([]);
+		});
+
 	test("a refused rename keeps the old name everywhere", async ({ page }) => {
 		await boot(page);
 		await systemRenames(page, {

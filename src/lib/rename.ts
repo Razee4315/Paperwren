@@ -23,12 +23,16 @@ export interface Renamed {
  * - "file": a path on a computer, renamed in its folder;
  * - "document": an Android document, which its provider is asked to
  *   rename (it may say no: then only the app's name changes);
- * - "app": a copy the app holds (picked, or opened from another app)
- *   or one the browser handed over: the original is out of reach, so
- *   only the name it goes by in Paperwren changes;
+ * - "origin": a copy the app holds of an Android document picked with
+ *   "Open file", whose address it kept: that document's provider is
+ *   asked to rename it, and the copy takes the name it gets (or, if the
+ *   provider says no, only the app's name changes);
+ * - "app": a copy the app holds with no way back to its original
+ *   (opened from another app, picked with an older picker) or one the
+ *   browser handed over: only the name it goes by in Paperwren changes;
  * - null: a file inside another one, with no place of its own.
  */
-export type RenameWay = "file" | "document" | "app" | null;
+export type RenameWay = "file" | "document" | "origin" | "app" | null;
 
 export function renameWay(reopen: Reopen, providerRenames: boolean): RenameWay {
 	switch (reopen.kind) {
@@ -37,6 +41,7 @@ export function renameWay(reopen: Reopen, providerRenames: boolean): RenameWay {
 		case "uri":
 			return providerRenames ? "document" : "app";
 		case "managed":
+			return providerRenames && reopen.origin ? "origin" : "app";
 		case "browser":
 			return "app";
 		case "memory":
@@ -75,6 +80,43 @@ export function documentRenamed(
 	if (answer === "unsupported" || answer === "permission")
 		return { reopen, name: asked, original: false };
 	if (answer === "not_found") throw renameRefused("not_found");
+	throw renameRefused("io");
+}
+
+/**
+ * The Android side's answer to renaming the original of a picked copy.
+ * Renamed there: the copy takes the name the provider gave it, and keeps
+ * the original's new address. "unsupported", "permission" or
+ * "not_found": the original is out of reach for good, so only the app's
+ * name changes, and its address is let go (so is the access to it).
+ * Anything else is a failure the reader is told about, and nothing is
+ * renamed.
+ */
+export function originRenamed(
+	answer: unknown,
+	reopen: Reopen,
+	asked: string,
+): Renamed {
+	if (reopen.kind !== "managed") throw renameRefused("unsupported");
+	if (answer && typeof answer === "object") {
+		const { uri, name } = answer as { uri?: unknown; name?: unknown };
+		if (typeof uri === "string" && uri.startsWith("content://"))
+			return {
+				reopen: { kind: "managed", path: reopen.path, origin: uri },
+				name: typeof name === "string" && name.trim() ? name.trim() : asked,
+				original: true,
+			};
+	}
+	if (
+		answer === "unsupported" ||
+		answer === "permission" ||
+		answer === "not_found"
+	)
+		return {
+			reopen: { kind: "managed", path: reopen.path },
+			name: asked,
+			original: false,
+		};
 	throw renameRefused("io");
 }
 

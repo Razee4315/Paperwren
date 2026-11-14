@@ -36,8 +36,12 @@ function cleanReopen(value: unknown): Reopen | null {
 	const r = value as Record<string, unknown>;
 	if (r.kind === "uri" && typeof r.uri === "string")
 		return { kind: "uri", uri: r.uri };
-	if ((r.kind === "managed" || r.kind === "path") && typeof r.path === "string")
-		return { kind: r.kind, path: r.path };
+	if (r.kind === "managed" && typeof r.path === "string")
+		return typeof r.origin === "string" && r.origin.startsWith("content://")
+			? { kind: "managed", path: r.path, origin: r.origin }
+			: { kind: "managed", path: r.path };
+	if (r.kind === "path" && typeof r.path === "string")
+		return { kind: "path", path: r.path };
 	if (r.kind === "browser" && typeof r.key === "string")
 		return { kind: "browser", key: r.key };
 	return null;
@@ -195,6 +199,19 @@ export function sortRecents(list: RecentEntry[]): RecentEntry[] {
 	);
 }
 
+/** The same copy opened again some way that does not know its original
+ * (another app handing it over, an older picker) keeps the original it
+ * had. */
+function withOrigin(now: Reopen, before: Reopen): Reopen {
+	return now.kind === "managed" &&
+		!now.origin &&
+		before.kind === "managed" &&
+		before.path === now.path &&
+		before.origin
+		? { ...now, origin: before.origin }
+		: now;
+}
+
 /** Record an open: update in place (clearing `unavailable`) or add,
  * then trim unpinned entries beyond `limit`. Returns the evicted
  * entries so their managed copies can be deleted. */
@@ -209,6 +226,7 @@ export function recordOpen(
 		? {
 				...existing,
 				...entry,
+				reopen: withOrigin(entry.reopen, existing.reopen),
 				position: entry.position ?? existing.position,
 				pinned: existing.pinned,
 				openedAt: now,
@@ -275,6 +293,71 @@ export function moveKeyed<T>(
 	const next = { ...record, [to]: record[from] };
 	delete next[from];
 	return next;
+}
+
+/** How many picked originals the app keeps access to. Android holds a
+ * limited number of such grants for an app (128 on older versions, 512
+ * on newer) and drops the oldest past that, folders included, so the
+ * list keeps well under it. */
+export const ORIGINS_KEPT = 100;
+
+/** The Android documents the app keeps access to for these entries:
+ * the originals of picked copies, and documents opened where they are
+ * (a saved copy, a file in a folder). */
+function heldDocuments(entries: RecentEntry[]): Set<string> {
+	const held = new Set<string>();
+	for (const e of entries) {
+		if (e.reopen.kind === "managed" && e.reopen.origin)
+			held.add(e.reopen.origin);
+		else if (e.reopen.kind === "uri") held.add(e.reopen.uri);
+	}
+	return held;
+}
+
+function originsIn(entries: RecentEntry[]): string[] {
+	const found: string[] = [];
+	for (const e of entries)
+		if (e.reopen.kind === "managed" && e.reopen.origin)
+			found.push(e.reopen.origin);
+	return found;
+}
+
+/**
+ * The originals whose access changes from `prev` to `next`: `kept` are
+ * new to the list (access to them is to be held over restarts), and
+ * `released` are no longer named by any entry (access can be given
+ * back). A document still opened where it is, under another entry, is
+ * never released.
+ */
+export function originsChanged(
+	prev: RecentEntry[],
+	next: RecentEntry[],
+): { kept: string[]; released: string[] } {
+	const before = new Set(originsIn(prev));
+	const still = heldDocuments(next);
+	return {
+		kept: [...new Set(originsIn(next))].filter((uri) => !before.has(uri)),
+		released: [...before].filter((uri) => !still.has(uri)),
+	};
+}
+
+/** Only the `cap` most recently opened entries keep their original's
+ * address; older ones go on opening from the copy, renamed in the app
+ * only. The same list when none is over. */
+export function capOrigins(
+	list: RecentEntry[],
+	cap = ORIGINS_KEPT,
+): RecentEntry[] {
+	const withOrigin = list
+		.filter((e) => e.reopen.kind === "managed" && e.reopen.origin)
+		.sort((a, b) => b.openedAt - a.openedAt);
+	if (withOrigin.length <= cap) return list;
+	const over = new Set(withOrigin.slice(cap).map((e) => e.id));
+	return list.map((e) =>
+		over.has(e.id) && e.reopen.kind === "managed"
+			? { ...e, reopen: { kind: "managed", path: e.reopen.path } }
+			: e,
+	);
 }
 
 /** Managed-copy path relative to the imports directory, as the Rust

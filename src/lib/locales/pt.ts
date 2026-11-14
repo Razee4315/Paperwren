@@ -1352,6 +1352,8 @@ export const pt: Table = {
 		"Outro app está usando este arquivo. Feche-o lá e tente de novo.",
 	"Paperwren isn't allowed to rename this file":
 		"O Paperwren não tem permissão para renomear este arquivo",
+	"That's the file you have open. Choose another name.":
+		"Esse é o arquivo que você tem aberto. Escolha outro nome.",
 	"Choose your digital ID (.pfx or .p12)":
 		"Escolha sua ID digital (.pfx ou .p12)",
 	"Digital IDs": "IDs digitais",

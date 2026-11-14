@@ -4,6 +4,7 @@ import { toggleFullscreen, watchFullscreen } from "@/lib/fullscreen";
 import { language, subscribe, t } from "@/lib/i18n";
 import { isFullscreenKey } from "@/lib/keys";
 import { backToCaller } from "@/lib/navigation";
+import { holdOpen, onSaveRefused } from "@/lib/openFiles";
 import { matches } from "@/lib/shortcuts";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
@@ -673,6 +674,19 @@ function Root() {
 				window.__paperwrenNativeError = undefined;
 		};
 	}, []);
+
+	// The documents open here (every tab, both halves side by side) are
+	// never saved over: a copy goes somewhere else, and a save the reader
+	// points at one of them is refused, saying why.
+	useEffect(() => {
+		holdOpen("documents", [
+			...tabs.map((tab) => tab.request.reopen),
+			...state.screens.map((screen) =>
+				screen.kind === "viewer" ? screen.request.reopen : undefined,
+			),
+		]);
+	}, [tabs, state.screens]);
+	useEffect(() => onSaveRefused((note) => toast(t(note))), []);
 
 	// A desktop app has no "Reload" or "Back" menu on a right-click, and
 	// the webview's own menu acts on the app, not the document (its

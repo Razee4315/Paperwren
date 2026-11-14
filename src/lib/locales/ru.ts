@@ -1380,6 +1380,8 @@ export const ru: Table = {
 		"Этот файл занят другим приложением. Закройте его там и попробуйте снова.",
 	"Paperwren isn't allowed to rename this file":
 		"У Paperwren нет права переименовать этот файл",
+	"That's the file you have open. Choose another name.":
+		"Это файл, который у вас открыт. Выберите другое имя.",
 	"Choose your digital ID (.pfx or .p12)":
 		"Выберите цифровое удостоверение (.pfx или .p12)",
 	"Digital IDs": "Цифровые удостоверения",

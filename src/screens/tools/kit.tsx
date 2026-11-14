@@ -2,10 +2,11 @@ import { type SavedFile, backend, requestForSaved } from "@/lib/backend";
 import { unreadNote } from "@/lib/errors";
 import { byName } from "@/lib/fileName";
 import { t, tn } from "@/lib/i18n";
+import { holdOpen } from "@/lib/openFiles";
 import { openPdf } from "@/lib/pdfEngine";
 import { ToolError, pageCount } from "@/lib/pdfTools";
 import { sniffFormat } from "@/lib/sniff";
-import type { OpenRequest } from "@/lib/types";
+import type { OpenRequest, Reopen } from "@/lib/types";
 import { PasswordDialog } from "@/screens/viewer/Dialogs";
 import { Button, IconButton, toast } from "@/ui";
 import {
@@ -37,9 +38,12 @@ export interface ToolFile {
 	/** PDFs: how many pages, and the password it was opened with. */
 	pages?: number;
 	password?: string;
+	/** Where it was read from, so a copy is never saved over it. */
+	reopen?: Reopen;
 }
 
 let keys = 0;
+let lists = 0;
 
 /** What the tools take in. */
 export type Takes = "pdf" | "image" | "any";
@@ -100,6 +104,16 @@ export function useToolFiles(
 	const picking = useRef(false);
 	const password = usePassword();
 
+	// What the tool works on is open: a copy it saves never goes over it.
+	const [owner] = useState(() => `tool-files-${++lists}`);
+	useEffect(() => {
+		holdOpen(
+			owner,
+			files.map((f) => f.reopen),
+		);
+		return () => holdOpen(owner, []);
+	}, [owner, files]);
+
 	const adopt = useCallback(
 		async (request: OpenRequest) => {
 			setBusy(true);
@@ -118,7 +132,12 @@ export function useToolFiles(
 					toast(t("{name} isn't a PDF or a picture", { name: request.name }));
 					return;
 				}
-				const file: ToolFile = { key: ++keys, name: request.name, bytes };
+				const file: ToolFile = {
+					key: ++keys,
+					name: request.name,
+					bytes,
+					reopen: request.reopen,
+				};
 				if (format === "pdf" && takes !== "image") {
 					let tried: string | undefined;
 					let wrong = false;

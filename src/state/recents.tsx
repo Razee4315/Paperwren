@@ -2,9 +2,11 @@ import { backend, managedRelPath } from "@/lib/backend";
 import { isDesktop, isTauri } from "@/lib/env";
 import { isOpaqueName } from "@/lib/formats";
 import {
+	capOrigins,
 	idForReopen,
 	migrateLegacyRecents,
 	normalizeRecents,
+	originsChanged,
 	recordOpen as recordOpenPure,
 	renameRecent,
 	sortRecents,
@@ -140,10 +142,17 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 					})
 					.catch(() => {});
 			} else backend.storeSet(STORAGE_KEYS.recents, next).catch(() => {});
+			// A picked original the list now names is held over restarts
+			// (so it can still be renamed); one it no longer names is let go,
+			// with its copy.
+			for (const uri of originsChanged(prev, next).kept)
+				backend.keepDocument(uri);
 			const release = () => {
 				const kept = new Set(managedPaths(current.current));
 				const dropped = managedPaths(prev).filter((p) => !kept.has(p));
 				if (dropped.length) backend.importsRemove(dropped).catch(() => {});
+				for (const uri of originsChanged(prev, current.current).released)
+					backend.releaseDocument(uri);
 			};
 			if (undoable) window.setTimeout(release, UNDO_MS);
 			else release();
@@ -219,9 +228,10 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 	const record = useCallback<RecentsApi["record"]>(
 		(entry) => {
 			if (!keepRef.current) return;
-			commit(
-				(prev) =>
+			commit((prev) =>
+				capOrigins(
 					recordOpenPure(prev, entry, Date.now(), limitRef.current).list,
+				),
 			);
 		},
 		[commit],

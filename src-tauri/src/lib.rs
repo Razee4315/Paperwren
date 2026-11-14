@@ -290,6 +290,14 @@ async fn save_as(
         .and_then(percent_decoded)
         .and_then(|n| save::valid_name(&n).ok())
         .unwrap_or_else(|| "Untitled".to_owned());
+    // The files the reader has open: a copy never goes over one of them.
+    let open = request
+        .headers()
+        .get("x-open")
+        .and_then(|v| v.to_str().ok())
+        .and_then(percent_decoded)
+        .map(|list| save::open_paths(&list))
+        .unwrap_or_default();
     #[cfg(desktop)]
     {
         use tauri_plugin_dialog::DialogExt;
@@ -304,6 +312,14 @@ async fn save_as(
             let path = picked
                 .into_path()
                 .map_err(|e| AppError::new(error::ErrorKind::Path, e.to_string()))?;
+            // The opened file is never changed: the reader is told, and
+            // asked again.
+            if save::is_open(&path, &open) {
+                return Err(AppError::new(
+                    error::ErrorKind::IsOpen,
+                    "that is a file you have open",
+                ));
+            }
             std::fs::write(&path, &bytes)?;
             Ok(path.to_str().map(str::to_owned))
         })
@@ -311,7 +327,7 @@ async fn save_as(
     }
     #[cfg(not(desktop))]
     {
-        let _ = (app, bytes, name);
+        let _ = (app, bytes, name, open);
         Err(AppError::new(error::ErrorKind::Path, "not available here"))
     }
 }

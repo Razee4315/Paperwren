@@ -78,7 +78,7 @@ The PDF jobs people otherwise upload to a website for, on the device. Open them 
 | Page numbers, watermark | "1" or "Page 1 of 9" at the foot or top of every page; a word such as DRAFT across them |
 | Add or remove a password | A copy that asks for a password to open, or one that no longer does (if you know it) |
 
-Any file can also be **renamed**, from its menu or a recent's: the extension stays as it is. On a desktop the file itself is renamed in its folder, never over another file. On a phone a file opened from a folder you added, or a copy you saved, is renamed where it is when the phone allows it; a file picked or opened from another app is a copy the app holds, so the new name is the one it goes by in the app and is shared by, and the rename says so: the original keeps its name. This answers [issue #10](https://github.com/Razee4315/Paperwren/issues/10).
+Any file can also be **renamed**, from its menu or a recent's: the extension stays as it is. On a desktop the file itself is renamed in its folder, never over another file. On a phone a file opened from a folder you added, a copy you saved, or a file picked with Open file, is renamed where it is when the phone allows it (the app keeps access to a picked file for as long as Recent files lists it). A file opened from another app is a copy the app holds, as is a picked file whose place will not let it be renamed, so the new name is the one it goes by in the app and is shared by, and the rename says so before and after: the original keeps its name. This answers [issue #10](https://github.com/Razee4315/Paperwren/issues/10).
 
 The tools are built on [pdf-lib](https://github.com/cantoo-scribe/pdf-lib) (the maintained fork), loaded only when one runs.
 
@@ -176,6 +176,6 @@ The same app on Windows:
 - A signature, initials or stamp you ask to keep are stored as pictures in app-private storage, and can be forgotten whenever you sign or in Settings.
 - Scanning asks for no camera permission: the phone's camera app takes the photo. The photos are worked on in memory; the copy the camera app writes into the app's own folder is deleted the next time the app starts.
 - Notes are stored in app-private storage and go nowhere unless you save one as a PDF or back them up, which writes a file where you pick it.
-- The app never changes a file it opened. It writes only a copy a tool made, where you pick it in the system's save screen, and a file you rename. On a desktop both are done by the Rust side (`src-tauri/src/save.rs`), which checks the name: the web layer's file access stays read-only.
+- The app never changes a file it opened. It writes only a copy a tool made, where you pick it in the system's save screen (never over a file you have open: it says so and asks again), and a file you rename. On a desktop both are done by the Rust side (`src-tauri/src/save.rs`), which checks the name: the web layer's file access stays read-only.
 
 The full policy is at [razee4315.github.io/Paperwren/privacy](https://razee4315.github.io/Paperwren/privacy).

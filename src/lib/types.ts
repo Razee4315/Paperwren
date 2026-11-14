@@ -6,7 +6,11 @@ import type { ShortcutId } from "./shortcuts";
 /** How a file can be read again after the app restarts. */
 export type Reopen =
 	| { kind: "uri"; uri: string } // Android content:// grant
-	| { kind: "managed"; path: string } // copy under app_data/imports
+	// A copy under app_data/imports. `origin` is the Android document it
+	// was picked from, when the app may keep its address (so the original
+	// can be renamed); older entries and copies opened from another app
+	// have none.
+	| { kind: "managed"; path: string; origin?: string }
 	| { kind: "path"; path: string } // desktop filesystem path
 	| { kind: "browser"; key: string } // dev/web preview (IndexedDB)
 	| { kind: "memory"; key: string }; // inside another file, this run only

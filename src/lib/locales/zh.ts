@@ -1242,6 +1242,8 @@ export const zh: Table = {
 	"Another app is using this file. Close it there, then try again.":
 		"另一个应用正在使用此文件。请先在那里关闭它，然后重试。",
 	"Paperwren isn't allowed to rename this file": "Paperwren 无权重命名此文件",
+	"That's the file you have open. Choose another name.":
+		"这是你正打开的文件。请换一个名称。",
 	"Choose your digital ID (.pfx or .p12)": "选择你的数字身份证（.pfx 或 .p12）",
 	"Digital IDs": "数字身份证",
 	"All files": "所有文件",

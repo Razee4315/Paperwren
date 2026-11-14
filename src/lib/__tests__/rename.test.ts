@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { idForReopen, moveKeyed, renameRecent } from "../recents";
+import {
+	capOrigins,
+	idForReopen,
+	moveKeyed,
+	normalizeRecents,
+	originsChanged,
+	recordOpen,
+	renameRecent,
+} from "../recents";
 import {
 	documentRenamed,
+	originRenamed,
 	renameRefusal,
 	renameRefused,
 	renameWay,
@@ -47,6 +56,15 @@ describe("how a file can be renamed", () => {
 		expect(renameWay({ kind: "browser", key: "k" }, true)).toBe("app");
 	});
 
+	it("asks the provider of a picked copy's original, where it kept it", () => {
+		const picked: Reopen = { ...copy, origin: "content://downloads/doc/7" };
+		expect(renameWay(picked, true)).toBe("origin");
+		// An older shell, with no way to ask.
+		expect(renameWay(picked, false)).toBe("app");
+		// A copy with no original kept (opened from another app).
+		expect(renameWay(copy, true)).toBe("app");
+	});
+
 	it("cannot rename a file inside another one", () => {
 		expect(renameWay({ kind: "memory", key: "1:a.pdf" }, true)).toBeNull();
 	});
@@ -83,6 +101,152 @@ describe("the Android side's answer", () => {
 			expect(() => documentRenamed(answer, doc, "Q3.pdf")).toThrow(
 				expect.objectContaining({ kind: "io" }),
 			);
+	});
+});
+
+describe("the answer for a picked copy's original", () => {
+	const picked: Reopen = {
+		kind: "managed",
+		path: "/data/imports/ab12/a.pdf",
+		origin: "content://com.android.providers.downloads.documents/document/7",
+	};
+
+	it("keeps the copy, under the provider's name and the new address", () => {
+		expect(
+			originRenamed(
+				{ uri: "content://x/document/8", name: " Q3 (1).pdf " },
+				picked,
+				"Q3.pdf",
+			),
+		).toEqual({
+			reopen: {
+				kind: "managed",
+				path: "/data/imports/ab12/a.pdf",
+				origin: "content://x/document/8",
+			},
+			name: "Q3 (1).pdf",
+			original: true,
+		});
+	});
+
+	it("renames only in the app, letting go of an original out of reach", () => {
+		for (const answer of ["unsupported", "permission", "not_found"])
+			expect(originRenamed(answer, picked, "Q3.pdf")).toEqual({
+				reopen: { kind: "managed", path: "/data/imports/ab12/a.pdf" },
+				name: "Q3.pdf",
+				original: false,
+			});
+	});
+
+	it("is refused, renaming nothing, when the provider fails", () => {
+		for (const answer of [null, { uri: "file:///x" }, 3])
+			expect(() => originRenamed(answer, picked, "Q3.pdf")).toThrow(
+				expect.objectContaining({ kind: "io" }),
+			);
+		expect(() => originRenamed({ uri: "content://x" }, doc, "Q3.pdf")).toThrow(
+			expect.objectContaining({ kind: "unsupported" }),
+		);
+	});
+});
+
+describe("access kept to picked originals", () => {
+	const origin = (n: number) => `content://media/document/${n}`;
+	const picked = (n: number, openedAt = n) =>
+		entry(
+			{ kind: "managed", path: `/imports/${n}/a.pdf`, origin: origin(n) },
+			{ openedAt },
+		);
+
+	it("holds what the list starts naming, and lets go of what it stops", () => {
+		const a = picked(1);
+		const b = picked(2);
+		expect(originsChanged([a], [a, b])).toEqual({
+			kept: [origin(2)],
+			released: [],
+		});
+		expect(originsChanged([a, b], [b])).toEqual({
+			kept: [],
+			released: [origin(1)],
+		});
+		expect(originsChanged([a, b], [])).toEqual({
+			kept: [],
+			released: [origin(1), origin(2)],
+		});
+		expect(originsChanged([a], [a])).toEqual({ kept: [], released: [] });
+	});
+
+	it("never lets go of a document still opened where it is", () => {
+		const a = picked(1);
+		const saved = entry({ kind: "uri", uri: origin(1) });
+		expect(originsChanged([a, saved], [saved]).released).toEqual([]);
+	});
+
+	it("follows a renamed original to its new address", () => {
+		const a = picked(1);
+		const renamed = renameRecent([a], a.id, "Q3.pdf", {
+			kind: "managed",
+			path: "/imports/1/a.pdf",
+			origin: origin(9),
+		}).list;
+		expect(originsChanged([a], renamed)).toEqual({
+			kept: [origin(9)],
+			released: [origin(1)],
+		});
+	});
+
+	it("keeps only the newest originals, older copies opening as before", () => {
+		const list = [picked(1), picked(2), picked(3), entry(path("/d/x.pdf"))];
+		expect(capOrigins(list, 3)).toBe(list);
+		const capped = capOrigins(list, 2);
+		expect(capped.map((e) => e.reopen)).toEqual([
+			{ kind: "managed", path: "/imports/1/a.pdf" },
+			list[1].reopen,
+			list[2].reopen,
+			list[3].reopen,
+		]);
+		// Same ids: what the reader kept stays with each.
+		expect(capped.map((e) => e.id)).toEqual(list.map((e) => e.id));
+		expect(originsChanged(list, capped).released).toEqual([origin(1)]);
+	});
+
+	it("is kept in the stored list, and an older entry simply has none", () => {
+		const stored = [
+			{ ...picked(1), reopen: { ...picked(1).reopen } },
+			{ ...entry(copy), name: "b.pdf" },
+			{
+				...entry(copy),
+				reopen: { kind: "managed", path: "/imports/2/c.pdf", origin: 5 },
+			},
+		];
+		const read = normalizeRecents(stored);
+		expect(read.find((e) => e.id === picked(1).id)?.reopen).toEqual(
+			picked(1).reopen,
+		);
+		expect(
+			read.find(
+				(e) => e.reopen.kind === "managed" && e.reopen.path.includes("/2/"),
+			)?.reopen,
+		).toEqual({
+			kind: "managed",
+			path: "/imports/2/c.pdf",
+		});
+	});
+
+	it("survives the same copy opened again without it", () => {
+		const a = picked(1);
+		const again = recordOpen(
+			[a],
+			{
+				id: a.id,
+				name: "a.pdf",
+				format: "pdf",
+				size: 10,
+				reopen: { kind: "managed", path: "/imports/1/a.pdf" },
+			},
+			5,
+			50,
+		).list;
+		expect(again[0].reopen).toEqual(a.reopen);
 	});
 });
 
