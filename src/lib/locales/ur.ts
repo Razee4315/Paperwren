@@ -1301,6 +1301,8 @@ export const ur: Table = {
 	"Unnamed contact": "بے نام رابطہ",
 	"Keep colours": "رنگ برقرار رکھیں",
 	"One ink": "ایک سیاہی",
+	"Save a cropped copy": "تراشی ہوئی نقل محفوظ کریں",
+	cropped: "تراشی ہوئی",
 	"Can't show this model": "یہ ماڈل نہیں دکھایا جا سکتا",
 	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
 		"فائل خراب ہے یا ایسا بائنری glTF (.glb) ماڈل نہیں جو Paperwren دکھاتا ہے۔",

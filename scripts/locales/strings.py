@@ -840,6 +840,10 @@ ROWS += VCF_18_ROWS
 from ink_18 import ROWS as INK_18_ROWS
 ROWS += INK_18_ROWS
 
+# Words for saving a cropped copy in 1.8.
+from crop_18 import ROWS as CROP_18_ROWS
+ROWS += CROP_18_ROWS
+
 # Words for opening 3D models (.glb) in 1.8.
 from model_18 import ROWS as MODEL_18_ROWS
 ROWS += MODEL_18_ROWS

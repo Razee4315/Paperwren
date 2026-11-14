@@ -1279,6 +1279,8 @@ export const hi: Table = {
 	"Unnamed contact": "बिना नाम का संपर्क",
 	"Keep colours": "रंग बनाए रखें",
 	"One ink": "एक स्याही",
+	"Save a cropped copy": "काटी हुई प्रति सहेजें",
+	cropped: "काटी हुई",
 	"Can't show this model": "यह मॉडल दिखाया नहीं जा सकता",
 	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
 		"फ़ाइल खराब है या ऐसा बाइनरी glTF (.glb) मॉडल नहीं है जिसे Paperwren दिखाता है।",

@@ -1347,6 +1347,8 @@ export const ru: Table = {
 	"Unnamed contact": "Контакт без имени",
 	"Keep colours": "Сохранить цвета",
 	"One ink": "Одни чернила",
+	"Save a cropped copy": "Сохранить обрезанную копию",
+	cropped: "обрезано",
 	"Can't show this model": "Не удаётся показать эту модель",
 	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
 		"Файл повреждён или не является двоичной моделью glTF (.glb), которую показывает Paperwren.",

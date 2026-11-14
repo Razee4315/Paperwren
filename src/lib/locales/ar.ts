@@ -1340,6 +1340,8 @@ export const ar: Table = {
 	"Unnamed contact": "جهة اتصال بلا اسم",
 	"Keep colours": "أبقِ الألوان",
 	"One ink": "حبر واحد",
+	"Save a cropped copy": "احفظ نسخة مقصوصة",
+	cropped: "مقصوصة",
 	"Can't show this model": "تعذّر عرض هذا النموذج",
 	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
 		"الملف تالف أو ليس نموذج glTF ثنائيًا (.glb) يعرضه Paperwren.",

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { PDFDocument } from "@cantoo/pdf-lib";
 import { type Page, expect, test } from "@playwright/test";
 import { boot, longPdf, openFixture } from "./helpers";
 
@@ -2344,4 +2345,89 @@ test.describe("reading font", () => {
 		expect(await face(page, "article p")).toContain("Georgia");
 		expect(await face(page, "article pre code")).not.toContain("Georgia");
 	});
+});
+
+test("save a cropped copy matches the screen and leaves the opened file unchanged", async ({
+	page,
+}) => {
+	// Use the browser's download fallback rather than the system share sheet.
+	await page.addInitScript(() => {
+		Object.defineProperty(navigator, "canShare", { value: undefined });
+		Object.defineProperty(navigator, "share", { value: undefined });
+	});
+	await boot(page);
+	await openFixture(page, "features/margins.pdf");
+	await expect(page.getByTestId("pdf-page")).toHaveText("1 / 4", {
+		timeout: 20_000,
+	});
+	await page.getByTestId("file-more").click();
+	await page.getByTestId("pdf-crop-hand").click();
+	await expect(page.getByTestId("crop-handle-7")).toBeVisible({
+		timeout: 20_000,
+	});
+	await page.getByTestId("crop-reset").click();
+	await page.getByTestId("crop-scope-page").click();
+	await page.getByTestId("crop-handle-7").focus();
+	await page.keyboard.press("Shift+ArrowRight");
+	await page.keyboard.press("Shift+ArrowRight");
+	const shares = await page.getByTestId("crop-box").evaluate((el) => {
+		const box = el.getBoundingClientRect();
+		const stage = document
+			.querySelector("[data-testid=crop-stage]")
+			?.getBoundingClientRect();
+		if (!stage) throw new Error("no crop stage");
+		return [
+			(box.left - stage.left) / stage.width,
+			(box.top - stage.top) / stage.height,
+			(box.right - stage.left) / stage.width,
+			(box.bottom - stage.top) / stage.height,
+		];
+	});
+	const original = readFileSync("fixtures/features/margins.pdf");
+	const full = (await PDFDocument.load(original)).getPage(0).getCropBox();
+	const download = page.waitForEvent("download");
+	await page.getByTestId("crop-save").click();
+	const saved = await download;
+	expect(saved.suggestedFilename()).toBe("margins (cropped).pdf");
+	const bytes = readFileSync(await saved.path());
+	const copy = await PDFDocument.load(bytes);
+	const box = copy.getPage(0).getCropBox();
+	const expected = [
+		full.x + shares[0] * full.width,
+		full.y + (1 - shares[3]) * full.height,
+		(shares[2] - shares[0]) * full.width,
+		(shares[3] - shares[1]) * full.height,
+	];
+	for (const [i, value] of [box.x, box.y, box.width, box.height].entries())
+		expect(Math.abs(value - expected[i])).toBeLessThan(1);
+	expect(copy.getPage(1).getCropBox()).toEqual(
+		(await PDFDocument.load(original)).getPage(1).getCropBox(),
+	);
+	await expect(page.getByTestId("crop-pages")).toHaveCount(0);
+	await page.getByTestId("file-more").click();
+	const unchanged = page.waitForEvent("download");
+	await page.getByTestId("file-share").click();
+	expect(readFileSync(await (await unchanged).path())).toEqual(original);
+	await page.getByTestId("viewer-back").click();
+	await page.evaluate(
+		({ b64, name }) => {
+			window.__paperwrenTestFile = new File(
+				[Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))],
+				name,
+			);
+		},
+		{ b64: bytes.toString("base64"), name: saved.suggestedFilename() },
+	);
+	await page.getByTestId("open-file").click();
+	await expect(page.getByTestId("pdf-page")).toHaveText("1 / 4", {
+		timeout: 20_000,
+	});
+	await expect
+		.poll(async () =>
+			page
+				.locator(".pdfViewer .page")
+				.first()
+				.evaluate((el) => el.clientWidth / el.clientHeight),
+		)
+		.toBeCloseTo(box.width / box.height, 2);
 });

@@ -2454,6 +2454,10 @@ export default function PdfView({
 			{cropping && doc && (
 				<CropPages
 					doc={doc}
+					name={name}
+					password={passwordRef.current}
+					signed={signed}
+					onSaved={(saved) => announceSaved(saved, file?.openOver)}
 					choice={crop}
 					page={page}
 					rotation={rotation}

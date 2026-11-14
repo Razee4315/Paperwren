@@ -1210,6 +1210,8 @@ export const zh: Table = {
 	"Unnamed contact": "未命名联系人",
 	"Keep colours": "保留颜色",
 	"One ink": "单一墨色",
+	"Save a cropped copy": "保存裁剪副本",
+	cropped: "已裁剪",
 	"Can't show this model": "无法显示此模型",
 	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
 		"文件已损坏，或不是 Paperwren 可显示的二进制 glTF (.glb) 模型。",

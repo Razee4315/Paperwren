@@ -1331,6 +1331,8 @@ export const fr: Table = {
 	"Unnamed contact": "Contact sans nom",
 	"Keep colours": "Garder les couleurs",
 	"One ink": "Une seule encre",
+	"Save a cropped copy": "Enregistrer une copie rognée",
+	cropped: "rogné",
 	"Can't show this model": "Impossible d'afficher ce modèle",
 	"The file is damaged or isn't a binary glTF (.glb) model Paperwren shows.":
 		"Le fichier est endommagé ou n'est pas un modèle glTF binaire (.glb) que Paperwren affiche.",

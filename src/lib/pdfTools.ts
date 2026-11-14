@@ -300,6 +300,57 @@ export async function buildPdf(
 	return out.save();
 }
 
+/** A crop in PDF user coordinates, before rotation or UserUnit scaling.
+ * pdf.js converts the editor's displayed rectangle back to this space. */
+export type CropBox = [number, number, number, number];
+
+/** A new copy with the same content, hidden outside the supplied boxes.
+ * Null entries leave pages alone. */
+export async function cropCopy(
+	bytes: Uint8Array,
+	boxes: ReadonlyArray<CropBox | null>,
+	{ password }: { password?: string } = {},
+): Promise<Uint8Array> {
+	const doc = await open(bytes, password);
+	const { PDFName, PDFArray } = await lib();
+	for (const [i, page] of doc.getPages().entries()) {
+		const box = boxes[i];
+		if (!box || !box.every(Number.isFinite)) continue;
+		const media = page.getMediaBox();
+		const l = Math.max(box[0], media.x);
+		const b = Math.max(box[1], media.y);
+		const r = Math.min(box[2], media.x + media.width);
+		const t = Math.min(box[3], media.y + media.height);
+		if (r <= l || t <= b) continue;
+		page.setCropBox(l, b, r - l, t - b);
+		// Absent boxes default to the crop. Keep explicit boxes inside it.
+		for (const name of ["BleedBox", "TrimBox", "ArtBox"]) {
+			const key = PDFName.of(name);
+			const old = page.node.lookupMaybe(key, PDFArray);
+			if (!old || old.size() !== 4) continue;
+			const v = old.asRectangle();
+			const x = Math.max(l, v.x);
+			const y = Math.max(b, v.y);
+			const right = Math.min(r, v.x + v.width);
+			const top = Math.min(t, v.y + v.height);
+			if (
+				x === v.x &&
+				y === v.y &&
+				right === v.x + v.width &&
+				top === v.y + v.height
+			)
+				continue;
+			page.node.set(
+				key,
+				doc.context.obj(
+					right > x && top > y ? [x, y, right, top] : [l, b, r, t],
+				),
+			);
+		}
+	}
+	return doc.save({ updateFieldAppearances: false });
+}
+
 /** How many pages a PDF has. */
 export async function pageCount(
 	bytes: Uint8Array,
