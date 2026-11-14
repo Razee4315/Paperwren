@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
 	PDFArray,
 	PDFBool,
+	PDFContext,
 	PDFDict,
 	PDFDocument,
 	PDFHeader,
@@ -271,6 +272,46 @@ async function checkLinearized(original: Uint8Array, name?: string) {
 }
 
 describe("incremental PAdES signatures", () => {
+	it("signs 3000 pages without constructing objects under incremental tracking", async () => {
+		const doc = await PDFDocument.create({ updateMetadata: false });
+		for (let i = 0; i < 3000; i++) doc.addPage([600, 800]);
+		const original = await doc.save({ useObjectStreams: false });
+		const initial = doc.context.largestObjectNumber;
+		const make = PDFContext.prototype.obj;
+		let tracked = 0;
+		const spy = vi
+			.spyOn(PDFContext.prototype, "obj")
+			.mockImplementation(function (
+				this: PDFContext,
+				literal: Parameters<typeof make>[0],
+			) {
+				if (this.snapshot) tracked++;
+				return make.call(this, literal);
+			});
+		try {
+			const start = performance.now();
+			const signed = await signPdf(original, await id(), {
+				appearance: null,
+				now,
+			});
+			expect(performance.now() - start).toBeLessThan(15000);
+			expect(tracked).toBe(0);
+			const increment = Buffer.from(signed.subarray(original.length)).toString(
+				"latin1",
+			);
+			const refs = [...increment.matchAll(/(?:^|\n)(\d+) 0 obj/g)]
+				.map((m) => Number(m[1]))
+				.sort((a, b) => a - b);
+			expect(refs).toEqual(
+				[doc.catalog, doc.getPage(0).node]
+					.map((obj) => doc.context.getObjectRef(obj)?.objectNumber)
+					.concat([initial + 1, initial + 2, initial + 3, initial + 4])
+					.sort((a, b) => (a ?? 0) - (b ?? 0)),
+			);
+		} finally {
+			spy.mockRestore();
+		}
+	}, 25000);
 	it("checks compressed objects and catalog references to free or absent entries", async () => {
 		const compressed = await pages(true);
 		const loaded = await PDFDocument.load(compressed);

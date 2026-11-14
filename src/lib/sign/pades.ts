@@ -192,48 +192,6 @@ export async function signWithId(
 	const now = options.now ?? new Date();
 	if (!Number.isFinite(now.getTime())) throw new PdfSignError("damaged");
 	const context = doc.context;
-	const form = doc.catalog.getOrCreateAcroForm();
-	const fields = form.getAllFields();
-	const existing = options.field
-		? fields.find(
-				([field]) => field.getFullyQualifiedName() === options.field,
-			)?.[0]
-		: undefined;
-	if (
-		options.field &&
-		(!existing ||
-			existing.getInheritableAttribute(PDFName.of("FT")) !==
-				PDFName.of("Sig") ||
-			(existing.V() && existing.V() !== PDFNull))
-	)
-		throw new PdfSignError("damaged");
-	let widget = existing?.dict;
-	let widgetRef = existing?.ref;
-	const kids = existing?.Kids();
-	if (kids) {
-		if (kids.size() !== 1) throw new PdfSignError("damaged");
-		widgetRef = kids.get(0) as PDFRef;
-		widget = context.lookup(widgetRef, PDFDict);
-	}
-	const existingPage = widgetRef
-		? doc.findPageForAnnotationRef(widgetRef)
-		: undefined;
-	const pageIndex =
-		options.appearance?.placement.page ??
-		(existingPage ? doc.getPages().indexOf(existingPage) : 0);
-	if (
-		!Number.isInteger(pageIndex) ||
-		pageIndex < 0 ||
-		pageIndex >= doc.getPageCount()
-	)
-		throw new PdfSignError("damaged");
-	const page = doc.getPage(pageIndex);
-	const ap = await appearance(
-		doc,
-		pageIndex,
-		options,
-		widget?.lookupMaybe(PDFName.of("Rect"), PDFArray),
-	);
 	const sigBytes =
 		id.kind === "RSA" ? Math.ceil(id.bits / 8) : 2 * Math.ceil(id.bits / 8) + 9;
 	const reserve = Math.max(
@@ -243,59 +201,137 @@ export async function signWithId(
 				1024,
 		) * 1024,
 	);
-	const signature = context.obj({
-		Type: "Sig",
-		Filter: "Adobe.PPKLite",
-		SubFilter: "ETSI.CAdES.detached",
-		ByteRange: [
-			0,
-			PDFName.of("**********"),
-			PDFName.of("**********"),
-			PDFName.of("**********"),
-		],
-		Contents: PDFHexString.of("0".repeat(reserve * 2)),
-		M: PDFString.fromDate(now),
-		Name: PDFHexString.fromText(signerName),
-		Prop_Build: { App: { Name: "Paperwren", REx: PDFString.of(version) } },
-	});
-	const signatureRef = context.register(signature);
-	if (existing && widget && widgetRef) {
-		existing.dict.set(PDFName.of("V"), signatureRef);
-		if (existingPage && existingPage !== page) {
-			const annots = existingPage.node.Annots();
-			const at = annots?.indexOf(widgetRef);
-			if (at !== undefined) annots?.remove(at);
+	const snapshot = context.snapshot;
+	if (!snapshot) throw new Error("Missing signing snapshot");
+	const firstNew = context.largestObjectNumber;
+	const changed = new Set<PDFDict | PDFArray>([doc.catalog]);
+	let signatureRef: PDFRef;
+	// New nested objects otherwise trigger a whole-document search on each
+	// set or push. Build and flush them without tracking, then mark the small
+	// set of edited containers and all new refs explicitly.
+	context.snapshot = undefined;
+	try {
+		const form = doc.catalog.getOrCreateAcroForm();
+		const fields = form.getAllFields();
+		const existing = options.field
+			? fields.find(
+					([field]) => field.getFullyQualifiedName() === options.field,
+				)?.[0]
+			: undefined;
+		if (
+			options.field &&
+			(!existing ||
+				existing.getInheritableAttribute(PDFName.of("FT")) !==
+					PDFName.of("Sig") ||
+				(existing.V() && existing.V() !== PDFNull))
+		)
+			throw new PdfSignError("damaged");
+		let widget = existing?.dict;
+		let widgetRef = existing?.ref;
+		const kids = existing?.Kids();
+		if (kids) {
+			if (kids.size() !== 1) throw new PdfSignError("damaged");
+			widgetRef = kids.get(0) as PDFRef;
+			widget = context.lookup(widgetRef, PDFDict);
 		}
-	} else {
-		let n = 1;
-		const names = new Set(
-			fields.map(([field]) => field.getFullyQualifiedName()),
+		const existingPage = widgetRef
+			? doc.findPageForAnnotationRef(widgetRef)
+			: undefined;
+		const pageIndex =
+			options.appearance?.placement.page ??
+			(existingPage ? doc.getPages().indexOf(existingPage) : 0);
+		if (
+			!Number.isInteger(pageIndex) ||
+			pageIndex < 0 ||
+			pageIndex >= doc.getPageCount()
+		)
+			throw new PdfSignError("damaged");
+		const page = doc.getPage(pageIndex);
+		const ap = await appearance(
+			doc,
+			pageIndex,
+			options,
+			widget?.lookupMaybe(PDFName.of("Rect"), PDFArray),
 		);
-		while (names.has(`Signature${n}`)) n++;
-		widget = context.obj({
-			FT: "Sig",
-			T: PDFHexString.fromText(`Signature${n}`),
-			V: signatureRef,
-			Type: "Annot",
-			Subtype: "Widget",
+
+		const signature = context.obj({
+			Type: "Sig",
+			Filter: "Adobe.PPKLite",
+			SubFilter: "ETSI.CAdES.detached",
+			ByteRange: [
+				0,
+				PDFName.of("**********"),
+				PDFName.of("**********"),
+				PDFName.of("**********"),
+			],
+			Contents: PDFHexString.of("0".repeat(reserve * 2)),
+			M: PDFString.fromDate(now),
+			Name: PDFHexString.fromText(signerName),
+			Prop_Build: { App: { Name: "Paperwren", REx: PDFString.of(version) } },
 		});
-		widgetRef = context.register(widget);
-		form.addField(widgetRef);
+		signatureRef = context.register(signature);
+		if (existing && widget && widgetRef) {
+			existing.dict.set(PDFName.of("V"), signatureRef);
+			if (existingPage && existingPage !== page) {
+				const annots = existingPage.node.Annots();
+				if (annots) changed.add(annots);
+				const at = annots?.indexOf(widgetRef);
+				if (at !== undefined) annots?.remove(at);
+			}
+		} else {
+			let n = 1;
+			const names = new Set(
+				fields.map(([field]) => field.getFullyQualifiedName()),
+			);
+			while (names.has(`Signature${n}`)) n++;
+			widget = context.obj({
+				FT: "Sig",
+				T: PDFHexString.fromText(`Signature${n}`),
+				V: signatureRef,
+				Type: "Annot",
+				Subtype: "Widget",
+			});
+			widgetRef = context.register(widget);
+			form.addField(widgetRef);
+		}
+		widget.set(PDFName.of("Rect"), context.obj(ap.rect));
+		widget.set(PDFName.of("P"), page.ref);
+		widget.set(PDFName.of("F"), PDFNumber.of(132));
+		widget.set(PDFName.of("AP"), context.obj({ N: ap.ref }));
+		// addAnnot normalises page content too. Append the annotation directly.
+		let annots = page.node.Annots();
+		if (!annots) {
+			annots = context.obj([]);
+			page.node.set(PDFName.of("Annots"), annots);
+		}
+		if (annots.indexOf(widgetRef) === undefined) annots.push(widgetRef);
+		form.dict.set(PDFName.of("SigFlags"), PDFNumber.of(3));
+		changed.add(form.dict);
+		const fieldArray = form.dict.lookupMaybe(PDFName.of("Fields"), PDFArray);
+		if (fieldArray) changed.add(fieldArray);
+		if (existing) changed.add(existing.dict);
+		changed.add(widget);
+		changed.add(page.node);
+		changed.add(annots);
+		await doc.flush();
+	} finally {
+		context.snapshot = snapshot;
 	}
-	widget.set(PDFName.of("Rect"), context.obj(ap.rect));
-	widget.set(PDFName.of("P"), page.ref);
-	widget.set(PDFName.of("F"), PDFNumber.of(132));
-	widget.set(PDFName.of("AP"), context.obj({ N: ap.ref }));
-	// addAnnot normalises page content too. Append the annotation directly.
-	let annots = page.node.Annots();
-	if (!annots) {
-		annots = context.obj([]);
-		page.node.set(PDFName.of("Annots"), annots);
-	}
-	if (annots.indexOf(widgetRef) === undefined) annots.push(widgetRef);
-	form.dict.set(PDFName.of("SigFlags"), PDFNumber.of(3));
+	for (const object of changed) context.registerObjectChange(object);
+	for (const [ref] of context.enumerateIndirectObjects())
+		if (ref.objectNumber > firstNew) snapshot?.markRefForSave(ref);
+
 	// Appending invalidates a linearization dictionary's L, as Annex F expects.
-	const output = await doc.commit({ useObjectStreams: xref.stream });
+	let output: Uint8Array;
+	context.snapshot = undefined;
+	try {
+		output = concat(
+			pdf,
+			await doc.saveIncremental(snapshot, { useObjectStreams: xref.stream }),
+		);
+	} finally {
+		context.snapshot = snapshot;
+	}
 	if (!equal(output.subarray(0, pdf.length), pdf))
 		throw new PdfSignError("damaged");
 	const increment = new TextDecoder("latin1").decode(
