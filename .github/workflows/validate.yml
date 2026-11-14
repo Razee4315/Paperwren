@@ -81,7 +81,16 @@ jobs:
       - name: Sign samples and check the library
         env:
           PAPERWREN_SIGN_OUT: ${{ runner.temp }}/digital-id
+          PAPERWREN_LINEARIZED_INPUT: ${{ runner.temp }}/linearized.pdf
         run: |
+          node --input-type=module <<'JS'
+          import { PDFDocument } from '@cantoo/pdf-lib';
+          import { writeFileSync } from 'node:fs';
+          const doc = await PDFDocument.create();
+          doc.addPage([600, 800]);
+          writeFileSync(`${process.env.RUNNER_TEMP}/before-linearize.pdf`, await doc.save());
+          JS
+          qpdf --linearize "$RUNNER_TEMP/before-linearize.pdf" "$PAPERWREN_LINEARIZED_INPUT"
           npx vitest run src/lib/__tests__/der.test.ts
           npx vitest run src/lib/__tests__/legacyCiphers.test.ts
           npx vitest run src/lib/__tests__/pkcs12.test.ts

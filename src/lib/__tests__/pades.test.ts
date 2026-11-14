@@ -23,6 +23,9 @@ import { ecdsaRaw } from "../sign/cms";
 import { buffer, concat, der, objectId, read, sequence } from "../sign/der";
 import { PdfSignError, canSign, readDigitalId, signPdf } from "../sign/index";
 import { OID } from "../sign/oids";
+import { signWithId } from "../sign/pades";
+import { crossReferences } from "../sign/pdfStructure";
+import { readPkcs12 } from "../sign/pkcs12";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 	"../../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
@@ -154,7 +157,186 @@ function emit(name: string, pdf: Uint8Array) {
 	});
 }
 
+// Model Annex F's first-page -> main xref ordering without requiring qpdf.
+// The main trailer deliberately omits Root and has older metadata and Size.
+function linearizedStyle(kind: "table" | "stream" | "hybrid") {
+	const offsets = new Map<number, number>();
+	let source = "%PDF-1.7\n";
+	const first = source.length;
+	const newest = "/Size 100 /Root 1 0 R /Info 4 0 R /ID [<aaaa> <aaaa>]";
+	const entries = (numbers: number[]) =>
+		numbers
+			.map(
+				(n) =>
+					`${String(offsets.get(n) ?? 0).padStart(10, "0")} ${n === 3 ? "00007" : n === 0 ? "65535" : "00000"} ${n === 0 ? "f" : "n"} \n`,
+			)
+			.join("");
+	const stream = (number: number, numbers: number[], trailer: string) => {
+		const bytes = Buffer.alloc(numbers.length * 7);
+		numbers.forEach((n, i) => {
+			bytes[i * 7] = n === 0 ? 0 : 1;
+			bytes.writeUInt32BE(offsets.get(n) ?? 0, i * 7 + 1);
+			bytes.writeUInt16BE(n === 3 ? 7 : n === 0 ? 65535 : 0, i * 7 + 5);
+		});
+		return `${number} 0 obj\n<< /Type /XRef /W [1 4 2] /Index [${numbers[0]} ${numbers.length}] ${trailer} /Length ${bytes.length} >>\nstream\n${bytes.toString("latin1")}\nendstream\nendobj\n`;
+	};
+	source = source.padEnd(1024, " ");
+	for (const [n, body] of [
+		[1, "<< /Type /Catalog /Pages 2 0 R >>"],
+		[2, "<< /Type /Pages /Kids [3 7 R] /Count 1 >>"],
+		[3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] >>"],
+		[4, "<< /Title (Newest) >>"],
+		[5, "<< /Title (Oldest) >>"],
+	] as const) {
+		offsets.set(n, source.length);
+		source += `${n} ${n === 3 ? 7 : 0} obj\n${body}\nendobj\n`;
+	}
+	let hybrid = "";
+	if (kind === "hybrid") {
+		offsets.set(6, source.length);
+		hybrid = ` /XRefStm ${source.length}`;
+		// A supplement's Prev is ignored, even when it points at its own table.
+		source += stream(6, [6], `/Size 100 /Prev ${first}`);
+	}
+	const main = source.length;
+	const older = "/Size 8 /Info 5 0 R /ID [<bbbb> <bbbb>]";
+	if (kind === "stream") {
+		offsets.set(6, first);
+		offsets.set(7, main);
+		source += stream(7, [0, 1, 2, 3, 4, 5, 6, 7], older);
+	} else {
+		source += `xref\n0 6\n${entries([0, 1, 2, 3, 4, 5])}trailer\n<< ${older} >>\n`;
+	}
+	const initial =
+		kind === "stream"
+			? stream(6, [6], `${newest} /Prev ${main}`)
+			: `xref\n1 1\n${entries([1])}trailer\n<< ${newest} /Prev ${main}${hybrid} >>\n`;
+	source =
+		source.slice(0, first) + initial + source.slice(first + initial.length);
+	source += `startxref\n${first}\n%%EOF\n`;
+	return Uint8Array.from(Buffer.from(source, "latin1"));
+}
+
+async function checkLinearized(original: Uint8Array) {
+	const first = await signWithId(
+		original,
+		await readPkcs12(fixture("rsa-aes256.p12"), "wren"),
+		"Test",
+		{ appearance: null, now },
+	);
+	expect(first.subarray(0, original.length)).toEqual(original);
+	expect(await canSign(first)).toEqual({ signed: true });
+	const second = await signPdf(first, await id(), { appearance: null, now });
+	expect(second.subarray(0, first.length)).toEqual(first);
+	expect(await verifySignatures(second)).toHaveLength(2);
+	for (const [before, after] of [
+		[original, first],
+		[first, second],
+	]) {
+		const previous = Buffer.from(before)
+			.toString("latin1")
+			.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1];
+		expect(
+			Buffer.from(after.subarray(before.length)).toString("latin1"),
+		).toContain(`/Prev ${previous}`);
+	}
+	const reopened = await PDFDocument.load(second);
+	expect(reopened.getPageCount()).toBe(1);
+	expect(reopened.getPage(0).ref.generationNumber).toBe(
+		(await PDFDocument.load(original)).getPage(0).ref.generationNumber,
+	);
+	const reader = await pdfjs.getDocument({
+		data: second.slice(),
+		isEvalSupported: false,
+		verbosity: 0,
+	}).promise;
+	expect(reader.numPages).toBe(1);
+	await reader.destroy();
+	return second;
+}
+
 describe("incremental PAdES signatures", () => {
+	it("accepts 128 sections and still refuses bad generations and hybrid targets", async () => {
+		let source = Buffer.from(linearizedStyle("table")).toString("latin1");
+		let previous = Number(source.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1]);
+		for (let i = 0; i < 126; i++) {
+			const offset = source.length;
+			source += `xref\n0 1\n0000000000 65535 f \ntrailer\n<< /Size 100 /Root 1 0 R /Prev ${previous} >>\nstartxref\n${offset}\n%%EOF\n`;
+			previous = offset;
+		}
+		expect(
+			await canSign(Uint8Array.from(Buffer.from(source, "latin1"))),
+		).toEqual({ signed: false });
+		for (const damaged of [
+			Buffer.from(linearizedStyle("table"))
+				.toString("latin1")
+				.replace("3 7 obj", "3 8 obj"),
+			Buffer.from(linearizedStyle("hybrid"))
+				.toString("latin1")
+				.replace(
+					/\/XRefStm (\d+)/,
+					(_, n: string) => `/XRefStm ${"9".repeat(n.length)}`,
+				),
+		]) {
+			expect(
+				await canSign(Uint8Array.from(Buffer.from(damaged, "latin1"))),
+			).toMatchObject({ blocker: "damaged" });
+		}
+	});
+	it.each(["table", "stream", "hybrid"] as const)(
+		"signs twice across a forward Prev in a %s layout",
+		async (kind) => {
+			const original = linearizedStyle(kind);
+			const doc = await PDFDocument.load(original, {
+				forIncrementalUpdate: true,
+				updateMetadata: false,
+			});
+			crossReferences(original, doc);
+			expect(doc.context.trailerInfo.Info?.toString()).toBe("4 0 R");
+			expect(doc.context.trailerInfo.ID?.toString()).toBe("[ <aaaa> <aaaa> ]");
+			expect(doc.context.trailerInfo.Size?.asNumber()).toBe(100);
+			const signed = await checkLinearized(original);
+			const after = await PDFDocument.load(signed);
+			expect(after.context.trailerInfo.Info?.toString()).toBe("4 0 R");
+			expect(after.context.trailerInfo.Size?.asNumber()).toBeGreaterThan(100);
+			expect(after.getPage(0).ref.generationNumber).toBe(7);
+		},
+	);
+	it.skipIf(!process.env.PAPERWREN_LINEARIZED_INPUT)(
+		"signs a qpdf-linearized sample twice for independent verification",
+		async () => {
+			const original = Uint8Array.from(
+				readFileSync(process.env.PAPERWREN_LINEARIZED_INPUT ?? ""),
+			);
+			emit("twice-linearized", await checkLinearized(original));
+		},
+	);
+	it.each(["cycle", "outside", "long"])(
+		"refuses a %s Prev chain",
+		async (kind) => {
+			let source = Buffer.from(linearizedStyle("table")).toString("latin1");
+			const first = Number(source.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1]);
+			if (kind === "long") {
+				let previous = first;
+				for (let i = 0; i < 127; i++) {
+					const offset = source.length;
+					source += `xref\n0 1\n0000000000 65535 f \ntrailer\n<< /Size 100 /Root 1 0 R /Prev ${previous} >>\nstartxref\n${offset}\n%%EOF\n`;
+					previous = offset;
+				}
+			} else {
+				source = source.replace(
+					/\/Prev (\d+)/,
+					(_, value: string) =>
+						`/Prev ${String(kind === "cycle" ? first : 9999).padStart(value.length, "0")}`,
+				);
+			}
+			const pdf = Uint8Array.from(Buffer.from(source, "latin1"));
+			expect(await canSign(pdf)).toMatchObject({ blocker: "damaged" });
+			await expect(
+				signPdf(pdf, await id(), { appearance: null, now }),
+			).rejects.toMatchObject({ reason: "damaged" });
+		},
+	);
 	it("signs a PDF 1.4 table and refuses captions that need a browser font renderer", async () => {
 		const doc = await PDFDocument.load(await pages());
 		doc.context.header = PDFHeader.forVersion(1, 4);

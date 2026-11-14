@@ -21,6 +21,7 @@ export function crossReferences(
 	const last = Number(end[1]);
 	const visited = new Set<number>();
 	const objectStreams = new Map<number, number[]>();
+	const trailer: typeof doc.context.trailerInfo = {};
 	let stream = false;
 	const header = (offset: number, object: number, generation: number) => {
 		if (!Number.isSafeInteger(offset) || offset < 0 || offset >= pdf.length)
@@ -35,8 +36,9 @@ export function crossReferences(
 		)
 			throw new Error("damaged");
 	};
-	function section(offset: number): void {
+	function section(offset: number, supplement = false): void {
 		if (
+			!Number.isSafeInteger(offset) ||
 			visited.has(offset) ||
 			visited.size >= 128 ||
 			offset < 0 ||
@@ -46,6 +48,7 @@ export function crossReferences(
 		visited.add(offset);
 		let dict: PDFDict;
 		if (source.slice(offset, offset + 4) === "xref") {
+			if (supplement) throw new Error("damaged");
 			let at = offset + 4;
 			const whitespace = () => {
 				while (/\s/.test(source[at] ?? "x")) at++;
@@ -173,25 +176,46 @@ export function crossReferences(
 			}
 			if (at !== bytes.length) throw new Error("damaged");
 		}
+		const size = dict.lookup(PDFName.of("Size"), PDFNumber);
+		if (!Number.isSafeInteger(size.asNumber()) || size.asNumber() < 1)
+			throw new Error("damaged");
+		doc.context.largestObjectNumber = Math.max(
+			doc.context.largestObjectNumber,
+			size.asNumber() - 1,
+		);
+		// A hybrid stream supplements its table. Its trailer and Prev do not
+		// describe another revision (ISO 32000-1, 7.5.8.4).
+		if (supplement) return;
+		for (const key of ["Root", "Info", "Encrypt", "ID", "Size"] as const) {
+			const value = dict.get(PDFName.of(key));
+			if (value && trailer[key] === undefined)
+				Object.assign(trailer, { [key]: value });
+		}
 		const root = dict.get(PDFName.of("Root"));
 		if (root) {
 			if (!(root instanceof PDFRef)) throw new Error("damaged");
 			const catalog = doc.context.lookup(root);
 			if (
 				!(catalog instanceof PDFDict) ||
-				catalog.get(PDFName.of("Type")) !== PDFName.of("Catalog") ||
-				(offset === last && catalog !== doc.catalog)
+				catalog.get(PDFName.of("Type")) !== PDFName.of("Catalog")
 			)
 				throw new Error("damaged");
 		}
 		const hybrid = dict.lookupMaybe(PDFName.of("XRefStm"), PDFNumber);
-		if (hybrid) section(hybrid.asNumber());
+		if (hybrid) section(hybrid.asNumber(), true);
 		const previous = dict.lookupMaybe(PDFName.of("Prev"), PDFNumber);
 		if (previous) {
-			if (previous.asNumber() >= offset) throw new Error("damaged");
 			section(previous.asNumber());
-		} else if (!root) throw new Error("damaged");
+		}
 	}
 	section(last);
+	// Linearized first-page trailers point forward to the main section and
+	// carry Root themselves (Annex F). Newest means chain order, not byte order.
+	// Refuse a catalog that pdf-lib recovered differently: appending to a
+	// different object graph could change what an earlier signature displays.
+	if (!trailer.Root || doc.context.lookup(trailer.Root) !== doc.catalog)
+		throw new Error("damaged");
+	doc.context.trailerInfo = trailer;
+	doc.context.pdfFileDetails.prevStartXRef = last;
 	return { stream };
 }

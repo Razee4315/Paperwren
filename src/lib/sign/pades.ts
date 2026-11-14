@@ -78,6 +78,8 @@ async function inspect(pdf: Uint8Array) {
 		)
 			return { signed, blocker: "damaged" as const };
 		const xref = crossReferences(pdf, doc);
+		if (doc.context.trailerInfo.Encrypt)
+			return { signed, blocker: "encrypted" as const };
 		if (certified(doc)) return { signed, blocker: "certified" as const };
 		if (!doc.getPageCount()) return { signed, blocker: "damaged" as const };
 		const fields = doc.catalog.getAcroForm()?.getAllFields() ?? [];
@@ -292,6 +294,7 @@ export async function signWithId(
 	}
 	if (annots.indexOf(widgetRef) === undefined) annots.push(widgetRef);
 	form.dict.set(PDFName.of("SigFlags"), PDFNumber.of(3));
+	// Appending invalidates a linearization dictionary's L, as Annex F expects.
 	const output = await doc.commit({ useObjectStreams: xref.stream });
 	if (!equal(output.subarray(0, pdf.length), pdf))
 		throw new PdfSignError("damaged");
