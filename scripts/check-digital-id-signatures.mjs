@@ -51,7 +51,12 @@ for (const name of files) {
 		assert.equal(count, 2, `${name}: expected both signatures`);
 	run("qpdf", ["--check", path]);
 	const report = run("pdfsig", ["-nocert", "-no-ocsp", path]);
-	const sections = report.split(/Signature #\d+:/).slice(1);
+	// A signature field nobody has signed yet is listed too, with no
+	// validation of its own: only the signed ones are counted.
+	const sections = report
+		.split(/Signature #\d+:/)
+		.slice(1)
+		.filter((section) => /Signature Validation:/.test(section));
 	assert.equal(sections.length, count, `${name}: pdfsig missed a signature`);
 	for (const section of sections) {
 		assert.match(
