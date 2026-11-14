@@ -2465,6 +2465,21 @@ function linearized(): Uint8Array {
 }
 
 test.describe("sign with a digital ID", () => {
+	test("the digital ID password disables keyboard learning in both reveal modes", async ({
+		page,
+	}) => {
+		await openForm(page);
+		await nextDigitalId(page, "rsa-aes256.p12");
+		await page.getByTestId("fill-tool-digital").click();
+		const input = page.getByTestId("digital-id-password");
+		for (const shown of [false, true]) {
+			if (shown) await page.getByTestId("digital-id-password-show").click();
+			await expect(input).toHaveAttribute("autocomplete", "off");
+			await expect(input).toHaveAttribute("autocorrect", "off");
+			await expect(input).toHaveAttribute("autocapitalize", "off");
+			await expect(input).toHaveAttribute("spellcheck", "false");
+		}
+	});
 	test("a prepared digital signature keeps its own box under DocMDP P=2", async ({
 		page,
 	}) => {

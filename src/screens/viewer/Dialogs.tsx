@@ -243,6 +243,7 @@ export function PasswordDialog({
 						className={s.input}
 						type={shown ? "text" : "password"}
 						autoComplete="off"
+						autoCorrect="off"
 						autoCapitalize="off"
 						spellCheck={false}
 						value={password}
