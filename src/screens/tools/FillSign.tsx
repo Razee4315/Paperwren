@@ -5,6 +5,7 @@ import { locale, t } from "@/lib/i18n";
 import {
 	type FieldValue,
 	type Mark,
+	type Protection,
 	ToolError,
 	fillAndSign,
 	standardText,
@@ -66,7 +67,7 @@ import {
 	PICTURE_SHARE,
 	signatureAppearance,
 } from "./DigitalId";
-import { SIGNED_WARNING } from "./MarkUp";
+import { CopyWarnings } from "./MarkUp";
 import { SignaturePad } from "./SignaturePad";
 import { StampPad } from "./StampPad";
 import s from "./Tools.module.css";
@@ -313,6 +314,7 @@ export function FillSign({
 	password,
 	canMark,
 	signed = false,
+	protection = null,
 	startPage = 0,
 	onClose,
 	onSaved,
@@ -324,6 +326,8 @@ export function FillSign({
 	canMark: boolean;
 	/** The file has a digital signature, which a copy will not keep. */
 	signed?: boolean;
+	/** What a copy will not keep of the file's password or limits. */
+	protection?: Protection | null;
 	/** The page to open at, from 0. */
 	startPage?: number;
 	onClose: () => void;
@@ -1503,7 +1507,7 @@ export function FillSign({
 							)}
 						</>
 					) : (
-						signed && <p className={s.hint}>{t(SIGNED_WARNING)}</p>
+						<CopyWarnings signed={signed} protection={protection} />
 					)}
 					{changedFields.length > 0 && !onlyDigital && (
 						<label className={s.keep}>

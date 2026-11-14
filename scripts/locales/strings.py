@@ -855,3 +855,8 @@ ROWS += RENAME_18_ROWS
 # Signing with a digital ID.
 from digital_id import ROWS as DIGITAL_ID_ROWS
 ROWS += DIGITAL_ID_ROWS
+
+# Words for saying that a copy of a protected PDF keeps neither its
+# password nor its limits.
+from protected_18 import ROWS as PROTECTED_18_ROWS
+ROWS += PROTECTED_18_ROWS

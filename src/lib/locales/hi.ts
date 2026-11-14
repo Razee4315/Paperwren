@@ -1368,4 +1368,8 @@ export const hi: Table = {
 		"पिछला हस्ताक्षर मान्य रहता है: सिर्फ़ आपका डिजिटल हस्ताक्षर जुड़ता है।",
 	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
 		"जिस PDF पर पहले से हस्ताक्षर हैं, उसमें सिर्फ़ डिजिटल हस्ताक्षर जोड़ा जा सकता है, ताकि पिछला हस्ताक्षर मान्य रहे। पहले अपने बाकी बदलाव हटाएँ।",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		'कॉपी बिना पासवर्ड के खुलेगी। इसे फिर से लॉक करने के लिए "पासवर्ड लगाएँ" इस्तेमाल करें।',
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"इस PDF में पढ़ने वाले पर कुछ पाबंदियाँ हैं, जैसे कॉपी करना। कॉपी पर कोई पाबंदी नहीं होगी।",
 };

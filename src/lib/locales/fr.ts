@@ -1422,4 +1422,8 @@ export const fr: Table = {
 		"La signature précédente reste valide : seule votre signature numérique est ajoutée.",
 	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
 		"Dans un PDF déjà signé, seule la signature numérique peut être ajoutée, pour que la signature précédente reste valide. Retirez d'abord vos autres modifications.",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		"La copie s'ouvrira sans mot de passe. Pour la verrouiller de nouveau, utilisez « Ajouter un mot de passe ».",
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"Ce PDF limite ce qu'un lecteur peut faire, comme copier. La copie n'aura aucune limite.",
 };

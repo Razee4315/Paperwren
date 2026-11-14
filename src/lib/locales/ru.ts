@@ -1439,4 +1439,8 @@ export const ru: Table = {
 		"Прежняя подпись остаётся действительной: добавляется только ваша цифровая подпись.",
 	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
 		"В уже подписанный PDF можно добавить только цифровую подпись, чтобы прежняя осталась действительной. Сначала уберите остальные изменения.",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		"Копия откроется без пароля. Чтобы снова защитить её, используйте «Добавить пароль».",
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"Этот PDF ограничивает действия читателя, например копирование. У копии ограничений не будет.",
 };

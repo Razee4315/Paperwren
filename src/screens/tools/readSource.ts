@@ -6,6 +6,7 @@
 import { type ReadLine, hasOwnText } from "@/lib/ocr";
 import { drawPage } from "@/lib/pagePicture";
 import { type PageTextItem, textLines } from "@/lib/pageText";
+import type { Protection } from "@/lib/pdfTools";
 import { whole } from "@/screens/viewer/pdfCrop";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
@@ -26,6 +27,8 @@ export interface ReadSource {
 	/** The PDF's bytes, for a searchable copy. */
 	pdf?: () => Promise<Uint8Array>;
 	password?: string;
+	/** What a searchable copy will not keep of the PDF's password or limits. */
+	protection?: Protection | null;
 }
 
 /** Sharp enough for Tesseract at the small print of an ordinary page. */
@@ -41,11 +44,13 @@ export function pdfSource(
 	doc: PDFDocumentProxy,
 	name: string,
 	password?: string,
+	protection?: Protection | null,
 ): ReadSource {
 	return {
 		name,
 		pages: doc.numPages,
 		password,
+		protection,
 		pdf: () => doc.getData(),
 		picture: async (n, dpi) => {
 			const page = await doc.getPage(n + 1);

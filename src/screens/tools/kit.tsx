@@ -4,7 +4,13 @@ import { byName } from "@/lib/fileName";
 import { t, tn } from "@/lib/i18n";
 import { holdOpen } from "@/lib/openFiles";
 import { openPdf } from "@/lib/pdfEngine";
-import { ToolError, pageCount } from "@/lib/pdfTools";
+import {
+	type Protection,
+	ToolError,
+	pdfInfo,
+	pdfProtection,
+} from "@/lib/pdfTools";
+import { copyNote } from "@/lib/protection";
 import { sniffFormat } from "@/lib/sniff";
 import type { OpenRequest, Reopen } from "@/lib/types";
 import { PasswordDialog } from "@/screens/viewer/Dialogs";
@@ -38,6 +44,8 @@ export interface ToolFile {
 	/** PDFs: how many pages, and the password it was opened with. */
 	pages?: number;
 	password?: string;
+	/** PDFs: what a copy of it will not keep, to say before saving one. */
+	protection?: Protection | null;
 	/** Where it was read from, so a copy is never saved over it. */
 	reopen?: Reopen;
 }
@@ -143,8 +151,13 @@ export function useToolFiles(
 					let wrong = false;
 					for (;;) {
 						try {
-							file.pages = await pageCount(bytes, tried);
+							const info = await pdfInfo(bytes, tried);
+							file.pages = info.pages;
 							file.password = tried;
+							file.protection = pdfProtection({
+								password: tried,
+								protected: info.protected,
+							});
 							break;
 						} catch (err) {
 							if (!(err instanceof ToolError) || err.reason !== "password") {
@@ -480,6 +493,24 @@ export function PageThumb({
 			className={s.thumb}
 			style={{ width, height: width / shape }}
 		/>
+	);
+}
+
+/** What a copy of the files picked will not keep (a password, limits on
+ * what a reader may do), said once each. Nothing for files that are not
+ * protected. */
+export function CopyNote({ files }: { files: ToolFile[] }) {
+	const notes = [...new Set(files.map((f) => copyNote(f.protection)))].filter(
+		(note): note is string => note !== null,
+	);
+	return (
+		<>
+			{notes.map((note) => (
+				<p key={note} className={s.copyNote} data-testid="copy-note">
+					{note}
+				</p>
+			))}
+		</>
 	);
 }
 

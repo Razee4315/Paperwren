@@ -1298,4 +1298,8 @@ export const zh: Table = {
 		"之前的签名仍然有效：只会添加你的数字签名。",
 	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
 		"在已签名的 PDF 中只能添加数字签名，这样之前的签名才能保持有效。请先移除你的其他更改。",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		"副本打开时不需要密码。如需重新加密，请使用“添加密码”。",
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"此 PDF 限制阅读者的某些操作，例如复制。副本将没有这些限制。",
 };

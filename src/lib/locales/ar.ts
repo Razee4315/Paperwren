@@ -1429,4 +1429,8 @@ export const ar: Table = {
 		"يبقى التوقيع السابق صالحًا: يُضاف توقيعك الرقمي فقط.",
 	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
 		"في ملف PDF موقَّع مسبقًا لا يمكن إضافة سوى التوقيع الرقمي، كي يبقى التوقيع السابق صالحًا. أزِل تغييراتك الأخرى أولًا.",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		"ستُفتح النسخة دون كلمة مرور. لتقفلها مرة أخرى، استخدم «إضافة كلمة مرور».",
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"يضع ملف PDF هذا قيودًا على ما يفعله القارئ، مثل النسخ. ولن تحمل النسخة أي قيود.",
 };

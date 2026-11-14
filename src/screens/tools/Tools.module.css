@@ -839,6 +839,14 @@
 	color: var(--text-2);
 	line-height: 1.5;
 }
+/* What a copy will not keep, under the files: in the main text colour,
+ * so it is read before the tool is run rather than passed as a hint. */
+.copyNote {
+	margin: 0 0 4px;
+	font-size: 14px;
+	color: var(--text);
+	line-height: 1.5;
+}
 /* Keep it, and what it is behind an (i), in one row. */
 .keepRow {
 	display: flex;

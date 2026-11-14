@@ -1391,4 +1391,8 @@ export const ur: Table = {
 		"پہلا دستخط درست رہتا ہے: صرف آپ کا ڈیجیٹل دستخط شامل ہوتا ہے۔",
 	"In a PDF that's already signed, only the digital signature can be added, so the earlier signature stays valid. Remove your other changes first.":
 		"جس PDF پر پہلے سے دستخط ہوں اس میں صرف ڈیجیٹل دستخط شامل ہو سکتا ہے، تاکہ پہلا دستخط درست رہے۔ پہلے اپنی باقی تبدیلیاں ہٹائیں۔",
+	"The copy will open without a password. To lock it again, use Add a password.":
+		'کاپی بغیر پاس ورڈ کے کھل جائے گی۔ اسے دوبارہ مقفل کرنے کے لیے "پاس ورڈ لگائیں" استعمال کریں۔',
+	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
+		"اس PDF میں پڑھنے والے پر پابندیاں ہیں، جیسے متن کاپی کرنا۔ کاپی پر کوئی پابندی نہیں ہوگی۔",
 };

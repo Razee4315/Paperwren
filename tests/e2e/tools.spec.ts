@@ -1703,6 +1703,151 @@ test.describe("PDF tools", () => {
 		expect(pages[5].text).toContain("Locked fixture, page 1");
 	});
 
+	test("a copy of a protected PDF is said to open without its password, before it is saved", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openTool(page, "merge");
+		const note = page.getByTestId("copy-note");
+		await nextPicks(page, [fixtureFile("sample.pdf")]);
+		await page.getByTestId("tool-add").click();
+		await expect(listed(page)).toHaveText(["sample.pdf"]);
+		// A PDF that needs nothing to open says nothing.
+		await expect(note).toHaveCount(0);
+
+		await nextPicks(page, [fixtureFile("viewer-regressions/locked.pdf")]);
+		await page.getByTestId("tool-add").click();
+		await page.getByTestId("tool-password").fill("wren");
+		await page.getByTestId("tool-unlock").click();
+		await expect(listed(page)).toHaveText(["sample.pdf", "locked.pdf"]);
+		await expect(note).toHaveText(
+			"The copy will open without a password. To lock it again, use Add a password.",
+		);
+		// What the note says is so: the copy needs no password.
+		const pages = await texts((await runTool(page)).bytes);
+		expect(pages).toHaveLength(5);
+
+		// Taken out again, there is nothing left to say.
+		await page.getByTestId("tool-file-remove").nth(1).click();
+		await expect(note).toHaveCount(0);
+	});
+
+	test("a PDF that only limits what a reader may do says its copy has no limits", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openTool(page, "extract");
+		// It opens freely, so no password is asked for.
+		await nextPick(page, "features/nocopy.pdf");
+		await page.getByTestId("tool-add").click();
+		await expect(listed(page)).toHaveText(["nocopy.pdf"]);
+		await expect(page.getByTestId("tool-password")).toHaveCount(0);
+		await expect(page.getByTestId("copy-note")).toHaveText(
+			"This PDF limits what a reader may do, such as copying. The copy will have no limits.",
+		);
+		await page.getByTestId("tool-pages-field").fill("1");
+		const out = await runTool(page);
+		expect(Buffer.from(out.bytes).includes("/Encrypt")).toBe(false);
+		expect((await texts(out.bytes))[0].text).toContain("do not copy me");
+	});
+
+	test("the tools about a password itself, and the one that makes pictures, say nothing about it", async ({
+		page,
+	}) => {
+		await boot(page);
+		await page.getByTestId("open-tools").click();
+		for (const tool of ["unlock", "protect", "pictures"]) {
+			await page.getByTestId(`tool-${tool}`).click();
+			await nextPick(page, "viewer-regressions/locked.pdf");
+			await page.getByTestId("tool-add").click();
+			await page.getByTestId("tool-password").fill("wren");
+			await page.getByTestId("tool-unlock").click();
+			await expect(listed(page)).toHaveText(["locked.pdf"]);
+			await expect(page.getByTestId("copy-note")).toHaveCount(0);
+			await page.getByTestId("tools-back").click();
+		}
+	});
+
+	test("mark up says it before a copy of a protected PDF is saved", async ({
+		page,
+	}) => {
+		await boot(page);
+		await openTool(page, "markup");
+		await nextPick(page, "viewer-regressions/locked.pdf");
+		await page.getByTestId("tool-add").click();
+		await page.getByTestId("tool-password").fill("wren");
+		await page.getByTestId("tool-unlock").click();
+		await expect(page.getByTestId("copy-note")).toContainText(
+			"The copy will open without a password",
+		);
+		await page.getByTestId("tool-go").click();
+		const sheet = page.locator('[data-page="0"]');
+		await expect(sheet.locator("canvas[data-drawn]")).toHaveCount(1, {
+			timeout: 20_000,
+		});
+		const box = await sheet.boundingBox();
+		if (!box) throw new Error("no page");
+		await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.6);
+		await page.mouse.down();
+		await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.7, {
+			steps: 5,
+		});
+		await page.mouse.up();
+		await page.getByTestId("mark-save").click();
+		await expect(
+			page.getByTestId("mark-save-ask").getByTestId("copy-note"),
+		).toContainText("The copy will open without a password");
+		const download = page.waitForEvent("download");
+		await page.getByTestId("mark-save-go").click();
+		const saved = new Uint8Array(readFileSync(await (await download).path()));
+		expect(Buffer.from(saved).includes("/Encrypt")).toBe(false);
+	});
+
+	test("a cropped copy of a PDF opened with a password, or one with limits, says so first", async ({
+		page,
+	}) => {
+		// Use the browser's download fallback rather than the system share sheet.
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, "canShare", { value: undefined });
+			Object.defineProperty(navigator, "share", { value: undefined });
+		});
+		await boot(page);
+		const askToCrop = async (fixture: string, password?: string) => {
+			await openFixture(page, fixture);
+			if (password) {
+				await page.getByTestId("pdf-password").fill(password);
+				await page.getByTestId("pdf-password").press("Enter");
+			}
+			await expect(page.getByTestId("pdf-page")).toHaveText(/1 \/ \d/, {
+				timeout: 20_000,
+			});
+			await page.getByTestId("file-more").click();
+			await page.getByTestId("pdf-crop-hand").click();
+			await expect(page.getByTestId("crop-handle-7")).toBeVisible({
+				timeout: 20_000,
+			});
+			await expect(page.getByTestId("crop-save")).toBeEnabled();
+			await page.getByTestId("crop-save").click();
+		};
+		await askToCrop("viewer-regressions/locked.pdf", "wren");
+		const dialog = page.getByTestId("crop-signed-warning");
+		await expect(dialog.getByTestId("copy-note")).toHaveText(
+			"The copy will open without a password. To lock it again, use Add a password.",
+		);
+		const download = page.waitForEvent("download");
+		await dialog.getByRole("button", { name: "Save" }).click();
+		const saved = new Uint8Array(readFileSync(await (await download).path()));
+		expect(Buffer.from(saved).includes("/Encrypt")).toBe(false);
+		await page.getByTestId("viewer-back").click();
+
+		await askToCrop("features/nocopy.pdf");
+		await expect(dialog.getByTestId("copy-note")).toContainText(
+			"The copy will have no limits",
+		);
+		await dialog.getByRole("button", { name: "Cancel" }).click();
+		await expect(dialog).toHaveCount(0);
+	});
+
 	test("a cancelled pick changes nothing, and one pick adds no more than 200", async ({
 		page,
 	}) => {
