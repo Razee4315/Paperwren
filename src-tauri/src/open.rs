@@ -83,10 +83,31 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<std::ffi::OsStr>,
 {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    launch_files_in(args, &cwd)
+}
+
+/// The documents among `args`, a name without a folder read from `cwd`
+/// (where the program was started: a second start passes its own).
+pub fn launch_files_in<I, S>(args: I, cwd: &Path) -> Vec<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
     args.into_iter()
         .filter_map(|arg| {
-            let text = arg.as_ref().to_str()?.to_owned();
-            validated(&text).ok().map(|_| text)
+            let text = arg.as_ref().to_str()?;
+            if text.starts_with('-') {
+                return None;
+            }
+            let path = Path::new(text);
+            let full = if path.is_absolute() || cwd.as_os_str().is_empty() {
+                path.to_path_buf()
+            } else {
+                cwd.join(path)
+            };
+            let full = full.to_str()?.to_owned();
+            validated(&full).ok().map(|_| full)
         })
         .collect()
 }
@@ -199,6 +220,21 @@ mod tests {
         // Only real documents among the launch arguments survive.
         let found = launch_files(["--flag", text, "relative.pdf"]);
         assert_eq!(found, vec![text.to_owned()]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_second_start_names_its_documents_from_where_it_was_started() {
+        let dir = std::env::temp_dir().join(format!("paperwren-second-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        std::fs::write(dir.join("notes.txt"), b"hello").expect("write");
+        let full = dir.join("notes.txt").to_str().expect("utf-8").to_owned();
+        // A file manager passes the whole path; a shell may pass only the
+        // name, read from the folder the second start ran in.
+        let found = launch_files_in(["notes.txt", "-psn_0_1", "missing.txt"], &dir);
+        assert_eq!(found, vec![full.clone()]);
+        let whole = launch_files_in([full.as_str()], Path::new(""));
+        assert_eq!(whole, vec![full.clone()]);
         std::fs::remove_dir_all(&dir).ok();
     }
 

@@ -159,3 +159,38 @@ test("a file dropped on the window opens", async ({ page }) => {
 	await expect(page.getByTestId("drop-hint")).toHaveCount(0);
 	await expect(page.getByTestId("viewer")).toContainText("dropped text");
 });
+
+test("a page that is a phone photo is shown as stored, not turned by its EXIF (#80)", async ({
+	page,
+}) => {
+	// Android's WebView has no window.chrome, and pdf.js then lets the
+	// browser decode JPEGs, which turns them by their EXIF orientation.
+	await page.addInitScript(() => {
+		(window as { chrome?: unknown }).chrome = undefined;
+	});
+	await boot(page);
+	// The photo is stored 600×400 with a red band along its top, and its
+	// EXIF says "turn 90°". On the page it must keep the band on top.
+	await openFixture(page, "viewer-regressions/photo-page.pdf");
+	const canvas = page.locator(".page canvas").first();
+	await expect(canvas).toBeVisible({ timeout: 20_000 });
+	await expect
+		.poll(
+			() =>
+				canvas.evaluate((c: HTMLCanvasElement) => {
+					const ctx = c.getContext("2d");
+					if (!ctx) return "none";
+					const red = (x: number, y: number) => {
+						const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+						return r > 150 && g < 80 && b < 80;
+					};
+					const w = c.width;
+					const h = c.height;
+					if (red(w / 2, h * 0.04) && !red(w * 0.98, h / 2)) return "top";
+					if (red(w * 0.98, h / 2)) return "right";
+					return "none";
+				}),
+			{ timeout: 15_000 },
+		)
+		.toBe("top");
+});

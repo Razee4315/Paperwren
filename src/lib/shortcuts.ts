@@ -114,6 +114,10 @@ export const FIXED = {
 		keys: ["Ctrl+Tab", "Ctrl+Shift+Tab"],
 		what: msg("The next and the previous tab"),
 	},
+	moveTab: {
+		keys: ["Ctrl+Shift+PageUp", "Ctrl+Shift+PageDown"],
+		what: msg("Move the tab back or on"),
+	},
 	sheets: {
 		keys: ["Ctrl+PageUp", "Ctrl+PageDown"],
 		what: msg("The previous and the next sheet"),
@@ -167,6 +171,8 @@ const RESERVED = new Set([
 	"Ctrl+Shift+Tab",
 	"Ctrl+PageUp",
 	"Ctrl+PageDown",
+	"Ctrl+Shift+PageUp",
+	"Ctrl+Shift+PageDown",
 	"Ctrl+ArrowUp",
 	"Ctrl+ArrowDown",
 	"Ctrl+Home",

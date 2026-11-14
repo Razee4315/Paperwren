@@ -46,3 +46,13 @@ export function copyName(name: string, what: string, ext?: string): string {
 	const [stem, own] = splitName(name);
 	return `${stem} (${what})${ext ?? (own || ".pdf")}`;
 }
+
+/** Files in order of their names, as a person reads them: "Scan 2"
+ * before "Scan 10", whatever the case, in the reader's language. */
+export function byName<T extends { name: string }>(files: T[]): T[] {
+	const order = new Intl.Collator(undefined, {
+		numeric: true,
+		sensitivity: "base",
+	});
+	return [...files].sort((a, b) => order.compare(a.name, b.name));
+}

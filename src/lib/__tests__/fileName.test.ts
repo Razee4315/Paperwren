@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { copyName, joinName, nameProblem, splitName } from "../fileName";
+import {
+	byName,
+	copyName,
+	joinName,
+	nameProblem,
+	splitName,
+} from "../fileName";
 
 describe("file names", () => {
 	it("keeps the extension apart", () => {
@@ -23,5 +29,25 @@ describe("file names", () => {
 		expect(joinName("  Draft. . ", ".pdf")).toBe("Draft.pdf");
 		expect(copyName("Lease.pdf", "signed")).toBe("Lease (signed).pdf");
 		expect(copyName("scan.png", "pages", ".pdf")).toBe("scan (pages).pdf");
+	});
+});
+
+describe("many files put in order of their names (#81)", () => {
+	const names = (list: { name: string }[]) => list.map((f) => f.name);
+	it("counts numbers as numbers, as a person reads them", () => {
+		const picked = ["IMG_10.jpg", "IMG_2.jpg", "IMG_1.jpg", "img_3.JPG"].map(
+			(name) => ({ name }),
+		);
+		expect(names(byName(picked))).toEqual([
+			"IMG_1.jpg",
+			"IMG_2.jpg",
+			"img_3.JPG",
+			"IMG_10.jpg",
+		]);
+	});
+	it("leaves the list it was given as it was", () => {
+		const picked = [{ name: "b.png" }, { name: "a.png" }];
+		byName(picked);
+		expect(names(picked)).toEqual(["b.png", "a.png"]);
 	});
 });

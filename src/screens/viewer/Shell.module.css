@@ -9,6 +9,13 @@
 	background: var(--canvas);
 	animation: pw-screen-in var(--t-med) var(--ease);
 }
+/* A tab behind another (or under Settings): laid out as if shown, so it
+ * keeps its size, scroll and pages, but neither drawn nor reached. Its
+ * entrance is left alone: changing it would play it again on show. */
+.shell[data-away] {
+	visibility: hidden;
+	pointer-events: none;
+}
 .top {
 	position: relative;
 	z-index: 5;

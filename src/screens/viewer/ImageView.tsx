@@ -220,7 +220,9 @@ export default function ImageView({
 	useLayoutEffect(() => {
 		const el = scroller.current;
 		if (!el || !wide || !tall) return;
-		const measure = () =>
+		const measure = () => {
+			// A tab not on show has no size: nothing to fit to.
+			if (!el.clientWidth || !el.clientHeight) return;
 			setFit(
 				Math.min(
 					1,
@@ -228,6 +230,7 @@ export default function ImageView({
 					(el.clientHeight - 16) / tall,
 				),
 			);
+		};
 		measure();
 		const ro = new ResizeObserver(measure);
 		ro.observe(el);

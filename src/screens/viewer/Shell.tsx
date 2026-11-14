@@ -55,7 +55,7 @@ import { FileMenu, ViewerFileContext } from "./FileMenu";
 import { ReadAloud } from "./ReadAloud";
 import { AutoScroll, DimSheet } from "./ReadingControls";
 import s from "./Shell.module.css";
-import { PaneContext } from "./pane";
+import { PaneContext, onShow } from "./pane";
 import type { SpeechSource } from "./speechSources";
 
 export { s as shellStyles };
@@ -869,10 +869,12 @@ export function Shell({
 			ref={shell}
 			className={s.shell}
 			data-testid="viewer"
-			// Side by side, the half without the keyboard is still shown.
-			style={
-				active || (pane?.side && pane.visible) ? undefined : { display: "none" }
-			}
+			// A tab not on show keeps its size, its place and its drawn
+			// pages: hidden, not taken out of the layout, so showing it
+			// again redraws nothing and replays no entrance (#84). Side by
+			// side, the half without the keyboard is still shown.
+			data-away={onShow(active, pane) ? undefined : ""}
+			{...inert(!onShow(active, pane))}
 		>
 			<header
 				className={`${s.top} ${barsHidden ? s.hiddenTop : ""} ${finding ? s.pinned : ""}`}

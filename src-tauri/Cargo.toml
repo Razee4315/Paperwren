@@ -29,6 +29,9 @@ serde_json = "1"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+# One window: a document opened while the app runs (a double-click in
+# Explorer or a file manager) becomes a tab in it, not a second app.
+tauri-plugin-single-instance = "2"
 
 
 [profile.release]

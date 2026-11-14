@@ -21,7 +21,11 @@ import s from "./Overlay.module.css";
 let modals = 0;
 
 /** True while a sheet, menu or dialog is open over the app. */
-export const modalOpen = () => modals > 0;
+export const modalOpen = () => modals - leaving > 0;
+/** Dialogs Esc has closed that are still on screen until the next
+ * render: they no longer count, so a second quick Esc goes on to what
+ * is under them instead of being lost. */
+let leaving = 0;
 
 /** Where the pointer last went down, and whether that was a right
  * click: on a desktop a menu opens there, not at the foot of the
@@ -112,15 +116,25 @@ export function useModalFocus(
 		const app = document.getElementById("root");
 		const depth = ++modals;
 		app?.setAttribute("inert", "");
+		let left = false;
+		let gone = false;
 		const onKey = (e: KeyboardEvent) => {
 			// Only the top dialog handles keys (for example Save over the editor).
-			if (modals !== depth) return;
+			if (left || modals - leaving !== depth) return;
 			// A field recording a new shortcut owns every key, Esc and Tab
 			// included (Settings, Keyboard shortcuts).
 			if ((e.target as Element | null)?.closest?.("[data-records-keys]"))
 				return;
 			if (e.key === "Escape") {
 				e.stopPropagation();
+				left = true;
+				leaving++;
+				// A dialog that turns Esc down (busy) counts again shortly.
+				window.setTimeout(() => {
+					if (gone || !left) return;
+					left = false;
+					leaving--;
+				}, 400);
 				closeRef.current();
 			} else if (e.key === "Tab" && root.current) {
 				const items = root.current.querySelectorAll<HTMLElement>(
@@ -142,6 +156,8 @@ export function useModalFocus(
 		window.addEventListener("keydown", onKey, true);
 		return () => {
 			window.removeEventListener("keydown", onKey, true);
+			gone = true;
+			if (left) leaving--;
 			if (--modals === 0) app?.removeAttribute("inert");
 			opener?.focus?.();
 		};
@@ -168,11 +184,11 @@ export function Sheet({
 	wide = false,
 }: PanelProps & { open: boolean; wide?: boolean }) {
 	const id = useId();
-	useBackClose(`sheet${id}`, open, onClose);
+	const close = useBackClose(`sheet${id}`, open, onClose);
 	if (!open) return null;
 	const Panel = isDesktop && !wide ? MenuPanel : SheetPanel;
 	return createPortal(
-		<Panel title={title} onClose={onClose} testId={testId}>
+		<Panel title={title} onClose={close} testId={testId}>
 			{children}
 		</Panel>,
 		document.body,
@@ -478,13 +494,13 @@ export function Dialog({
 	wide?: boolean;
 }) {
 	const id = useId();
-	useBackClose(`dialog${id}`, open, onClose);
+	const close = useBackClose(`dialog${id}`, open, onClose);
 	if (!open) return null;
 	return createPortal(
 		<DialogPanel
 			title={title}
 			actions={actions}
-			onClose={onClose}
+			onClose={close}
 			testId={testId}
 			art={art}
 			alert={alert}

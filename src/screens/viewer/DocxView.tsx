@@ -168,6 +168,8 @@ export default function DocxView({
 			return;
 		}
 		const measure = () => {
+			// A tab not on show has no size: nothing to fit to.
+			if (!el.clientWidth) return;
 			let widest = 0;
 			for (const sec of host.current?.querySelectorAll<HTMLElement>(
 				"section.docx",

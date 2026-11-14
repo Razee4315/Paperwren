@@ -61,7 +61,8 @@ import java.util.concurrent.TimeUnit
  *    bytes, so the same file opened twice is stored once and two
  *    different files with the same name never collide.
  * 2. System Back: ask the web layer first; finish only when it did
- *    not consume the press.
+ *    not consume the press. Back on a file another app opened with
+ *    Paperwren goes back to that app (leaveToCaller).
  * 3. A tiny JS bridge for the in-app picker: the provider's real
  *    display name and size, and a copy of the picked file into the
  *    same imports store so recents can reopen after a restart.
@@ -99,7 +100,15 @@ class MainActivity : TauriActivity() {
   private val pending = ArrayDeque<Delivery>()
   private var delivering = false
 
-  private data class Delivery(val path: String, val name: String, val size: Long)
+  /** A file to hand to the web layer. `caller` says another app opened
+   * it with Paperwren: "started" when that start began Paperwren, "woken"
+   * when Paperwren was already running; null for anything else. */
+  private data class Delivery(
+    val path: String,
+    val name: String,
+    val size: Long,
+    val caller: String?
+  )
 
   /** Folder scans can be long; they must not hold up file imports. */
   private val scanExecutor = Executors.newSingleThreadExecutor()
@@ -211,7 +220,7 @@ class MainActivity : TauriActivity() {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     installBackBridge()
-    handleIntent(intent)
+    handleIntent(intent, "started")
     clearCameraPhotos()
     sayIfRestarted()
   }
@@ -300,7 +309,7 @@ class MainActivity : TauriActivity() {
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
-    handleIntent(intent)
+    handleIntent(intent, "woken")
   }
 
   override fun onDestroy() {
@@ -663,8 +672,11 @@ class MainActivity : TauriActivity() {
 
   // ---------- Open with / Share ----------
 
-  private fun handleIntent(intent: Intent?) {
+  /** `how` is "started" (onCreate) or "woken" (onNewIntent): with one
+   * file opened from another app, Back on it goes back to that app. */
+  private fun handleIntent(intent: Intent?, how: String) {
     if (intent == null) return
+    val fromApp = intent.action == Intent.ACTION_VIEW || intent.action == Intent.ACTION_SEND
     val uris: List<Uri> = when (intent.action) {
       Intent.ACTION_VIEW -> listOfNotNull(intent.data)
       Intent.ACTION_SEND -> listOfNotNull(
@@ -677,15 +689,16 @@ class MainActivity : TauriActivity() {
     }
     // Consume the intent so a configuration change does not re-import it.
     intent.action = null
+    val caller = if (fromApp && uris.size == 1) how else null
     for (uri in uris) {
       val mime = intent.type
-      ingestExecutor.execute { ingest(uri, mime) }
+      ingestExecutor.execute { ingest(uri, mime, caller) }
     }
   }
 
-  private fun ingest(uri: Uri, mime: String?) {
+  private fun ingest(uri: Uri, mime: String?, caller: String?) {
     try {
-      val delivery = copyIn(uri, mime)
+      val delivery = copyIn(uri, mime).copy(caller = caller)
       main.post {
         pending.addLast(delivery)
         deliverNext(0)
@@ -734,7 +747,7 @@ class MainActivity : TauriActivity() {
       } else if (!tmp.renameTo(target)) {
         throw IllegalStateException("rename failed")
       }
-      return Delivery(target.absolutePath, displayName, target.length())
+      return Delivery(target.absolutePath, displayName, target.length(), null)
     } finally {
       tmp.delete()
     }
@@ -760,6 +773,7 @@ class MainActivity : TauriActivity() {
     }
     val script = "(window.__paperwrenOpenFile && window.__paperwrenOpenFile(" +
       JSONObject.quote(next.path) + "," + JSONObject.quote(next.name) + "," + next.size +
+      "," + (next.caller?.let { JSONObject.quote(it) } ?: "null") +
       ")) ? 'ok' : 'wait'"
     webView.evaluateJavascript(script) { result ->
       if (result == "\"ok\"") {
@@ -1046,6 +1060,19 @@ class MainActivity : TauriActivity() {
         if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
       }
+    }
+
+    /** Back on a file another app opened with Paperwren: back to that
+     * app. Paperwren started for it ends and leaves Recents, as a
+     * viewer should; one that was already running steps behind it and
+     * keeps what the reader had open before. */
+    @JavascriptInterface
+    fun leaveToCaller(started: Boolean): Boolean {
+      if (!fromApp()) return false
+      main.post {
+        if (started) finishAndRemoveTask() else moveTaskToBack(true)
+      }
+      return true
     }
 
     /** A slide show takes the whole screen, or gives it back: the

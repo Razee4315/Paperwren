@@ -6,6 +6,8 @@
  *   2. pop the top screen
  *   3. at Home with nothing open, Back is not consumed (Android
  *      minimises the app).
+ * A document another app opened with Paperwren (Android's "Open with")
+ * is the exception: with nothing over it, Back goes back to that app.
  */
 
 import type { OpenRequest } from "./types";
@@ -88,6 +90,14 @@ function sameScreen(a: Screen, b: Screen): boolean {
 	if (a.kind === "tools" && b.kind === "tools")
 		return a.tool === b.tool && a.file?.id === b.file?.id;
 	return true;
+}
+
+/** Whether Back now goes back to the app that opened the document of
+ * `id` with Paperwren: that document is on top, with nothing over it. */
+export function backToCaller(state: NavState, id: string | null): boolean {
+	if (!id || state.overlays.length) return false;
+	const top = state.screens[state.screens.length - 1];
+	return top?.kind === "viewer" && top.request.id === id;
 }
 
 /** Whether Back has something to do inside the app. */

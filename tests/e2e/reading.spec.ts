@@ -1405,6 +1405,153 @@ test.describe("tabs on a desktop", () => {
 			"sample.txt",
 		]);
 	});
+	test("a tab shown again is just as it was left: nothing drawn again, no entrance (#84)", async ({
+		page,
+	}) => {
+		await boot(page, {}, "?desktop&frame");
+		await openFixture(page, "features/margins.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		const scroller = page.locator('[data-testid="pdf-scroll"]:visible');
+		await scroller.evaluate((el) => {
+			el.scrollTop = 900;
+		});
+		await page.waitForTimeout(600);
+		const pageWidth = () =>
+			page
+				.locator('[data-testid="pdf-scroll"]:visible .page')
+				.first()
+				.evaluate((el) => el.getBoundingClientRect().width);
+		const wide = await pageWidth();
+
+		await openMore(page, "sample.pdf");
+		const tabs = page.getByTestId("tab");
+		await expect(tabs).toHaveText(["margins.pdf", "sample.pdf"]);
+		await page.waitForTimeout(800);
+
+		// From here on, count every page drawn again.
+		await page.evaluate(() => {
+			const w = window as unknown as { drawn: number };
+			w.drawn = 0;
+			new MutationObserver((list) => {
+				for (const m of list)
+					for (const n of m.addedNodes)
+						if (
+							n instanceof Element &&
+							(n.nodeName === "CANVAS" || n.querySelector("canvas"))
+						)
+							w.drawn++;
+			}).observe(document.body, { childList: true, subtree: true });
+		});
+		for (const at of [0, 1, 0]) {
+			await tabs.nth(at).getByRole("tab").click();
+			await page.waitForTimeout(400);
+		}
+		await expect(scroller).toHaveCount(1);
+		// The first document: its place kept, nothing drawn again, and no
+		// entrance played as if it had just been opened.
+		expect(
+			await scroller.evaluate((el) => Math.round(el.scrollTop)),
+		).toBeGreaterThan(850);
+		expect(
+			await page.evaluate(() => (window as unknown as { drawn: number }).drawn),
+		).toBe(0);
+		const shown = page.locator('[data-testid="viewer"]:visible');
+		await expect(shown).toHaveCount(1);
+		expect(await shown.evaluate((el) => el.getAnimations().length)).toBe(0);
+		// The one behind is out of reach, not out of the layout.
+		const away = page.locator('[data-testid="viewer"][data-away]');
+		await expect(away).toHaveCount(1);
+		expect(await away.evaluate((el) => el.clientWidth)).toBeGreaterThan(0);
+
+		// A window made narrower while a tab is behind: it fits again when
+		// shown, not before.
+		await tabs.nth(1).getByRole("tab").click();
+		await page.setViewportSize({ width: 960, height: 800 });
+		await page.waitForTimeout(400);
+		await tabs.nth(0).getByRole("tab").click();
+		await expect.poll(pageWidth).toBeLessThan(wide);
+		expect(await pageWidth()).toBeLessThanOrEqual(960);
+	});
+	test("tabs drag into another order, move with keys, and have a menu (#79)", async ({
+		page,
+	}) => {
+		await boot(page, {}, "?desktop&frame");
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-page-field")).toHaveValue("1", {
+			timeout: 20_000,
+		});
+		await openMore(page, "sample.docx");
+		await openMore(page, "sample.txt");
+		const tabs = page.getByTestId("tab");
+		await expect(tabs).toHaveText(["sample.pdf", "sample.docx", "sample.txt"]);
+
+		// Drag the first tab past the second: it lands after it, and is shown.
+		const first = await tabs.nth(0).boundingBox();
+		const second = await tabs.nth(1).boundingBox();
+		if (!first || !second) throw new Error("no tabs");
+		const y = first.y + first.height / 2;
+		await page.mouse.move(first.x + 30, y);
+		await page.mouse.down();
+		await page.mouse.move(first.x + 60, y, { steps: 4 });
+		await expect(page.getByTestId("tab-strip")).toHaveAttribute(
+			"data-dragging",
+			"",
+		);
+		await page.mouse.move(second.x + second.width - 10, y, { steps: 8 });
+		await page.mouse.up();
+		await expect(tabs).toHaveText(["sample.docx", "sample.pdf", "sample.txt"]);
+		await expect(page.getByTestId("tab-strip")).not.toHaveAttribute(
+			"data-dragging",
+			"",
+		);
+		await expect(tabs.nth(1).getByRole("tab")).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+		// A small slip of the mouse is a click, not a drag.
+		const third = await tabs.nth(2).boundingBox();
+		if (!third) throw new Error("no tab");
+		await page.mouse.move(third.x + 30, y);
+		await page.mouse.down();
+		await page.mouse.move(third.x + 32, y);
+		await page.mouse.up();
+		await expect(tabs).toHaveText(["sample.docx", "sample.pdf", "sample.txt"]);
+		await expect(tabs.nth(2).getByRole("tab")).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+
+		// Ctrl+Shift+Page Up moves the tab on show one place back.
+		await page.keyboard.press("Control+Shift+PageUp");
+		await expect(tabs).toHaveText(["sample.docx", "sample.txt", "sample.pdf"]);
+		await page.keyboard.press("Control+Shift+PageDown");
+		await expect(tabs).toHaveText(["sample.docx", "sample.pdf", "sample.txt"]);
+
+		// A right click: close the tabs after it, then the others.
+		await tabs.nth(1).click({ button: "right" });
+		await expect(page.getByTestId("tab-menu")).toBeVisible();
+		await page.getByTestId("tab-menu-close-after").click();
+		await expect(tabs).toHaveText(["sample.docx", "sample.pdf"]);
+		await expect(tabs.nth(1).getByRole("tab")).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+		await tabs.nth(1).click({ button: "right" });
+		// Side by side, from the menu of a tab not on show.
+		await expect(page.getByTestId("tab-menu-beside")).toHaveCount(0);
+		await page.keyboard.press("Escape");
+		await tabs.nth(0).click({ button: "right" });
+		await page.getByTestId("tab-menu-beside").click();
+		await expect(page.getByTestId("pane-left")).toBeVisible();
+		await expect(page.getByTestId("pane-right")).toBeVisible();
+		await tabs.nth(0).click({ button: "right" });
+		await page.getByTestId("tab-menu-close-others").click();
+		await expect(tabs).toHaveCount(0);
+		await expect(page.getByTestId("tab-strip")).toHaveCount(0);
+		await expect(page.locator('[data-testid="viewer"]:visible')).toHaveCount(1);
+	});
 });
 
 test.describe("office details", () => {

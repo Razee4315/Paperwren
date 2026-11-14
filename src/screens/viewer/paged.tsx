@@ -237,6 +237,8 @@ export function usePaged({
 			});
 		};
 		const resized = new ResizeObserver(() => {
+			// A tab not on show has no size: its pages stay as they are.
+			if (!el.clientWidth) return;
 			if (el.clientWidth !== width || el.clientHeight !== height) later();
 		});
 		resized.observe(el);

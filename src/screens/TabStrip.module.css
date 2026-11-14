@@ -33,6 +33,26 @@
 .tab:hover {
 	background: var(--surface-3);
 }
+/* A tab dragged to another place: the others step aside smoothly, the
+ * one taken up follows the pointer, above them. Only while dragging:
+ * once it is let go the row is simply in its new order. */
+.strip[data-dragging] .tab {
+	transition: transform var(--t-fast) var(--ease);
+}
+.strip[data-dragging] .tab[data-lifted] {
+	position: relative;
+	z-index: 1;
+	transition: none;
+	background: var(--surface-3);
+	box-shadow: var(--shadow-3);
+	cursor: grabbing;
+}
+.strip[data-dragging] .tab.on[data-lifted] {
+	background: var(--canvas);
+}
+.strip[data-dragging] .tab[data-lifted] .main {
+	cursor: grabbing;
+}
 .on,
 .on:hover {
 	background: var(--canvas);

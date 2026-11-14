@@ -36,12 +36,13 @@ use error::{AppError, AppResult};
 const IMPORTS_MAX_BYTES: u64 = 250 * 1024 * 1024;
 
 /// Tells the window that documents are waiting in `Waiting`.
-#[cfg(target_os = "macos")]
+#[cfg(desktop)]
 const OPEN_EVENT: &str = "paperwren-open";
 
 /// Documents the system handed the app that the window has not taken
-/// yet: the ones on the command line and, on macOS, the ones Finder
-/// asks for (which can arrive before the window is listening).
+/// yet: the ones on the command line, the ones a second launch passed
+/// on, and, on macOS, the ones Finder asks for (which can arrive
+/// before the window is listening).
 struct Waiting(Mutex<Vec<String>>);
 
 impl Waiting {
@@ -57,7 +58,7 @@ impl Waiting {
         std::mem::take(&mut *self.0.lock().unwrap_or_else(|e| e.into_inner()))
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(desktop)]
     fn add(&self, files: Vec<String>) {
         self.0
             .lock()
@@ -157,21 +158,41 @@ fn launch_files(waiting: tauri::State<'_, Waiting>) -> Vec<String> {
     waiting.take()
 }
 
-/// macOS asked the app to open documents: keep them for the window,
-/// tell it, and bring it forward.
-#[cfg(target_os = "macos")]
-fn opened(app: &tauri::AppHandle, urls: &[tauri::Url]) {
+/// Documents to open in the running app: keep them for the window,
+/// tell it, and bring it forward. With none, it is only brought
+/// forward (Paperwren started again from its icon).
+#[cfg(desktop)]
+fn hand_over(app: &tauri::AppHandle, files: Vec<String>) {
     use tauri::Emitter;
 
-    let files = open::opened_files(urls);
-    if files.is_empty() {
-        return;
+    if !files.is_empty() {
+        app.state::<Waiting>().add(files);
+        let _ = app.emit(OPEN_EVENT, ());
     }
-    app.state::<Waiting>().add(files);
-    let _ = app.emit(OPEN_EVENT, ());
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
+        let _ = window.show();
         let _ = window.set_focus();
+    }
+}
+
+/// Paperwren was started again while it runs (a double-click on a
+/// document in Explorer or a file manager, on Windows and Linux): that
+/// second start ends at once and hands its documents here, so they
+/// open as tabs in this window instead of in a second one.
+#[cfg(desktop)]
+fn second_launch(app: &tauri::AppHandle, argv: Vec<String>, cwd: String) {
+    let cwd = std::path::Path::new(&cwd);
+    let files = open::launch_files_in(argv.into_iter().skip(1), cwd);
+    hand_over(app, files);
+}
+
+/// macOS asked the app to open documents.
+#[cfg(target_os = "macos")]
+fn opened(app: &tauri::AppHandle, urls: &[tauri::Url]) {
+    let files = open::opened_files(urls);
+    if !files.is_empty() {
+        hand_over(app, files);
     }
 }
 
@@ -282,7 +303,12 @@ async fn save_as(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // First of all: a second start hands over and ends before anything
+    // else of it runs.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(second_launch));
+    let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init());
     // Updates on a computer only, and only checked when the reader

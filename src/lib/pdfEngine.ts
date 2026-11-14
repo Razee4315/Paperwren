@@ -12,6 +12,26 @@ export const pdfAsset = (dir: string) =>
 	new URL(`pdfjs/${dir}/`, document.baseURI).toString();
 
 /**
+ * How every PDF is opened, by the viewer and by the tools alike.
+ *
+ * pdf.js hands JPEG pictures to the browser's ImageDecoder wherever it
+ * finds no `window.chrome`, which is the case in Android's WebView (a
+ * desktop WebView2 has it). That decoder turns a picture by its EXIF
+ * orientation, which a PDF must ignore: a page that is a phone photo
+ * came out turned on its side on Android only (#80). pdf.js's own
+ * decoder draws the picture as stored, as every other reader does.
+ */
+export function documentOptions() {
+	return {
+		isEvalSupported: false,
+		isImageDecoderSupported: false,
+		cMapUrl: pdfAsset("cmaps"),
+		cMapPacked: true,
+		standardFontDataUrl: pdfAsset("standard_fonts"),
+	};
+}
+
+/**
  * The legacy build, not the modern one: the modern build needs a
  * Chromium from late 2023 (Promise.withResolvers and more), and phones
  * whose WebView is not kept up to date, Huawei's among them, could open
@@ -87,11 +107,8 @@ export async function openPdf(
 ): Promise<PDFDocumentProxy> {
 	const { pdfjs } = await loadEngine();
 	return pdfjs.getDocument({
+		...documentOptions(),
 		data: bytes.slice(),
 		password,
-		isEvalSupported: false,
-		cMapUrl: pdfAsset("cmaps"),
-		cMapPacked: true,
-		standardFontDataUrl: pdfAsset("standard_fonts"),
 	}).promise;
 }
