@@ -576,11 +576,40 @@ button.findCount {
 	right: 0;
 	transition: transform var(--t-med) var(--ease);
 }
+/* Past its own height and the reading progress line hanging below it. */
 :global(html[data-fullscreen="page"]:not([data-reveal])) .top:not(.pinned) {
-	transform: translateY(-101%);
+	transform: translateY(calc(-100% - 2px));
 }
 :global(html[data-fullscreen="page"]) .bottom {
 	display: none;
+}
+/* Going into full screen or out (lib/fullscreen.ts): the document fades
+ * to its canvas while the window changes, and back once it has settled
+ * and been fitted again, so no size on the way is seen. The bars fade
+ * while they are still in the layout, and leave it (or come back to it)
+ * only under the veil: the page never jumps where it can be seen.
+ * Reduced motion makes both instant (global.css). */
+.body {
+	position: relative;
+}
+.body::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 50;
+	background: var(--canvas);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms var(--ease);
+}
+:global(html[data-fs-veil]) .body::after {
+	opacity: 1;
+	transition-duration: 80ms;
+}
+:global(html[data-fs-bars]) .top:not(.pinned),
+:global(html[data-fs-bars]) .bottom {
+	opacity: 0;
+	transition-duration: 80ms;
 }
 
 .pager {

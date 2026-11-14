@@ -1063,7 +1063,7 @@ export function Shell({
 				{find}
 				{progressOf && <Progress of={progressOf} value={progress} />}
 			</header>
-			<div className={s.body}>
+			<div className={s.body} data-testid="viewer-body">
 				{sideOpen && (
 					<SidePanel
 						tabs={tabs}

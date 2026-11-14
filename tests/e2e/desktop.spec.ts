@@ -1140,3 +1140,217 @@ test.describe("a file changed by another app", () => {
 		await expect(bar).toHaveCount(0);
 	});
 });
+
+/** The desktop app's window, stood in for (lib/fullscreen.ts): maximised
+ * on a screen of 1280 × 800 whose taskbar takes the foot, and smaller when
+ * restored. A frameless window on Windows is restored before it goes full
+ * screen (#58), so the page sees every size on the way, as it would. */
+test.describe("full screen from a maximised window (#86)", () => {
+	test.use({ viewport: { width: 1280, height: 752 } });
+
+	async function standIn(page: Page, refuse = false) {
+		await page.exposeFunction("__resizeTo", (width: number, height: number) =>
+			page.setViewportSize({ width, height }),
+		);
+		await page.addInitScript((refuse) => {
+			const resize = (
+				window as unknown as {
+					__resizeTo(width: number, height: number): Promise<void>;
+				}
+			).__resizeTo;
+			const state = { full: false, max: true };
+			const apply = () =>
+				state.full
+					? resize(1280, 800)
+					: state.max
+						? resize(1280, 752)
+						: resize(860, 600);
+			window.__paperwrenWindow = {
+				isFullscreen: async () => state.full,
+				isMaximized: async () => state.max,
+				setFullscreen: async (on) => {
+					if (refuse) throw new Error("refused");
+					state.full = on;
+					await apply();
+				},
+				maximize: async () => {
+					if (refuse) throw new Error("refused");
+					state.max = true;
+					await apply();
+				},
+				unmaximize: async () => {
+					state.max = false;
+					await apply();
+				},
+				onResized: async (then) => {
+					window.addEventListener("resize", then);
+					return () => window.removeEventListener("resize", then);
+				},
+			};
+		}, refuse);
+	}
+
+	interface Frame {
+		top: number;
+		width: number;
+		veil: number;
+	}
+	interface Taken {
+		drawn: { [page: string]: number };
+		frames: Frame[];
+	}
+
+	/** From now on, every page drawn and, frame by frame, where the third
+	 * page is, how wide, and how thick the veil over the document is. */
+	const record = (page: Page) =>
+		page.evaluate(() => {
+			const w = window as unknown as { rec: Taken };
+			const rec: Taken = { drawn: {}, frames: [] };
+			w.rec = rec;
+			new MutationObserver((list) => {
+				for (const m of list)
+					for (const n of m.addedNodes) {
+						if (!(n instanceof Element)) continue;
+						if (n.nodeName !== "CANVAS" && !n.querySelector("canvas")) continue;
+						const at =
+							n.closest(".page")?.getAttribute("data-page-number") ?? "?";
+						rec.drawn[at] = (rec.drawn[at] ?? 0) + 1;
+					}
+			}).observe(document.body, { childList: true, subtree: true });
+			const frame = () => {
+				if (w.rec !== rec) return;
+				const third = document.querySelector(
+					'[data-testid="pdf-scroll"] .page[data-page-number="3"]',
+				);
+				const body = document.querySelector('[data-testid="viewer-body"]');
+				const veil = body ? getComputedStyle(body, "::after") : null;
+				const box = third?.getBoundingClientRect();
+				rec.frames.push({
+					top: Math.round((box?.top ?? 0) * 10) / 10,
+					width: Math.round(box?.width ?? 0),
+					veil: !veil || veil.content === "none" ? 0 : Number(veil.opacity),
+				});
+				requestAnimationFrame(frame);
+			};
+			requestAnimationFrame(frame);
+		});
+	const taken = (page: Page) =>
+		page.evaluate(() => (window as unknown as { rec: Taken }).rec);
+
+	/** The largest step the page takes between two frames that show it. */
+	const jump = (frames: Frame[]) => {
+		let most = 0;
+		for (let i = 1; i < frames.length; i++) {
+			const [a, b] = [frames[i - 1], frames[i]];
+			if (a.veil > 0.95 || b.veil > 0.95) continue;
+			most = Math.max(most, Math.abs(b.top - a.top));
+		}
+		return most;
+	};
+
+	/** At rest: the window settled, the veil gone. */
+	const settled = async (page: Page) => {
+		await expect(page.locator("html")).not.toHaveAttribute("data-fs-veil");
+		await page.waitForTimeout(500);
+		expect(
+			await page.getByTestId("viewer-body").evaluate((el) => {
+				const veil = getComputedStyle(el, "::after");
+				return veil.content === "none" ? 0 : Number(veil.opacity);
+			}),
+		).toBe(0);
+	};
+
+	const openLong = async (page: Page) => {
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, longPdf(12));
+		await page.getByTestId("open-file").click();
+		const field = page.getByTestId("pdf-page-field");
+		await expect(field).toHaveValue("1", { timeout: 20_000 });
+		await field.fill("3");
+		await field.press("Enter");
+		await expect(field).toHaveValue("3");
+		await page.waitForTimeout(800);
+	};
+
+	test("going in and out is one calm change: drawn once, no jump, the place kept", async ({
+		page,
+	}) => {
+		await standIn(page);
+		await boot(page, {}, DESKTOP);
+		await openLong(page);
+		const html = page.locator("html");
+		const field = page.getByTestId("pdf-page-field");
+		await page.mouse.move(640, 400);
+
+		for (const way of ["in", "out"]) {
+			await record(page);
+			await page.keyboard.press("F11");
+			if (way === "in")
+				await expect(html).toHaveAttribute("data-fullscreen", "page");
+			else await expect(html).not.toHaveAttribute("data-fullscreen", /./);
+			await settled(page);
+			const rec = await taken(page);
+			// Never fitted to the restored window on the way: the window
+			// ends as wide as it began, so the pages keep their one size...
+			expect([...new Set(rec.frames.map((f) => f.width))]).toHaveLength(1);
+			// ...and each page on show is drawn once at most.
+			for (const times of Object.values(rec.drawn))
+				expect(times).toBeLessThanOrEqual(1);
+			// The page never jumps where it can be seen...
+			expect(jump(rec.frames)).toBeLessThanOrEqual(1);
+			// ...because what moves, moves under the veil.
+			expect(rec.frames.some((f) => f.veil > 0.95)).toBe(true);
+			// The same page is being read.
+			await expect(field).toHaveValue("3");
+		}
+		expect(await page.evaluate(() => [innerWidth, innerHeight])).toEqual([
+			1280, 752,
+		]);
+	});
+
+	test("with reduced motion the veil comes and goes without a fade", async ({
+		page,
+	}) => {
+		await page.emulateMedia({ reducedMotion: "reduce" });
+		await standIn(page);
+		await boot(page, {}, DESKTOP);
+		await openLong(page);
+		await record(page);
+		await page.keyboard.press("F11");
+		await expect(page.locator("html")).toHaveAttribute(
+			"data-fullscreen",
+			"page",
+		);
+		await settled(page);
+		const { frames } = await taken(page);
+		expect(frames.some((f) => f.veil > 0.95)).toBe(true);
+		expect(frames.filter((f) => f.veil > 0.05 && f.veil < 0.95)).toEqual([]);
+	});
+
+	test("a window that turns full screen down: the veil goes and the page fits the window", async ({
+		page,
+	}) => {
+		await standIn(page, true);
+		await boot(page, {}, DESKTOP);
+		await openLong(page);
+		const third = page.locator(
+			'[data-testid="pdf-scroll"] .page[data-page-number="3"]',
+		);
+		const wide = async () => (await third.boundingBox())?.width ?? 0;
+		const before = await wide();
+		await page.keyboard.press("F11");
+		// Restored, and refused both full screen and maximised again: the
+		// window is left smaller, and the page fits it.
+		await expect.poll(() => page.evaluate(() => innerWidth)).toBe(860);
+		await settled(page);
+		await expect(page.locator("html")).not.toHaveAttribute(
+			"data-fullscreen",
+			/./,
+		);
+		await expect.poll(wide).toBeLessThan(before);
+		// And it goes on following the window.
+		await page.setViewportSize({ width: 1280, height: 752 });
+		await expect.poll(wide).toBeGreaterThan(before - 2);
+	});
+});

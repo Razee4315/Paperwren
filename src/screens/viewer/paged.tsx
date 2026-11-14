@@ -12,6 +12,7 @@
  */
 
 import { isDesktop } from "@/lib/env";
+import { fitWhenSettled } from "@/lib/fullscreen";
 import { t } from "@/lib/i18n";
 import { PAGE_VIEWS } from "@/lib/pageViews";
 import type { PdfFlow } from "@/lib/types";
@@ -248,11 +249,14 @@ export function usePaged({
 				layout();
 			});
 		};
-		const resized = new ResizeObserver(() => {
+		// Laid out again once a window going to full screen or out has
+		// settled, not at each size on the way.
+		const fit = fitWhenSettled(() => {
 			// A tab not on show has no size: its pages stay as they are.
 			if (!el.clientWidth) return;
 			if (el.clientWidth !== width || el.clientHeight !== height) later();
 		});
+		const resized = new ResizeObserver(fit.run);
 		resized.observe(el);
 		// Pictures and fonts that arrive late change how much fits a page.
 		sheet.addEventListener("load", later, true);
@@ -289,6 +293,7 @@ export function usePaged({
 		return () => {
 			cancelAnimationFrame(frame);
 			resized.disconnect();
+			fit.stop();
 			sheet.removeEventListener("load", later, true);
 			el.removeEventListener("scroll", onScroll);
 			el.removeEventListener("wheel", onWheel);

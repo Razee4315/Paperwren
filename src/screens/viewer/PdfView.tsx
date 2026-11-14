@@ -4,6 +4,7 @@ import { type DocMark, contentKey, fileSample } from "@/lib/docMarks";
 import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
 import { copyName, splitName } from "@/lib/fileName";
+import { fitWhenSettled } from "@/lib/fullscreen";
 import { locale, t, tn } from "@/lib/i18n";
 import { measureLabel as labelOf } from "@/lib/measure";
 import { hasOwnText } from "@/lib/ocr";
@@ -1568,10 +1569,14 @@ export default function PdfView({
 		};
 		measure();
 		remeasure.current = measure;
-		const ro = new ResizeObserver(measure);
+		// Not at each size a window passes through on its way to full
+		// screen or out: once, where it ends up.
+		const fit = fitWhenSettled(measure);
+		const ro = new ResizeObserver(fit.run);
 		ro.observe(el);
 		return () => {
 			ro.disconnect();
+			fit.stop();
 			cancelAnimationFrame(frame);
 		};
 	}, [measureFit]);

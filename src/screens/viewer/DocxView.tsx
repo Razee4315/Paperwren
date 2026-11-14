@@ -1,5 +1,6 @@
 import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
+import { fitWhenSettled } from "@/lib/fullscreen";
 import { t } from "@/lib/i18n";
 import { fitted } from "@/lib/print";
 import { hintFor } from "@/lib/shortcuts";
@@ -187,9 +188,13 @@ export default function DocxView({
 				);
 		};
 		measure();
-		const ro = new ResizeObserver(measure);
+		const fit = fitWhenSettled(measure);
+		const ro = new ResizeObserver(fit.run);
 		ro.observe(el);
-		return () => ro.disconnect();
+		return () => {
+			ro.disconnect();
+			fit.stop();
+		};
 	}, [status, reading]);
 
 	// Reading view can be turned page by page, as a book is.

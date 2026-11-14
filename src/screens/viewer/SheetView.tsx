@@ -2,6 +2,7 @@ import { hasRtl } from "@/lib/bidi";
 import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
 import { ANY_MATCH, type FindOptions, matches } from "@/lib/find";
+import { fitWhenSettled } from "@/lib/fullscreen";
 import { locale, t } from "@/lib/i18n";
 import { type Chart, readChart } from "@/lib/pptx/chart";
 import { hintFor } from "@/lib/shortcuts";
@@ -301,9 +302,13 @@ export default function SheetView({
 			setView((v) => ({ ...v, w: el.clientWidth, h: el.clientHeight }));
 		};
 		measure();
-		const ro = new ResizeObserver(measure);
+		const fit = fitWhenSettled(measure);
+		const ro = new ResizeObserver(fit.run);
 		ro.observe(el);
-		return () => ro.disconnect();
+		return () => {
+			ro.disconnect();
+			fit.stop();
+		};
 	}, [sheet]);
 
 	// The grid has the keyboard from the moment the sheet is shown, so
