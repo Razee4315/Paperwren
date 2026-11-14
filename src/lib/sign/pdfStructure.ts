@@ -222,8 +222,19 @@ export function crossReferences(
 		}
 		const hybrid = dict.lookupMaybe(PDFName.of("XRefStm"), PDFNumber);
 		if (hybrid)
-			for (const [n, entry] of section(hybrid.asNumber(), true))
+			for (const [n, entry] of section(hybrid.asNumber(), true)) {
+				// pdf.js keeps live table entries when reading a supplement.
+				// Replacing one here would validate a different reader graph.
+				const table = current.get(n);
+				if (
+					table?.type === 1 &&
+					(table.type !== entry.type ||
+						table.offset !== entry.offset ||
+						table.generation !== entry.generation)
+				)
+					throw new Error("damaged");
 				current.set(n, entry);
+			}
 		for (const [n, entry] of current)
 			if (!entries.has(n)) entries.set(n, entry);
 		const previous = dict.lookupMaybe(PDFName.of("Prev"), PDFNumber);

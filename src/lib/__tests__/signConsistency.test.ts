@@ -225,14 +225,31 @@ for (const header of ["3  0  obj\n", "3\r0\robj\r", "3 0 obj"])
 		},
 		"accepted-and-equal",
 	);
-add("hybrid table and stream disagreement", (b) => {
-	const at = b.object(3, replacements.get(3) as string, false);
-	return b.finish("hybrid", new Map([[3, [1, at, 0]]]));
-});
-add("predictor hybrid disagreement", (b) => {
-	const at = b.object(3, replacements.get(3) as string, false);
-	return b.finish("hybrid", new Map([[3, [1, at, 0]]]), true);
-});
+add(
+	"hybrid table and stream disagreement",
+	(b) => {
+		const at = b.object(3, replacements.get(3) as string, false);
+		return b.finish("hybrid", new Map([[3, [1, at, 0]]]));
+	},
+	"refused",
+);
+add(
+	"predictor hybrid disagreement",
+	(b) => {
+		const at = b.object(3, replacements.get(3) as string, false);
+		return b.finish("hybrid", new Map([[3, [1, at, 0]]]), true);
+	},
+	"refused",
+);
+add(
+	"hybrid with a compressed supplemental page",
+	(b) => {
+		b.compressed(3, page, 20);
+		b.entries.delete(3);
+		return b.finish("hybrid", new Map([[3, [2, 20, 0]]]));
+	},
+	"accepted-and-equal",
+);
 add("linearized-style forward Prev disagreement", (b) => {
 	const firstXref = b.source.length;
 	const oldPrev = b.previous;
