@@ -1285,8 +1285,8 @@ export const zh: Table = {
 		"此 PDF 受密码保护。请先用“移除密码”去掉密码，再签署得到的副本。",
 	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
 		"此 PDF 已由作者认证且不允许任何更改，因此无法再次签名。",
-	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
-		"此 PDF 的结构已损坏，再次签名会破坏之前的签名。",
+	"This PDF's structure is damaged or ambiguous, so it can't be signed safely.":
+		"此 PDF 的结构已损坏或存在歧义，无法安全签名。",
 	"Couldn't sign the copy": "无法签署副本",
 	"Your digital signature will be added when you save.":
 		"保存时将添加你的数字签名。",

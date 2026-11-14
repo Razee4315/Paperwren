@@ -1355,8 +1355,8 @@ export const hi: Table = {
 		"यह PDF पासवर्ड से बंद है। पहले “पासवर्ड हटाएँ” से पासवर्ड हटाएँ, फिर उस प्रति पर हस्ताक्षर करें।",
 	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
 		"इस PDF के लेखक ने इसे बिना किसी बदलाव की अनुमति के प्रमाणित किया है, इसलिए इस पर फिर से हस्ताक्षर नहीं हो सकते।",
-	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
-		"इस PDF की संरचना खराब है, इसलिए फिर से हस्ताक्षर करने से पिछला हस्ताक्षर टूट जाएगा।",
+	"This PDF's structure is damaged or ambiguous, so it can't be signed safely.":
+		"इस PDF की संरचना खराब या अस्पष्ट है, इसलिए इस पर सुरक्षित रूप से हस्ताक्षर नहीं किए जा सकते।",
 	"Couldn't sign the copy": "प्रति पर हस्ताक्षर नहीं हो सके",
 	"Your digital signature will be added when you save.":
 		"सहेजते समय आपका डिजिटल हस्ताक्षर जुड़ जाएगा।",

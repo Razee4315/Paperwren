@@ -1396,8 +1396,8 @@ export const pt: Table = {
 		"Este PDF está protegido por senha. Remova a senha primeiro (Remover uma senha) e depois assine essa cópia.",
 	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
 		"O autor certificou este PDF sem permitir alterações, então ele não pode ser assinado novamente.",
-	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
-		"A estrutura deste PDF está danificada, então assiná-lo de novo quebraria a assinatura anterior.",
+	"This PDF's structure is damaged or ambiguous, so it can't be signed safely.":
+		"A estrutura deste PDF está danificada ou é ambígua, então não é possível assiná-lo com segurança.",
 	"Couldn't sign the copy": "Não foi possível assinar a cópia",
 	"Your digital signature will be added when you save.":
 		"Sua assinatura digital será adicionada ao salvar.",

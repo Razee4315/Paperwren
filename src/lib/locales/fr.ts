@@ -1409,8 +1409,8 @@ export const fr: Table = {
 		"Ce PDF est verrouillé par un mot de passe. Retirez d'abord le mot de passe (Retirer un mot de passe), puis signez cette copie.",
 	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
 		"L'auteur a certifié ce PDF sans autoriser de modification : il ne peut pas être signé à nouveau.",
-	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
-		"La structure de ce PDF est endommagée : le signer à nouveau casserait la signature précédente.",
+	"This PDF's structure is damaged or ambiguous, so it can't be signed safely.":
+		"La structure de ce PDF est endommagée ou ambiguë : il ne peut pas être signé en toute sécurité.",
 	"Couldn't sign the copy": "Impossible de signer la copie",
 	"Your digital signature will be added when you save.":
 		"Votre signature numérique sera ajoutée à l'enregistrement.",

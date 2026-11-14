@@ -17,11 +17,17 @@ import {
 	degrees,
 } from "@cantoo/pdf-lib";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import { describe, expect, it } from "vitest";
-import { protect } from "../pdfTools";
+import { describe, expect, it, vi } from "vitest";
+import { fillAndSign, protect } from "../pdfTools";
 import { ecdsaRaw } from "../sign/cms";
 import { buffer, concat, der, objectId, read, sequence } from "../sign/der";
-import { PdfSignError, canSign, readDigitalId, signPdf } from "../sign/index";
+import {
+	PdfSignError,
+	canSign,
+	prepareSigningCopy,
+	readDigitalId,
+	signPdf,
+} from "../sign/index";
 import { OID } from "../sign/oids";
 import { signWithId } from "../sign/pades";
 import { crossReferences } from "../sign/pdfStructure";
@@ -265,6 +271,95 @@ async function checkLinearized(original: Uint8Array, name?: string) {
 }
 
 describe("incremental PAdES signatures", () => {
+	it("checks compressed objects and catalog references to free or absent entries", async () => {
+		const compressed = await pages(true);
+		const loaded = await PDFDocument.load(compressed);
+		const page = loaded.getPage(0);
+		const source = Buffer.from(compressed).toString("latin1");
+		const shadow = source.replace(
+			/startxref(?=\s+\d+\s+%%EOF\s*$)/,
+			`${page.ref.objectNumber} 0 obj\n<< /Type /Page /Parent 1 0 R /MediaBox [0 0 10 10] >>\nendobj\nstartxref`,
+		);
+		expect(
+			await canSign(Uint8Array.from(Buffer.from(shadow, "latin1"))),
+		).toMatchObject({ blocker: "damaged" });
+		const plain = Buffer.from(await pages()).toString("latin1");
+		const doc = await PDFDocument.load(Buffer.from(plain));
+		const n = doc.getPage(0).ref.objectNumber;
+		const previous = Number(plain.match(/startxref\s+(\d+)\s+%%EOF\s*$/)?.[1]);
+		const free = `${plain}xref\n${n} 1\n0000000000 00001 f \ntrailer\n<< /Size ${doc.context.largestObjectNumber + 1} /Root ${doc.context.trailerInfo.Root} /Prev ${previous} >>\nstartxref\n${plain.length}\n%%EOF\n`;
+		expect(await canSign(Uint8Array.from(Buffer.from(free)))).toMatchObject({
+			blocker: "damaged",
+		});
+		const absent = plain
+			.replace(new RegExp(`${n} 0 obj`), "999 0 obj")
+			.replace(new RegExp(`/Kids \\[ ${n} 0 R`), "/Kids [ 999 0 R");
+		expect(await canSign(Uint8Array.from(Buffer.from(absent)))).toMatchObject({
+			blocker: "damaged",
+		});
+	});
+	it.each(["unsigned", "signed"])(
+		"refuses the shadowed page on the %s path",
+		async (kind) => {
+			const original = fixture(`shadow-${kind}.pdf`);
+			const reader = await pdfjs.getDocument({
+				data: original.slice(),
+				verbosity: 0,
+			}).promise;
+			const text = await (await reader.getPage(1)).getTextContent();
+			expect(
+				text.items.map((item) => ("str" in item ? item.str : "")).join(""),
+			).toBe("PAY 100");
+			await reader.destroy();
+			const loaded = await PDFDocument.load(original);
+			expect(
+				loaded.getPage(0).node.get(PDFName.of("Contents"))?.toString(),
+			).toBe("5 0 R");
+			expect(await canSign(original)).toEqual({
+				signed: kind === "signed",
+				blocker: "damaged",
+			});
+			await expect(
+				signPdf(original, await id(), { appearance: null }),
+			).rejects.toMatchObject({ reason: "damaged" });
+			const rewrite = vi.fn(() =>
+				fillAndSign(original, { fields: [], marks: [] }),
+			);
+			await expect(prepareSigningCopy(original, rewrite)).rejects.toMatchObject(
+				{ reason: "damaged" },
+			);
+			expect(rewrite).not.toHaveBeenCalled();
+		},
+	);
+	it.each([false, true])(
+		"keeps every page's pdf.js text after signing (rewrite = %s)",
+		async (rewrite) => {
+			const original = await pages(true);
+			const base = rewrite
+				? await prepareSigningCopy(original, () =>
+						fillAndSign(original, { fields: [], marks: [] }),
+					)
+				: original;
+			const output = await signPdf(base, await id(), { appearance: null, now });
+			const texts = [];
+			for (const pdf of [original, output]) {
+				const reader = await pdfjs.getDocument({
+					data: pdf.slice(),
+					verbosity: 0,
+				}).promise;
+				const pages = [];
+				for (let n = 1; n <= reader.numPages; n++)
+					pages.push(
+						(await (await reader.getPage(n)).getTextContent()).items.map(
+							(item) => ("str" in item ? item.str : ""),
+						),
+					);
+				texts.push(pages);
+				await reader.destroy();
+			}
+			expect(texts[1]).toEqual(texts[0]);
+		},
+	);
 	it.each(["stream", "table", "multi", "signed"])(
 		"accepts real qpdf %s output",
 		async (kind) => {

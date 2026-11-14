@@ -1416,8 +1416,8 @@ export const ar: Table = {
 		"هذا الـ PDF مقفل بكلمة مرور. أزِل كلمة المرور أولًا (“إزالة كلمة مرور”)، ثم وقّع تلك النسخة.",
 	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
 		"صادق مؤلف هذا الـ PDF عليه دون السماح بأي تغيير، لذا لا يمكن توقيعه مجددًا.",
-	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
-		"بنية هذا الـ PDF تالفة، لذا فإن توقيعه مجددًا سيُبطل التوقيع السابق.",
+	"This PDF's structure is damaged or ambiguous, so it can't be signed safely.":
+		"بنية هذا الـ PDF تالفة أو ملبسة، لذا لا يمكن توقيعه بأمان.",
 	"Couldn't sign the copy": "تعذّر توقيع النسخة",
 	"Your digital signature will be added when you save.":
 		"سيُضاف توقيعك الرقمي عند الحفظ.",

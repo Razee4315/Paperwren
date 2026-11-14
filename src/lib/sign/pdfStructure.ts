@@ -1,9 +1,11 @@
 import {
 	PDFArray,
+	PDFContext,
 	PDFDict,
 	type PDFDocument,
 	PDFName,
 	PDFNumber,
+	type PDFObject,
 	PDFObjectParser,
 	PDFRawStream,
 	PDFRef,
@@ -50,7 +52,11 @@ export function crossReferences(
 	if (!end) throw new Error("damaged");
 	const last = Number(end[1]);
 	const visited = new Set<number>();
-	const objectStreams = new Map<number, number[]>();
+	// Parse in an untracked context: parsing arrays into the document's
+	// incremental context would search every indirect object on each push.
+	const parsing = PDFContext.create();
+	type Entry = { type: number; offset: number; generation: number };
+	const entries = new Map<number, Entry>();
 	const trailer: typeof doc.context.trailerInfo = {};
 	let stream = false;
 	const header = (offset: number, object: number, generation: number) => {
@@ -66,7 +72,7 @@ export function crossReferences(
 		)
 			throw new Error("damaged");
 	};
-	function section(offset: number, supplement = false): void {
+	function section(offset: number, supplement = false): Map<number, Entry> {
 		if (
 			!Number.isSafeInteger(offset) ||
 			visited.has(offset) ||
@@ -76,6 +82,7 @@ export function crossReferences(
 		)
 			throw new Error("damaged");
 		visited.add(offset);
+		const current = new Map<number, Entry>();
 		let dict: PDFDict;
 		if (source.slice(offset, offset + 4) === "xref") {
 			if (supplement) throw new Error("damaged");
@@ -99,12 +106,17 @@ export function crossReferences(
 					at += entry[0].length;
 					if (entry[3] === "n")
 						header(Number(entry[1]), first + i, Number(entry[2]));
+					current.set(first + i, {
+						type: entry[3] === "n" ? 1 : 0,
+						offset: Number(entry[1]),
+						generation: Number(entry[2]),
+					});
 				}
 				whitespace();
 			}
 			const object = PDFObjectParser.forBytes(
 				pdf.subarray(at + 7),
-				doc.context,
+				parsing,
 			).parseObject();
 			if (!(object instanceof PDFDict)) throw new Error("damaged");
 			dict = object;
@@ -115,7 +127,7 @@ export function crossReferences(
 			if (!match) throw new Error("damaged");
 			const object = PDFObjectParser.forBytes(
 				pdf.subarray(offset + match[0].length),
-				doc.context,
+				parsing,
 			).parseObject();
 			if (
 				!(object instanceof PDFRawStream) ||
@@ -171,40 +183,13 @@ export function crossReferences(
 						return n;
 					});
 					if (values[0] === 1) header(values[1], first + i, values[2]);
-					else if (values[0] === 2) {
-						const container = doc.context.lookup(PDFRef.of(values[1]));
-						if (
-							!(container instanceof PDFRawStream) ||
-							container.dict.get(PDFName.of("Type")) !== PDFName.of("ObjStm")
-						)
-							throw new Error("damaged");
-						let objects = objectStreams.get(values[1]);
-						if (!objects) {
-							const first = container.dict
-								.lookup(PDFName.of("First"), PDFNumber)
-								.asNumber();
-							const count = container.dict
-								.lookup(PDFName.of("N"), PDFNumber)
-								.asNumber();
-							const decoded = decodePDFRawStream(container).decode();
-							if (
-								first < 0 ||
-								first > decoded.length ||
-								count < 0 ||
-								count > first
-							)
-								throw new Error("damaged");
-							objects = new TextDecoder()
-								.decode(decoded.subarray(0, first))
-								.trim()
-								.split(/\s+/)
-								.map(Number);
-							if (objects.length !== count * 2) throw new Error("damaged");
-							objectStreams.set(values[1], objects);
-						}
-						if (objects[values[2] * 2] !== first + i)
-							throw new Error("damaged");
-					} else if (values[0] !== 0) throw new Error("damaged");
+					else if (values[0] !== 0 && values[0] !== 2)
+						throw new Error("damaged");
+					current.set(first + i, {
+						type: values[0],
+						offset: values[1],
+						generation: values[2],
+					});
 				}
 			}
 			if (at !== bytes.length) throw new Error("damaged");
@@ -218,7 +203,7 @@ export function crossReferences(
 		);
 		// A hybrid stream supplements its table. Its trailer and Prev do not
 		// describe another revision (ISO 32000-1, 7.5.8.4).
-		if (supplement) return;
+		if (supplement) return current;
 		for (const key of ["Root", "Info", "Encrypt", "ID", "Size"] as const) {
 			const value = dict.get(PDFName.of(key));
 			if (value && trailer[key] === undefined)
@@ -235,13 +220,128 @@ export function crossReferences(
 				throw new Error("damaged");
 		}
 		const hybrid = dict.lookupMaybe(PDFName.of("XRefStm"), PDFNumber);
-		if (hybrid) section(hybrid.asNumber(), true);
+		if (hybrid)
+			for (const [n, entry] of section(hybrid.asNumber(), true))
+				current.set(n, entry);
+		for (const [n, entry] of current)
+			if (!entries.has(n)) entries.set(n, entry);
 		const previous = dict.lookupMaybe(PDFName.of("Prev"), PDFNumber);
 		if (previous) {
 			section(previous.asNumber());
 		}
+		return current;
 	}
 	section(last);
+	const objects = new Map<number, PDFObject>();
+	for (const [n, entry] of entries) {
+		if (entry.type !== 1) continue;
+		const match = source
+			.slice(entry.offset, entry.offset + 80)
+			.match(/^(\d+)\s+(\d+)\s+obj\s*/);
+		if (!match) throw new Error("damaged");
+		const object = PDFObjectParser.forBytes(
+			pdf.subarray(entry.offset + match[0].length),
+			parsing,
+		).parseObject();
+		objects.set(n, object);
+		parsing.assign(PDFRef.of(n, entry.generation), object);
+	}
+	const streams = new Map<
+		number,
+		{ bytes: Uint8Array; first: number; slots: number[] }
+	>();
+	for (const [n, entry] of entries) {
+		if (entry.type !== 2) continue;
+		let stream = streams.get(entry.offset);
+		if (!stream) {
+			const container = objects.get(entry.offset);
+			if (
+				!(container instanceof PDFRawStream) ||
+				container.dict.get(PDFName.of("Type")) !== PDFName.of("ObjStm")
+			)
+				throw new Error("damaged");
+			const first = container.dict
+				.lookup(PDFName.of("First"), PDFNumber)
+				.asNumber();
+			const count = container.dict
+				.lookup(PDFName.of("N"), PDFNumber)
+				.asNumber();
+			const bytes = decodePDFRawStream(container).decode();
+			if (
+				!Number.isSafeInteger(first) ||
+				!Number.isSafeInteger(count) ||
+				first < 0 ||
+				first > bytes.length ||
+				count < 0 ||
+				count > first
+			)
+				throw new Error("damaged");
+			const slots = new TextDecoder()
+				.decode(bytes.subarray(0, first))
+				.trim()
+				.split(/\s+/)
+				.map(Number);
+			if (
+				slots.length !== count * 2 ||
+				slots.some((n) => !Number.isSafeInteger(n) || n < 0)
+			)
+				throw new Error("damaged");
+			for (let i = 1; i < slots.length; i += 2)
+				if (
+					first + slots[i] >= bytes.length ||
+					(i > 1 && slots[i] <= slots[i - 2])
+				)
+					throw new Error("damaged");
+			stream = { bytes, first, slots };
+			streams.set(entry.offset, stream);
+		}
+		const slot = entry.generation * 2;
+		if (stream.slots[slot] !== n) throw new Error("damaged");
+		const start = stream.first + stream.slots[slot + 1];
+		const end =
+			stream.slots[slot + 3] === undefined
+				? stream.bytes.length
+				: stream.first + stream.slots[slot + 3];
+		objects.set(
+			n,
+			PDFObjectParser.forBytes(
+				stream.bytes.subarray(start, end),
+				parsing,
+			).parseObject(),
+		);
+	}
+	// pdf-lib reads definitions in byte order instead of following xrefs.
+	// Compare every live definition with the exact offset or object-stream
+	// slot selected by the newest revision, including the stream bytes.
+	for (const [n, object] of objects) {
+		const entry = entries.get(n) as Entry;
+		const loaded = doc.context.lookup(
+			PDFRef.of(n, entry.type === 2 ? 0 : entry.generation),
+		);
+		if (!loaded || object.toString() !== loaded.toString())
+			throw new Error("damaged");
+	}
+	const seen = new Set<PDFObject>();
+	const pending: PDFObject[] = [doc.catalog];
+	while (pending.length) {
+		const object = pending.pop() as PDFObject;
+		if (seen.has(object)) continue;
+		seen.add(object);
+		if (object instanceof PDFRef) {
+			const entry = entries.get(object.objectNumber);
+			if (
+				!entry ||
+				entry.type === 0 ||
+				object.generationNumber !== (entry.type === 2 ? 0 : entry.generation)
+			)
+				throw new Error("damaged");
+			const value = doc.context.lookup(object);
+			if (!value) throw new Error("damaged");
+			pending.push(value);
+		} else if (object instanceof PDFRawStream) pending.push(object.dict);
+		else if (object instanceof PDFDict) pending.push(...object.values());
+		else if (object instanceof PDFArray) pending.push(...object.asArray());
+	}
 	// Linearized first-page trailers point forward to the main section and
 	// carry Root themselves (Annex F). Newest means chain order, not byte order.
 	// Refuse a catalog that pdf-lib recovered differently: appending to a

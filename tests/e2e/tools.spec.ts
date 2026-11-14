@@ -2464,6 +2464,18 @@ function linearized(): Uint8Array {
 }
 
 test.describe("sign with a digital ID", () => {
+	for (const kind of ["unsigned", "signed"]) {
+		test(`a shadowed ${kind} PDF is refused before choosing a digital ID`, async ({
+			page,
+		}) => {
+			await openForm(page, `digital-id/shadow-${kind}.pdf`);
+			await page.getByTestId("fill-tool-digital").click();
+			await expect(page.getByTestId("digital-id-problem-text")).toHaveText(
+				"This PDF's structure is damaged or ambiguous, so it can't be signed safely.",
+			);
+			await expect(page.getByTestId("digital-id-password")).toHaveCount(0);
+		});
+	}
 	test("an invisible signature is added to a copy, and nothing of the ID is kept", async ({
 		page,
 	}) => {

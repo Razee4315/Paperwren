@@ -1378,8 +1378,8 @@ export const ur: Table = {
 		"یہ PDF پاس ورڈ سے مقفل ہے۔ پہلے “پاس ورڈ ہٹائیں” سے پاس ورڈ ہٹا دیں، پھر اس نقل پر دستخط کریں۔",
 	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
 		"اس PDF کے مصنف نے اسے کسی تبدیلی کی اجازت کے بغیر سرٹیفائی کیا ہے، اس لیے اس پر دوبارہ دستخط نہیں ہو سکتے۔",
-	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
-		"اس PDF کی ساخت خراب ہے، اس لیے دوبارہ دستخط کرنے سے پہلا دستخط ٹوٹ جائے گا۔",
+	"This PDF's structure is damaged or ambiguous, so it can't be signed safely.":
+		"اس PDF کی ساخت خراب یا غیر واضح ہے، اس لیے اس پر محفوظ طریقے سے دستخط نہیں ہو سکتے۔",
 	"Couldn't sign the copy": "نقل پر دستخط نہیں ہو سکے",
 	"Your digital signature will be added when you save.":
 		"محفوظ کرتے وقت آپ کا ڈیجیٹل دستخط شامل ہو جائے گا۔",

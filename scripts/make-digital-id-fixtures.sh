@@ -119,3 +119,4 @@ for file in "$out"/*.p12; do
 done
 cd "$root"
 node scripts/make-digital-id-pdf-fixtures.mjs
+node scripts/make-digital-id-shadow-fixtures.mjs

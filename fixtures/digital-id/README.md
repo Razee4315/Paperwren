@@ -1,5 +1,11 @@
 Throwaway keys made for tests. They sign nothing real; never trust these certificates.
 
+`node scripts/make-digital-id-shadow-fixtures.mjs` generates the two
+`shadow-*.pdf` attack samples. Their xref selects a page saying PAY 100,
+but an unindexed later page definition says PAY 99999. The signed variant
+has a synthetic ByteRange marker to exercise the incremental UI path;
+it does not contain a real signature. Both must be refused before signing.
+
 Regenerate with `bash scripts/make-digital-id-fixtures.sh` (OpenSSL 3.x;
 the PBMAC1 sample additionally needs 3.4+). Random keys and salts change on
 each run. Certificates are valid from 2025-01-01 through 2045-01-01, except

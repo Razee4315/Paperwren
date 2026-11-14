@@ -117,7 +117,7 @@ const BLOCKERS: Record<SignBlocker, string> = {
 		"This PDF was certified by its author with no changes allowed, so it can't be signed again.",
 	),
 	damaged: msg(
-		"This PDF's structure is damaged, so signing it again would break the earlier signature.",
+		"This PDF's structure is damaged or ambiguous, so it can't be signed safely.",
 	),
 };
 

@@ -1393,8 +1393,8 @@ export const es: Table = {
 		"Este PDF está protegido con contraseña. Quita primero la contraseña (Quitar una contraseña) y luego firma esa copia.",
 	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
 		"El autor certificó este PDF sin permitir cambios, así que no se puede volver a firmar.",
-	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
-		"La estructura de este PDF está dañada, así que volver a firmarlo rompería la firma anterior.",
+	"This PDF's structure is damaged or ambiguous, so it can't be signed safely.":
+		"La estructura de este PDF está dañada o es ambigua, así que no se puede firmar de forma segura.",
 	"Couldn't sign the copy": "No se pudo firmar la copia",
 	"Your digital signature will be added when you save.":
 		"Tu firma digital se añadirá al guardar.",

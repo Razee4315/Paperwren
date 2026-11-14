@@ -780,7 +780,7 @@ export function FillSign({
 	 * bytes as they are, and the signature is added after them, so the
 	 * earlier one stays valid. */
 	const signCopy = async (held: Chosen, original: Uint8Array) => {
-		const { signPdf } = await import("@/lib/sign");
+		const { signPdf, prepareSigningCopy } = await import("@/lib/sign");
 		// One time for the caption and the signature.
 		const now = new Date();
 		let appearance = null;
@@ -805,14 +805,19 @@ export function FillSign({
 			};
 		}
 		const earlier = held.signed || signed;
+		const preparedMarks = earlier
+			? []
+			: await marksOf(items.filter((item) => item.kind !== "digital"));
 		const base = earlier
 			? original
-			: await fillAndSign(original, {
-					password,
-					fields: changedFields,
-					marks: await marksOf(items.filter((item) => item.kind !== "digital")),
-					flatten,
-				});
+			: await prepareSigningCopy(original, () =>
+					fillAndSign(original, {
+						password,
+						fields: changedFields,
+						marks: preparedMarks,
+						flatten,
+					}),
+				);
 		return signPdf(base, held.id, {
 			appearance,
 			// A form made flat has no fields left to sign in.

@@ -1,5 +1,5 @@
 import { DigitalIdError } from "./errors";
-import { type SignOptions, signWithId } from "./pades";
+import { PdfSignError, canSign, type SignOptions, signWithId } from "./pades";
 import { type ImportedId, readPkcs12 } from "./pkcs12";
 import { type DigitalIdSummary, certificateSummary } from "./x509";
 
@@ -15,6 +15,16 @@ export interface DigitalId {
 }
 
 const sessions = new WeakMap<DigitalId, ImportedId>();
+
+/** Check the original before a full rewrite can hide a repaired object graph. */
+export async function prepareSigningCopy(
+	pdf: Uint8Array,
+	rewrite: () => Promise<Uint8Array>,
+): Promise<Uint8Array> {
+	const checked = await canSign(pdf);
+	if (checked.blocker) throw new PdfSignError(checked.blocker);
+	return rewrite();
+}
 
 export async function readDigitalId(
 	file: Uint8Array,

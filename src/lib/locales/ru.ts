@@ -1426,8 +1426,8 @@ export const ru: Table = {
 		"Этот PDF защищён паролем. Сначала уберите пароль («Убрать пароль»), затем подпишите полученную копию.",
 	"This PDF was certified by its author with no changes allowed, so it can't be signed again.":
 		"Автор заверил этот PDF без права изменений, поэтому подписать его ещё раз нельзя.",
-	"This PDF's structure is damaged, so signing it again would break the earlier signature.":
-		"Структура этого PDF повреждена, поэтому новая подпись нарушит прежнюю.",
+	"This PDF's structure is damaged or ambiguous, so it can't be signed safely.":
+		"Структура этого PDF повреждена или неоднозначна, поэтому его нельзя безопасно подписать.",
 	"Couldn't sign the copy": "Не удалось подписать копию",
 	"Your digital signature will be added when you save.":
 		"Цифровая подпись будет добавлена при сохранении.",
