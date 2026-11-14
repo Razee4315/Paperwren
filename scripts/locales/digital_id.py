@@ -1,6 +1,7 @@
 """Signing with a digital ID (.pfx, .p12), in the same language order as strings.py."""
 
 ROWS = [
+    ("This file has no integrity check, so it can't be told whether it was changed.", "اس فائل میں سالمیت کی جانچ نہیں، اس لیے یہ معلوم نہیں ہو سکتا کہ اسے بدلا گیا ہے یا نہیں۔", "لا يحتوي هذا الملف على فحص لسلامته، لذا لا يمكن معرفة ما إذا كان قد تغيّر.", "此文件没有完整性校验，无法判断它是否被修改过。", "इस फ़ाइल में अखंडता की जाँच नहीं है, इसलिए पता नहीं चल सकता कि इसे बदला गया है या नहीं।", "Este archivo no tiene una comprobación de integridad, así que no se puede saber si fue modificado.", "Ce fichier n'a pas de contrôle d'intégrité : on ne peut pas savoir s'il a été modifié.", "В этом файле нет проверки целостности, поэтому нельзя узнать, был ли он изменён.", "Este arquivo não tem verificação de integridade, então não é possível saber se foi alterado."),
     ("Choose your digital ID (.pfx or .p12)", "اپنی ڈیجیٹل آئی ڈی منتخب کریں (.pfx یا .p12)", "اختر معرّفك الرقمي (.pfx أو .p12)", "选择你的数字身份证（.pfx 或 .p12）", "अपनी डिजिटल आईडी चुनें (.pfx या .p12)", "Elige tu ID digital (.pfx o .p12)", "Choisissez votre identifiant numérique (.pfx ou .p12)", "Выберите цифровое удостоверение (.pfx или .p12)", "Escolha sua ID digital (.pfx ou .p12)"),
     ("Digital IDs", "ڈیجیٹل آئی ڈیز", "المعرّفات الرقمية", "数字身份证", "डिजिटल आईडी", "IDs digitales", "Identifiants numériques", "Цифровые удостоверения", "IDs digitais"),
     ("All files", "تمام فائلیں", "كل الملفات", "所有文件", "सभी फ़ाइलें", "Todos los archivos", "Tous les fichiers", "Все файлы", "Todos os arquivos"),

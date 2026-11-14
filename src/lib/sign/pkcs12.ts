@@ -23,6 +23,7 @@ export type Hash = "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
 export type KeyKind = "RSA" | "P-256" | "P-384" | "P-521";
 
 export interface ImportedId {
+	unprotected: boolean;
 	key: CryptoKey;
 	chain: Uint8Array[];
 	hash: Exclude<Hash, "SHA-1">;
@@ -535,7 +536,10 @@ function publicBytes(bytes: Uint8Array): Uint8Array {
 	return modulus[0] ? modulus : modulus.subarray(1);
 }
 
-async function match(keys: Bag[], certs: Bag[]): Promise<ImportedId> {
+async function match(
+	keys: Bag[],
+	certs: Bag[],
+): Promise<Omit<ImportedId, "unprotected">> {
 	if (!keys.length) throw new DigitalIdError("no-key");
 	let keyError: DigitalIdError | undefined;
 	for (const bag of keys) {
@@ -740,14 +744,24 @@ export async function readPkcs12(
 				if (objectId(contentType) !== OID.data)
 					unsupported(objectId(contentType));
 				const encryptedBytes = keep(octets(encrypted, 128));
-				await contents(
-					keep(await decrypt(algorithm, encryptedBytes, encoded, utf8, work)),
+				const plain = keep(
+					await decrypt(algorithm, encryptedBytes, encoded, utf8, work),
 				);
+				try {
+					await contents(plain);
+				} catch (error) {
+					if (
+						error instanceof DigitalIdError ||
+						(error instanceof DOMException && error.name === "AbortError")
+					)
+						throw error;
+					throw new DigitalIdError("password");
+				}
 			} else unsupported(id);
 		}
 		const result = await match(keys, certs);
 		work.check();
-		return result;
+		return { ...result, unprotected: !pfx[2] };
 	} catch (error) {
 		if (
 			error instanceof DigitalIdError ||

@@ -57,6 +57,12 @@ export function certificateWarnings(
 	now: Date,
 ): string[] {
 	const out: string[] = [];
+	if (summary.unprotected)
+		out.push(
+			t(
+				"This file has no integrity check, so it can't be told whether it was changed.",
+			),
+		);
 	const when = validity(summary, now);
 	if (when === "expired")
 		out.push(

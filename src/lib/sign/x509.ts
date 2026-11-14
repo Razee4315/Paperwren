@@ -3,6 +3,7 @@ import { type Asn1, expectTag, objectId, sequence } from "./der";
 import type { ImportedId, KeyKind } from "./pkcs12";
 
 export interface DigitalIdSummary {
+	unprotected: boolean;
 	name: string;
 	organisation?: string;
 	email?: string;
@@ -86,7 +87,8 @@ const signingPurposes = new Set([
 ]);
 
 export function certificateSummary(
-	id: Pick<ImportedId, "chain" | "kind" | "bits">,
+	id: Pick<ImportedId, "chain" | "kind" | "bits"> &
+		Partial<Pick<ImportedId, "unprotected">>,
 ): DigitalIdSummary {
 	const cert = certificate(id.chain[0]);
 	const subject = name(cert.subject);
@@ -98,6 +100,7 @@ export function certificateSummary(
 	const usage = cert.extensions.get("2.5.29.15");
 	const extended = cert.extensions.get("2.5.29.37");
 	return {
+		unprotected: id.unprotected ?? false,
 		name: subject.commonName ?? subject.organisation ?? subject.email ?? "",
 		organisation: subject.organisation,
 		email: email ? new TextDecoder().decode(email.value) : subject.email,

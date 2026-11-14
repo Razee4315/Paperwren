@@ -1366,6 +1366,8 @@ export const fr: Table = {
 		"Paperwren n'a pas le droit de renommer ce fichier",
 	"That's the file you have open. Choose another name.":
 		"C'est le fichier que vous avez ouvert. Choisissez un autre nom.",
+	"This file has no integrity check, so it can't be told whether it was changed.":
+		"Ce fichier n'a pas de contrôle d'intégrité : on ne peut pas savoir s'il a été modifié.",
 	"Choose your digital ID (.pfx or .p12)":
 		"Choisissez votre identifiant numérique (.pfx ou .p12)",
 	"Digital IDs": "Identifiants numériques",

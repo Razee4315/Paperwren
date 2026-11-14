@@ -1336,6 +1336,8 @@ export const ur: Table = {
 		"Paperwren کو اس فائل کا نام بدلنے کی اجازت نہیں",
 	"That's the file you have open. Choose another name.":
 		"یہ وہی فائل ہے جو آپ نے کھول رکھی ہے۔ کوئی اور نام چنیں۔",
+	"This file has no integrity check, so it can't be told whether it was changed.":
+		"اس فائل میں سالمیت کی جانچ نہیں، اس لیے یہ معلوم نہیں ہو سکتا کہ اسے بدلا گیا ہے یا نہیں۔",
 	"Choose your digital ID (.pfx or .p12)":
 		"اپنی ڈیجیٹل آئی ڈی منتخب کریں (.pfx یا .p12)",
 	"Digital IDs": "ڈیجیٹل آئی ڈیز",

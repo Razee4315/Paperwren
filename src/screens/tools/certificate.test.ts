@@ -13,6 +13,7 @@ import {
 } from "./certificate";
 
 const summary = (more: Partial<DigitalIdSummary> = {}): DigitalIdSummary => ({
+	unprotected: false,
 	name: "Test Signer rsa",
 	organisation: "Paperwren Tests",
 	email: "signer@example.invalid",
@@ -44,6 +45,13 @@ describe("a certificate's dates", () => {
 });
 
 describe("what is said before signing", () => {
+	it("warns plainly when the digital ID had no integrity check", () => {
+		expect(
+			certificateWarnings(summary({ unprotected: true }), day("2026-11-14")),
+		).toEqual([
+			"This file has no integrity check, so it can't be told whether it was changed.",
+		]);
+	});
 	it("names who signs, leaving out what the certificate doesn't give", () => {
 		expect(signerLines(summary())).toEqual([
 			"Test Signer rsa",

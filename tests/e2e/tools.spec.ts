@@ -2464,6 +2464,17 @@ function linearized(): Uint8Array {
 }
 
 test.describe("sign with a digital ID", () => {
+	test("a digital ID without a MAC warns before signing", async ({ page }) => {
+		await openForm(page);
+		await nextDigitalId(page, "rsa-nomac.p12");
+		await page.getByTestId("fill-tool-digital").click();
+		await page.getByTestId("digital-id-password").fill("wren");
+		await page.getByTestId("digital-id-unlock").click();
+		await expect(page.getByTestId("digital-id-warning")).toHaveText(
+			"This file has no integrity check, so it can't be told whether it was changed.",
+		);
+		await expect(page.getByTestId("digital-id-continue")).toBeEnabled();
+	});
 	for (const kind of ["unsigned", "signed"]) {
 		test(`a shadowed ${kind} PDF is refused before choosing a digital ID`, async ({
 			page,

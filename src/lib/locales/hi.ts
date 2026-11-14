@@ -1314,6 +1314,8 @@ export const hi: Table = {
 		"Paperwren को इस फ़ाइल का नाम बदलने की अनुमति नहीं है",
 	"That's the file you have open. Choose another name.":
 		"यह वही फ़ाइल है जो आपने खोल रखी है। कोई और नाम चुनें।",
+	"This file has no integrity check, so it can't be told whether it was changed.":
+		"इस फ़ाइल में अखंडता की जाँच नहीं है, इसलिए पता नहीं चल सकता कि इसे बदला गया है या नहीं।",
 	"Choose your digital ID (.pfx or .p12)": "अपनी डिजिटल आईडी चुनें (.pfx या .p12)",
 	"Digital IDs": "डिजिटल आईडी",
 	"All files": "सभी फ़ाइलें",

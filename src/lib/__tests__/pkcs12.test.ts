@@ -99,6 +99,35 @@ const emptySafe = (algorithm: Uint8Array) => {
 };
 
 describe("PKCS#12 digital IDs", () => {
+	it("surfaces a stripped MAC in the public summary", async () => {
+		const parts = sequence(read(fixture("rsa-aes256.p12")));
+		const stripped = seq(parts[0].raw, parts[1].raw);
+		expect((await readDigitalId(stripped, "wren")).summary.unprotected).toBe(
+			true,
+		);
+		expect(
+			(await readDigitalId(fixture("rsa-aes256.p12"), "wren")).summary
+				.unprotected,
+		).toBe(false);
+		expect(
+			(await readDigitalId(fixture("rsa-nomac.p12"), "wren")).summary
+				.unprotected,
+		).toBe(true);
+	});
+	it("reports invalid decrypted ASN.1 in a MAC-less safe as a password failure", async () => {
+		const derived = pbkdf2Sync("wren", new Uint8Array(8), 1, 16, "sha256");
+		const cipher = createCipheriv("aes-128-cbc", derived, new Uint8Array(16));
+		const encrypted = Buffer.concat([
+			cipher.update(Uint8Array.of(48, 255)),
+			cipher.final(),
+		]);
+		await expect(
+			readPkcs12(
+				seq(integer(3), data(seq(encryptedSafe(pbes2(1), encrypted)))),
+				"wren",
+			),
+		).rejects.toMatchObject({ reason: "password" });
+	});
 	it("counts legacy key and IV blocks together with the MAC before doing work", async () => {
 		const algorithm = seq(
 			oid(OID.pbeTripleDes),

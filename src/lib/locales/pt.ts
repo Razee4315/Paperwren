@@ -1354,6 +1354,8 @@ export const pt: Table = {
 		"O Paperwren não tem permissão para renomear este arquivo",
 	"That's the file you have open. Choose another name.":
 		"Esse é o arquivo que você tem aberto. Escolha outro nome.",
+	"This file has no integrity check, so it can't be told whether it was changed.":
+		"Este arquivo não tem verificação de integridade, então não é possível saber se foi alterado.",
 	"Choose your digital ID (.pfx or .p12)":
 		"Escolha sua ID digital (.pfx ou .p12)",
 	"Digital IDs": "IDs digitais",
