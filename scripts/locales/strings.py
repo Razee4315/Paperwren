@@ -828,3 +828,7 @@ ROWS += FIXES_171_UX_ROWS
 # and keeping quality.
 from compress_18 import ROWS as COMPRESS_18_ROWS
 ROWS += COMPRESS_18_ROWS
+
+# Words for vCard contact cards in 1.8.
+from vcf_18 import ROWS as VCF_18_ROWS
+ROWS += VCF_18_ROWS

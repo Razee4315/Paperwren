@@ -7,6 +7,7 @@
 
 import { type FileFormat, formatFromName } from "./formats";
 import { guardedUnzip } from "./safeZip";
+import { decodeText } from "./text";
 
 /** ISO media brands of pictures (the box after "ftyp"). */
 const AVIF = ["avif", "avis"];
@@ -233,6 +234,13 @@ export function sniffFormat(buffer: ArrayBuffer, nameHint = ""): FileFormat {
 
 	const utf16 =
 		startsWith(bytes, [0xff, 0xfe]) || startsWith(bytes, [0xfe, 0xff]);
+	if (
+		/^\uFEFF?(?:[ \t]*\r?\n)*BEGIN:VCARD[ \t]*(?:\r?\n|$)/i.test(
+			decodeText(bytes.slice(0, 8192).buffer),
+		)
+	)
+		return "vcf";
+	if (hinted === "vcf") return "vcf";
 	if (!utf16 && !looksLikeText(head)) return "unknown";
 	if (hinted === "csv" || hinted === "md") return hinted;
 	return "txt";

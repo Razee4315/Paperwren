@@ -61,6 +61,14 @@
     ],
     "fileAssociations": [
       {
+        "ext": ["vcf"],
+        "name": "vCard contacts",
+        "description": "vCard contacts",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "mimeType": "text/vcard"
+      },
+      {
         "ext": [
           "pdf"
         ],

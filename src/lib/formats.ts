@@ -21,6 +21,7 @@ export type FileFormat =
 	| "ppt"
 	| "odp"
 	| "md"
+	| "vcf"
 	| "txt"
 	| "image"
 	| "cbz"
@@ -51,6 +52,7 @@ export const ALL_FORMATS: FileFormat[] = [
 	"ppt",
 	"odp",
 	"md",
+	"vcf",
 	"txt",
 	"image",
 	"cbz",
@@ -154,6 +156,7 @@ const EXTENSIONS: Record<string, FileFormat> = {
 	odp: "odp",
 	md: "md",
 	markdown: "md",
+	vcf: "vcf",
 	txt: "txt",
 	text: "txt",
 	log: "txt",
@@ -210,6 +213,7 @@ export function kindOf(format: FileFormat): FormatKind {
 		case "odp":
 			return "slides";
 		case "md":
+		case "vcf":
 		case "txt":
 			return "text";
 		case "image":
@@ -317,6 +321,7 @@ const MIME: Record<FileFormat, string> = {
 	ppt: "application/vnd.ms-powerpoint",
 	odp: "application/vnd.oasis.opendocument.presentation",
 	md: "text/markdown",
+	vcf: "text/vcard",
 	txt: "text/plain",
 	image: "image/*",
 	cbz: "application/vnd.comicbook+zip",

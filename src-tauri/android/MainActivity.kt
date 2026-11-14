@@ -850,6 +850,7 @@ class MainActivity : TauriActivity() {
       "image/webp" -> "webp"
       "image/bmp" -> "bmp"
       "text/markdown" -> "md"
+      "text/vcard", "text/x-vcard", "text/directory" -> "vcf"
       "text/plain" -> "txt"
       else -> null
     }

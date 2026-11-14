@@ -1,6 +1,48 @@
 import { expect, test } from "@playwright/test";
 import { boot, openFixture } from "./helpers";
 
+test("vCard contacts open, copy, find and sniff with Unicode names", async ({
+	page,
+	context,
+}) => {
+	await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+	await boot(page);
+	await openFixture(page, "contacts-40.vcf", "contacts.wrong");
+	const cards = page.getByTestId("contact-card");
+	await expect(cards).toHaveCount(2);
+	await expect(cards.first()).toContainText("Aisha Khan");
+	await expect(cards.nth(1)).toContainText("Rafael Silva");
+	await expect(cards.first()).toContainText("+92 300 1234567");
+	await expect(cards.first()).toContainText("Phone· Mobile");
+	await expect(cards.first()).toContainText("Address· Work");
+	await cards
+		.first()
+		.getByRole("button")
+		.filter({ hasText: "aisha@example.com" })
+		.click();
+	await expect
+		.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+		.toBe("aisha@example.com");
+	await page
+		.getByRole("button", { name: "Find in document", exact: true })
+		.click();
+	await page.getByTestId("find-input").fill("Rafael");
+	await expect(page.getByTestId("find-count")).toContainText("1");
+	await page.getByTestId("viewer-back").click();
+	await openFixture(page, "contacts-21.vcf");
+	await expect(page.getByTestId("contact-card")).toContainText("عائشہ خان");
+	await page.getByTestId("viewer-back").click();
+	await openFixture(page, "contacts-30.vcf");
+	await expect(page.getByTestId("contact-photo")).toBeVisible();
+	expect(
+		await page
+			.getByTestId("contact-photo")
+			.evaluate(
+				(img: HTMLImageElement) => img.complete && img.naturalWidth > 0,
+			),
+	).toBe(true);
+});
+
 const CASES: Array<[string, string]> = [
 	["sample.pdf", "Paperwren test page 1 of 3"],
 	["sample.docx", ""],

@@ -19,6 +19,22 @@ const fixture = (name: string) => {
 };
 
 describe("sniffFormat", () => {
+	it("recognises vCards only at the first non-blank line", () => {
+		const encode = (text: string) => new TextEncoder().encode(text).buffer;
+		expect(
+			sniffFormat(
+				encode("# Example\n```vcf\nBEGIN:VCARD\nEND:VCARD\n```"),
+				"notes.md",
+			),
+		).toBe("md");
+		expect(
+			sniffFormat(
+				encode("\uFEFF\r\n \t\r\nbegin:vcard\r\nEND:VCARD"),
+				"contacts.txt",
+			),
+		).toBe("vcf");
+	});
+
 	it.each([
 		["sample.pdf", "pdf"],
 		["sample.docx", "docx"],

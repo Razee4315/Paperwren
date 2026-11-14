@@ -20,7 +20,7 @@ pub const DOCUMENT_EXTENSIONS: &[&str] = &[
     "bmp", "svg", "avif", "heic", "heif", "tif", "tiff", "cbz", "jsx", "ts", "tsx", "go", "rs",
     "java", "kt", "kts", "swift", "c", "h", "cpp", "cc", "hpp", "cs", "sql", "css", "scss", "less",
     "html", "htm", "vue", "toml", "gradle", "dart", "diff", "patch", "properties", "conf", "cfg",
-    "env", "csproj", "plist",
+    "env", "csproj", "plist", "vcf",
 ];
 
 /// Source code a system may run when it is opened with its default app
