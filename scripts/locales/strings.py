@@ -852,3 +852,6 @@ ROWS += MODEL_18_ROWS
 # changes, and why a rename was refused.
 from rename_18 import ROWS as RENAME_18_ROWS
 ROWS += RENAME_18_ROWS
+# Signing with a digital ID.
+from digital_id import ROWS as DIGITAL_ID_ROWS
+ROWS += DIGITAL_ID_ROWS

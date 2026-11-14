@@ -1364,4 +1364,8 @@ export const fr: Table = {
 		"Une autre app utilise ce fichier. Fermez-le là-bas, puis réessayez.",
 	"Paperwren isn't allowed to rename this file":
 		"Paperwren n'a pas le droit de renommer ce fichier",
+	"Choose your digital ID (.pfx or .p12)":
+		"Choisissez votre identifiant numérique (.pfx ou .p12)",
+	"Digital IDs": "Identifiants numériques",
+	"All files": "Tous les fichiers",
 };

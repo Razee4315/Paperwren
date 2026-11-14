@@ -1373,4 +1373,7 @@ export const ar: Table = {
 		"يستخدم تطبيق آخر هذا الملف. أغلقه هناك ثم حاول مرة أخرى.",
 	"Paperwren isn't allowed to rename this file":
 		"لا يُسمح لـ Paperwren بإعادة تسمية هذا الملف",
+	"Choose your digital ID (.pfx or .p12)": "اختر معرّفك الرقمي (.pfx أو .p12)",
+	"Digital IDs": "المعرّفات الرقمية",
+	"All files": "كل الملفات",
 };

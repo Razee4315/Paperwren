@@ -1312,4 +1312,7 @@ export const hi: Table = {
 		"यह फ़ाइल किसी और ऐप में खुली है। उसे वहाँ बंद करें, फिर दोबारा कोशिश करें।",
 	"Paperwren isn't allowed to rename this file":
 		"Paperwren को इस फ़ाइल का नाम बदलने की अनुमति नहीं है",
+	"Choose your digital ID (.pfx or .p12)": "अपनी डिजिटल आईडी चुनें (.pfx या .p12)",
+	"Digital IDs": "डिजिटल आईडी",
+	"All files": "सभी फ़ाइलें",
 };
