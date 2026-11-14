@@ -117,3 +117,5 @@ for file in "$out"/*.p12; do
   esac
   openssl pkcs12 -legacy -info -noout -in "$file" -passin "$password" 2>&1
 done
+cd "$root"
+node scripts/make-digital-id-pdf-fixtures.mjs

@@ -17,3 +17,14 @@ two-key 3DES and RC2-128 relatives. `rsa-plainkey.p12` exercises keyBag.
 The generator verifies every export with OpenSSL and prints its algorithms.
 Mismatched IDs and malformed structures are constructed in unit tests:
 OpenSSL deliberately refuses to export a mismatched key and certificate.
+
+`node scripts/make-digital-id-pdf-fixtures.mjs` regenerates `signed-once.pdf`
+and `certified-nochanges.pdf` using OpenSSL CMS signatures, independently of
+the signing library. The main generator also runs it (Node and the existing
+pdf-lib dependency are needed). Both have classic xref tables. PDF tests
+generate xref streams and rotated pages in memory.
+
+The stage A library has no canvas or font renderer. Optional text captions
+use the standard PDF font's WinAnsi characters; other scripts must be drawn
+into the supplied appearance PNG by the caller. A non-WinAnsi `caption`
+returns `unsupported`. This is a deliberate limit of this library-only stage.

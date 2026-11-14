@@ -1,69 +1,46 @@
-// Placeholder: replaced by the real module from the digital-id branch.
-import type { Placement } from "../pdfTools";
+import { DigitalIdError } from "./errors";
+import { type SignOptions, signWithId } from "./pades";
+import { type ImportedId, readPkcs12 } from "./pkcs12";
+import { type DigitalIdSummary, certificateSummary } from "./x509";
 
-export type DigitalIdProblem =
-	| "password"
-	| "not-digital-id"
-	| "unsupported"
-	| "no-key"
-	| "key-type"
-	| "mismatch";
-
-export class DigitalIdError extends Error {
-	constructor(
-		readonly reason: DigitalIdProblem,
-		detail?: string,
-	) {
-		super(detail ?? reason);
-	}
-}
-
-export interface DigitalIdSummary {
-	name: string;
-	organisation?: string;
-	email?: string;
-	issuer: string;
-	issuerOrganisation?: string;
-	selfSigned: boolean;
-	validFrom: Date;
-	validUntil: Date;
-	notForSigning: boolean;
-	key: "RSA" | "P-256" | "P-384" | "P-521";
-	bits: number;
-}
+export { DigitalIdError } from "./errors";
+export type { DigitalIdProblem } from "./errors";
+export { canSign, PdfSignError } from "./pades";
+export type { SignBlocker } from "./pades";
+export type { DigitalIdSummary } from "./x509";
 
 export interface DigitalId {
 	summary: DigitalIdSummary;
 	forget(): void;
 }
 
-export function readDigitalId(
-	_file: Uint8Array,
-	_password: string,
+const sessions = new WeakMap<DigitalId, ImportedId>();
+
+export async function readDigitalId(
+	file: Uint8Array,
+	password: string,
 ): Promise<DigitalId> {
-	throw new Error("not built yet");
+	const imported = await readPkcs12(file, password);
+	try {
+		const id: DigitalId = {
+			summary: certificateSummary(imported),
+			forget() {
+				sessions.delete(id);
+			},
+		};
+		sessions.set(id, imported);
+		return id;
+	} catch {
+		throw new DigitalIdError("not-digital-id");
+	}
 }
 
-export type SignBlocker = "encrypted" | "certified" | "damaged";
-
-export function canSign(
-	_pdf: Uint8Array,
-): Promise<{ signed: boolean; blocker?: SignBlocker }> {
-	throw new Error("not built yet");
-}
-
-export function signPdf(
-	_pdf: Uint8Array,
-	_id: DigitalId,
-	_options: {
-		appearance: {
-			placement: Placement;
-			png: Uint8Array;
-			caption?: string;
-		} | null;
-		field?: string;
-		now?: Date;
-	},
+export async function signPdf(
+	pdf: Uint8Array,
+	id: DigitalId,
+	options: SignOptions,
 ): Promise<Uint8Array> {
-	throw new Error("not built yet");
+	const imported = sessions.get(id);
+	if (!imported) throw new DigitalIdError("no-key");
+	return signWithId(pdf, imported, id.summary.name, options);
 }
