@@ -556,9 +556,14 @@ export function Shell({
 				"--bars-top",
 				`${topBar.current?.offsetHeight ?? 0}px`,
 			);
+			// A phone held sideways has the bottom bar as a rail beside the
+			// document, in a column of its own: nothing to keep clear of at
+			// the foot (Shell.module.css, --rail).
+			const rail =
+				getComputedStyle(root).getPropertyValue("--rail").trim() === "1";
 			root.style.setProperty(
 				"--bars-bottom",
-				`${footBar.current?.offsetHeight ?? 0}px`,
+				`${rail ? 0 : (footBar.current?.offsetHeight ?? 0)}px`,
 			);
 		};
 		room();

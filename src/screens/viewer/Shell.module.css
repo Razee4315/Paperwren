@@ -328,6 +328,123 @@
 	transform: translateY(100%);
 }
 
+/* ---------- A phone held sideways ----------
+ * Height is what a sideways phone lacks: the top bar is a desktop's
+ * height, and the bottom bar is a rail at the inline end (the left in
+ * Arabic and Urdu) with its controls in a column. The rail keeps its
+ * column even while it floats, so the document never changes width;
+ * it slides aside instead of down. --rail tells Shell.tsx the bottom
+ * bar takes no room at the foot. */
+@media (orientation: landscape) and (max-height: 500px) {
+	:global(html:not(.desktop)) .shell {
+		--bar-h: 44px;
+		--rail: 1;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-rows: auto minmax(0, 1fr);
+	}
+	:global(html:not(.desktop)) .shell > .top {
+		grid-column: 1 / -1;
+	}
+	:global(html:not(.desktop)) .shell > .body {
+		grid-area: 2 / 1;
+	}
+	:global(html:not(.desktop)) .shell > .bottom {
+		grid-area: 2 / 2;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		border-top: 0;
+		border-inline-start: 1px solid var(--line);
+		padding-inline-end: var(--safe-right);
+		transition: margin-inline-end var(--t-med) var(--ease), opacity var(--t-med)
+			var(--ease);
+	}
+	:global(html[dir="rtl"]:not(.desktop)) .shell > .bottom {
+		padding-inline-end: var(--safe-left);
+	}
+	:global(html:not(.desktop)) .shell > .hiddenBottom {
+		margin-bottom: 0;
+		margin-inline-end: -120px;
+	}
+	/* Floating, the rail stays in its column (the top bar lies over its
+	 * head, so its controls start under it) and moves by transform. */
+	:global(html:not(.desktop)) .shell[data-floating] > .bottom {
+		position: relative;
+		left: auto;
+		right: auto;
+		bottom: auto;
+		/* Under the top bar, whose end it would otherwise cover. */
+		z-index: 9;
+		padding-top: var(--bars-top, 0px);
+		transition: transform var(--t-med) var(--ease), opacity var(--t-med)
+			var(--ease);
+	}
+	:global(html:not(.desktop)) .shell[data-floating] > .hiddenBottom {
+		margin-inline-end: 0;
+		transform: translateX(100%);
+	}
+	:global(html[dir="rtl"]:not(.desktop)) .shell[data-floating] > .hiddenBottom {
+		transform: translateX(-100%);
+	}
+	/* The controls, one under another: the zoom first, then the page,
+	 * then the rest. More than the height holds scroll. Auto margins
+	 * centre them while they fit and give way when they do not. */
+	:global(html:not(.desktop)) .bottom .pager {
+		flex-direction: column;
+		justify-content: flex-start;
+		gap: 12px;
+		height: auto;
+		min-height: 0;
+		margin-block: auto;
+		padding: 8px 4px;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+	:global(html:not(.desktop)) .bottom .zoom {
+		order: -1;
+		flex-direction: column;
+		width: 44px;
+		height: auto;
+	}
+	:global(html:not(.desktop)) .bottom .zoomValue {
+		min-width: 0;
+		width: 44px;
+		height: auto;
+		min-height: 40px;
+		padding: 2px;
+		font-size: 11.5px;
+		line-height: 1.15;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		text-align: center;
+	}
+	:global(html:not(.desktop)) .bottom .group {
+		flex-direction: column;
+	}
+	:global(html:not(.desktop)) .bottom .pill {
+		flex-shrink: 0;
+		min-width: 0;
+		width: 44px;
+		height: auto;
+		min-height: 40px;
+		padding: 4px 2px;
+		border-radius: 22px;
+		font-size: 12px;
+		line-height: 1.2;
+	}
+	:global(html:not(.desktop)) .bottom .meta {
+		flex-shrink: 0;
+		width: 44px;
+		padding: 0;
+		font-size: 11px;
+		line-height: 1.2;
+		text-align: center;
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+}
+
 .find {
 	display: flex;
 	align-items: center;

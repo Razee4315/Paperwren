@@ -1241,6 +1241,157 @@ test.describe("reading on a phone", () => {
 	});
 });
 
+test.describe("a phone held sideways", () => {
+	test.use({ viewport: { width: 844, height: 390 } });
+
+	/** Where the bars are, and how much of the height they take: a bar
+	 * across the screen takes its height, a rail beside the page none. */
+	const bars = (page: Page) =>
+		page.getByTestId("viewer").evaluate((shell) => {
+			const top = (shell.querySelector("header") as HTMLElement)
+				.getBoundingClientRect()
+				.toJSON() as DOMRect;
+			const foot = (shell.querySelector("footer") as HTMLElement)
+				.getBoundingClientRect()
+				.toJSON() as DOMRect;
+			const rail = foot.height > foot.width;
+			return {
+				share: (top.height + (rail ? 0 : foot.height)) / window.innerHeight,
+				rail,
+				foot,
+				width: window.innerWidth,
+			};
+		});
+
+	/** Every button in the rail is on screen, a finger's size, and the
+	 * topmost thing where it sits. */
+	const railButtonsReachable = (page: Page) =>
+		page.getByTestId("viewer").evaluate((shell) => {
+			const wrong: string[] = [];
+			for (const b of shell.querySelectorAll<HTMLElement>("footer button")) {
+				const r = b.getBoundingClientRect();
+				const name = b.getAttribute("aria-label") ?? b.textContent ?? "";
+				if (
+					r.left < 0 ||
+					r.top < 0 ||
+					r.right > window.innerWidth ||
+					r.bottom > window.innerHeight
+				)
+					wrong.push(`off screen: ${name}`);
+				if (r.width < 40 || r.height < 40) wrong.push(`small: ${name}`);
+				const hit = document.elementFromPoint(
+					r.left + r.width / 2,
+					r.top + r.height / 2,
+				);
+				if (!hit || !b.contains(hit)) wrong.push(`covered: ${name}`);
+			}
+			return wrong;
+		});
+
+	test("the bottom bar is a rail at the side, and comes back upright", async ({
+		page,
+	}) => {
+		await boot(page);
+		const pdf = longPdf(12);
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, pdf);
+		await page.getByTestId("open-file").click();
+		const counter = page.getByTestId("pdf-page");
+		await expect(counter).toContainText("/ 12", { timeout: 20_000 });
+
+		const side = await bars(page);
+		expect(side.rail).toBe(true);
+		expect(side.share).toBeLessThanOrEqual(0.12);
+		// At the right edge.
+		expect(side.foot.right).toBeCloseTo(side.width, 0);
+		expect(side.foot.width).toBeLessThan(64);
+		expect(await railButtonsReachable(page)).toEqual([]);
+
+		// The rail's buttons work.
+		const scale = page.getByTestId("pdf-scale");
+		const before = await scale.textContent();
+		await page.getByTestId("pdf-zoom-in").click();
+		await expect(scale).not.toHaveText(before ?? "");
+		await counter.click();
+		await page.getByTestId("pdf-jump-input").fill("3");
+		await page.getByTestId("pdf-jump-go").click();
+		await expect(counter).toContainText("3 / 12");
+
+		// Upright again: a bar across the foot, as before.
+		await page.setViewportSize({ width: 390, height: 844 });
+		await expect.poll(async () => (await bars(page)).rail).toBe(false);
+		const upright = await bars(page);
+		expect(upright.foot.width).toBeCloseTo(390, 0);
+		expect(upright.foot.bottom).toBeCloseTo(844, 0);
+	});
+
+	test("the rail is at the left in Arabic", async ({ page }) => {
+		await boot(page, { settings_v2: { language: "ar" } });
+		await openFixture(page, "sample.pdf");
+		await expect(page.getByTestId("pdf-zoom-in")).toBeVisible({
+			timeout: 20_000,
+		});
+		const side = await bars(page);
+		expect(side.rail).toBe(true);
+		expect(side.foot.left).toBeCloseTo(0, 0);
+		expect(side.share).toBeLessThanOrEqual(0.12);
+		expect(await railButtonsReachable(page)).toEqual([]);
+	});
+
+	test("bars that go while reading slide the rail aside, and the page keeps its size", async ({
+		page,
+	}) => {
+		await boot(page, { settings_v2: { autoHideBars: true } });
+		const pdf = longPdf(12);
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, pdf);
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toContainText("/ 12", {
+			timeout: 20_000,
+		});
+		const scroller = page.getByTestId("pdf-scroll");
+		await expect(scroller.locator("canvas").first()).toBeVisible();
+		expect((await bars(page)).share).toBeLessThanOrEqual(0.12);
+		expect(await railButtonsReachable(page)).toEqual([]);
+		const size = () =>
+			scroller.evaluate((el) => `${el.clientWidth}x${el.clientHeight}`);
+		const at = await size();
+		// The scroller's size on every frame while the rail goes.
+		const seen = await scroller.evaluate(
+			(el) =>
+				new Promise<string[]>((done) => {
+					const sizes = [`${el.clientWidth}x${el.clientHeight}`];
+					el.scrollTop += 500;
+					const start = performance.now();
+					const frame = () => {
+						sizes.push(`${el.clientWidth}x${el.clientHeight}`);
+						if (performance.now() - start < 700) requestAnimationFrame(frame);
+						else done(sizes);
+					};
+					requestAnimationFrame(frame);
+				}),
+		);
+		expect(new Set(seen)).toEqual(new Set([at]));
+		const rail = page.getByTestId("viewer").locator("footer");
+		await expect(rail).toHaveAttribute("inert", "");
+		// Moved sideways (a matrix whose fifth term is the x shift), not down.
+		const moved = () =>
+			rail.evaluate((el) => {
+				const m = new DOMMatrix(getComputedStyle(el).transform);
+				return { across: m.e > 40, down: m.f };
+			});
+		await expect.poll(moved).toEqual({ across: true, down: 0 });
+		// Nothing is kept clear at the foot for a bar that is not there.
+		expect(
+			await page
+				.getByTestId("viewer")
+				.evaluate((el) => el.style.getPropertyValue("--bars-bottom")),
+		).toBe("0px");
+	});
+});
+
 test.describe("pictures and code", () => {
 	const natural = (page: Page) =>
 		page
