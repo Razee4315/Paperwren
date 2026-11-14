@@ -1317,4 +1317,6 @@ export const pt: Table = {
 	"Contacts: {n}": "Contatos: {n}",
 	"No contacts found": "Nenhum contato encontrado",
 	"Unnamed contact": "Contato sem nome",
+	"Keep colours": "Manter as cores",
+	"One ink": "Uma só tinta",
 };

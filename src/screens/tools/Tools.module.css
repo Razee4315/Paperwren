@@ -1878,6 +1878,19 @@
 	flex: 1;
 	min-width: 0;
 }
+/* Keep colours or one ink, for a picture; the inks beside it. */
+.inkChoice {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 8px 12px;
+	width: 100%;
+}
+.inkChoice .shape {
+	padding: 0 12px;
+	font-size: 14px;
+}
 
 /* Measuring: what to measure, and setting the scale. */
 .measureRow {

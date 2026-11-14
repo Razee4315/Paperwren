@@ -1315,4 +1315,6 @@ export const es: Table = {
 	"Contacts: {n}": "Contactos: {n}",
 	"No contacts found": "No se encontraron contactos",
 	"Unnamed contact": "Contacto sin nombre",
+	"Keep colours": "Mantener los colores",
+	"One ink": "Una sola tinta",
 };

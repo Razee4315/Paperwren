@@ -1208,4 +1208,6 @@ export const zh: Table = {
 	"Contacts: {n}": "联系人：{n}",
 	"No contacts found": "未找到联系人",
 	"Unnamed contact": "未命名联系人",
+	"Keep colours": "保留颜色",
+	"One ink": "单一墨色",
 };

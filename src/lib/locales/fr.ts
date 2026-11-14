@@ -1329,4 +1329,6 @@ export const fr: Table = {
 	"Contacts: {n}": "Contacts : {n}",
 	"No contacts found": "Aucun contact trouvé",
 	"Unnamed contact": "Contact sans nom",
+	"Keep colours": "Garder les couleurs",
+	"One ink": "Une seule encre",
 };

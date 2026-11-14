@@ -1299,4 +1299,6 @@ export const ur: Table = {
 	"Contacts: {n}": "رابطے: {n}",
 	"No contacts found": "کوئی رابطہ نہیں ملا",
 	"Unnamed contact": "بے نام رابطہ",
+	"Keep colours": "رنگ برقرار رکھیں",
+	"One ink": "ایک سیاہی",
 };

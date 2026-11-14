@@ -1345,4 +1345,6 @@ export const ru: Table = {
 	"Contacts: {n}": "Контакты: {n}",
 	"No contacts found": "Контакты не найдены",
 	"Unnamed contact": "Контакт без имени",
+	"Keep colours": "Сохранить цвета",
+	"One ink": "Одни чернила",
 };

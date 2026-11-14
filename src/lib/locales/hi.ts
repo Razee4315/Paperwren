@@ -1277,4 +1277,6 @@ export const hi: Table = {
 	"Contacts: {n}": "संपर्क: {n}",
 	"No contacts found": "कोई संपर्क नहीं मिला",
 	"Unnamed contact": "बिना नाम का संपर्क",
+	"Keep colours": "रंग बनाए रखें",
+	"One ink": "एक स्याही",
 };

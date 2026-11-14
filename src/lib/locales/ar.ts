@@ -1338,4 +1338,6 @@ export const ar: Table = {
 	"Contacts: {n}": "جهات الاتصال: {n}",
 	"No contacts found": "لم يتم العثور على جهات اتصال",
 	"Unnamed contact": "جهة اتصال بلا اسم",
+	"Keep colours": "أبقِ الألوان",
+	"One ink": "حبر واحد",
 };

@@ -834,3 +834,8 @@ ROWS += READING_18_ROWS
 # Words for vCard contact cards in 1.8.
 from vcf_18 import ROWS as VCF_18_ROWS
 ROWS += VCF_18_ROWS
+
+# Words for signatures and stamps from photos in 1.8: their own
+# colours or one ink.
+from ink_18 import ROWS as INK_18_ROWS
+ROWS += INK_18_ROWS
