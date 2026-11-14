@@ -2040,6 +2040,42 @@ async function viewSigned(
 	expect(errors).toEqual([]);
 }
 
+/**
+ * A one-page PDF laid out as a linearized ("fast web view") file is: the
+ * last startxref names a short first-page section near the start, whose
+ * /Prev points forward to the main section at the end.
+ */
+function linearized(): Uint8Array {
+	const bodies = [
+		"<< /Type /Catalog /Pages 2 0 R >>",
+		"<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
+		"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>",
+		"<< /Length 44 >>\nstream\nBT /F1 24 Tf 72 760 Td (Fast web view) Tj ET\nendstream",
+	];
+	const at = (n: number) => `${String(n).padStart(10, "0")} 00000 n \n`;
+	let out = "%PDF-1.4\n";
+	const hint = out.length;
+	out += "5 0 obj\n<< /Linearized 1 >>\nendobj\n";
+	const first = out.length;
+	const section = (catalog: number, main: number) =>
+		`xref\n1 1\n${at(catalog)}5 1\n${at(hint)}trailer\n<< /Size 6 /Root 1 0 R /Prev ${String(main).padStart(10, "0")} >>\n`;
+	out += " ".repeat(section(0, 0).length);
+	const offsets = bodies.map((body, i) => {
+		const offset = out.length;
+		out += `${i + 1} 0 obj\n${body}\nendobj\n`;
+		return offset;
+	});
+	const main = out.length;
+	out += `xref\n0 5\n0000000000 65535 f \n${offsets.map(at).join("")}trailer\n<< /Size 6 >>\nstartxref\n${first}\n%%EOF\n`;
+	const head = section(offsets[0], main);
+	return new Uint8Array(
+		Buffer.from(
+			out.slice(0, first) + head + out.slice(first + head.length),
+			"latin1",
+		),
+	);
+}
+
 test.describe("sign with a digital ID", () => {
 	test("an invisible signature is added to a copy, and nothing of the ID is kept", async ({
 		page,
@@ -2301,6 +2337,24 @@ test.describe("sign with a digital ID", () => {
 		expect(byteRanges(again.bytes)).toHaveLength(2);
 		expect(checkSignature(again.bytes, 1, "rsa.pem").covers).toBe(true);
 		await viewSigned(page, bytes, 1, "twice-rsa");
+	});
+
+	test("a PDF laid out for fast web view is signed, not refused as damaged", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await boot(page, {}, "?desktop");
+		await openTool(page, "sign");
+		await addFile(page, linearized(), "web.pdf");
+		await page.getByTestId("tool-go").click();
+		await expect(page.getByTestId("fill-sign")).toBeVisible();
+		await chooseDigitalId(page);
+		await page.getByTestId("digital-id-invisible").click();
+		await page.getByTestId("digital-id-continue").click();
+		const saved = await saveCopy(page);
+		expect(saved.name).toBe("web (signed).pdf");
+		expect(byteRanges(saved.bytes)).toHaveLength(1);
+		expect(checkSignature(saved.bytes, 0, "rsa.pem").covers).toBe(true);
 	});
 
 	test("a digital ID that can't sign, a locked PDF and a certified one are refused plainly", async ({

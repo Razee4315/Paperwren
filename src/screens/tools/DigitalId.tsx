@@ -121,11 +121,19 @@ export function DigitalIdFlow({
 					const { canSign } = await lib();
 					const found = await canSign(await pdf());
 					if (!alive.current) return;
-					if (found.blocker) {
-						onBlocked(found.blocker);
+					// A PDF not signed yet is written out afresh before it is
+					// signed, and the fresh copy is checked then: a structure
+					// only that rewrite tidies (a linearized file's, say) is no
+					// reason to refuse it here.
+					const blocker =
+						found.blocker === "damaged" && !found.signed
+							? undefined
+							: found.blocker;
+					if (blocker) {
+						onBlocked(blocker);
 						setStep({
 							at: "problem",
-							message: blockerMessage(found.blocker),
+							message: blockerMessage(blocker),
 							again: false,
 						});
 						return;
