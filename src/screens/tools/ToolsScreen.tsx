@@ -839,11 +839,13 @@ function CompressTool({ file, onOpen }: ToolProps) {
 					{progress}
 				</p>
 			)}
-			{outcome && (
-				<p className={`${s.hint} ${s.outcome}`} data-testid="compress-outcome">
-					{outcome}
-				</p>
-			)}
+			<p
+				aria-live="polite"
+				className={`${s.hint} ${s.outcome}`}
+				data-testid="compress-outcome"
+			>
+				{outcome}
+			</p>
 			{tooBig && tooBig.of === picked?.key && (
 				<div className={s.tooBig} data-testid="compress-too-big">
 					<p>

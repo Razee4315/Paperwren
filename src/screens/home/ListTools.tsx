@@ -51,6 +51,8 @@ export function SearchField({
 			<Search size={18} />
 			<input
 				type="search"
+				spellCheck={false}
+				autoComplete="off"
 				placeholder={placeholder}
 				value={value}
 				onChange={(e) => onChange(e.target.value)}

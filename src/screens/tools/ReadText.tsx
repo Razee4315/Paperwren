@@ -456,10 +456,18 @@ export function ReadText({
 									</>
 								)}
 								{onShown?.lines.map((line, index) => (
-									// biome-ignore lint/a11y/useKeyWithClickEvents: the same lines are buttons in the text beside it
-									<div
+									<button
+										type="button"
 										key={`${index}-${line.y}`}
 										className={s.lineBox}
+										tabIndex={0}
+										aria-label={line.text}
+										onKeyDown={(e) => {
+											if (e.key === "Enter" || e.key === " ") {
+												e.preventDefault();
+												fromPicture(shown, index);
+											}
+										}}
 										data-lit={
 											(lit?.page === shown && lit.line === index) || undefined
 										}
@@ -588,10 +596,17 @@ export function ReadText({
 												<p className={s.none}>{t("No words on this page.")}</p>
 											)}
 											{reads[page].lines.map((line, index) => (
-												// biome-ignore lint/a11y/useKeyWithClickEvents: selecting the words comes first; this only points at them on the page
-												<p
+												<button
+													type="button"
 													key={`${index}-${line.y}`}
 													className={s.line}
+													tabIndex={0}
+													onKeyDown={(e) => {
+														if (e.key === "Enter" || e.key === " ") {
+															e.preventDefault();
+															light(page, index);
+														}
+													}}
 													dir="auto"
 													data-opens={line.opens || undefined}
 													data-line={`${page}-${index}`}
@@ -625,7 +640,7 @@ export function ReadText({
 																	{word.text}
 																</span>
 															))}
-												</p>
+												</button>
 											))}
 										</article>
 									))}

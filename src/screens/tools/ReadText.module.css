@@ -477,3 +477,10 @@
 		transition: none;
 	}
 }
+
+.line {
+	display: block;
+	width: 100%;
+	text-align: start;
+	user-select: text;
+}

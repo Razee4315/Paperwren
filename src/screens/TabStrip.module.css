@@ -136,3 +136,8 @@
 	opacity: 0;
 	transition-duration: 80ms;
 }
+
+.main:focus-visible,
+.close:focus-visible {
+	outline-offset: -3px;
+}

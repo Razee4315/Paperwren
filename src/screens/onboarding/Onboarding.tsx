@@ -3,8 +3,10 @@ import { isRtl, msg, t } from "@/lib/i18n";
 import { useBackClose } from "@/state/navigation";
 import { useSettings } from "@/state/settings";
 import { FileIcon, ThemePicker, Wren } from "@/ui";
+import { useModalFocus } from "@/ui/Overlay";
 import { ArrowRight, Check, CloudOff, Lock, UserX } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import s from "./Onboarding.module.css";
 
 const GRID: FileFormat[] = [
@@ -125,6 +127,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 	const forward = isRtl() ? -1 : 1;
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			if ((e.target as Element)?.closest("button, input, [role=radio]")) return;
 			if (e.key === "ArrowRight") go(step + forward);
 			if (e.key === "ArrowLeft") go(step - forward);
 		};
@@ -134,11 +137,11 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 
 	// The welcome covers the app: the keyboard starts inside it.
 	const root = useRef<HTMLDivElement>(null);
-	useEffect(() => root.current?.focus({ preventScroll: true }), []);
+	useModalFocus(root, finish);
 
 	const { Scene } = STEPS[step];
 
-	return (
+	return createPortal(
 		<div
 			ref={root}
 			tabIndex={-1}
@@ -182,7 +185,12 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 				<p className={s.body}>{t(STEPS[step].body)}</p>
 			</div>
 			<div className={s.foot}>
-				<div className={s.dots} role="tablist" aria-label={t("Steps")}>
+				<div
+					className={s.dots}
+					role="tablist"
+					data-roving-tabs
+					aria-label={t("Steps")}
+				>
 					{STEPS.map((_, i) => (
 						<button
 							type="button"
@@ -205,6 +213,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 					<ArrowRight size={20} className="pw-flip" />
 				</button>
 			</div>
-		</div>
+		</div>,
+		document.body,
 	);
 }
