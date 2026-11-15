@@ -117,6 +117,7 @@ export function ReadText({
 	const textBox = useRef<HTMLDivElement>(null);
 	const followText = useRef(true);
 	const alive = useRef(true);
+	const started = useRef(false);
 
 	const stop = useCallback(() => {
 		reader.current?.stop();
@@ -141,7 +142,7 @@ export function ReadText({
 		if (!docKey) return;
 		let live = true;
 		loadRead(docKey).then((kept) => {
-			if (!live || !kept) return;
+			if (!live || !kept || started.current) return;
 			const pages: Record<number, PageRead> = {};
 			for (const [page, lines] of Object.entries(kept.pages))
 				pages[Number(page)] = { lines, own: false };
@@ -210,6 +211,7 @@ export function ReadText({
 	};
 
 	const run = async () => {
+		started.current = true;
 		// Read in another language, what was read before gives way now
 		// that it is being replaced, and not a moment sooner.
 		if (lang !== readIn.current) {
@@ -330,7 +332,12 @@ export function ReadText({
 			});
 		if (saved) onSaved?.(saved);
 	};
+	const addingNote = useRef(false);
+	const [noteBusy, setNoteBusy] = useState(false);
 	const toNotes = async () => {
+		if (addingNote.current) return;
+		addingNote.current = true;
+		setNoteBusy(true);
 		const made = newNote();
 		made.title = splitName(source.name)[0];
 		made.blocks = [
@@ -338,7 +345,11 @@ export function ReadText({
 		];
 		await saveNote(made)
 			.then(() => toast(t("Added to Notes")))
-			.catch(() => toast(t("Couldn't save a copy")));
+			.catch(() => toast(t("Couldn't save a copy")))
+			.finally(() => {
+				addingNote.current = false;
+				setNoteBusy(false);
+			});
 	};
 	const scanned = Object.entries(reads).filter(([, read]) => !read.own);
 	const saveSearchable = async () => {
@@ -690,6 +701,8 @@ export function ReadText({
 					<Button
 						variant="secondary"
 						onClick={toNotes}
+						disabled={noteBusy}
+						aria-busy={noteBusy}
 						data-testid="read-notes"
 					>
 						<NotebookPen size={16} /> {t("Add to Notes")}

@@ -1340,4 +1340,7 @@ export const ur: Table = {
 		'کاپی بغیر پاس ورڈ کے کھل جائے گی۔ اسے دوبارہ مقفل کرنے کے لیے "پاس ورڈ لگائیں" استعمال کریں۔',
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"اس PDF میں پڑھنے والے پر پابندیاں ہیں، جیسے متن کاپی کرنا۔ کاپی پر کوئی پابندی نہیں ہوگی۔",
+	"Couldn't delete this note": "یہ نوٹ حذف نہیں ہو سکا",
+	"Couldn't change saved data": "محفوظ ڈیٹا تبدیل نہیں ہو سکا",
+	"A print job is already in progress": "پرنٹ کا کام پہلے ہی جاری ہے",
 };

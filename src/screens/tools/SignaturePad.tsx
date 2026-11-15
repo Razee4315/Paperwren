@@ -306,19 +306,40 @@ export function SignaturePad({
 		return canvas;
 	};
 
+	const finishing = useRef(false);
+	const alive = useRef(true);
+	const [busy, setBusy] = useState(false);
+	useEffect(() => {
+		alive.current = true;
+		return () => {
+			alive.current = false;
+		};
+	}, []);
 	const done = async () => {
-		// The face is drawn only once it is read.
-		if (way === "type")
-			await document.fonts?.load(`120px ${HANDS[hand]}`, typed).catch(() => {});
-		const canvas = made();
-		const picture = canvas ? cut(canvas) : null;
-		if (!picture) {
-			toast(t("No signature was found in that picture"));
-			return;
+		if (finishing.current) return;
+		finishing.current = true;
+		setBusy(true);
+		try {
+			// The face is drawn only once it is read.
+			if (way === "type")
+				await document.fonts
+					?.load(`120px ${HANDS[hand]}`, typed)
+					.catch(() => {});
+			const canvas = made();
+			const picture = canvas ? cut(canvas) : null;
+			if (!picture) {
+				toast(t("No signature was found in that picture"));
+				return;
+			}
+			const signature = { ...picture, initials: initials || undefined };
+			if (keep) await keepSignature(signature);
+			if (alive.current) onDone(signature);
+		} catch {
+			toast(t("Couldn't save a copy"));
+		} finally {
+			finishing.current = false;
+			if (alive.current) setBusy(false);
 		}
-		const signature = { ...picture, initials: initials || undefined };
-		if (keep) await keepSignature(signature);
-		onDone(signature);
 	};
 	const ready =
 		way === "draw" ? drawn : way === "photo" ? !!photo : !!typed.trim();
@@ -394,7 +415,8 @@ export function SignaturePad({
 						</Button>
 						<Button
 							onClick={done}
-							disabled={!ready}
+							disabled={busy || !ready}
+							aria-busy={busy}
 							data-testid="signature-done"
 						>
 							{t("Use it")}

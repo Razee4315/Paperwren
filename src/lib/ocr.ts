@@ -275,13 +275,13 @@ export class OcrReader {
 			this.worker = worker;
 			await new Promise<void>((done, fail) => {
 				this.refuse = fail;
-				worker.onerror = () => fail(new Error("ocr worker failed"));
+				worker.onerror = () => this.stop();
 				worker.onmessage = ({ data: reply }: MessageEvent<OcrReply>) => {
 					if (reply.kind === "ready") done();
 					else if (reply.kind === "progress")
 						this.watcher?.(reply.percent / 100);
 					else if (reply.kind === "failed" && reply.id === undefined)
-						fail(new Error(reply.message));
+						this.stop();
 					else if (reply.kind === "read") {
 						this.waiting.get(reply.id)?.done(reply.table);
 						this.waiting.delete(reply.id);

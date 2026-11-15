@@ -9,6 +9,7 @@ import {
 	STAMPS_KEY,
 	loadSignatures,
 	loadStamps,
+	normalizeSignatures,
 } from "@/lib/signatures";
 import type {
 	PageColor,
@@ -372,14 +373,30 @@ export function SettingsScreen() {
 			.catch(() => setStored(null));
 	}, []);
 
-	const clearCopies = async () => {
-		setConfirmCopies(false);
-		await backend.importsClear().catch(() => {});
-		for (const e of entries)
-			if (e.reopen.kind === "managed") markUnavailable(e.id);
-		setStored({ bytes: 0, files: 0 });
-		toast(t("Stored copies deleted"));
+	const clearing = useRef(false);
+	const [clearBusy, setClearBusy] = useState(false);
+	const savedAction = async (action: () => Promise<void>) => {
+		if (clearing.current) return;
+		clearing.current = true;
+		setClearBusy(true);
+		try {
+			await action();
+		} catch {
+			toast(t("Couldn't change saved data"));
+		} finally {
+			clearing.current = false;
+			setClearBusy(false);
+		}
 	};
+	const clearCopies = () =>
+		savedAction(async () => {
+			await backend.importsClear();
+			setConfirmCopies(false);
+			for (const e of entries)
+				if (e.reopen.kind === "managed") markUnavailable(e.id);
+			setStored({ bytes: 0, files: 0 });
+			toast(t("Stored copies deleted"));
+		});
 
 	return (
 		<div className={s.page} data-testid="settings">
@@ -641,14 +658,19 @@ export function SettingsScreen() {
 							<button
 								type="button"
 								className={s.action}
-								disabled={bookmarkCount === 0}
-								onClick={async () => {
-									const previous = await clearBookmarks();
-									toast(t("Bookmarks deleted"), {
-										label: t("Undo"),
-										run: () => restoreBookmarks(previous),
-									});
-								}}
+								disabled={clearBusy || bookmarkCount === 0}
+								onClick={() =>
+									savedAction(async () => {
+										const previous = await clearBookmarks();
+										toast(t("Bookmarks deleted"), {
+											label: t("Undo"),
+											run: () =>
+												savedAction(async () => {
+													await restoreBookmarks(previous);
+												}),
+										});
+									})
+								}
 								data-testid="clear-bookmarks"
 							>
 								<span className={s.actionText}>
@@ -665,19 +687,23 @@ export function SettingsScreen() {
 							<button
 								type="button"
 								className={s.action}
-								disabled={markedCount === 0}
-								onClick={async () => {
-									const previous = await clearAllMarks();
-									await clearReads();
-									setMarkedCount(0);
-									toast(t("Highlights deleted"), {
-										label: t("Undo"),
-										run: () =>
-											restoreMarks(previous).then((count) =>
-												setMarkedCount(count),
-											),
-									});
-								}}
+								disabled={clearBusy || markedCount === 0}
+								onClick={() =>
+									savedAction(async () => {
+										const previous = await clearAllMarks();
+										await clearReads();
+										setMarkedCount(0);
+										toast(t("Highlights deleted"), {
+											label: t("Undo"),
+											run: () =>
+												savedAction(async () =>
+													restoreMarks(previous).then((count) =>
+														setMarkedCount(count),
+													),
+												),
+										});
+									})
+								}
 								data-testid="clear-marks"
 							>
 								<span className={s.actionText}>
@@ -694,20 +720,26 @@ export function SettingsScreen() {
 							<button
 								type="button"
 								className={s.action}
-								disabled={signatureCount === 0}
-								onClick={async () => {
-									const kept = await loadSignatures();
-									await backend.storeSet(SIGNATURES_KEY, []).catch(() => {});
-									setSignatureCount(0);
-									toast(t("Signatures forgotten"), {
-										label: t("Undo"),
-										run: () =>
-											backend
-												.storeSet(SIGNATURES_KEY, kept)
-												.then(() => setSignatureCount(kept.length))
-												.catch(() => {}),
-									});
-								}}
+								disabled={clearBusy || signatureCount === 0}
+								onClick={() =>
+									savedAction(async () => {
+										const kept = normalizeSignatures(
+											await backend.storeGet(SIGNATURES_KEY),
+										);
+										await backend.storeSet(SIGNATURES_KEY, []);
+										setSignatureCount(0);
+										toast(t("Signatures forgotten"), {
+											label: t("Undo"),
+											run: () =>
+												savedAction(async () =>
+													backend
+														.storeSet(SIGNATURES_KEY, kept)
+														.then(() => setSignatureCount(kept.length))
+														.then(() => {}),
+												),
+										});
+									})
+								}
 								data-testid="clear-signatures"
 							>
 								<span className={s.actionText}>
@@ -724,20 +756,26 @@ export function SettingsScreen() {
 							<button
 								type="button"
 								className={s.action}
-								disabled={stampCount === 0}
-								onClick={async () => {
-									const kept = await loadStamps();
-									await backend.storeSet(STAMPS_KEY, []).catch(() => {});
-									setStampCount(0);
-									toast(t("Stamps forgotten"), {
-										label: t("Undo"),
-										run: () =>
-											backend
-												.storeSet(STAMPS_KEY, kept)
-												.then(() => setStampCount(kept.length))
-												.catch(() => {}),
-									});
-								}}
+								disabled={clearBusy || stampCount === 0}
+								onClick={() =>
+									savedAction(async () => {
+										const kept = normalizeSignatures(
+											await backend.storeGet(STAMPS_KEY),
+										);
+										await backend.storeSet(STAMPS_KEY, []);
+										setStampCount(0);
+										toast(t("Stamps forgotten"), {
+											label: t("Undo"),
+											run: () =>
+												savedAction(async () =>
+													backend
+														.storeSet(STAMPS_KEY, kept)
+														.then(() => setStampCount(kept.length))
+														.then(() => {}),
+												),
+										});
+									})
+								}
 								data-testid="clear-stamps"
 							>
 								<span className={s.actionText}>
@@ -750,7 +788,7 @@ export function SettingsScreen() {
 							<button
 								type="button"
 								className={s.action}
-								disabled={!stored || stored.files === 0}
+								disabled={clearBusy || !stored || stored.files === 0}
 								onClick={() => setConfirmCopies(true)}
 							>
 								<span className={s.actionText}>
@@ -955,7 +993,12 @@ export function SettingsScreen() {
 						<Button variant="ghost" onClick={() => setConfirmCopies(false)}>
 							{t("Cancel")}
 						</Button>
-						<Button variant="danger" onClick={clearCopies}>
+						<Button
+							variant="danger"
+							onClick={clearCopies}
+							disabled={clearBusy}
+							aria-busy={clearBusy}
+						>
 							{t("Delete")}
 						</Button>
 					</>

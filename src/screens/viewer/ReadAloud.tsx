@@ -40,13 +40,28 @@ export function ReadAloud({
 	/** Each run of reading has a number: an older one stops on its own. */
 	const run = useRef(0);
 
-	const next = useCallback(async (): Promise<SpeechPiece | null> => {
-		const queued = ahead.current.pop();
-		if (queued) return queued;
-		flow.current ??= source();
-		const step = await flow.current.next();
-		return step.done ? null : step.value;
-	}, [source]);
+	const fetching = useRef<Promise<unknown>>(Promise.resolve());
+	const next = useCallback(
+		(mine: number): Promise<SpeechPiece | null> => {
+			const pending = fetching.current.then(async () => {
+				if (mine !== run.current) return null;
+				const queued = ahead.current.pop();
+				if (queued) return queued;
+				flow.current ??= source();
+				const step = await flow.current.next();
+				const piece = step.done ? null : step.value;
+				if (mine !== run.current) {
+					// Put it behind pieces queued by Back, before the next fetch.
+					if (piece) ahead.current.unshift(piece);
+					return null;
+				}
+				return piece;
+			});
+			fetching.current = pending.catch(() => {});
+			return pending;
+		},
+		[source],
+	);
 
 	const finish = useCallback(() => {
 		run.current++;
@@ -61,7 +76,7 @@ export function ReadAloud({
 			if (!voice) return;
 			const mine = ++run.current;
 			setPlaying(true);
-			let current = piece ?? (await next());
+			let current = piece ?? (await next(mine));
 			while (current && mine === run.current) {
 				now.current = current;
 				current.show?.();
@@ -79,7 +94,7 @@ export function ReadAloud({
 				}
 				if (mine !== run.current) return;
 				behind.current = [...behind.current, current].slice(-BEHIND);
-				current = await next();
+				current = await next(mine);
 			}
 			if (mine === run.current && !current) {
 				// The end of the document.

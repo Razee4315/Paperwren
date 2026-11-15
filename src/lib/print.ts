@@ -6,7 +6,9 @@
  * global.css) hides the whole app and shows only that container.
  */
 
+import { toast } from "@/ui";
 import { type FileRef, backend } from "./backend";
+import { t } from "./i18n";
 
 const ROOT_ID = "pw-print";
 
@@ -50,19 +52,29 @@ export function sheet(node: Node, className = ""): HTMLElement {
 
 /** Wait until every picture has loaded (or failed), within reason. */
 async function imagesReady(root: HTMLElement) {
-	const pending = Array.from(root.querySelectorAll("img"))
-		.filter((img) => !img.complete)
-		.map(
-			(img) =>
-				new Promise((resolve) => {
-					img.addEventListener("load", resolve, { once: true });
-					img.addEventListener("error", resolve, { once: true });
-				}),
-		);
-	await Promise.race([
-		Promise.all(pending),
-		new Promise((resolve) => window.setTimeout(resolve, 15_000)),
-	]);
+	const images = Array.from(root.querySelectorAll("img")).filter(
+		(img) => !img.complete,
+	);
+	if (!images.length) return;
+	await new Promise<void>((resolve) => {
+		let remaining = images.length;
+		const done = () => {
+			window.clearTimeout(limit);
+			for (const img of images) {
+				img.removeEventListener("load", loaded);
+				img.removeEventListener("error", loaded);
+			}
+			resolve();
+		};
+		const loaded = () => {
+			if (--remaining === 0) done();
+		};
+		const limit = window.setTimeout(done, 15_000);
+		for (const img of images) {
+			img.addEventListener("load", loaded, { once: true });
+			img.addEventListener("error", loaded, { once: true });
+		}
+	});
 }
 
 let printing = false;
@@ -79,7 +91,10 @@ export async function printDocument(
 	file: FileRef,
 	fill: (root: HTMLElement) => Promise<void> | void,
 ): Promise<void> {
-	if (printing) return;
+	if (printing) {
+		toast(t("A print job is already in progress"));
+		return;
+	}
 	printing = true;
 	try {
 		if (await backend.printOriginal(file)) return;
@@ -106,6 +121,7 @@ export async function printDocument(
 				let left = false;
 				const done = () => {
 					document.removeEventListener("visibilitychange", check);
+					window.removeEventListener("afterprint", done);
 					window.clearTimeout(limit);
 					resolve();
 				};
@@ -113,23 +129,25 @@ export async function printDocument(
 					if (document.visibilityState === "hidden") left = true;
 					else if (left) done();
 				};
-				const limit = window.setTimeout(done, 10 * 60_000);
+				const limit = window.setTimeout(done, 60_000);
 				document.addEventListener("visibilitychange", check);
+				window.addEventListener("afterprint", done);
 			});
 		} else {
 			await new Promise<void>((resolve) => {
 				const done = () => {
 					window.removeEventListener("afterprint", done);
+					window.clearTimeout(limit);
 					resolve();
 				};
 				window.addEventListener("afterprint", done);
+				const limit = window.setTimeout(done, 60_000);
 				window.print();
-				// Some webviews return from print() without ever firing afterprint.
-				window.setTimeout(done, 60_000);
 			});
 		}
 		root.replaceChildren();
 	} finally {
+		document.getElementById(ROOT_ID)?.replaceChildren();
 		printing = false;
 	}
 }
