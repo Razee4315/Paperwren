@@ -1290,11 +1290,22 @@ const raw = isTauri ? tauriBackend : browserBackend;
 /** Files that live inside another one (a PDF's attachments), held for
  * this run only. */
 const held = new Map<string, File>();
+let nextHeldKey = 0;
+let ownedMemory = new Set<string>();
+
+/** Release attachments only when their last tab or screen has left. */
+export function retainMemoryFiles(reopens: Array<Reopen | undefined>) {
+	const next = new Set(
+		reopens.flatMap((r) => (r?.kind === "memory" ? [r.key] : [])),
+	);
+	for (const key of ownedMemory) if (!next.has(key)) held.delete(key);
+	ownedMemory = next;
+}
 
 /** Open a file found inside another document. It is read from memory
  * and never kept in recents: once the app closes, it is gone. */
 export function requestForBytes(name: string, bytes: Uint8Array): OpenRequest {
-	const key = `${held.size + 1}:${name}`;
+	const key = `${++nextHeldKey}:${name}`;
 	held.set(key, new File([bytes as BlobPart], name));
 	return request(name, true, bytes.byteLength, { kind: "memory", key });
 }

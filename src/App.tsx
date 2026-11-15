@@ -1,4 +1,8 @@
-import { backend, requestForManagedCopy } from "@/lib/backend";
+import {
+	backend,
+	requestForManagedCopy,
+	retainMemoryFiles,
+} from "@/lib/backend";
 import { isDesktop, isMac, isTauri, sharesFrame } from "@/lib/env";
 import { toggleFullscreen, watchFullscreen } from "@/lib/fullscreen";
 import { language, subscribe, t } from "@/lib/i18n";
@@ -679,6 +683,16 @@ function Root() {
 	// never saved over: a copy goes somewhere else, and a save the reader
 	// points at one of them is refused, saying why.
 	useEffect(() => {
+		retainMemoryFiles([
+			...tabs.map((tab) => tab.request.reopen),
+			...state.screens.map((screen) =>
+				screen.kind === "viewer"
+					? screen.request.reopen
+					: screen.kind === "tools"
+						? screen.file?.reopen
+						: undefined,
+			),
+		]);
 		holdOpen("documents", [
 			...tabs.map((tab) => tab.request.reopen),
 			...state.screens.map((screen) =>
