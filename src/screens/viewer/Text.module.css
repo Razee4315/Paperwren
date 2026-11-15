@@ -260,7 +260,7 @@
 	display: inline-block;
 	width: 1.1em;
 	color: var(--text-3);
-	transition: transform 120ms ease;
+	transition: transform var(--t-fast) var(--ease);
 }
 .branch[open] > summary::before {
 	transform: rotate(90deg);

@@ -107,7 +107,7 @@
 	border: 1px solid var(--line);
 	border-radius: var(--r-m);
 	background: var(--surface-2);
-	transition: border-color var(--t-fast);
+	transition: border-color var(--t-fast) var(--ease);
 }
 .pageOpen:hover {
 	border-color: var(--accent);
@@ -387,7 +387,7 @@
 .mask {
 	fill: rgba(18, 18, 16, 0.5);
 	fill-rule: evenodd;
-	transition: fill var(--t-med);
+	transition: fill var(--t-med) var(--ease);
 }
 .outline {
 	fill: none;
@@ -405,7 +405,7 @@
 	stroke-width: 3;
 	vector-effect: non-scaling-stroke;
 	pointer-events: none;
-	transition: r var(--t-fast);
+	transition: r var(--t-fast) var(--ease);
 }
 .edgeHandle {
 	fill: var(--accent);

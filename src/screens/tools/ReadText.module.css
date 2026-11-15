@@ -102,7 +102,7 @@
 	inset: 0 0 auto;
 	background: rgba(43, 110, 102, 0.07);
 	background: color-mix(in srgb, var(--accent) 7%, transparent);
-	transition: height 320ms linear;
+	transition: height var(--t-progress) linear;
 	pointer-events: none;
 }
 .beam {
@@ -115,13 +115,13 @@
 		rgba(43, 110, 102, 0.16);
 	box-shadow: 0 0 14px 3px color-mix(in srgb, var(--accent) 70%, transparent), 0
 		-22px 28px 6px color-mix(in srgb, var(--accent) 16%, transparent);
-	transition: top 320ms linear;
+	transition: top var(--t-progress) linear;
 	pointer-events: none;
 }
 /* While the engine looks the page over, before its first word. */
 .paper[data-finding] .beam {
 	transition: none;
-	animation: read-look 1.6s ease-in-out infinite alternate;
+	animation: read-look 1.6s var(--ease) infinite alternate;
 }
 @keyframes read-look {
 	to {
@@ -134,7 +134,7 @@
 	background: rgba(43, 110, 102, 0.12);
 	background: color-mix(in srgb, var(--accent) 12%, transparent);
 	cursor: pointer;
-	animation: read-found 700ms ease-out backwards;
+	animation: read-found 700ms var(--ease) backwards;
 }
 .lineBox[data-lit] {
 	background: rgba(43, 110, 102, 0.34);
@@ -308,7 +308,7 @@
 	height: 100%;
 	background: var(--accent);
 	transform-origin: left;
-	transition: transform 320ms linear;
+	transition: transform var(--t-progress) linear;
 }
 :global([dir="rtl"]) .track > div {
 	transform-origin: right;
@@ -352,7 +352,7 @@
 	border-radius: 4px;
 	/* Transform only: an opacity keyframe can freeze at 0 when the
 	 * Android WebView pauses animations. */
-	animation: pw-screen-in 260ms var(--ease) backwards;
+	animation: pw-screen-in var(--t-slow) var(--ease) backwards;
 	animation-delay: var(--at, 0ms);
 }
 .line[data-opens] {
@@ -383,15 +383,15 @@
 	height: 11px;
 	border-radius: 6px;
 	background: var(--surface-2);
-	animation: read-breathe 1.4s ease-in-out infinite alternate;
+	animation: read-breathe 1.4s var(--ease) infinite alternate;
 }
 .ghost span:nth-child(2) {
 	width: 86%;
-	animation-delay: 160ms;
+	animation-delay: var(--t-med);
 }
 .ghost span:nth-child(3) {
 	width: 62%;
-	animation-delay: 320ms;
+	animation-delay: var(--t-progress);
 }
 .ghost p {
 	margin: 4px 0 0;

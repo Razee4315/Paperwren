@@ -337,7 +337,7 @@ export function Present({
 	const shift = (dx: number, animate: boolean) => {
 		const el = track.current;
 		if (!el) return;
-		el.style.transition = animate ? "transform 180ms ease-out" : "";
+		el.style.transition = animate ? "transform var(--t-med) var(--ease)" : "";
 		el.style.transform = dx ? `translateX(${dx}px)` : "";
 	};
 	const point = (e: React.PointerEvent) => {

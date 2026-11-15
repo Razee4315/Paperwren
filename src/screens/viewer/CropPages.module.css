@@ -57,7 +57,7 @@
 	stroke-width: 3;
 	vector-effect: non-scaling-stroke;
 	pointer-events: none;
-	transition: r var(--t-fast);
+	transition: r var(--t-fast) var(--ease);
 }
 .edgeHandle {
 	fill: var(--accent);

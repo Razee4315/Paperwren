@@ -61,10 +61,10 @@ export interface ZoomApi {
 	zoomBy(factor: number, origin?: [number, number]): void;
 }
 
-const ZOOM_MS = 170;
+const ZOOM_MS = 180;
 /** How long the document glides to where a zoom really left it. */
-const SETTLE_MS = 220;
-const EASE = "cubic-bezier(0.2, 0, 0, 1)";
+const SETTLE_MS = 240;
+
 /** One wheel notch on a mouse is deltaY 100; a trackpad pinch sends
  * single digits. Capping keeps a notch to a gentle step, about 17%, as
  * in other readers (a bigger one feels like a jump). */
@@ -169,7 +169,7 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 				if (Math.hypot(ex, ey) > 1) {
 					layer.style.transform = `translate(${-ex}px, ${-ey}px)`;
 					layer.getBoundingClientRect(); // start the glide from there
-					layer.style.transition = `transform ${SETTLE_MS}ms ${EASE}`;
+					layer.style.transition = "transform var(--t-slow) var(--ease)";
 					layer.style.transform = "";
 					settling = window.setTimeout(() => {
 						settling = 0;
@@ -264,7 +264,7 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 				finish();
 			} else if (layer) {
 				glide.f = glide.goal;
-				layer.style.transition = `transform ${ZOOM_MS}ms ${EASE}`;
+				layer.style.transition = "transform var(--t-med) var(--ease)";
 				layer.getBoundingClientRect(); // start the transition from rest
 				layer.style.transform = `scale(${glide.f})`;
 				timer = window.setTimeout(finish, ZOOM_MS + 20);
@@ -372,7 +372,7 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 			e.preventDefault();
 			const wheel =
 				g?.kind === "wheel" ? g : begin("wheel", e.clientX, e.clientY);
-			if (layer) layer.style.transition = "transform 90ms ease-out";
+			if (layer) layer.style.transition = "transform var(--t-instant) var(--ease)";
 			const delta = Math.max(-WHEEL_CAP, Math.min(WHEEL_CAP, e.deltaY));
 			update(wheel.f * Math.exp(-delta * 0.01), wheel.x, wheel.y);
 			window.clearTimeout(timer);

@@ -1079,7 +1079,7 @@
 	border-radius: var(--r-l, 14px);
 	background: var(--surface);
 	text-align: start;
-	transition: border-color var(--t-fast), background-color var(--t-fast);
+	transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
 }
 .toolCard:hover {
 	border-color: var(--accent);
@@ -1269,7 +1269,7 @@
 	background: var(--accent-soft);
 	text-align: start;
 	overflow: hidden;
-	transition: border-color var(--t-fast);
+	transition: border-color var(--t-fast) var(--ease);
 }
 .featured:hover {
 	border-color: var(--accent);
