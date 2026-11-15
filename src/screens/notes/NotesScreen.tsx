@@ -284,6 +284,7 @@ function NoteEditor({
 	const mutation = useRef(false);
 	const removed = useRef(false);
 	const deletingNow = useRef(false);
+	const leaveAnyway = useRef(false);
 	const [busy, setBusy] = useState(false);
 
 	const store = useCallback(function storeNote(): Promise<boolean> {
@@ -297,6 +298,7 @@ function NoteEditor({
 				if (isEmptyNote(now)) await deleteNote(now.id);
 				else await saveNote({ ...now, updatedAt: Date.now() });
 				stored.current = now;
+				leaveAnyway.current = false;
 				return true;
 			} catch {
 				toast(t("Couldn't save this note"), {
@@ -339,9 +341,14 @@ function NoteEditor({
 			while (await store()) {
 				if (stored.current === latest.current) {
 					onClose();
-					break;
+					return;
 				}
 			}
+			// The write failed: the first Back keeps the draft open with
+			// Try again; a second Back leaves, so a full or read-only disk
+			// never traps the reader here.
+			if (leaveAnyway.current) onClose();
+			else leaveAnyway.current = true;
 		} finally {
 			mutation.current = false;
 			setBusy(false);
