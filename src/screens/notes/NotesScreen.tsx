@@ -146,6 +146,8 @@ export function NotesScreen() {
 							<Search size={18} aria-hidden="true" />
 							<input
 								type="search"
+								spellCheck={false}
+								autoComplete="off"
 								placeholder={t("Search your notes")}
 								aria-label={t("Search your notes")}
 								value={query}

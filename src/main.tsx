@@ -19,6 +19,7 @@ import { language, loadLanguage } from "./lib/i18n";
 import { followNativeInsets } from "./lib/insets";
 import { traceMark } from "./lib/trace";
 import { restoreWindow } from "./lib/windowState";
+import { KeyboardGroups } from "./ui/KeyboardGroups";
 
 traceMark("code loaded");
 followNativeInsets();
@@ -45,6 +46,7 @@ if (root) {
 		.finally(() =>
 			createRoot(root).render(
 				<StrictMode>
+					<KeyboardGroups />
 					<App />
 				</StrictMode>,
 			),

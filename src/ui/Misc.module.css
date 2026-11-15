@@ -25,6 +25,7 @@
 	color: var(--text-3);
 }
 .track {
+	outline: 1px solid var(--line-control);
 	position: relative;
 	width: 46px;
 	height: 28px;
@@ -122,4 +123,24 @@
 	font-size: 18px;
 	font-weight: 800;
 	color: var(--text);
+}
+
+@media (forced-colors: active) {
+	.track,
+	.track::after {
+		forced-color-adjust: none;
+		border: 1px solid ButtonText;
+		background: Canvas;
+	}
+	.track::after {
+		background: ButtonText;
+	}
+	.on {
+		background: Highlight;
+		border-color: HighlightText;
+	}
+	.on::after {
+		background: HighlightText;
+		border-color: HighlightText;
+	}
 }

@@ -319,19 +319,45 @@ export default function SheetView({
 	}, [sheet, active]);
 
 	const saveTimer = useRef(0);
+	const viewRef = useRef(view);
+	viewRef.current = view;
+	const scrollFrame = useRef(0);
 	const syncView = useCallback(() => {
 		const el = scroller.current;
-		if (!el) return;
-		setView((v) =>
-			v.top === el.scrollTop && v.left === el.scrollLeft
-				? v
-				: { ...v, top: el.scrollTop, left: el.scrollLeft },
-		);
-	}, []);
+		if (!el || !sheet) return;
+		const previous = viewRef.current;
+		const next = { ...previous, top: el.scrollTop, left: el.scrollLeft };
+		const windowFor = (v: typeof view) =>
+			computeVisibleWindow({
+				rows: sheet.rows,
+				cols: sheet.cols,
+				colOffsets: colX,
+				rowOffsets: sheet.rowPrefix,
+				scrollTop: v.top / zoomRef.current,
+				scrollLeft: v.left / zoomRef.current,
+				viewportWidth: v.w / zoomRef.current,
+				viewportHeight: v.h / zoomRef.current,
+			});
+		const before = windowFor(previous);
+		const after = windowFor(next);
+		if (
+			before.r0 === after.r0 &&
+			before.r1 === after.r1 &&
+			before.c0 === after.c0 &&
+			before.c1 === after.c1
+		)
+			return;
+		viewRef.current = next;
+		setView(next);
+	}, [sheet, colX]);
 	const onScroll = () => {
 		const el = scroller.current;
 		if (!el) return;
-		syncView();
+		if (!scrollFrame.current)
+			scrollFrame.current = requestAnimationFrame(() => {
+				scrollFrame.current = 0;
+				syncView();
+			});
 		if (!settings.rememberPosition) return;
 		window.clearTimeout(saveTimer.current);
 		saveTimer.current = window.setTimeout(
@@ -346,7 +372,21 @@ export default function SheetView({
 			400,
 		);
 	};
-	useEffect(() => () => window.clearTimeout(saveTimer.current), []);
+	useEffect(
+		() => () => {
+			window.clearTimeout(saveTimer.current);
+			cancelAnimationFrame(scrollFrame.current);
+		},
+		[],
+	);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: discard a queued frame when sheet geometry changes
+	useEffect(
+		() => () => {
+			cancelAnimationFrame(scrollFrame.current);
+			scrollFrame.current = 0;
+		},
+		[syncView],
+	);
 
 	// The grid is windowed, so it re-flows on every frame of a pinch:
 	// the cells stay sharp and the headers stay put while zooming.

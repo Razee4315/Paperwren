@@ -152,14 +152,22 @@
 	gap: 6px;
 }
 .dot {
+	width: 24px;
+	height: 24px;
+	display: grid;
+	place-items: center;
+	border-radius: 999px;
+}
+.dot::after {
+	content: "";
 	width: 8px;
 	height: 8px;
 	border-radius: 999px;
-	background: var(--surface-3);
+	background: var(--line-control);
 	transition: width var(--t-med) var(--ease), background-color var(--t-med)
 		var(--ease);
 }
-.dotOn {
+.dotOn::after {
 	width: 22px;
 	background: var(--accent);
 }
@@ -179,4 +187,14 @@
 .next:hover,
 .next:active {
 	background: var(--accent-hover);
+}
+
+@media (forced-colors: active) {
+	.dot::after {
+		forced-color-adjust: none;
+		background: ButtonText;
+	}
+	.dotOn::after {
+		background: HighlightText;
+	}
 }

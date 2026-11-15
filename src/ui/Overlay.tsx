@@ -535,6 +535,7 @@ function DialogPanel({
 	wide: boolean;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
+	const descriptionId = useId();
 	useModalFocus(ref, onClose);
 	return (
 		<>
@@ -551,13 +552,18 @@ function DialogPanel({
 					role={alert ? "alertdialog" : "dialog"}
 					aria-modal="true"
 					aria-label={title}
+					aria-describedby={children ? descriptionId : undefined}
 					tabIndex={-1}
 					onClick={(e) => e.stopPropagation()}
 					data-testid={testId}
 				>
 					{art && <div className={s.dialogArt}>{art}</div>}
 					<h2 className={s.dialogTitle}>{title}</h2>
-					{children && <div className={s.dialogBody}>{children}</div>}
+					{children && (
+						<div id={descriptionId} className={s.dialogBody}>
+							{children}
+						</div>
+					)}
 					<div className={s.dialogActions}>{actions}</div>
 				</div>
 			</div>

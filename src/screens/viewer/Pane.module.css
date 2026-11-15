@@ -22,9 +22,6 @@
 	z-index: 40;
 	pointer-events: none;
 }
-.pane:not([data-focused]) header {
-	opacity: 0.72;
-}
 /* Where the halves meet: a line, with a wide grip to drag. */
 .divider {
 	position: fixed;

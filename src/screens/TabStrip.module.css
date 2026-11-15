@@ -136,3 +136,17 @@
 	opacity: 0;
 	transition-duration: 80ms;
 }
+
+.main:focus-visible,
+.close:focus-visible {
+	outline-offset: -3px;
+}
+
+@media (forced-colors: active) {
+	.on {
+		forced-color-adjust: none;
+		background: Highlight;
+		color: HighlightText;
+		border: 1px solid ButtonText;
+	}
+}

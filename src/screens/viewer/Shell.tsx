@@ -1327,6 +1327,8 @@ export function FindBar({
 			<input
 				ref={input}
 				type="search"
+				spellCheck={false}
+				autoComplete="off"
 				placeholder={t("Find in document")}
 				value={state.query}
 				onChange={(e) => onQuery(e.target.value)}
