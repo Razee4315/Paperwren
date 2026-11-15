@@ -4,7 +4,8 @@
 //! `content://` URIs.
 //!
 //! Security boundary: the storage commands touch only two
-//! directories the app owns (`app_data/store`, `app_data/imports`)
+//! directories the app owns (`app_data/store`, and `app_data/imports`
+//! or, on Android, `files/imports`, where MainActivity writes copies)
 //! and validate keys and relative paths before building a path.
 //! The desktop hand-off commands (`open.rs`) are the one exception:
 //! they take the absolute path of the user's document, and accept it
@@ -72,6 +73,21 @@ fn data_dir(app: &tauri::AppHandle, leaf: &str) -> AppResult<PathBuf> {
     Ok(app.path().app_data_dir()?.join(leaf))
 }
 
+/// Where the managed copies live. On Android, MainActivity writes them
+/// to `Context.filesDir/imports`, and `filesDir` is `<dataDir>/files`,
+/// while Tauri's `app_data_dir()` there is `<dataDir>` itself. Looking
+/// in `app_data_dir()/imports` found nothing, so copies were never
+/// pruned, removed or cleared and the app's data grew without bound.
+#[cfg(target_os = "android")]
+fn imports_dir(app: &tauri::AppHandle) -> AppResult<PathBuf> {
+    Ok(app.path().app_data_dir()?.join("files").join("imports"))
+}
+
+#[cfg(not(target_os = "android"))]
+fn imports_dir(app: &tauri::AppHandle) -> AppResult<PathBuf> {
+    data_dir(app, "imports")
+}
+
 /// Run blocking filesystem work off the async runtime's workers so a
 /// large directory walk can never stall IPC (or the UI on Android).
 async fn blocking<T, F>(f: F) -> AppResult<T>
@@ -98,19 +114,19 @@ async fn store_set(app: tauri::AppHandle, key: String, value: Value) -> AppResul
 
 #[tauri::command]
 async fn imports_stats(app: tauri::AppHandle) -> AppResult<imports::Stats> {
-    let root = data_dir(&app, "imports")?;
+    let root = imports_dir(&app)?;
     blocking(move || Ok(imports::stats(&root))).await
 }
 
 #[tauri::command]
 async fn imports_clear(app: tauri::AppHandle) -> AppResult<()> {
-    let root = data_dir(&app, "imports")?;
+    let root = imports_dir(&app)?;
     blocking(move || imports::clear(&root)).await
 }
 
 #[tauri::command]
 async fn imports_remove(app: tauri::AppHandle, paths: Vec<String>) -> AppResult<u64> {
-    let root = data_dir(&app, "imports")?;
+    let root = imports_dir(&app)?;
     blocking(move || Ok(imports::remove(&root, &paths))).await
 }
 
@@ -121,7 +137,7 @@ async fn imports_prune(
     app: tauri::AppHandle,
     keep: Vec<String>,
 ) -> AppResult<imports::PruneReport> {
-    let root = data_dir(&app, "imports")?;
+    let root = imports_dir(&app)?;
     blocking(move || {
         Ok(imports::prune(
             &root,
