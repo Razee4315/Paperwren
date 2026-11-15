@@ -1,3 +1,4 @@
+import { scrollBehavior } from "@/lib/motion";
 import { backend, formatBytes } from "@/lib/backend";
 import { clearAllMarks, loadMarkList, restoreMarks } from "@/lib/docMarks";
 import { isDesktop, isTauri, isTouch, ownsFrame, sharesFrame } from "@/lib/env";
@@ -270,7 +271,7 @@ function SectionList({
 		);
 		if (!row || !chip || row.scrollWidth <= row.clientWidth) return;
 		const left = chip.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2;
-		row.scrollTo({ left, behavior: "smooth" });
+		row.scrollTo({ left, behavior: scrollBehavior() });
 	}, [current]);
 	const go = (id: SectionId) => {
 		setCurrent(id);

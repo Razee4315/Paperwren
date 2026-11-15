@@ -1,3 +1,4 @@
+import { scrollBehavior } from "@/lib/motion";
 /**
  * Pages turned sideways, for documents whose text flows (a book, a
  * text file, a reflowed Word or OpenDocument file): the text is laid out
@@ -285,7 +286,7 @@ export function usePaged({
 			el.scrollTo({
 				left:
 					(Math.round(el.scrollLeft / el.clientWidth) + dir) * el.clientWidth,
-				behavior: "smooth",
+				behavior: scrollBehavior(),
 			});
 		};
 		el.addEventListener("wheel", onWheel, { passive: false });
@@ -317,7 +318,7 @@ export function usePaged({
 			const page = Math.round(el.scrollLeft / el.clientWidth) + dir;
 			const pages = Math.round(el.scrollWidth / el.clientWidth);
 			if (page < 0 || page >= pages) return false;
-			el.scrollTo({ left: page * el.clientWidth, behavior: "smooth" });
+			el.scrollTo({ left: page * el.clientWidth, behavior: scrollBehavior() });
 			return true;
 		},
 		[scroller],

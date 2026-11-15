@@ -1,3 +1,4 @@
+import { scrollBehavior } from "@/lib/motion";
 import type { FileFormat } from "@/lib/formats";
 import { locale, t } from "@/lib/i18n";
 import { readOfficeMeta } from "@/lib/officeMeta";
@@ -606,7 +607,7 @@ export function useTapToTurn(
 				el.scrollTo({
 					left:
 						(Math.round(el.scrollLeft / el.clientWidth) + dir) * el.clientWidth,
-					behavior: "smooth",
+					behavior: scrollBehavior(),
 				});
 			else el.scrollTop += dir * el.clientHeight * 0.9;
 			return true;

@@ -1,3 +1,4 @@
+import { scrollBehavior } from "@/lib/motion";
 import { type SavedFile, backend } from "@/lib/backend";
 import { copyName, splitName } from "@/lib/fileName";
 import { LANGUAGES, type Language, language, t, tn } from "@/lib/i18n";
@@ -296,7 +297,7 @@ export function ReadText({
 		const box = textBox.current;
 		box?.lastElementChild?.scrollIntoView({
 			block: "start",
-			behavior: "smooth",
+			behavior: scrollBehavior(),
 		});
 	}, [lastPage, phase]);
 
@@ -308,7 +309,7 @@ export function ReadText({
 		setLit({ page, line });
 		textBox.current
 			?.querySelector(`[data-line="${page}-${line}"]`)
-			?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+			?.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
 	};
 
 	const copy = async (numbered: boolean) => {
