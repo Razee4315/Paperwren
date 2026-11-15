@@ -615,9 +615,14 @@ export default function PdfView({
 				linkService,
 			});
 			finder.current = findController;
+			// Ends the viewer's watch on the scroller (its scroll listener and
+			// resize observer) when the document closes.
+			const ended = new AbortController();
 			const v = new viewer.PDFViewer({
 				container: container.current,
 				viewer: viewerEl.current,
+				// (pdf.js reads it; its types leave it out.)
+				...({ abortSignal: ended.signal } as object),
 				eventBus,
 				linkService,
 				findController,
@@ -854,6 +859,15 @@ export default function PdfView({
 			cleanup = () => {
 				window.clearTimeout(saveTimer);
 				v.cleanup();
+				// Letting go of the document is what takes the viewer's own
+				// listeners off the page: its "copy" listener on `document`, and
+				// each text layer's entry in pdf.js's list of them (TextLayerBuilder
+				// keeps one for the whole app). Without it those kept every
+				// closed document's pages, thousands of elements, for the rest of
+				// the run.
+				v.setDocument(null as unknown as PDFDocumentProxy);
+				linkService.setDocument(null);
+				ended.abort();
 				cropStop.current?.();
 				cropStop.current = null;
 			};
