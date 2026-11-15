@@ -469,3 +469,20 @@
 :global(html.desktop) .toastAction:hover {
 	background: rgba(255, 255, 255, 0.12);
 }
+
+.sheet {
+	transition: transform var(--t-fast) var(--ease);
+}
+[data-exiting]:is(.menu, .scrim, .dialogWrap, .toast) {
+	animation: overlayExit var(--t-fast) var(--ease-exit) both;
+}
+[data-exiting] * {
+	pointer-events: none !important;
+	animation: none !important;
+}
+@keyframes overlayExit {
+	to {
+		opacity: 0;
+	}
+}
+
