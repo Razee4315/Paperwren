@@ -1057,6 +1057,7 @@ export default function SlidesView({
 			</div>
 			{deck && presenting && (
 				<Present
+					active={active}
 					width={deck.width}
 					height={deck.height}
 					total={total}
