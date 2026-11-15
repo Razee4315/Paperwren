@@ -608,6 +608,13 @@ function CompressTool({ file, onOpen }: ToolProps) {
 		of: number;
 	} | null>(null);
 	const picked = kit.files[0];
+	useEffect(() => {
+		// These numbers describe only the selected file.
+		void picked?.key;
+		setOutcome("");
+		setProgress("");
+		setTooBig(null);
+	}, [picked?.key]);
 	const choose = (next: Squeeze) => {
 		setWay(next);
 		setOutcome("");

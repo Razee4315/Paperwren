@@ -478,6 +478,7 @@ export function FillSign({
 	}, [tool]);
 
 	const pick = (next: Tool, keyboard = false) => {
+		target.current = null;
 		byKeys.current = keyboard;
 		setAgain(null);
 		setSelected(null);
@@ -1087,8 +1088,10 @@ export function FillSign({
 									setSignatures(list);
 									if (
 										!list.some((x) => !!x.initials === (chooser === "initials"))
-									)
+									) {
+										target.current = null;
 										setChooser(null);
+									}
 								}}
 							>
 								<Trash2 size={18} />

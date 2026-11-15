@@ -47,7 +47,7 @@ export function useUpdateState(): UpdateState {
 
 type Check = () => Promise<Update | null>;
 const feed: Check = async () =>
-	(await import("@tauri-apps/plugin-updater")).check();
+	(await import("@tauri-apps/plugin-updater")).check({ timeout: 30_000 });
 
 /** Ask the release feed for a newer version. A quiet check (the one at
  * start) says nothing unless there is one; a check the reader asked
@@ -89,15 +89,18 @@ export async function installUpdate(relaunch: Restart = restart) {
 	try {
 		let total = 0;
 		let done = 0;
-		await update.downloadAndInstall((event) => {
-			if (event.event === "Started") total = event.data.contentLength ?? 0;
-			else if (event.event === "Progress" && total > 0) {
-				done += event.data.chunkLength;
-				const percent = Math.min(100, Math.floor((done / total) * 100));
-				if (state.phase === "installing" && state.percent !== percent)
-					set({ phase: "installing", version, percent });
-			}
-		});
+		await update.downloadAndInstall(
+			(event) => {
+				if (event.event === "Started") total = event.data.contentLength ?? 0;
+				else if (event.event === "Progress" && total > 0) {
+					done += event.data.chunkLength;
+					const percent = Math.min(100, Math.floor((done / total) * 100));
+					if (state.phase === "installing" && state.percent !== percent)
+						set({ phase: "installing", version, percent });
+				}
+			},
+			{ timeout: 5 * 60_000 },
+		);
 		await relaunch();
 		// Still here: the new version runs at the next start.
 		found = null;
