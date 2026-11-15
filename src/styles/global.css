@@ -777,3 +777,92 @@ pre.pw-paged-paper,
 [data-page-color="dark"] .pw-paged .docx-wrapper.pw-paged-paper {
 	filter: invert(0.9) hue-rotate(180deg);
 }
+
+/* Windows contrast themes supply the palette; state still has a shape. */
+@media (forced-colors: active) {
+	:root,
+	[data-theme] {
+		--bg: Canvas;
+		--page-bg: Canvas;
+		--surface: Canvas;
+		--surface-2: Canvas;
+		--surface-3: Canvas;
+		--canvas: Canvas;
+		--text: CanvasText;
+		--text-2: CanvasText;
+		--text-3: CanvasText;
+		--line: GrayText;
+		--line-strong: ButtonText;
+		--line-control: ButtonText;
+		--accent: Highlight;
+		--accent-hover: Highlight;
+		--accent-soft: Canvas;
+		--on-accent: HighlightText;
+		--danger: CanvasText;
+		--success: CanvasText;
+		--fmt-pdf: ButtonText;
+		--fmt-doc: ButtonText;
+		--fmt-sheet: ButtonText;
+		--fmt-slides: ButtonText;
+		--fmt-text: ButtonText;
+		--fmt-image: ButtonText;
+		--on-format: Canvas;
+		--code-keyword: CanvasText;
+		--code-string: CanvasText;
+		--code-number: CanvasText;
+		--code-comment: CanvasText;
+		--code-title: CanvasText;
+		--code-type: CanvasText;
+		--code-attr: CanvasText;
+		--code-meta: CanvasText;
+		--code-add: CanvasText;
+		--code-del: CanvasText;
+	}
+	button,
+	input,
+	select,
+	textarea {
+		border-color: ButtonText;
+	}
+	button:disabled,
+	[aria-disabled="true"] {
+		color: GrayText;
+	}
+	:focus-visible {
+		outline: 2px solid Highlight !important;
+		outline-offset: -2px;
+	}
+	:is(button, [role="tab"], [role="radio"]):is(
+			[aria-selected="true"],
+			[aria-pressed="true"],
+			[aria-checked="true"],
+			[aria-current]:not([aria-current="false"])
+		) {
+		forced-color-adjust: none;
+		--text: HighlightText;
+		--text-2: HighlightText;
+		--text-3: HighlightText;
+		background: Highlight;
+		color: HighlightText;
+		outline: 2px solid ButtonText;
+		outline-offset: -2px;
+	}
+	:focus-visible:is(
+			[aria-selected="true"],
+			[aria-pressed="true"],
+			[aria-checked="true"],
+			[aria-current]:not([aria-current="false"])
+		) {
+		outline-color: HighlightText !important;
+		outline-offset: -4px;
+	}
+	input[type="range"] {
+		accent-color: Highlight;
+	}
+	button svg {
+		forced-color-adjust: auto;
+	}
+	svg[viewBox="0 0 48 50"] {
+		forced-color-adjust: none;
+	}
+}

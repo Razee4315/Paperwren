@@ -482,3 +482,14 @@
 :global(html.desktop) .page {
 	animation: pw-fade-in var(--t-fast) var(--ease);
 }
+
+@media (forced-colors: active) {
+	.thumb {
+		forced-color-adjust: none;
+		background: Highlight;
+		border: 1px solid HighlightText;
+	}
+	.segment[aria-checked="true"] {
+		color: HighlightText;
+	}
+}

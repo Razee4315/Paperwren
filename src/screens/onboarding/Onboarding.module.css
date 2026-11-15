@@ -188,3 +188,13 @@
 .next:active {
 	background: var(--accent-hover);
 }
+
+@media (forced-colors: active) {
+	.dot::after {
+		forced-color-adjust: none;
+		background: ButtonText;
+	}
+	.dotOn::after {
+		background: HighlightText;
+	}
+}

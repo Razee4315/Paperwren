@@ -141,3 +141,12 @@
 .close:focus-visible {
 	outline-offset: -3px;
 }
+
+@media (forced-colors: active) {
+	.on {
+		forced-color-adjust: none;
+		background: Highlight;
+		color: HighlightText;
+		border: 1px solid ButtonText;
+	}
+}

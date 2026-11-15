@@ -124,3 +124,23 @@
 	font-weight: 800;
 	color: var(--text);
 }
+
+@media (forced-colors: active) {
+	.track,
+	.track::after {
+		forced-color-adjust: none;
+		border: 1px solid ButtonText;
+		background: Canvas;
+	}
+	.track::after {
+		background: ButtonText;
+	}
+	.on {
+		background: Highlight;
+		border-color: HighlightText;
+	}
+	.on::after {
+		background: HighlightText;
+		border-color: HighlightText;
+	}
+}
