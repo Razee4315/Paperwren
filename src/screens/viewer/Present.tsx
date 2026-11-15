@@ -57,7 +57,7 @@ function useStopwatch(visible: boolean) {
 			window.clearInterval(id);
 			if (visible && !paused && !document.hidden) {
 				tick((n) => n + 1);
-				id = window.setInterval(() => tick((n) => n + 1), 1000);
+				id = window.setInterval(() => tick((n) => n + 1), 500);
 			}
 		};
 		sync();
