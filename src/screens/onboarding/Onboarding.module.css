@@ -164,11 +164,11 @@
 	height: 8px;
 	border-radius: 999px;
 	background: var(--line-control);
-	transition: width var(--t-med) var(--ease), background-color var(--t-med)
+	transition: transform var(--t-med) var(--ease), background-color var(--t-med)
 		var(--ease);
 }
 .dotOn::after {
-	width: 22px;
+	transform: scaleX(2.75);
 	background: var(--accent);
 }
 .next {

@@ -803,11 +803,12 @@ button.findCount {
 	border-radius: 999px;
 	background: var(--text-3);
 	box-shadow: 0 0 0 1px var(--surface);
-	transition: width var(--t-fast) var(--ease), background var(--t-fast)
+	transform-origin: right;
+	transition: transform var(--t-fast) var(--ease), background var(--t-fast)
 		var(--ease);
 }
 .scrub[data-held] .scrubKnob::before {
-	width: 10px;
+	transform: scaleX(1.25);
 	background: var(--accent);
 }
 .scrubLabel {

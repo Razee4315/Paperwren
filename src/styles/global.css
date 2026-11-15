@@ -654,11 +654,18 @@ html.touch ::-webkit-scrollbar {
 	opacity: 0.4;
 }
 .pw-mark-pulse {
-	animation: pw-mark-pulse 1.2s ease-out;
+	opacity: 0;
+	pointer-events: none;
+	animation: pw-mark-pulse var(--t-slow) var(--ease);
+}
+.pw-mark-pulse * {
+	fill: none;
+	stroke: var(--accent);
+	stroke-width: 2px;
 }
 @keyframes pw-mark-pulse {
 	30% {
-		filter: drop-shadow(0 0 6px var(--accent)) brightness(1.1);
+		opacity: 1;
 	}
 }
 @media (prefers-reduced-motion: reduce) {

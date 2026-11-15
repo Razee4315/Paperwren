@@ -41,13 +41,12 @@
 	left: 5.5px;
 	width: 1px;
 	background: var(--line-strong);
-	transition: background-color var(--t-fast) var(--ease), width var(--t-fast)
-		var(--ease), left var(--t-fast) var(--ease);
+	transition: background-color var(--t-fast) var(--ease), transform
+		var(--t-fast) var(--ease);
 }
 .divider:hover > span,
 .divider:focus-visible > span,
 .divider:active > span {
-	left: 4.5px;
-	width: 3px;
+	transform: scaleX(3);
 	background: var(--accent);
 }

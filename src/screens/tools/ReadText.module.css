@@ -102,21 +102,23 @@
 	inset: 0 0 auto;
 	background: rgba(43, 110, 102, 0.07);
 	background: color-mix(in srgb, var(--accent) 7%, transparent);
-	transition: height var(--t-progress) linear;
+	height: 100%;
+	transform-origin: top;
+	transition: transform var(--t-progress) linear;
 	pointer-events: none;
 }
 .beam {
 	position: absolute;
-	inset-inline: 0;
-	height: 2px;
-	margin-top: -1px;
-	background: var(--accent);
-	box-shadow: 0 0 14px 3px rgba(43, 110, 102, 0.7), 0 -22px 28px 6px
-		rgba(43, 110, 102, 0.16);
-	box-shadow: 0 0 14px 3px color-mix(in srgb, var(--accent) 70%, transparent), 0
-		-22px 28px 6px color-mix(in srgb, var(--accent) 16%, transparent);
-	transition: top var(--t-progress) linear;
+	inset: 0;
+	transition: transform var(--t-progress) linear;
 	pointer-events: none;
+}
+.beam::after {
+	content: "";
+	position: absolute;
+	inset: 0 0 auto;
+	height: 2px;
+	background: var(--accent);
 }
 /* While the engine looks the page over, before its first word. */
 .paper[data-finding] .beam {
@@ -125,7 +127,7 @@
 }
 @keyframes read-look {
 	to {
-		top: 100%;
+		transform: translateY(100%);
 	}
 }
 .lineBox {
@@ -134,7 +136,7 @@
 	background: rgba(43, 110, 102, 0.12);
 	background: color-mix(in srgb, var(--accent) 12%, transparent);
 	cursor: pointer;
-	animation: read-found 700ms var(--ease) backwards;
+	animation: read-found var(--t-slow) var(--ease) backwards;
 }
 .lineBox[data-lit] {
 	background: rgba(43, 110, 102, 0.34);
@@ -143,8 +145,6 @@
 }
 @keyframes read-found {
 	from {
-		background: rgba(43, 110, 102, 0.6);
-		background: color-mix(in srgb, var(--accent) 60%, transparent);
 		transform: scale(1.02);
 		opacity: 0;
 	}
@@ -400,7 +400,7 @@
 }
 @keyframes read-breathe {
 	to {
-		background: var(--line-strong);
+		opacity: 0.4;
 	}
 }
 

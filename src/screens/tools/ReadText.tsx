@@ -1,7 +1,7 @@
-import { scrollBehavior } from "@/lib/motion";
 import { type SavedFile, backend } from "@/lib/backend";
 import { copyName, splitName } from "@/lib/fileName";
 import { LANGUAGES, type Language, language, t, tn } from "@/lib/i18n";
+import { scrollBehavior } from "@/lib/motion";
 import { blockId, newNote, saveNote } from "@/lib/notes";
 import {
 	DOUBTFUL,
@@ -458,11 +458,11 @@ export function ReadText({
 									<>
 										<div
 											className={s.swept}
-											style={{ height: `${share * 100}%` }}
+											style={{ transform: `scaleY(${share})` }}
 										/>
 										<div
 											className={s.beam}
-											style={{ top: `${share * 100}%` }}
+											style={{ transform: `translateY(${share * 100}%)` }}
 											data-testid="read-beam"
 										/>
 									</>
