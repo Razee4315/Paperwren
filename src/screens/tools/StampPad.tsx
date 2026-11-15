@@ -8,7 +8,13 @@ import {
 } from "@/lib/signatures";
 import { Button, Dialog, toast } from "@/ui";
 import { Check, ImageUp } from "lucide-react";
-import { type CSSProperties, useMemo, useState } from "react";
+import {
+	type CSSProperties,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { InkChoice } from "./InkChoice";
 import s from "./Tools.module.css";
 import {
@@ -187,14 +193,33 @@ export function StampPad({
 		setSource(canvas);
 	};
 
+	const finishing = useRef(false);
+	const alive = useRef(true);
+	const [busy, setBusy] = useState(false);
+	useEffect(() => {
+		alive.current = true;
+		return () => {
+			alive.current = false;
+		};
+	}, []);
 	const done = async () => {
-		const stamp = shown ? cut(shown) : null;
-		if (!stamp) {
-			toast(t("No stamp was found in that picture"));
-			return;
+		if (finishing.current) return;
+		finishing.current = true;
+		setBusy(true);
+		try {
+			const stamp = shown ? cut(shown) : null;
+			if (!stamp) {
+				toast(t("No stamp was found in that picture"));
+				return;
+			}
+			if (keep) await keepStamp(stamp);
+			if (alive.current) onDone(stamp);
+		} catch {
+			toast(t("Couldn't save a copy"));
+		} finally {
+			finishing.current = false;
+			if (alive.current) setBusy(false);
 		}
-		if (keep) await keepStamp(stamp);
-		onDone(stamp);
 	};
 
 	return (
@@ -209,7 +234,12 @@ export function StampPad({
 					<Button variant="ghost" onClick={onClose}>
 						{t("Cancel")}
 					</Button>
-					<Button onClick={done} disabled={!shown} data-testid="stamp-done">
+					<Button
+						onClick={done}
+						disabled={busy || !shown}
+						aria-busy={busy}
+						data-testid="stamp-done"
+					>
 						{t("Use it")}
 					</Button>
 				</>
