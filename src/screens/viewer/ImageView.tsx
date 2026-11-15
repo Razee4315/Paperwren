@@ -156,12 +156,39 @@ export default function ImageView({
 	// Made and revoked by the same effect, so a re-run never leaves the
 	// picture pointing at a revoked URL.
 	const [url, setUrl] = useState<string | null>(null);
-	const decoded = useRef(false);
+	const fallback = useRef<() => void>(() => {});
+	const [decoding, setDecoding] = useState(false);
 	useEffect(() => {
 		if (!pictures) return;
 		let alive = true;
 		let made: string | null = null;
-		decoded.current = false;
+		let decoded = false;
+		setDecoding(false);
+		fallback.current = async () => {
+			if (!alive) return;
+			if (decoded) return setFailed("unshown");
+			decoded = true;
+			setDecoding(true);
+			try {
+				const blob = await pictures.page(shown);
+				if (!alive) return;
+				const jpeg = await systemDecode(
+					new Uint8Array(await blob.arrayBuffer()),
+				);
+				if (!alive) return;
+				if (!jpeg) return setFailed("unshown");
+				if (made) URL.revokeObjectURL(made);
+				made = URL.createObjectURL(jpeg);
+				setUrl(made);
+			} catch (err) {
+				if (alive) {
+					setFault(err);
+					setFailed("unshown");
+				}
+			} finally {
+				if (alive) setDecoding(false);
+			}
+		};
 		setNatural(null);
 		setFailed(null);
 		pictures
@@ -181,23 +208,6 @@ export default function ImageView({
 			if (made) URL.revokeObjectURL(made);
 		};
 	}, [pictures, shown]);
-
-	/** The webview cannot draw it (HEIC on Windows or Android): the
-	 * system may, as a JPEG. */
-	const [decoding, setDecoding] = useState(false);
-	const drawElsewhere = async () => {
-		if (decoded.current || !pictures) return setFailed("unshown");
-		decoded.current = true;
-		setDecoding(true);
-		try {
-			const blob = await pictures.page(shown);
-			const jpeg = await systemDecode(new Uint8Array(await blob.arrayBuffer()));
-			if (!jpeg) return setFailed("unshown");
-			setUrl(URL.createObjectURL(jpeg));
-		} finally {
-			setDecoding(false);
-		}
-	};
 
 	// The place among several, kept for next time.
 	const onPositionRef = useRef(onPosition);
@@ -661,7 +671,7 @@ export default function ImageView({
 								}
 								onError={() =>
 									pictures?.type === "image/heic"
-										? drawElsewhere()
+										? fallback.current()
 										: setFailed("damaged")
 								}
 								data-testid="image"

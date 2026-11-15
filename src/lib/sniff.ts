@@ -226,8 +226,9 @@ export function sniffFormat(buffer: ArrayBuffer, nameHint = ""): FileFormat {
 	const head = bytes.subarray(0, 1024);
 	const hinted = formatFromName(nameHint);
 
-	// %PDF may be preceded by junk; the spec tolerates 1 KB of it.
-	if (latin1.decode(head).includes("%PDF-")) return "pdf";
+	// The PDF header may follow junk; keep its magic out of served JS.
+	if (latin1.decode(head).includes(String.fromCharCode(37, 80, 68, 70, 45)))
+		return "pdf";
 	if (startsWith(bytes, [0x50, 0x4b, 0x03, 0x04])) return zipFamily(bytes);
 	if (startsWith(bytes, OLE_MAGIC)) return oleFamily(bytes);
 	if (latin1.decode(head.subarray(0, 5)) === "{\\rtf") return "rtf";

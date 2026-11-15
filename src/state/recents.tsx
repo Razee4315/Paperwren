@@ -163,14 +163,25 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 
 	useEffect(() => {
 		let alive = true;
-		load().then(async (list) => {
+		load().then((list) => {
 			if (!alive) return;
 			apply(list);
 			setReady(true);
+		});
+		return () => {
+			alive = false;
+		};
+	}, [apply]);
+
+	// Wait until Home has settled; use the latest list if it changed meanwhile.
+	useEffect(() => {
+		if (!ready) return;
+		let alive = true;
+		const prune = async () => {
 			// Housekeeping: orphaned copies go, and the size cap evicts the
 			// oldest referenced ones, which then show as unavailable.
 			const evicted = await backend
-				.importsPrune(managedPaths(list))
+				.importsPrune(managedPaths(current.current))
 				.catch(() => []);
 			if (alive && evicted.length) {
 				const gone = new Set(evicted);
@@ -183,11 +194,17 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 					),
 				);
 			}
-		});
+		};
+		const idle = typeof window.requestIdleCallback === "function";
+		const id = idle
+			? window.requestIdleCallback(() => void prune(), { timeout: 4000 })
+			: window.setTimeout(() => void prune(), 4000);
 		return () => {
 			alive = false;
+			if (idle) window.cancelIdleCallback(id);
+			else window.clearTimeout(id);
 		};
-	}, [apply]);
+	}, [ready, apply]);
 
 	// Name healing: entries saved with a fallback name ("PDF
 	// document.pdf", or an id from an older build) ask the Android

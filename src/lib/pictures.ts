@@ -185,6 +185,10 @@ function libheifDecode(bytes: Uint8Array): Promise<Blob | null> {
 		) => {
 			heicWaiting.get(event.data.id)?.(event.data.jpeg);
 			heicWaiting.delete(event.data.id);
+			if (!heicWaiting.size) {
+				heicWorker?.terminate();
+				heicWorker = null;
+			}
 		};
 		heicWorker.onerror = () => {
 			for (const done of heicWaiting.values()) done(null);
