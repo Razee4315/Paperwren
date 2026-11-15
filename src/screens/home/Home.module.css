@@ -92,7 +92,7 @@
 	padding: 0 6px 0 16px;
 	border-radius: var(--r-m);
 	background: var(--surface);
-	border: 1px solid var(--line);
+	border: 1px solid var(--line-control);
 	color: var(--text-3);
 	transition: border-color var(--t-fast) var(--ease);
 }
@@ -309,7 +309,7 @@
 	height: 34px;
 	padding: 0 14px;
 	border-radius: 999px;
-	border: 1px solid var(--line);
+	border: 1px solid var(--line-control);
 	background: var(--surface);
 	color: var(--text-2);
 	font-size: 14px;
@@ -332,7 +332,7 @@
 	background: var(--on-accent);
 }
 .count {
-	opacity: 0.6;
+	color: var(--text-3);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -481,7 +481,7 @@
 	background: var(--accent);
 }
 .unavailable {
-	opacity: 0.6;
+	color: var(--text-3);
 }
 .warn {
 	color: var(--danger);
@@ -752,4 +752,8 @@
 :global(html.desktop) .browse {
 	height: 34px;
 	font-size: 13px;
+}
+
+.chip[aria-pressed="true"] .count {
+	color: var(--on-accent);
 }

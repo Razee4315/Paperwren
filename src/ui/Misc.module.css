@@ -25,6 +25,7 @@
 	color: var(--text-3);
 }
 .track {
+	outline: 1px solid var(--line-control);
 	position: relative;
 	width: 46px;
 	height: 28px;

@@ -212,7 +212,7 @@
 	width: calc((100% - 8px) / var(--n));
 	border-radius: 10px;
 	background: var(--surface);
-	box-shadow: 0 0 0 1px var(--line-strong);
+	box-shadow: 0 0 0 1px var(--line-control);
 	transform: translateX(calc(100% * var(--i)));
 	transition: transform var(--t-med) var(--ease);
 }
@@ -341,7 +341,7 @@
 	display: inline-block;
 	min-width: 24px;
 	padding: 2px 7px;
-	border: 1px solid var(--line-strong);
+	border: 1px solid var(--line-control);
 	border-bottom-width: 2px;
 	border-radius: 6px;
 	background: var(--surface);

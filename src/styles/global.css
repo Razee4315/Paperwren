@@ -122,7 +122,7 @@ html.desktop body {
 	--text-2: #4f4d47;
 	--text-3: #5d5b55;
 
-	--accent: #2b6e66;
+	--accent: #296a62;
 	--accent-hover: #225a53;
 	--accent-soft: #dcebe7;
 	--on-accent: #ffffff;
@@ -131,20 +131,32 @@ html.desktop body {
 	--brand-dark: #1f5750;
 	--brand-belly: #8fbcb3;
 
-	--danger: #c2412d;
-	--success: #28754d;
+	--danger: #9f3020;
+	--success: #256d48;
 	--highlight: rgba(240, 196, 64, 0.5);
 	--highlight-active: rgba(224, 122, 79, 0.55);
 
-	--fmt-pdf: #d2553f;
+	--fmt-pdf: #ca4d37;
 	--fmt-doc: #3c6db4;
-	--fmt-sheet: #2f8a5b;
-	--fmt-slides: #cf8420;
+	--fmt-sheet: #2b8657;
+	--fmt-slides: #af6400;
 	--fmt-text: #7d65b0;
 	--fmt-image: #b3567f;
 
 	--scrim: rgba(35, 34, 31, 0.36);
 	--canvas: #e7e4dd;
+	--line-control: #77746d;
+	--on-format: #ffffff;
+	--code-keyword: #8f3f71;
+	--code-string: #2b6e2f;
+	--code-number: #9a5b00;
+	--code-comment: #706e68;
+	--code-title: #1f5f8b;
+	--code-type: #6d4aa8;
+	--code-attr: #a4502e;
+	--code-meta: #5b5952;
+	--code-add: #2b6e2f;
+	--code-del: #b0312c;
 }
 
 [data-theme="sepia"] {
@@ -160,7 +172,7 @@ html.desktop body {
 	--text-2: #4c3f32;
 	--text-3: #5e5244;
 
-	--accent: #94482a;
+	--accent: #884227;
 	--accent-hover: #8a4226;
 	--accent-soft: #eed8c6;
 	--on-accent: #fff8ef;
@@ -169,20 +181,32 @@ html.desktop body {
 	--brand-dark: #843f23;
 	--brand-belly: #dca283;
 
-	--danger: #b23b27;
-	--success: #416830;
+	--danger: #8c2919;
+	--success: #3b5f2c;
 	--highlight: rgba(226, 170, 60, 0.45);
 	--highlight-active: rgba(196, 96, 50, 0.5);
 
-	--fmt-pdf: #bf5238;
+	--fmt-pdf: #bb4e34;
 	--fmt-doc: #46679c;
-	--fmt-sheet: #4f7f3a;
-	--fmt-slides: #bf7a1f;
+	--fmt-sheet: #4c7c37;
+	--fmt-slides: #a56005;
 	--fmt-text: #7f5f96;
-	--fmt-image: #a85a72;
+	--fmt-image: #a65870;
 
 	--scrim: rgba(58, 46, 34, 0.36);
 	--canvas: #e0d3ba;
+	--line-control: #756956;
+	--on-format: #ffffff;
+	--code-keyword: #8a3b5c;
+	--code-string: #4f6b1f;
+	--code-number: #9a4f12;
+	--code-comment: #716455;
+	--code-title: #2f5a7a;
+	--code-type: #6a4c8c;
+	--code-attr: #984929;
+	--code-meta: #6a5a47;
+	--code-add: #4f6b1f;
+	--code-del: #b0312c;
 }
 
 [data-theme="dark"] {
@@ -207,7 +231,7 @@ html.desktop body {
 	--brand-dark: #5aa596;
 	--brand-belly: #c6e6de;
 
-	--danger: #ec8a78;
+	--danger: #f59381;
 	--success: #74c095;
 	--highlight: rgba(232, 190, 80, 0.35);
 	--highlight-active: rgba(235, 162, 124, 0.5);
@@ -221,6 +245,18 @@ html.desktop body {
 
 	--scrim: rgba(0, 0, 0, 0.55);
 	--canvas: #111315;
+	--line-control: #92969a;
+	--on-format: #16181b;
+	--code-keyword: #e39ac3;
+	--code-string: #9fd28e;
+	--code-number: #f0b968;
+	--code-comment: #93908a;
+	--code-title: #8cc4ee;
+	--code-type: #c3a6f0;
+	--code-attr: #f0a07a;
+	--code-meta: #aaa69e;
+	--code-add: #9fd28e;
+	--code-del: #f08a85;
 }
 
 /* The plain pair: neutral greys, pure white and near black, no texture.
@@ -247,20 +283,32 @@ html.desktop body {
 	--brand-dark: #1f5750;
 	--brand-belly: #8fbcb3;
 
-	--danger: #c2412d;
+	--danger: #aa3423;
 	--success: #23704a;
 	--highlight: rgba(240, 196, 64, 0.5);
 	--highlight-active: rgba(224, 122, 79, 0.55);
 
-	--fmt-pdf: #d2553f;
+	--fmt-pdf: #ca4d37;
 	--fmt-doc: #3c6db4;
-	--fmt-sheet: #2f8a5b;
-	--fmt-slides: #cf8420;
+	--fmt-sheet: #2b8657;
+	--fmt-slides: #af6400;
 	--fmt-text: #7d65b0;
 	--fmt-image: #b3567f;
 
 	--scrim: rgba(0, 0, 0, 0.32);
 	--canvas: #ececee;
+	--line-control: #828285;
+	--on-format: #ffffff;
+	--code-keyword: #8f3f71;
+	--code-string: #2b6e2f;
+	--code-number: #9a5b00;
+	--code-comment: #706e68;
+	--code-title: #1f5f8b;
+	--code-type: #6d4aa8;
+	--code-attr: #a4502e;
+	--code-meta: #5b5952;
+	--code-add: #2b6e2f;
+	--code-del: #b0312c;
 }
 
 [data-theme="plain-dark"] {
@@ -299,6 +347,18 @@ html.desktop body {
 
 	--scrim: rgba(0, 0, 0, 0.6);
 	--canvas: #0a0a0b;
+	--line-control: #88888c;
+	--on-format: #16181b;
+	--code-keyword: #e39ac3;
+	--code-string: #9fd28e;
+	--code-number: #f0b968;
+	--code-comment: #93908a;
+	--code-title: #8cc4ee;
+	--code-type: #c3a6f0;
+	--code-attr: #f0a07a;
+	--code-meta: #aaa69e;
+	--code-add: #9fd28e;
+	--code-del: #f08a85;
 }
 
 :root,
@@ -425,7 +485,7 @@ html.touch textarea {
 
 * {
 	scrollbar-width: thin;
-	scrollbar-color: var(--line-strong) transparent;
+	scrollbar-color: var(--line-control) transparent;
 }
 html.touch * {
 	scrollbar-width: none;
