@@ -11,6 +11,7 @@
 				"minHeight": 480,
 				"resizable": true,
 				"fullscreen": false,
+				"visible": false,
 				"titleBarStyle": "Overlay",
 				"hiddenTitle": true,
 				"trafficLightPosition": { "x": 15, "y": 24 }
