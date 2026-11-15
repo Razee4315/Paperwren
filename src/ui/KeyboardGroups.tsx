@@ -38,21 +38,13 @@ export function KeyboardGroups() {
 			for (const group of node.querySelectorAll(groups)) sync(group);
 		};
 		refresh(document.body);
+		// Only selection and disabled changes are watched. Watching added
+		// nodes would run on every page and text layer the viewers draw;
+		// a group that mounts later is set up when focus first enters it.
 		const observer = new MutationObserver((records) => {
-			for (const record of records) {
-				if (record.type === "attributes") refresh(record.target);
-				else {
-					const group =
-						record.target instanceof Element
-							? record.target.closest(groups)
-							: null;
-					if (group) sync(group);
-					for (const node of record.addedNodes) refresh(node);
-				}
-			}
+			for (const record of records) refresh(record.target);
 		});
 		observer.observe(document.body, {
-			childList: true,
 			subtree: true,
 			attributes: true,
 			attributeFilter: ["aria-checked", "aria-selected", "disabled"],
