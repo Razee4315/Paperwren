@@ -1379,4 +1379,7 @@ export const ar: Table = {
 		"ستُفتح النسخة دون كلمة مرور. لتقفلها مرة أخرى، استخدم «إضافة كلمة مرور».",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"يضع ملف PDF هذا قيودًا على ما يفعله القارئ، مثل النسخ. ولن تحمل النسخة أي قيود.",
+	"Couldn't delete this note": "تعذّر حذف هذه الملاحظة",
+	"Couldn't change saved data": "تعذّر تغيير البيانات المحفوظة",
+	"A print job is already in progress": "هناك مهمة طباعة قيد التنفيذ بالفعل",
 };

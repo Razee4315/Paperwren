@@ -280,25 +280,34 @@ function NoteEditor({
 	const stored = useRef(first);
 	const timer = useRef(0);
 	/** The write under way, so leaving can wait for it. */
-	const writing = useRef<Promise<unknown>>(Promise.resolve());
+	const writing = useRef<Promise<boolean>>(Promise.resolve(true));
+	const mutation = useRef(false);
+	const removed = useRef(false);
+	const deletingNow = useRef(false);
+	const [busy, setBusy] = useState(false);
 
-	const store = useCallback(() => {
+	const store = useCallback(function storeNote(): Promise<boolean> {
 		window.clearTimeout(timer.current);
-		const now = latest.current;
-		if (now === stored.current) return writing.current;
-		const had = stored.current;
-		stored.current = now;
-		writing.current = writing.current
-			.then(() =>
-				// One never kept and still empty leaves nothing behind.
-				isEmptyNote(now)
-					? deleteNote(now.id)
-					: saveNote({ ...now, updatedAt: Date.now() }),
-			)
-			.catch(() => {
-				stored.current = had;
-				toast(t("Couldn't save this note"));
-			});
+		if (removed.current) return Promise.resolve(true);
+		if (deletingNow.current) return writing.current;
+		writing.current = writing.current.then(async () => {
+			const now = latest.current;
+			if (now === stored.current || removed.current) return true;
+			try {
+				if (isEmptyNote(now)) await deleteNote(now.id);
+				else await saveNote({ ...now, updatedAt: Date.now() });
+				stored.current = now;
+				return true;
+			} catch {
+				toast(t("Couldn't save this note"), {
+					label: t("Try again"),
+					run: () => {
+						void storeNote();
+					},
+				});
+				return false;
+			}
+		});
 		return writing.current;
 	}, []);
 
@@ -323,8 +332,20 @@ function NoteEditor({
 	}, []);
 
 	const close = useCallback(async () => {
-		await store();
-		onClose();
+		if (mutation.current) return;
+		mutation.current = true;
+		setBusy(true);
+		try {
+			while (await store()) {
+				if (stored.current === latest.current) {
+					onClose();
+					break;
+				}
+			}
+		} finally {
+			mutation.current = false;
+			setBusy(false);
+		}
 	}, [onClose, store]);
 	useBackClose("note", true, close);
 
@@ -380,18 +401,34 @@ function NoteEditor({
 	};
 
 	const remove = async () => {
+		if (mutation.current) return;
+		mutation.current = true;
+		deletingNow.current = true;
+		setBusy(true);
 		window.clearTimeout(timer.current);
-		// Nothing is left to write down when the editor closes.
-		stored.current = latest.current;
-		await writing.current;
-		await deleteNote(note.id).catch(() => {});
-		onClose();
+		try {
+			await writing.current;
+			await deleteNote(note.id);
+			removed.current = true;
+			onClose();
+		} catch {
+			toast(t("Couldn't delete this note"));
+		} finally {
+			deletingNow.current = false;
+			mutation.current = false;
+			setBusy(false);
+		}
 	};
 
 	return (
 		<div className={s.screen} data-testid="note-editor">
 			<header className={s.bar} data-tauri-drag-region="deep">
-				<IconButton label={t("Back")} onClick={close} data-testid="note-back">
+				<IconButton
+					label={t("Back")}
+					onClick={close}
+					disabled={busy}
+					data-testid="note-back"
+				>
 					<ArrowLeft size={22} className="pw-flip" />
 				</IconButton>
 				<input
@@ -570,6 +607,8 @@ function NoteEditor({
 							<Button
 								variant="danger"
 								onClick={remove}
+								disabled={busy}
+								aria-busy={busy}
 								data-testid="note-delete-go"
 							>
 								{t("Delete")}

@@ -1248,4 +1248,7 @@ export const zh: Table = {
 		"副本打开时不需要密码。如需重新加密，请使用“添加密码”。",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"此 PDF 限制阅读者的某些操作，例如复制。副本将没有这些限制。",
+	"Couldn't delete this note": "无法删除此笔记",
+	"Couldn't change saved data": "无法更改已保存的数据",
+	"A print job is already in progress": "已有打印任务正在进行",
 };

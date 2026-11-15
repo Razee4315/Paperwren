@@ -1318,4 +1318,7 @@ export const hi: Table = {
 		'कॉपी बिना पासवर्ड के खुलेगी। इसे फिर से लॉक करने के लिए "पासवर्ड लगाएँ" इस्तेमाल करें।',
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"इस PDF में पढ़ने वाले पर कुछ पाबंदियाँ हैं, जैसे कॉपी करना। कॉपी पर कोई पाबंदी नहीं होगी।",
+	"Couldn't delete this note": "यह नोट हटाया नहीं जा सका",
+	"Couldn't change saved data": "सहेजा गया डेटा बदला नहीं जा सका",
+	"A print job is already in progress": "प्रिंट कार्य पहले से चल रहा है",
 };

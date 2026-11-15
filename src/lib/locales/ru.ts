@@ -1386,4 +1386,7 @@ export const ru: Table = {
 		"Копия откроется без пароля. Чтобы снова защитить её, используйте «Добавить пароль».",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"Этот PDF ограничивает действия читателя, например копирование. У копии ограничений не будет.",
+	"Couldn't delete this note": "Не удалось удалить эту заметку",
+	"Couldn't change saved data": "Не удалось изменить сохранённые данные",
+	"A print job is already in progress": "Печать уже выполняется",
 };

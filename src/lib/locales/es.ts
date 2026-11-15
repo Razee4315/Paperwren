@@ -1356,4 +1356,8 @@ export const es: Table = {
 		"La copia se abrirá sin contraseña. Para protegerla de nuevo, usa «Añadir una contraseña».",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"Este PDF limita lo que un lector puede hacer, como copiar. La copia no tendrá límites.",
+	"Couldn't delete this note": "No se pudo eliminar esta nota",
+	"Couldn't change saved data": "No se pudieron cambiar los datos guardados",
+	"A print job is already in progress":
+		"Ya hay un trabajo de impresión en curso",
 };

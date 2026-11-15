@@ -857,3 +857,6 @@ ROWS += RENAME_18_ROWS
 # password nor its limits.
 from protected_18 import ROWS as PROTECTED_18_ROWS
 ROWS += PROTECTED_18_ROWS
+
+from state_local_fixes import ROWS as STATE_LOCAL_FIXES_ROWS
+ROWS += STATE_LOCAL_FIXES_ROWS

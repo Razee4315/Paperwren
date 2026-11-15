@@ -1370,4 +1370,8 @@ export const fr: Table = {
 		"La copie s'ouvrira sans mot de passe. Pour la verrouiller de nouveau, utilisez « Ajouter un mot de passe ».",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"Ce PDF limite ce qu'un lecteur peut faire, comme copier. La copie n'aura aucune limite.",
+	"Couldn't delete this note": "Impossible de supprimer cette note",
+	"Couldn't change saved data":
+		"Impossible de modifier les données enregistrées",
+	"A print job is already in progress": "Une impression est déjà en cours",
 };
