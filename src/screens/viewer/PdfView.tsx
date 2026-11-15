@@ -222,6 +222,11 @@ const toldNoCopy = new Set<string>();
 
 /** pdf.js's RenderingStates.FINISHED. */
 const RENDERED = 3;
+/** pdf.js's RenderingStates.INITIAL: not drawn, or let go of. */
+const UNDRAWN = 0;
+/** How long a tab is behind another before its pages are let go of:
+ * turning between two documents to compare them draws nothing again. */
+const RELEASE_AWAY = 10_000;
 
 /** What this file reads of pdf.js's page view. */
 interface DrawnPage {
@@ -615,9 +620,14 @@ export default function PdfView({
 				linkService,
 			});
 			finder.current = findController;
+			// Ends the viewer's watch on the scroller (its scroll listener and
+			// resize observer) when the document closes.
+			const ended = new AbortController();
 			const v = new viewer.PDFViewer({
 				container: container.current,
 				viewer: viewerEl.current,
+				// (pdf.js reads it; its types leave it out.)
+				...({ abortSignal: ended.signal } as object),
 				eventBus,
 				linkService,
 				findController,
@@ -854,6 +864,15 @@ export default function PdfView({
 			cleanup = () => {
 				window.clearTimeout(saveTimer);
 				v.cleanup();
+				// Letting go of the document is what takes the viewer's own
+				// listeners off the page: its "copy" listener on `document`, and
+				// each text layer's entry in pdf.js's list of them (TextLayerBuilder
+				// keeps one for the whole app). Without it those kept every
+				// closed document's pages, thousands of elements, for the rest of
+				// the run.
+				v.setDocument(null as unknown as PDFDocumentProxy);
+				linkService.setDocument(null);
+				ended.abort();
 				cropStop.current?.();
 				cropStop.current = null;
 			};
@@ -1596,6 +1615,33 @@ export default function PdfView({
 		if (!shown || !awayResized.current) return;
 		awayResized.current = false;
 		remeasure.current();
+	}, [shown]);
+	// A tab left behind another for a while lets go of its drawn pages
+	// (their bitmaps, text and links), as pdf.js does with pages scrolled
+	// far away. The document and the place in it stay: shown again, the
+	// pages on screen are drawn again.
+	const released = useRef(false);
+	useEffect(() => {
+		if (shown || status !== "ready") return;
+		const timer = window.setTimeout(() => {
+			const v = pdfViewer.current;
+			if (!v) return;
+			for (let i = 0; i < v.pagesCount; i++) {
+				const view = v.getPageView(i) as
+					| (DrawnPage & { destroy: () => void })
+					| undefined;
+				if (view && view.renderingState !== UNDRAWN) {
+					view.destroy();
+					released.current = true;
+				}
+			}
+		}, RELEASE_AWAY);
+		return () => window.clearTimeout(timer);
+	}, [shown, status]);
+	useEffect(() => {
+		if (!shown || !released.current) return;
+		released.current = false;
+		pdfViewer.current?.update();
 	}, [shown]);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: measured again at each page and zoom
 	useEffect(() => {

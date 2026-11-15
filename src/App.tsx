@@ -91,6 +91,30 @@ const ONBOARDED_KEY = "onboarded";
 /** Tabs kept drawn besides the one on show, so a switch back is
  * instant; older ones are read again when shown. */
 const KEPT_TABS = 4;
+const MB = 1024 * 1024;
+/** And no more than about this much memory between them. */
+const KEPT_BYTES = 200 * MB;
+/** What a tab kept drawn is reckoned to hold: a viewer and its engine
+ * (about 24 MB measured for a small PDF), and its file about twice
+ * over (the bytes, and what the engine reads from them). A PDF behind
+ * another lets go of its drawn pages, so they are not counted. */
+const tabBytes = (tab: Tab) => 24 * MB + 2 * (tab.request.size || 0);
+/** The tabs kept drawn, the latest shown first, until there are
+ * KEPT_TABS of them or they would hold more than KEPT_BYTES: a few
+ * large documents are not all held at once. The latest is always
+ * kept. One left out opens again where it was left when shown. */
+function keptTabs(tabs: Tab[], used: number[]): Set<number> {
+	const kept = new Set<number>();
+	let bytes = 0;
+	for (let i = used.length - 1; i >= 0 && kept.size < KEPT_TABS; i--) {
+		const tab = tabs.find((one) => one.key === used[i]);
+		if (!tab) continue;
+		bytes += tabBytes(tab);
+		if (kept.size && bytes > KEPT_BYTES) break;
+		kept.add(tab.key);
+	}
+	return kept;
+}
 
 interface Split {
 	left: number;
@@ -728,6 +752,7 @@ function Root() {
 			.then(() => toast(t("Copied")))
 			.catch(() => toast(t("Couldn't copy")));
 	};
+	const kept = keptTabs(tabs, used.current);
 
 	return (
 		<>
@@ -798,7 +823,7 @@ function Root() {
 								tab.key === current ||
 								tab.key === split?.left ||
 								tab.key === split?.right ||
-								used.current.slice(-KEPT_TABS).includes(tab.key),
+								kept.has(tab.key),
 						)
 						.map((tab) => (
 							<Suspense
