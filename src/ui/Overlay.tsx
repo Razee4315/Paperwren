@@ -1,6 +1,9 @@
 import { isDesktop } from "@/lib/env";
 import { t } from "@/lib/i18n";
 import { keys } from "@/lib/keys";
+import { usePendingTasks } from "@/lib/taskFeedback";
+import { useDelayed } from "@/lib/useDelayed";
+import { useExitPresence } from "@/lib/useExitPresence";
 import { useBackClose } from "@/state/navigation";
 import { X } from "lucide-react";
 import {
@@ -15,6 +18,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "./Button";
+import { Spinner } from "./Misc";
 import s from "./Overlay.module.css";
 
 /** Open sheets and dialogs; the app is inert while there is one. */
@@ -105,7 +109,7 @@ export function useModalFocus(
 ) {
 	const closeRef = useRef(onClose);
 	closeRef.current = onClose;
-	useEffect(() => {
+	useLayoutEffect(() => {
 		const opener = document.activeElement as HTMLElement | null;
 		const field = root.current?.querySelector<HTMLElement>(
 			"input:not([data-no-focus]), textarea:not([data-no-focus])",
@@ -164,6 +168,18 @@ export function useModalFocus(
 	}, [root]);
 }
 
+function Backdrop({
+	onClose,
+	exit = true,
+}: { onClose?: () => void; exit?: boolean }) {
+	const ref = useRef<HTMLDivElement>(null);
+	useExitPresence(ref, undefined, exit);
+	return (
+		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape and Back provide keyboard dismissal
+		<div ref={ref} className={s.scrim} onClick={onClose} aria-hidden="true" />
+	);
+}
+
 interface PanelProps {
 	title: ReactNode;
 	onClose: () => void;
@@ -198,8 +214,10 @@ export function Sheet({
 function SheetPanel({ title, onClose, children, testId }: PanelProps) {
 	const ref = useRef<HTMLDivElement>(null);
 	const [drag, setDrag] = useState(0);
+	const [dragging, setDragging] = useState(false);
 	const start = useRef<number | null>(null);
 	useModalFocus(ref, onClose);
+	// Retained sheet exits exceeded the throttled frame budget.
 
 	// The handle and the title pull the sheet down to close it. Not the
 	// buttons beside the title: holding the pointer for the drag would
@@ -208,6 +226,7 @@ function SheetPanel({ title, onClose, children, testId }: PanelProps) {
 		if ((e.target as Element).closest("button, a, input, select, textarea"))
 			return;
 		start.current = e.clientY;
+		setDragging(true);
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 	};
 	const onMove = (e: React.PointerEvent) => {
@@ -216,14 +235,14 @@ function SheetPanel({ title, onClose, children, testId }: PanelProps) {
 	const onUp = () => {
 		if (start.current === null) return;
 		start.current = null;
+		setDragging(false);
 		if (drag > 90) onClose();
 		else setDrag(0);
 	};
 
 	return (
 		<>
-			{/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer shortcut; Escape and Back close it from the keyboard */}
-			<div className={s.scrim} onClick={onClose} aria-hidden="true" />
+			<Backdrop onClose={onClose} exit={false} />
 			<div
 				ref={ref}
 				className={s.sheet}
@@ -233,11 +252,10 @@ function SheetPanel({ title, onClose, children, testId }: PanelProps) {
 				aria-label={typeof title === "string" ? title : undefined}
 				tabIndex={-1}
 				data-testid={testId}
-				style={
-					drag
-						? { transform: `translateY(${drag}px)`, transition: "none" }
-						: undefined
-				}
+				style={{
+					transform: `translateY(${drag}px)`,
+					transition: dragging ? "none" : undefined,
+				}}
 			>
 				<div
 					onPointerDown={onDown}
@@ -280,6 +298,7 @@ function MenuPanel({ title, onClose, children, testId }: PanelProps) {
 	const [anchor] = useState(anchorBox);
 	const [at, setAt] = useState<CSSProperties>({ visibility: "hidden" });
 	useModalFocus(ref, onClose);
+	useExitPresence(ref);
 
 	useLayoutEffect(() => {
 		const el = ref.current;
@@ -536,12 +555,15 @@ function DialogPanel({
 }) {
 	const ref = useRef<HTMLDivElement>(null);
 	const descriptionId = useId();
+	const wrap = useRef<HTMLDivElement>(null);
 	useModalFocus(ref, onClose);
+	useExitPresence(wrap);
 	return (
 		<>
-			<div className={s.scrim} aria-hidden="true" />
+			<Backdrop />
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer shortcut; Escape and Back close it from the keyboard */}
 			<div
+				ref={wrap}
 				className={`${s.dialogWrap} ${fullScreen ? s.fullScreen : ""} ${wide ? s.wide : ""}`}
 				onClick={onClose}
 			>
@@ -596,8 +618,12 @@ export function toast(message: string, action?: ToastState["action"]) {
  * pointer or the keyboard is on it, so Undo can be reached in time.
  */
 export function ToastHost() {
+	const pending = usePendingTasks();
+	const showPending = useDelayed(pending);
 	const [current, setCurrent] = useState<ToastState | null>(null);
 	const [held, setHeld] = useState(false);
+	const visual = useRef<HTMLDivElement>(null);
+	useExitPresence(visual, current?.key);
 	const show = useCallback(
 		(t: Omit<ToastState, "key">) => setCurrent({ ...t, key: Date.now() }),
 		[],
@@ -623,8 +649,14 @@ export function ToastHost() {
 	return createPortal(
 		// biome-ignore lint/a11y/useSemanticElements: a live region, not form output
 		<div className={s.toastRegion} role="status" aria-live="polite">
+			{showPending && (
+				<div className={s.pending}>
+					<Spinner label={t("Loading")} />
+				</div>
+			)}
 			{current && (
 				<div
+					ref={visual}
 					className={s.toast}
 					key={current.key}
 					onPointerEnter={() => setHeld(true)}

@@ -1361,4 +1361,6 @@ export const pt: Table = {
 	"Couldn't delete this note": "Não foi possível excluir esta nota",
 	"Couldn't change saved data": "Não foi possível alterar os dados salvos",
 	"A print job is already in progress": "Uma impressão já está em andamento",
+	"No results. Try different words or turn off search options.":
+		"Sem resultados. Tente outras palavras ou desative as opções de pesquisa.",
 };

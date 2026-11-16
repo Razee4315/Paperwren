@@ -5,6 +5,7 @@ import { t } from "@/lib/i18n";
 import { FULLSCREEN_KEYS } from "@/lib/keys";
 import { printDocument } from "@/lib/print";
 import { hintFor, matches } from "@/lib/shortcuts";
+import { withFeedback } from "@/lib/taskFeedback";
 import type { OpenRequest, Reopen } from "@/lib/types";
 import { announceSaved } from "@/screens/tools/saved";
 import {
@@ -172,9 +173,11 @@ export function HandOffItems({
 	tiles?: boolean;
 }) {
 	const can = backend.abilities(file);
-	const run = (action: Promise<void>, failure: string) => {
+	const run = (action: () => Promise<void>, failure: string) => {
 		onDone();
-		action.catch(() => toast(failure));
+		withFeedback(`handoff-${JSON.stringify(file.reopen)}`, action).catch(() =>
+			toast(failure),
+		);
 	};
 	const Item = tiles ? TileItem : RowItem;
 	return (
@@ -185,7 +188,7 @@ export function HandOffItems({
 						can.shareIsDownload ? <Download size={20} /> : <Share2 size={20} />
 					}
 					onClick={() =>
-						run(backend.share(file), t("Couldn't share this file"))
+						run(() => backend.share(file), t("Couldn't share this file"))
 					}
 					testId={`${testPrefix}-share`}
 				>
@@ -195,7 +198,7 @@ export function HandOffItems({
 			{can.saveCopy && (
 				<Item
 					icon={<Download size={20} />}
-					onClick={() => run(saveCopyOf(file), t("Couldn't save a copy"))}
+					onClick={() => run(() => saveCopyOf(file), t("Couldn't save a copy"))}
 					testId={`${testPrefix}-save-copy`}
 				>
 					{t("Save a copy")}
@@ -205,7 +208,10 @@ export function HandOffItems({
 				<Item
 					icon={<AppWindow size={20} />}
 					onClick={() =>
-						run(backend.openWith(file), t("No other app can open this file"))
+						run(
+							() => backend.openWith(file),
+							t("No other app can open this file"),
+						)
 					}
 					testId={`${testPrefix}-open-with`}
 				>
@@ -216,7 +222,7 @@ export function HandOffItems({
 				<Item
 					icon={<FolderOpen size={20} />}
 					onClick={() =>
-						run(backend.reveal(file), t("Couldn't show the folder"))
+						run(() => backend.reveal(file), t("Couldn't show the folder"))
 					}
 					testId={`${testPrefix}-reveal`}
 				>
@@ -260,8 +266,8 @@ export function FileMenu({
 	const print = useCallback(() => {
 		if (!context || !onPrint) return;
 		setOpen(false);
-		printDocument(context.file, onPrint).catch(() =>
-			toast(t("Couldn't prepare this file for printing")),
+		withFeedback("print", () => printDocument(context.file, onPrint)).catch(
+			() => toast(t("Couldn't prepare this file for printing")),
 		);
 	}, [context, onPrint]);
 

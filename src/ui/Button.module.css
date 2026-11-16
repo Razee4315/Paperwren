@@ -26,30 +26,41 @@
 	background: var(--accent);
 	color: var(--on-accent);
 }
-.primary:hover:not(:disabled),
+
 .primary:active:not(:disabled) {
 	background: var(--accent-hover);
+}
+@media (hover: hover) {
+	.primary:hover:not(:disabled) {
+		background: var(--accent-hover);
+	}
 }
 .secondary {
 	background: var(--surface-2);
 	color: var(--text);
 }
-.secondary:hover:not(:disabled) {
-	background: var(--surface-3);
+@media (hover: hover) {
+	.secondary:hover:not(:disabled) {
+		background: var(--surface-3);
+	}
 }
 .ghost {
 	color: var(--text-2);
 }
-.ghost:hover:not(:disabled) {
-	background: var(--surface-2);
-	color: var(--text);
+@media (hover: hover) {
+	.ghost:hover:not(:disabled) {
+		background: var(--surface-2);
+		color: var(--text);
+	}
 }
 .danger {
 	color: var(--danger);
 }
-.danger:hover:not(:disabled) {
-	background: rgba(194, 65, 45, 0.1);
-	background: color-mix(in srgb, var(--danger) 10%, transparent);
+@media (hover: hover) {
+	.danger:hover:not(:disabled) {
+		background: rgba(194, 65, 45, 0.1);
+		background: color-mix(in srgb, var(--danger) 10%, transparent);
+	}
 }
 .block {
 	width: 100%;
@@ -87,9 +98,11 @@
 .icon:active:not(:disabled) {
 	transform: scale(0.92);
 }
-.icon:hover:not(:disabled) {
-	background: var(--surface-2);
-	color: var(--text);
+@media (hover: hover) {
+	.icon:hover:not(:disabled) {
+		background: var(--surface-2);
+		color: var(--text);
+	}
 }
 .icon:active:not(:disabled) {
 	background: var(--surface-3);
@@ -101,4 +114,18 @@
 .iconActive {
 	color: var(--accent);
 	background: var(--accent-soft);
+}
+
+.secondary:active:not(:disabled),
+.ghost:active:not(:disabled) {
+	background: var(--surface-3);
+	color: var(--text);
+}
+.danger:active:not(:disabled) {
+	background: rgba(194, 65, 45, 0.2);
+	background: color-mix(in srgb, var(--danger) 20%, transparent);
+}
+
+.secondary:active:not(:disabled) {
+	background: var(--line-strong);
 }

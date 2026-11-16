@@ -1251,4 +1251,6 @@ export const zh: Table = {
 	"Couldn't delete this note": "无法删除此笔记",
 	"Couldn't change saved data": "无法更改已保存的数据",
 	"A print job is already in progress": "已有打印任务正在进行",
+	"No results. Try different words or turn off search options.":
+		"没有结果。请尝试其他词语或关闭搜索选项。",
 };

@@ -2,7 +2,7 @@ import { isDesktop } from "@/lib/env";
 import { msg, t } from "@/lib/i18n";
 import { Button, Dialog, IconButton } from "@/ui";
 import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import s from "./Shell.module.css";
 
 interface PageJumpProps {
@@ -50,15 +50,24 @@ function PageField({
 	const shown = label || String(page);
 	// What is being typed; null while the field just shows the page.
 	const [draft, setDraft] = useState<string | null>(null);
-	const submit = () => {
+	const [invalid, setInvalid] = useState(false);
+	const errorId = useId();
+	const validate = () => {
 		const text = (draft ?? "").trim();
-		setDraft(null);
-		if (!text) return;
-		if (onGoText) onGoText(text);
-		else {
-			const n = Math.round(Number(text));
-			if (n >= 1 && n <= pages) onGo(n);
+		const n = Number(text);
+		const valid =
+			!text || !!onGoText || (Number.isInteger(n) && n >= 1 && n <= pages);
+		setInvalid(!valid);
+		return valid;
+	};
+	const submit = () => {
+		if (!validate()) return;
+		const text = (draft ?? "").trim();
+		if (text) {
+			if (onGoText) onGoText(text);
+			else onGo(Number(text));
 		}
+		setDraft(null);
 	};
 	return (
 		<form
@@ -81,12 +90,16 @@ function PageField({
 					width: `${Math.max(String(pages).length, shown.length) + 2.5}ch`,
 				}}
 				onFocus={(e) => {
-					setDraft(shown);
+					setDraft(draft ?? shown);
 					const field = e.currentTarget;
 					requestAnimationFrame(() => field.select());
 				}}
 				onChange={(e) => setDraft(e.target.value)}
-				onBlur={() => setDraft(null)}
+				onBlur={() => {
+					if (validate()) setDraft(null);
+				}}
+				aria-invalid={invalid || undefined}
+				aria-describedby={invalid ? errorId : undefined}
 				onKeyDown={(e) => {
 					if (e.key === "Escape") e.currentTarget.blur();
 				}}
@@ -101,6 +114,11 @@ function PageField({
 					? `(${page} / ${pages})`
 					: `/ ${pages}`}
 			</span>
+			{invalid && (
+				<span id={errorId} className={s.pageError} aria-live="polite">
+					{t("Use a whole number, 1 or more.")} {t(words.field, { pages })}
+				</span>
+			)}
 		</form>
 	);
 }

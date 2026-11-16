@@ -249,7 +249,7 @@
 }
 .hud[data-on] {
 	opacity: 0.92;
-	transition-duration: var(--t-fast);
+	transition-duration: var(--t-fast) var(--ease);
 }
 /* The details dialog: label over value, long paths wrap. */
 .details {
@@ -600,16 +600,16 @@ button.findCount {
 	background: var(--canvas);
 	opacity: 0;
 	pointer-events: none;
-	transition: opacity 120ms var(--ease);
+	transition: opacity var(--t-fast) var(--ease);
 }
 :global(html[data-fs-veil]) .body::after {
 	opacity: 1;
-	transition-duration: 80ms;
+	transition-duration: var(--t-instant);
 }
 :global(html[data-fs-bars]) .top:not(.pinned),
 :global(html[data-fs-bars]) .bottom {
 	opacity: 0;
-	transition-duration: 80ms;
+	transition-duration: var(--t-instant);
 }
 
 .pager {
@@ -803,11 +803,12 @@ button.findCount {
 	border-radius: 999px;
 	background: var(--text-3);
 	box-shadow: 0 0 0 1px var(--surface);
-	transition: width var(--t-fast) var(--ease), background var(--t-fast)
+	transform-origin: right;
+	transition: transform var(--t-fast) var(--ease), background var(--t-fast)
 		var(--ease);
 }
 .scrub[data-held] .scrubKnob::before {
-	width: 10px;
+	transform: scaleX(1.25);
 	background: var(--accent);
 }
 .scrubLabel {
@@ -857,7 +858,7 @@ button.findCount {
 	border-radius: 999px;
 	border: 1px solid var(--line-control);
 	background: var(--surface);
-	animation: pw-fade-in 160ms ease-out;
+	animation: pw-fade-in var(--t-med) var(--ease);
 }
 .speechRate {
 	min-width: 48px;
@@ -906,6 +907,7 @@ button.findCount {
 	font-weight: 650;
 }
 .renameError {
+	min-height: 1.5em;
 	margin: 8px 0 0;
 	font-size: 13px;
 	color: var(--danger, #b0312c);
@@ -921,4 +923,19 @@ button.findCount {
  * phone's slide reads as the window shaking. */
 :global(html.desktop) .shell {
 	animation: pw-fade-in var(--t-fast) var(--ease);
+}
+
+.pageField {
+	position: relative;
+}
+.pageError {
+	position: absolute;
+	top: 100%;
+	inset-inline-start: 0;
+	z-index: 50;
+	padding: 8px;
+	background: var(--surface);
+	color: var(--danger);
+	border: 1px solid var(--line);
+	border-radius: var(--r-s);
 }

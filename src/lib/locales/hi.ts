@@ -1321,4 +1321,6 @@ export const hi: Table = {
 	"Couldn't delete this note": "यह नोट हटाया नहीं जा सका",
 	"Couldn't change saved data": "सहेजा गया डेटा बदला नहीं जा सका",
 	"A print job is already in progress": "प्रिंट कार्य पहले से चल रहा है",
+	"No results. Try different words or turn off search options.":
+		"कोई परिणाम नहीं। दूसरे शब्द आज़माएँ या खोज विकल्प बंद करें।",
 };

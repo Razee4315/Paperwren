@@ -35,8 +35,10 @@
 	font-size: 14px;
 	transition: background-color var(--t-fast) var(--ease);
 }
-.open:hover {
-	background: var(--accent-hover);
+@media (hover: hover) {
+	.open:hover {
+		background: var(--accent-hover);
+	}
 }
 :global(html.desktop) .column {
 	padding-bottom: calc(40px + var(--safe-bottom));
@@ -142,9 +144,11 @@
 	font-weight: 750;
 	overflow-wrap: anywhere;
 }
-.toolShortcut:hover {
-	background: var(--surface-2);
-	border-color: var(--accent);
+@media (hover: hover) {
+	.toolShortcut:hover {
+		background: var(--surface-2);
+		border-color: var(--accent);
+	}
 }
 .toolIcon {
 	display: grid;
@@ -245,8 +249,10 @@
 	transition: background-color var(--t-fast) var(--ease), color var(--t-fast)
 		var(--ease);
 }
-.place:hover {
-	background: var(--surface-2);
+@media (hover: hover) {
+	.place:hover {
+		background: var(--surface-2);
+	}
 }
 .place[aria-pressed="true"] {
 	background: var(--accent-soft);
@@ -290,8 +296,10 @@
 	font-weight: 700;
 	font-size: 14px;
 }
-.browse:hover {
-	background: var(--surface-3);
+@media (hover: hover) {
+	.browse:hover {
+		background: var(--surface-3);
+	}
 }
 .chips {
 	display: flex;
@@ -378,9 +386,14 @@
 .row + .row {
 	border-top: 1px solid var(--line);
 }
-.row:hover,
+
 .row:active {
 	background: var(--surface-2);
+}
+@media (hover: hover) {
+	.row:hover {
+		background: var(--surface-2);
+	}
 }
 .rowMain {
 	flex: 1;
@@ -436,8 +449,10 @@
 .crumb:first-child {
 	padding-inline-start: 0;
 }
-.crumb:hover:not(:disabled) {
-	background: var(--surface-2);
+@media (hover: hover) {
+	.crumb:hover:not(:disabled) {
+		background: var(--surface-2);
+	}
 }
 /* The folder on show: named, not a link; never the one cut short. */
 .crumb[aria-current] {
@@ -509,9 +524,14 @@
 	font-size: 16px;
 	transition: background-color var(--t-fast) var(--ease);
 }
-.fab:hover,
+
 .fab:active {
 	background: var(--accent-hover);
+}
+@media (hover: hover) {
+	.fab:hover {
+		background: var(--accent-hover);
+	}
 }
 /* On an empty Home: the same button, in its place among the words. */
 .fabInline {
@@ -611,8 +631,10 @@
 	font-size: 14px;
 	font-weight: 600;
 }
-.sample:hover {
-	background: var(--surface-2);
+@media (hover: hover) {
+	.sample:hover {
+		background: var(--surface-2);
+	}
 }
 
 /* ---------- Desktop: a window, not a phone ----------
@@ -756,4 +778,26 @@
 
 .chip[aria-pressed="true"] .count {
 	color: var(--on-accent);
+}
+
+.toolShortcut:active,
+.browse:active,
+.place:active,
+.sample:active,
+.chip:active,
+.crumb:active {
+	background: var(--surface-3);
+}
+
+.open:active,
+.fab:active {
+	background: var(--accent-hover);
+	outline: 2px solid var(--on-accent);
+	outline-offset: -4px;
+}
+.chip:active {
+	color: var(--text);
+}
+.chip:active .count {
+	color: var(--text);
 }

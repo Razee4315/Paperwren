@@ -1360,4 +1360,6 @@ export const es: Table = {
 	"Couldn't change saved data": "No se pudieron cambiar los datos guardados",
 	"A print job is already in progress":
 		"Ya hay un trabajo de impresión en curso",
+	"No results. Try different words or turn off search options.":
+		"Sin resultados. Prueba otras palabras o desactiva las opciones de búsqueda.",
 };
