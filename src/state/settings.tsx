@@ -25,7 +25,9 @@ import {
 	useEffect,
 	useMemo,
 	useState,
+	useSyncExternalStore,
 } from "react";
+import { type Store, createStore, usePick, useSelect } from "./store";
 
 interface SettingsApi {
 	settings: Settings;
@@ -35,6 +37,18 @@ interface SettingsApi {
 }
 
 const SettingsContext = createContext<SettingsApi | null>(null);
+
+interface SettingsStores {
+	values: Store<Settings>;
+	ready: Store<boolean>;
+	/** The device is in dark mode (for the theme "system"). */
+	systemDark: Store<boolean>;
+}
+/** The stores and `update`, which never change: no reader is drawn again
+ * through this context. */
+const SettingsStoresContext = createContext<
+	(SettingsStores & { update: SettingsApi["update"] }) | null
+>(null);
 
 const THEME_COLOR: Record<ResolvedTheme, string> = {
 	light: "#f3f1ec",
@@ -67,30 +81,47 @@ export async function loadSettings(): Promise<Settings> {
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-	// Until the settings are read, the theme last used (index.html has
-	// already applied it), so the first render does not switch it back to
-	// the default.
-	const [settings, setSettings] = useState<Settings>(() => {
+	// Held in stores, so that a reader of one setting is not drawn again
+	// when another changes (useSetting); useSettings still hears them all.
+	const [stores] = useState<SettingsStores>(() => {
+		// Until the settings are read, the theme last used (index.html has
+		// already applied it), so the first render does not switch it back
+		// to the default.
 		const theme = hintedTheme();
-		return theme ? { ...DEFAULT_SETTINGS, theme } : DEFAULT_SETTINGS;
+		const values = createStore(
+			theme ? { ...DEFAULT_SETTINGS, theme } : DEFAULT_SETTINGS,
+		);
+		// The keys every handler checks: set as the settings are read, so
+		// a change applies to the very next key press.
+		setCustomShortcuts(values.get().shortcuts);
+		values.subscribe(() => setCustomShortcuts(values.get().shortcuts));
+		return {
+			values,
+			ready: createStore(false),
+			systemDark: createStore(!!systemPrefersDark()),
+		};
 	});
-	// The keys every handler checks: set as the settings are read, so a
-	// change applies to the very next key press.
-	setCustomShortcuts(settings.shortcuts);
-	const [ready, setReady] = useState(false);
-	const [systemDark, setSystemDark] = useState(systemPrefersDark);
+	const settings = useSyncExternalStore(
+		stores.values.subscribe,
+		stores.values.get,
+	);
+	const ready = useSyncExternalStore(stores.ready.subscribe, stores.ready.get);
+	const systemDark = useSyncExternalStore(
+		stores.systemDark.subscribe,
+		stores.systemDark.get,
+	);
 
 	useEffect(() => {
 		let alive = true;
 		loadSettings().then((s) => {
 			if (!alive) return;
-			setSettings(s);
-			setReady(true);
+			stores.values.set(s);
+			stores.ready.set(true);
 		});
 		return () => {
 			alive = false;
 		};
-	}, []);
+	}, [stores]);
 
 	// Desktop: each open document is a window of its own, and they share
 	// the settings. Coming back to a window, take up what was changed in
@@ -100,24 +131,24 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 		if (!ready || !isTauri || !isDesktop) return;
 		const refresh = () => {
 			loadSettings()
-				.then((fresh) =>
-					setSettings((mine) =>
-						JSON.stringify(mine) === JSON.stringify(fresh) ? mine : fresh,
-					),
-				)
+				.then((fresh) => {
+					const mine = stores.values.get();
+					if (JSON.stringify(mine) !== JSON.stringify(fresh))
+						stores.values.set(fresh);
+				})
 				.catch(() => {});
 		};
 		window.addEventListener("focus", refresh);
 		return () => window.removeEventListener("focus", refresh);
-	}, [ready]);
+	}, [ready, stores]);
 
 	useEffect(() => {
 		const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
 		if (!mq) return;
-		const on = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+		const on = (e: MediaQueryListEvent) => stores.systemDark.set(e.matches);
 		mq.addEventListener("change", on);
 		return () => mq.removeEventListener("change", on);
-	}, []);
+	}, [stores]);
 
 	useEffect(() => {
 		if (ready) hintTheme(settings.theme);
@@ -164,26 +195,71 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
 	const update = useCallback(
 		<K extends keyof Settings>(key: K, value: Settings[K]) => {
-			setSettings((prev) => {
-				const next = { ...prev, [key]: value };
-				backend.storeSet(STORAGE_KEYS.settings, next).catch(() => {});
-				return next;
-			});
+			const next = { ...stores.values.get(), [key]: value };
+			backend.storeSet(STORAGE_KEYS.settings, next).catch(() => {});
+			stores.values.set(next);
 		},
-		[],
+		[stores],
 	);
 
 	const api = useMemo(
 		() => ({ settings, ready, update, theme }),
 		[settings, ready, update, theme],
 	);
+	const fixed = useMemo(() => ({ ...stores, update }), [stores, update]);
 	return (
-		<SettingsContext.Provider value={api}>{children}</SettingsContext.Provider>
+		<SettingsStoresContext.Provider value={fixed}>
+			<SettingsContext.Provider value={api}>
+				{children}
+			</SettingsContext.Provider>
+		</SettingsStoresContext.Provider>
 	);
 }
 
+/** Every setting, the theme and `update`: the reader is drawn again
+ * whenever any setting changes. Hot screens read single settings with
+ * useSetting / useSettingsOf instead. */
 export function useSettings(): SettingsApi {
 	const ctx = useContext(SettingsContext);
 	if (!ctx) throw new Error("useSettings must be used inside SettingsProvider");
 	return ctx;
+}
+
+function useStores(): SettingsStores & { update: SettingsApi["update"] } {
+	const ctx = useContext(SettingsStoresContext);
+	if (!ctx) throw new Error("settings read outside SettingsProvider");
+	return ctx;
+}
+
+/** One setting; the reader is drawn again only when it changes. */
+export function useSetting<K extends keyof Settings>(key: K): Settings[K] {
+	return useSelect(useStores().values, (settings) => settings[key]);
+}
+
+/** Some settings, as one object that keeps its identity while they do. */
+export function useSettingsOf<K extends keyof Settings>(
+	...keys: K[]
+): Pick<Settings, K> {
+	return usePick(useStores().values, keys);
+}
+
+/** The theme as drawn ("system" resolved); the reader is drawn again
+ * only when it changes. */
+export function useTheme(): ResolvedTheme {
+	const { values, systemDark } = useStores();
+	const theme = useSelect(values, (settings) => settings.theme);
+	return resolveTheme(
+		theme,
+		useSelect(systemDark, (dark) => dark),
+	);
+}
+
+/** Whether the settings have been read from storage. */
+export function useSettingsReady(): boolean {
+	return useSelect(useStores().ready, (ready) => ready);
+}
+
+/** Change one setting (and save it). The same function at every render. */
+export function useUpdateSetting(): SettingsApi["update"] {
+	return useStores().update;
 }

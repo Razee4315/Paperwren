@@ -24,6 +24,7 @@
  */
 
 import { isDesktop, isTauri } from "./env";
+import { atEdges } from "./settle";
 
 const REVEAL_AT = 2;
 const HIDE_PAST = 140;
@@ -318,6 +319,7 @@ export function watchFullscreen(): () => void {
 	// of (the green button, the menu, a swipe), each of which resizes it.
 	let alive = true;
 	let stop = () => {};
+	let settled: ReturnType<typeof atEdges> | null = null;
 	if (ofWindow) {
 		window.addEventListener("keydown", onKey);
 		appWindow()
@@ -333,7 +335,10 @@ export function watchFullscreen(): () => void {
 						.catch(() => {});
 				syncNow = follow;
 				follow();
-				return win.onResized(follow);
+				// Asked as a resize starts and once it has settled, not at
+				// every step of a drag.
+				settled = atEdges(follow);
+				return win.onResized(settled);
 			})
 			.then((unlisten) => {
 				if (alive) stop = unlisten;
@@ -345,6 +350,7 @@ export function watchFullscreen(): () => void {
 	return () => {
 		alive = false;
 		stop();
+		settled?.cancel();
 		syncNow = () => {};
 		windowFull = false;
 		document.removeEventListener("fullscreenchange", sync);

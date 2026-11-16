@@ -20,7 +20,7 @@ import {
 import { withFeedback } from "@/lib/taskFeedback";
 import { relativeTime } from "@/screens/home/Home";
 import { announceSaved } from "@/screens/tools/saved";
-import { useBackClose, useNav } from "@/state/navigation";
+import { useBackClose, useNavActions } from "@/state/navigation";
 import {
 	Button,
 	Dialog,
@@ -59,7 +59,7 @@ const safeName = (title: string) =>
 /** Written notes on this device: typed text and handwriting, side by
  * side, found by search, kept without being asked. */
 export function NotesScreen() {
-	const { back } = useNav();
+	const { back } = useNavActions();
 	const [notes, setNotes] = useState<NoteSummary[] | null>(null);
 	const [query, setQuery] = useState("");
 	const [open, setOpen] = useState<Note | null>(null);

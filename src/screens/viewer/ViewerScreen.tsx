@@ -6,8 +6,8 @@ import type { DecryptResult } from "@/lib/parseWorker";
 import { isEncryptedPackage, sniffFormat } from "@/lib/sniff";
 import type { OpenRequest, Position } from "@/lib/types";
 import { holdScreen } from "@/lib/wake";
-import { useRecents } from "@/state/recents";
-import { useSettings } from "@/state/settings";
+import { useIsRecent, useRecentsActions } from "@/state/recents";
+import { useSetting } from "@/state/settings";
 import { Button, Dialog, ErrorArt, OpeningView } from "@/ui";
 import {
 	Component,
@@ -17,12 +17,13 @@ import {
 	lazy,
 	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
 import { PasswordDialog } from "./Dialogs";
 import { FileChangedBar, useFileChanged } from "./FileChanged";
-import { ViewerFileContext } from "./FileMenu";
+import { type ViewerFile, ViewerFileContext } from "./FileMenu";
 import styles from "./Pane.module.css";
 import { type Pane, PaneContext } from "./pane";
 import { runWorker } from "./runWorker";
@@ -178,8 +179,18 @@ function Viewer({
 	/** Open the tools (or one of them) with this file. */
 	onTools?: (tool: string | undefined, file: OpenRequest) => void;
 }) {
-	const { entries, record, setPosition, markUnavailable, remove } =
-		useRecents();
+	// Read in handlers, not drawn from: a change of the list (another
+	// document read on, a pin on Home) does not draw this one again.
+	const {
+		record,
+		setPosition,
+		positionOf,
+		flushPositions,
+		list,
+		markUnavailable,
+		remove,
+	} = useRecentsActions();
+	const isRecent = useIsRecent(request.id);
 	const [loaded, setLoaded] = useState<Loaded | null>(null);
 	const [failure, setFailure] = useState<OpenFailure | null>(null);
 	// A very large file is read only once the reader has said so.
@@ -189,8 +200,7 @@ function Viewer({
 	// Position at open time; later writes must not re-trigger restores.
 	// A reload starts from where the reader had got to.
 	const [initialPosition, setInitialPosition] = useState<Position | undefined>(
-		() =>
-			request.position ?? entries.find((e) => e.id === request.id)?.position,
+		() => request.position ?? positionOf(request.id),
 	);
 	// Counts the reads of the file: a reload reads it again.
 	const [reads, setReads] = useState(0);
@@ -216,7 +226,7 @@ function Viewer({
 			return;
 		}
 		const { name, verified } = displayName(request, format);
-		firstOpen.current = !entries.some((e) => e.id === request.id);
+		firstOpen.current = !list().some((e) => e.id === request.id);
 		// A file inside another one has no place to reopen it from.
 		if (request.reopen.kind !== "memory")
 			record({
@@ -290,9 +300,7 @@ function Viewer({
 		reads,
 	);
 	const reload = () => {
-		setInitialPosition(
-			(was) => entries.find((e) => e.id === request.id)?.position ?? was,
-		);
+		setInitialPosition((was) => positionOf(request.id) ?? was);
 		setLoaded(null);
 		setReads((n) => n + 1);
 	};
@@ -301,17 +309,61 @@ function Viewer({
 		(p: Position) => setPosition(request.id, p),
 		[request.id, setPosition],
 	);
+	// Where the reader got to goes into Recent files as they leave the
+	// document: for another tab, Home, Settings, or closing it.
+	useEffect(() => {
+		if (active) return flushPositions;
+	}, [active, flushPositions]);
 
 	// The screen stays on only while this document is the one on show.
-	const { settings } = useSettings();
+	const keepAwake = useSetting("keepAwake");
 	const reading = !!loaded && active;
 	useEffect(() => {
-		if (settings.keepAwake && reading) return holdScreen();
-	}, [settings.keepAwake, reading]);
+		if (keepAwake && reading) return holdScreen();
+	}, [keepAwake, reading]);
+
+	// One value while the file and what it is handed stay the same: the
+	// bar, the file menu and the viewer that read it are not drawn again
+	// for a new object at each render.
+	const fileContext = useMemo<ViewerFile | null>(
+		() =>
+			loaded && {
+				file: {
+					name: loaded.name,
+					format: loaded.format,
+					reopen: request.reopen,
+				},
+				id: request.id,
+				// Shown again under its new name, from where it now is.
+				onRenamed:
+					request.reopen.kind === "memory"
+						? undefined
+						: (name, reopen, id) =>
+								onReplace({
+									...request,
+									id,
+									name,
+									nameVerified: true,
+									reopen,
+									position: positionOf(id) ?? initialPosition,
+								}),
+				// Read when asked: a viewer may hand `data` on (to a worker),
+				// after which its own size is gone.
+				get size() {
+					return loaded.data.byteLength || loaded.size;
+				},
+				openOther: onReplace,
+				openOver: onOpen,
+				openTools:
+					onTools && request.reopen.kind !== "memory"
+						? (tool) => onTools(tool, request)
+						: undefined,
+			},
+		[loaded, request, onReplace, onOpen, onTools, positionOf, initialPosition],
+	);
 
 	if (failure) {
 		const copy = failureCopy(failure, request.name);
-		const isRecent = entries.some((e) => e.id === request.id);
 		return (
 			<Dialog
 				open
@@ -390,38 +442,7 @@ function Viewer({
 	const View = VIEWERS[loaded.format];
 	if (!View) return null;
 	return (
-		<ViewerFileContext.Provider
-			value={{
-				file: {
-					name: loaded.name,
-					format: loaded.format,
-					reopen: request.reopen,
-				},
-				id: request.id,
-				// Shown again under its new name, from where it now is.
-				onRenamed:
-					request.reopen.kind === "memory"
-						? undefined
-						: (name, reopen, id) =>
-								onReplace({
-									...request,
-									id,
-									name,
-									nameVerified: true,
-									reopen,
-									position:
-										entries.find((e) => e.id === request.id)?.position ??
-										initialPosition,
-								}),
-				size: loaded.data.byteLength || loaded.size,
-				openOther: onReplace,
-				openOver: onOpen,
-				openTools:
-					onTools && request.reopen.kind !== "memory"
-						? (tool) => onTools(tool, request)
-						: undefined,
-			}}
-		>
+		<ViewerFileContext.Provider value={fileContext}>
 			<ViewerBoundary name={loaded.name} onClose={onClose}>
 				<Suspense fallback={<OpeningView name={request.name} />}>
 					<View

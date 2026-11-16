@@ -23,8 +23,11 @@ declare global {
 	}
 }
 
-interface NavApi {
+interface NavApi extends NavActions {
 	state: NavState;
+}
+
+interface NavActions {
 	push: (screen: Screen) => void;
 	/** Put a screen in place of the one on top. */
 	replace: (screen: Screen) => void;
@@ -46,7 +49,12 @@ interface NavApi {
 	onLeave: (leave: (state: NavState) => boolean) => () => void;
 }
 
-const NavContext = createContext<NavApi | null>(null);
+// Three contexts, so a reader is drawn again only for what it reads: an
+// overlay opening (a menu, a dialog) changes the state but not the
+// screens, and the actions never change.
+const NavStateContext = createContext<NavState | null>(null);
+const NavScreensContext = createContext<Screen[] | null>(null);
+const NavActionsContext = createContext<NavActions | null>(null);
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
 	const [state, dispatch] = useReducer(navReducer, initialNav);
@@ -165,9 +173,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 		return () => window.removeEventListener("popstate", onPop);
 	}, [back]);
 
-	const api = useMemo(
+	const actions = useMemo(
 		() => ({
-			state,
 			push,
 			replace,
 			back,
@@ -177,24 +184,42 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 			noteClosed,
 			onLeave,
 		}),
-		[
-			state,
-			push,
-			replace,
-			back,
-			close,
-			reset,
-			registerOverlay,
-			noteClosed,
-			onLeave,
-		],
+		[push, replace, back, close, reset, registerOverlay, noteClosed, onLeave],
 	);
-	return <NavContext.Provider value={api}>{children}</NavContext.Provider>;
+	return (
+		<NavActionsContext.Provider value={actions}>
+			<NavScreensContext.Provider value={state.screens}>
+				<NavStateContext.Provider value={state}>
+					{children}
+				</NavStateContext.Provider>
+			</NavScreensContext.Provider>
+		</NavActionsContext.Provider>
+	);
 }
 
+/** The state and every action: the reader is drawn again at every
+ * change, an overlay opening or closing included. */
 export function useNav(): NavApi {
-	const ctx = useContext(NavContext);
-	if (!ctx) throw new Error("useNav must be used inside NavigationProvider");
+	const state = useContext(NavStateContext);
+	const actions = useNavActions();
+	if (!state) throw new Error("useNav must be used inside NavigationProvider");
+	return useMemo(() => ({ state, ...actions }), [state, actions]);
+}
+
+/** The screens over Home: the same array while only overlays change. */
+export function useNavScreens(): Screen[] {
+	const screens = useContext(NavScreensContext);
+	if (!screens)
+		throw new Error("useNavScreens must be used inside NavigationProvider");
+	return screens;
+}
+
+/** What moves between screens and overlays. The same functions at
+ * every render: the reader is never drawn again for them. */
+export function useNavActions(): NavActions {
+	const ctx = useContext(NavActionsContext);
+	if (!ctx)
+		throw new Error("useNavActions must be used inside NavigationProvider");
 	return ctx;
 }
 
@@ -204,7 +229,7 @@ export function useBackClose(
 	open: boolean,
 	close: () => void,
 ): () => void {
-	const { registerOverlay, noteClosed } = useNav();
+	const { registerOverlay, noteClosed } = useNavActions();
 	const closeRef = useRef(close);
 	closeRef.current = close;
 	useEffect(() => {

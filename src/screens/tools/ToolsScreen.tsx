@@ -36,7 +36,7 @@ import {
 } from "@/lib/pdfTools";
 import { sniffFormat } from "@/lib/sniff";
 import type { OpenRequest } from "@/lib/types";
-import { useBackClose, useNav } from "@/state/navigation";
+import { useBackClose, useNavActions } from "@/state/navigation";
 import { Button, IconButton, toast } from "@/ui";
 import { zipSync } from "fflate";
 import {
@@ -269,7 +269,7 @@ export function ToolsScreen({
 	file?: OpenRequest;
 	onOpen: (request: OpenRequest) => void;
 }) {
-	const { back } = useNav();
+	const { back } = useNavActions();
 	const [tool, setTool] = useState<ToolId | null>(start ?? null);
 	// Back from a tool opened from the list returns to the list.
 	useBackClose("tool", !!tool && !start, () => setTool(null));

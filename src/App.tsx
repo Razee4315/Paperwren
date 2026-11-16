@@ -25,9 +25,21 @@ import {
 	SideBySideContext,
 	clampRatio,
 } from "@/screens/viewer/pane";
-import { NavigationProvider, useNav } from "@/state/navigation";
-import { RecentsProvider, useRecents } from "@/state/recents";
-import { SettingsProvider, useSettings } from "@/state/settings";
+import {
+	NavigationProvider,
+	useNavActions,
+	useNavScreens,
+} from "@/state/navigation";
+import {
+	RecentsProvider,
+	useRecentsActions,
+	useRecentsReady,
+} from "@/state/recents";
+import {
+	SettingsProvider,
+	useSettingsOf,
+	useSettingsReady,
+} from "@/state/settings";
 import {
 	DropHint,
 	LinkGuard,
@@ -42,8 +54,10 @@ import {
 } from "@/ui";
 import { Copy, Search, TextSelect } from "lucide-react";
 import {
+	type ComponentProps,
 	Suspense,
 	lazy,
+	memo,
 	useCallback,
 	useEffect,
 	useMemo,
@@ -132,7 +146,102 @@ function onResize(then: () => void) {
 	window.addEventListener("resize", then);
 	return () => window.removeEventListener("resize", then);
 }
-const windowWidth = () => window.innerWidth;
+/** A half narrower than this has no room for every button in its bar. */
+const NARROW_HALF = 720;
+/** What two documents side by side take from the window's width: where
+ * the halves meet, and whether each is narrow. Read as one string, so a
+ * resize that changes neither does not draw the window again (the raw
+ * width would, at every step of a drag). */
+function splitShape(ratio: number | null) {
+	return () => {
+		if (ratio === null) return "";
+		const width = window.innerWidth;
+		const at = clampRatio(ratio, width);
+		const narrow = (share: number) => (width * share < NARROW_HALF ? "1" : "0");
+		return `${at} ${narrow(at)}${narrow(1 - at)}`;
+	};
+}
+
+/** What a document's screen asks of the window. The same functions at
+ * every render, so the document is not drawn again for them. */
+interface DocCalls {
+	close: (key: number) => void;
+	replace: (key: number, request: OpenRequest) => void;
+	open: (request: OpenRequest) => void;
+	tools: (tool: string | undefined, file: OpenRequest) => void;
+	locate: (key: number, id: string) => void;
+	focus: (key: number) => void;
+}
+
+/**
+ * One document, drawn again only when what it is given changes, not at
+ * every render of Root (a menu opening in another tab, a step of a
+ * resize). The language and the keys are given too: what the document
+ * shows of them is read while it is drawn, so a change of either must
+ * still reach it.
+ */
+const DocView = memo(function DocView({
+	docKey,
+	request,
+	active,
+	tabbed,
+	visible,
+	side,
+	ratio,
+	narrow,
+	calls,
+}: {
+	docKey: number;
+	request: OpenRequest;
+	active: boolean;
+	/** A desktop's tab, in a wrapper that can fill half the window. */
+	tabbed: boolean;
+	visible: boolean;
+	side: Pane["side"];
+	ratio: number;
+	narrow: boolean;
+	calls: DocCalls;
+	lang: string;
+	keys: unknown;
+}) {
+	const onClose = useCallback(() => calls.close(docKey), [calls, docKey]);
+	const onReplace = useCallback(
+		(next: OpenRequest) => calls.replace(docKey, next),
+		[calls, docKey],
+	);
+	const onLocate = useCallback(
+		() => calls.locate(docKey, request.id),
+		[calls, docKey, request.id],
+	);
+	const pane = useMemo<Pane | undefined>(
+		() =>
+			tabbed
+				? { visible, side, ratio, narrow, onFocus: () => calls.focus(docKey) }
+				: undefined,
+		[tabbed, visible, side, ratio, narrow, calls, docKey],
+	);
+	return (
+		<ViewerScreen
+			request={request}
+			active={active}
+			pane={pane}
+			onClose={onClose}
+			onReplace={onReplace}
+			onOpen={calls.open}
+			onTools={calls.tools}
+			onLocate={onLocate}
+		/>
+	);
+});
+
+/** Home, drawn again only when what it is given changes (see DocView). */
+const KeptHome = memo(function KeptHome({
+	lang: _lang,
+	keys: _keys,
+	...props
+}: ComponentProps<typeof Home> & { lang: string; keys: unknown }) {
+	return <Home {...props} />;
+});
 
 declare global {
 	interface Window {
@@ -151,9 +260,16 @@ function Root() {
 	// Every screen is drawn from here, so a change of language redraws
 	// them all.
 	const lang = useSyncExternalStore(subscribe, language);
-	const { state, push, replace, back, close, reset, onLeave } = useNav();
-	const { entries, remove, ready: recentsReady } = useRecents();
-	const { settings, ready: settingsReady } = useSettings();
+	// The screens, not the whole state: an overlay opening or closing (a
+	// menu, a dialog) does not draw Root.
+	const screens = useNavScreens();
+	const { push, replace, back, close, reset, onLeave } = useNavActions();
+	// The list itself is only read in handlers (list()): a change of it
+	// does not draw Root.
+	const { remove, list: recentList } = useRecentsActions();
+	const recentsReady = useRecentsReady();
+	const settings = useSettingsOf("reopenLast", "shortcuts");
+	const settingsReady = useSettingsReady();
 	const nextKey = useRef(1);
 	const picking = useRef(false);
 	// null until storage answers; the welcome only shows on a first run.
@@ -179,7 +295,7 @@ function Root() {
 	/** A change of tab is under way; anything else that takes the
 	 * document away (Back) closes its tab. */
 	const leaving = useRef(false);
-	const top = state.screens[state.screens.length - 1];
+	const top = screens[screens.length - 1];
 	const current = top?.kind === "viewer" ? top.key : null;
 	/** Two documents side by side (a desktop's wide window): the tabs in
 	 * each half, and where the halves meet. The one on show (`current`)
@@ -190,7 +306,16 @@ function Root() {
 	/** A file being picked to open beside the document on show. */
 	const besideOf = useRef<number | null>(null);
 	const room = useSyncExternalStore(onRoomChange, roomForTwo);
-	const width = useSyncExternalStore(onResize, windowWidth);
+	const shapeOf = useMemo(
+		() => splitShape(split ? split.ratio : null),
+		[split],
+	);
+	const [shownRatio, narrowHalves = ""] = useSyncExternalStore(
+		onResize,
+		shapeOf,
+	).split(" ");
+	/** Where the halves meet, kept so that each has room. */
+	const ratio = split ? Number(shownRatio) : 0.5;
 
 	const show = useCallback(
 		(tab: Tab) => {
@@ -219,7 +344,7 @@ function Root() {
 			setTabs(rest);
 			tabsRef.current = rest;
 			used.current = used.current.filter((k) => k !== key);
-			const shown = stateRef.current.screens.some(
+			const shown = screensRef.current.some(
 				(screen) => screen.kind === "viewer" && screen.key === key,
 			);
 			if (!shown) return;
@@ -332,14 +457,14 @@ function Root() {
 			leaving.current = false;
 			return;
 		}
-		const stillOpen = state.screens.some(
+		const stillOpen = screens.some(
 			(screen) => screen.kind === "viewer" && screen.key === was,
 		);
 		if (was !== null && !stillOpen) closeTab(was);
-	}, [current, state.screens, closeTab]);
+	}, [current, screens, closeTab]);
 
-	const stateRef = useRef(state);
-	stateRef.current = state;
+	const screensRef = useRef(screens);
+	screensRef.current = screens;
 
 	const pick = useCallback(
 		async (replacing?: RecentEntry) => {
@@ -399,27 +524,14 @@ function Root() {
 		}),
 		[twoShown, room, tabs, current, show, pick],
 	);
-	const paneOf = (tab: Tab): Pane => {
-		const half =
-			twoShown && split
-				? tab.key === split.left
-					? "left"
-					: tab.key === split.right
-						? "right"
-						: null
-				: null;
-		const ratio = split ? clampRatio(split.ratio, width) : 0.5;
-		const across = half === "left" ? ratio : 1 - ratio;
-		return {
-			visible: half !== null || (tab.key === current && top?.kind === "viewer"),
-			side: half,
-			ratio,
-			narrow: half !== null && width * across < 720,
-			onFocus: () => {
-				if (tab.key !== current) show(tab);
-			},
-		};
-	};
+	const halfOf = (tab: Tab): Pane["side"] =>
+		twoShown && split
+			? tab.key === split.left
+				? "left"
+				: tab.key === split.right
+					? "right"
+					: null
+			: null;
 
 	const openRecent = useCallback(
 		(e: RecentEntry) =>
@@ -438,8 +550,6 @@ function Root() {
 	const resumed = useRef(false);
 	const openRecentRef = useRef(openRecent);
 	openRecentRef.current = openRecent;
-	const recentsRef = useRef(entries);
-	recentsRef.current = entries;
 	useEffect(() => {
 		if (resumed.current || !settingsReady || !recentsReady) return;
 		if (welcome !== false) return;
@@ -449,15 +559,15 @@ function Root() {
 		}
 		const timer = window.setTimeout(() => {
 			resumed.current = true;
-			const busy = stateRef.current.screens.some((x) => x.kind === "viewer");
+			const busy = screensRef.current.some((x) => x.kind === "viewer");
 			if (busy) return;
-			const last = [...recentsRef.current]
+			const last = [...recentList()]
 				.filter((entry) => !entry.unavailable)
 				.sort((a, b) => b.openedAt - a.openedAt)[0];
 			if (last) openRecentRef.current(last);
 		}, 400);
 		return () => window.clearTimeout(timer);
-	}, [settingsReady, recentsReady, welcome, settings.reopenLast]);
+	}, [settingsReady, recentsReady, welcome, settings.reopenLast, recentList]);
 
 	// Android "Open with": MainActivity copies the file into private
 	// storage and calls window.__paperwrenOpenFile (see index.html);
@@ -528,16 +638,13 @@ function Root() {
 		return () => window.clearTimeout(timer);
 	}, []);
 
-	const entriesRef = useRef(entries);
-	entriesRef.current = entries;
-
 	// The keyboard, as a desktop reader has it: Ctrl+O opens a file,
 	// Ctrl+W closes what is open, Ctrl+F on Home goes to its search (⌘
 	// for Ctrl on a Mac). In the app's own window the webview's reload
 	// and find-in-page keys would act on the app instead of the document,
 	// so they are not let through (a viewer's own Ctrl+F still opens its
 	// find bar).
-	const deep = state.screens.length > 1;
+	const deep = screens.length > 1;
 	const shownKey = useRef(current);
 	shownKey.current = current;
 	useEffect(() => {
@@ -655,8 +762,6 @@ function Root() {
 	// A Mac's menu bar, in the app's language. Its commands press the
 	// keys above; Settings has no key of its own to press. Only a Mac
 	// loads the code for it.
-	const screensRef = useRef(state.screens);
-	screensRef.current = state.screens;
 	// biome-ignore lint/correctness/useExhaustiveDependencies: built again when the language changes
 	useEffect(() => {
 		if (!isTauri || !sharesFrame) return;
@@ -671,7 +776,7 @@ function Root() {
 			)
 			.catch(() => {});
 	}, [lang, push]);
-	const viewing = state.screens[state.screens.length - 1]?.kind === "viewer";
+	const viewing = screens[screens.length - 1]?.kind === "viewer";
 	useEffect(() => {
 		if (!isTauri || !sharesFrame) return;
 		import("@/lib/macMenu")
@@ -709,7 +814,7 @@ function Root() {
 	useEffect(() => {
 		retainMemoryFiles([
 			...tabs.map((tab) => tab.request.reopen),
-			...state.screens.map((screen) =>
+			...screens.map((screen) =>
 				screen.kind === "viewer"
 					? screen.request.reopen
 					: screen.kind === "tools"
@@ -719,11 +824,11 @@ function Root() {
 		]);
 		holdOpen("documents", [
 			...tabs.map((tab) => tab.request.reopen),
-			...state.screens.map((screen) =>
+			...screens.map((screen) =>
 				screen.kind === "viewer" ? screen.request.reopen : undefined,
 			),
 		]);
-	}, [tabs, state.screens]);
+	}, [tabs, screens]);
 	useEffect(() => onSaveRefused((note) => toast(t(note))), []);
 
 	// A desktop app has no "Reload" or "Back" menu on a right-click, and
@@ -754,19 +859,75 @@ function Root() {
 	};
 	const kept = keptTabs(tabs, used.current);
 
+	// What Home and the documents are handed, the same at every render:
+	// they are drawn again for what they show, not each time Root is.
+	const onOpenFile = useCallback(() => pick(), [pick]);
+	const onSettings = useCallback(() => push({ kind: "settings" }), [push]);
+	const onTools = useCallback(
+		(tool?: ToolId) => push({ kind: "tools", tool }),
+		[push],
+	);
+	const onNotes = useCallback(() => push({ kind: "notes" }), [push]);
+	const openTools = useCallback(
+		(tool: string | undefined, file: OpenRequest) =>
+			push({ kind: "tools", tool, file }),
+		[push],
+	);
+	/** A desktop's tabs. */
+	const tabCalls = useMemo<DocCalls>(
+		() => ({
+			close: closeTab,
+			replace: replaceTab,
+			open,
+			tools: openTools,
+			locate: (key, id) => {
+				const entry = recentList().find((e) => e.id === id);
+				closeTab(key);
+				pick(entry);
+			},
+			focus: (key) => {
+				if (key === shownKey.current) return;
+				const tab = tabsRef.current.find((one) => one.key === key);
+				if (tab) show(tab);
+			},
+		}),
+		[closeTab, replaceTab, open, openTools, pick, show, recentList],
+	);
+	/** A phone's one document on top. */
+	const stackCalls = useMemo<DocCalls>(
+		() => ({
+			close,
+			replace: (_key, request) =>
+				replace({ kind: "viewer", request, key: nextKey.current++ }),
+			open,
+			tools: openTools,
+			locate: (_key, id) => {
+				const entry = recentList().find((e) => e.id === id);
+				back();
+				pick(entry);
+			},
+			focus: () => {},
+		}),
+		[close, replace, open, openTools, back, pick, recentList],
+	);
+	const narrowLeft = narrowHalves[0] === "1";
+	const narrowRight = narrowHalves[1] === "1";
+
 	return (
 		<>
-			<Home
-				onOpenFile={() => pick()}
+			<KeptHome
+				onOpenFile={onOpenFile}
 				onOpenRecent={openRecent}
 				onOpenRequest={open}
-				onSettings={() => push({ kind: "settings" })}
-				onTools={(tool) => push({ kind: "tools", tool })}
-				onNotes={() => push({ kind: "notes" })}
+				onSettings={onSettings}
+				onTools={onTools}
+				onNotes={onNotes}
 				onRenamed={renamedOpen}
+				lang={lang}
+				keys={settings.shortcuts}
 			/>
-			{state.screens.map((screen, i) => {
-				const atTop = i === state.screens.length - 1;
+			{screens.map((screen, i) => {
+				const atTop = i === screens.length - 1;
 				if (screen.kind === "settings")
 					return <SettingsScreen key="settings" />;
 				if (screen.kind === "notes")
@@ -795,22 +956,18 @@ function Root() {
 						key={screen.key}
 						fallback={<OpeningView name={screen.request.name} />}
 					>
-						<ViewerScreen
+						<DocView
+							docKey={screen.key}
 							request={screen.request}
 							active={atTop}
-							onClose={close}
-							onReplace={(request) =>
-								replace({ kind: "viewer", request, key: nextKey.current++ })
-							}
-							onOpen={open}
-							onTools={(tool, file) => push({ kind: "tools", tool, file })}
-							onLocate={() => {
-								const entry = entriesRef.current.find(
-									(e) => e.id === screen.request.id,
-								);
-								back();
-								pick(entry);
-							}}
+							tabbed={false}
+							visible
+							side={null}
+							ratio={0.5}
+							narrow={false}
+							calls={stackCalls}
+							lang={lang}
+							keys={settings.shortcuts}
 						/>
 					</Suspense>
 				);
@@ -825,42 +982,51 @@ function Root() {
 								tab.key === split?.right ||
 								kept.has(tab.key),
 						)
-						.map((tab) => (
-							<Suspense
-								key={tab.key}
-								fallback={
-									tab.key === current ? (
-										<OpeningView name={tab.request.name} />
-									) : null
-								}
-							>
-								<ViewerScreen
-									request={tab.request}
-									// Under Settings, or behind another tab: kept, not shown.
-									// Side by side, the half on show has the keyboard.
-									active={tab.key === current && top?.kind === "viewer"}
-									pane={paneOf(tab)}
-									onClose={() => closeTab(tab.key)}
-									onReplace={(request) => replaceTab(tab.key, request)}
-									onOpen={open}
-									onTools={(tool, file) => push({ kind: "tools", tool, file })}
-									onLocate={() => {
-										const entry = entriesRef.current.find(
-											(e) => e.id === tab.request.id,
-										);
-										closeTab(tab.key);
-										pick(entry);
-									}}
-								/>
-							</Suspense>
-						))}
+						.map((tab) => {
+							const half = halfOf(tab);
+							const shown = tab.key === current && top?.kind === "viewer";
+							return (
+								<Suspense
+									key={tab.key}
+									fallback={
+										tab.key === current ? (
+											<OpeningView name={tab.request.name} />
+										) : null
+									}
+								>
+									<DocView
+										docKey={tab.key}
+										request={tab.request}
+										// Under Settings, or behind another tab: kept, not shown.
+										// Side by side, the half on show has the keyboard.
+										active={shown}
+										tabbed
+										visible={half !== null || shown}
+										side={half}
+										ratio={ratio}
+										narrow={
+											half === "left"
+												? narrowLeft
+												: half === "right" && narrowRight
+										}
+										calls={tabCalls}
+										lang={lang}
+										keys={settings.shortcuts}
+									/>
+								</Suspense>
+							);
+						})}
 			</SideBySideContext.Provider>
 			{twoShown && split && (
 				<SplitDivider
-					ratio={clampRatio(split.ratio, width)}
-					onRatio={(ratio) =>
+					ratio={ratio}
+					onRatio={(next) =>
 						setSplit(
-							(pair) => pair && { ...pair, ratio: clampRatio(ratio, width) },
+							(pair) =>
+								pair && {
+									...pair,
+									ratio: clampRatio(next, window.innerWidth),
+								},
 						)
 					}
 				/>

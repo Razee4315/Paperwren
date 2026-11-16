@@ -25,7 +25,7 @@ import {
 	restoreBookmarks,
 	useBookmarkCount,
 } from "@/state/bookmarks";
-import { useNav } from "@/state/navigation";
+import { useNavActions } from "@/state/navigation";
 import { useRecents } from "@/state/recents";
 import { useSettings } from "@/state/settings";
 import {
@@ -303,7 +303,7 @@ function SectionList({
 }
 
 export function SettingsScreen() {
-	const { back } = useNav();
+	const { back } = useNavActions();
 	const { settings, update } = useSettings();
 	const { entries, clear, restore, markUnavailable } = useRecents();
 	const [stored, setStored] = useState<{ bytes: number; files: number } | null>(
