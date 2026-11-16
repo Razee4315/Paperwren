@@ -30,7 +30,7 @@ import {
 	useState,
 } from "react";
 import { moveBookmarks } from "./bookmarks";
-import { useSettings } from "./settings";
+import { useSettingsOf, useSettingsReady } from "./settings";
 
 interface RecentsApi {
 	entries: RecentEntry[];
@@ -84,7 +84,8 @@ async function load(): Promise<RecentEntry[]> {
 }
 
 export function RecentsProvider({ children }: { children: ReactNode }) {
-	const { settings, ready: settingsReady } = useSettings();
+	const settings = useSettingsOf("recentsLimit", "keepRecents");
+	const settingsReady = useSettingsReady();
 	const [entries, setEntries] = useState<RecentEntry[]>([]);
 	const [ready, setReady] = useState(false);
 	const limitRef = useRef(settings.recentsLimit);

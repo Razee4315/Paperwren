@@ -27,7 +27,11 @@ import {
 } from "@/screens/viewer/pane";
 import { NavigationProvider, useNav } from "@/state/navigation";
 import { RecentsProvider, useRecents } from "@/state/recents";
-import { SettingsProvider, useSettings } from "@/state/settings";
+import {
+	SettingsProvider,
+	useSettingsOf,
+	useSettingsReady,
+} from "@/state/settings";
 import {
 	DropHint,
 	LinkGuard,
@@ -250,7 +254,8 @@ function Root() {
 	const lang = useSyncExternalStore(subscribe, language);
 	const { state, push, replace, back, close, reset, onLeave } = useNav();
 	const { entries, remove, ready: recentsReady } = useRecents();
-	const { settings, ready: settingsReady } = useSettings();
+	const settings = useSettingsOf("reopenLast", "shortcuts");
+	const settingsReady = useSettingsReady();
 	const nextKey = useRef(1);
 	const picking = useRef(false);
 	// null until storage answers; the welcome only shows on a first run.

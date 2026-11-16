@@ -7,7 +7,7 @@ import { isEncryptedPackage, sniffFormat } from "@/lib/sniff";
 import type { OpenRequest, Position } from "@/lib/types";
 import { holdScreen } from "@/lib/wake";
 import { useRecents } from "@/state/recents";
-import { useSettings } from "@/state/settings";
+import { useSetting } from "@/state/settings";
 import { Button, Dialog, ErrorArt, OpeningView } from "@/ui";
 import {
 	Component,
@@ -303,11 +303,11 @@ function Viewer({
 	);
 
 	// The screen stays on only while this document is the one on show.
-	const { settings } = useSettings();
+	const keepAwake = useSetting("keepAwake");
 	const reading = !!loaded && active;
 	useEffect(() => {
-		if (settings.keepAwake && reading) return holdScreen();
-	}, [settings.keepAwake, reading]);
+		if (keepAwake && reading) return holdScreen();
+	}, [keepAwake, reading]);
 
 	if (failure) {
 		const copy = failureCopy(failure, request.name);
