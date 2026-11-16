@@ -1007,7 +1007,6 @@ export const es: Table = {
 	"Language of the document": "Idioma del documento",
 	"Reading page {n} of {total}": "Leyendo la página {n} de {total}",
 	searchable: "con búsqueda",
-	"Nothing found yet.": "Aún no se ha encontrado nada.",
 	"Showing the first {n} pages.": "Se muestran las primeras {n} páginas.",
 	"Try a sample document": "Prueba un documento de muestra",
 	"Found on {n} pages": {

@@ -992,7 +992,6 @@ export const ur: Table = {
 	"Language of the document": "دستاویز کی زبان",
 	"Reading page {n} of {total}": "صفحہ {n} از {total} پڑھا جا رہا ہے",
 	searchable: "قابلِ تلاش",
-	"Nothing found yet.": "ابھی کچھ نہیں ملا۔",
 	"Showing the first {n} pages.": "پہلے {n} صفحات دکھائے جا رہے ہیں۔",
 	"Try a sample document": "نمونے کی دستاویز آزمائیں",
 	"Found on {n} pages": {

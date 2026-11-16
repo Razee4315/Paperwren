@@ -1027,7 +1027,6 @@ export const ru: Table = {
 	"Language of the document": "Язык документа",
 	"Reading page {n} of {total}": "Чтение страницы {n} из {total}",
 	searchable: "с поиском",
-	"Nothing found yet.": "Пока ничего не найдено.",
 	"Showing the first {n} pages.": "Показаны первые страницы: {n}.",
 	"Try a sample document": "Попробовать пример документа",
 	"Found on {n} pages": {

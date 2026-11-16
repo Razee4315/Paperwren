@@ -1015,7 +1015,6 @@ export const ar: Table = {
 	"Language of the document": "لغة المستند",
 	"Reading page {n} of {total}": "جارٍ قراءة الصفحة {n} من {total}",
 	searchable: "قابل للبحث",
-	"Nothing found yet.": "لم يُعثر على شيء بعد.",
 	"Showing the first {n} pages.": "تُعرض أول {n} صفحة.",
 	"Try a sample document": "جرّب مستندًا تجريبيًا",
 	"Found on {n} pages": {

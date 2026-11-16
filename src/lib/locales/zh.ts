@@ -924,7 +924,6 @@ export const zh: Table = {
 	"Language of the document": "文档语言",
 	"Reading page {n} of {total}": "正在读取第 {n} 页，共 {total} 页",
 	searchable: "可搜索",
-	"Nothing found yet.": "暂时没有找到内容。",
 	"Showing the first {n} pages.": "显示前 {n} 页。",
 	"Try a sample document": "试试示例文档",
 	"Found on {n} pages": "在 {n} 页中找到",

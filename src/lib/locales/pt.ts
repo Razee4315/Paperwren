@@ -1008,7 +1008,6 @@ export const pt: Table = {
 	"Language of the document": "Idioma do documento",
 	"Reading page {n} of {total}": "Lendo a página {n} de {total}",
 	searchable: "pesquisável",
-	"Nothing found yet.": "Nada encontrado ainda.",
 	"Showing the first {n} pages.": "Mostrando as primeiras {n} páginas.",
 	"Try a sample document": "Experimente um documento de exemplo",
 	"Found on {n} pages": {

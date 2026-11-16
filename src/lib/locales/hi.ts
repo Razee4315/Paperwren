@@ -977,7 +977,6 @@ export const hi: Table = {
 	"Language of the document": "दस्तावेज़ की भाषा",
 	"Reading page {n} of {total}": "पृष्ठ {n} / {total} पढ़ा जा रहा है",
 	searchable: "खोजने योग्य",
-	"Nothing found yet.": "अभी कुछ नहीं मिला।",
 	"Showing the first {n} pages.": "पहले {n} पृष्ठ दिखाए जा रहे हैं।",
 	"Try a sample document": "नमूना दस्तावेज़ आज़माएँ",
 	"Found on {n} pages": {
