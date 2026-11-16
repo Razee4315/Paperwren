@@ -2,6 +2,8 @@ import { backend } from "@/lib/backend";
 import { isDesktop, isTauri } from "@/lib/env";
 import { loadLanguage, resolveLanguage, setLanguage } from "@/lib/i18n";
 import {
+	hintTheme,
+	hintedTheme,
 	isDarkTheme,
 	migrateLegacySettings,
 	normalizeSettings,
@@ -65,7 +67,13 @@ export async function loadSettings(): Promise<Settings> {
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-	const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+	// Until the settings are read, the theme last used (index.html has
+	// already applied it), so the first render does not switch it back to
+	// the default.
+	const [settings, setSettings] = useState<Settings>(() => {
+		const theme = hintedTheme();
+		return theme ? { ...DEFAULT_SETTINGS, theme } : DEFAULT_SETTINGS;
+	});
 	// The keys every handler checks: set as the settings are read, so a
 	// change applies to the very next key press.
 	setCustomShortcuts(settings.shortcuts);
@@ -110,6 +118,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 		mq.addEventListener("change", on);
 		return () => mq.removeEventListener("change", on);
 	}, []);
+
+	useEffect(() => {
+		if (ready) hintTheme(settings.theme);
+	}, [ready, settings.theme]);
 
 	const theme = resolveTheme(settings.theme, systemDark);
 	// Books, Markdown and reading view take the face the reader picked.

@@ -11,6 +11,12 @@
 //! while enough of it is on a screen to grab (a monitor may have been
 //! unplugged since); otherwise the window keeps its default size,
 //! centred.
+//!
+//! It is also given the colour of the theme last used before it is
+//! shown, so a dark theme does not open as a light window: the colour
+//! the webview shows until the page paints (on Windows the window's
+//! too). The page applies the same theme before its first paint
+//! (index.html).
 
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -23,6 +29,9 @@ use tauri::{PhysicalPosition, PhysicalSize, Runtime, WebviewWindow};
 use crate::store;
 
 const PLACE_KEY: &str = "window";
+/// `STORAGE_KEYS.settings` in types.ts.
+#[cfg(any(windows, target_os = "linux"))]
+const SETTINGS_KEY: &str = "settings_v2";
 /// How much of the window must be on a screen to count as reachable
 /// (the same rule as `reachable` in windowState.ts).
 const GRIP: i64 = 80;
@@ -94,6 +103,7 @@ pub fn open<R: Runtime>(window: &WebviewWindow<R>, store_dir: Option<&Path>) {
     }
 
     if let Some(dir) = store_dir {
+        paint(window, dir);
         let saved = store::get(dir, PLACE_KEY).ok();
         if let Some(place) = saved.as_ref().and_then(place_of) {
             put_back(window, &place);
@@ -136,3 +146,40 @@ fn put_back<R: Runtime>(window: &WebviewWindow<R>, place: &Place) {
     }
 }
 
+/// The page colour (`--bg` in global.css) of the theme the page will
+/// draw, from the stored settings as `normalizeSettings` and
+/// `resolveTheme` in settings.ts read them: a retired theme maps to the
+/// one that replaced it, and "system" (also what a missing or unknown
+/// one means) follows the system's dark mode.
+#[cfg(any(windows, target_os = "linux"))]
+fn stored_color<R: Runtime>(window: &WebviewWindow<R>, dir: &Path) -> (u8, u8, u8) {
+    let settings = store::get(dir, SETTINGS_KEY).unwrap_or(Value::Null);
+    match settings.get("theme").and_then(Value::as_str) {
+        Some("light" | "paper" | "glass") => (0xf3, 0xf1, 0xec),
+        Some("sepia") => (0xed, 0xe3, 0xd0),
+        Some("dark" | "black" | "aurora") => (0x16, 0x18, 0x1b),
+        Some("plain-light") => (0xff, 0xff, 0xff),
+        Some("plain-dark") => (0x0e, 0x0e, 0x10),
+        _ if window.theme().ok() == Some(tauri::Theme::Dark) => (0x0e, 0x0e, 0x10),
+        _ => (0xff, 0xff, 0xff),
+    }
+}
+
+/// Give the hidden window the colour of the stored theme. On Windows the
+/// window and the webview both take it (the page sets the window's
+/// again as the theme changes, windowBackground.ts). On Linux only the
+/// webview: the window under it is never seen. On macOS a webview
+/// colour needs a private WebKit key, so it is left as it is.
+fn paint<R: Runtime>(window: &WebviewWindow<R>, dir: &Path) {
+    #[cfg(any(windows, target_os = "linux"))]
+    {
+        let (r, g, b) = stored_color(window, dir);
+        let color = Some(tauri::window::Color(r, g, b, 255));
+        #[cfg(windows)]
+        let _ = window.set_background_color(color);
+        #[cfg(target_os = "linux")]
+        let _ = AsRef::<tauri::Webview<R>>::as_ref(window).set_background_color(color);
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
+    let _ = (window, dir);
+}
