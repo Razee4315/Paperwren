@@ -33,12 +33,14 @@ export function RenameDialog({
 	const [stem0, ext] = splitName(file.name);
 	const [stem, setStem] = useState(stem0);
 	const [busy, setBusy] = useState(false);
+	const [touched, setTouched] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const problem = nameProblem(stem, ext);
 	const inAppOnly = !backend.abilities(file).renameOriginal;
 
 	const submit = async () => {
 		if (busy) return;
+		setTouched(true);
 		if (problem) {
 			setError(t(problem));
 			return;
@@ -87,9 +89,10 @@ export function RenameDialog({
 					<Button
 						onClick={submit}
 						disabled={busy || !!problem}
+						aria-busy={busy}
 						data-testid="rename-go"
 					>
-						{t("Rename")}
+						{busy ? t("Loading") : t("Rename")}
 					</Button>
 				</>
 			}
@@ -110,13 +113,15 @@ export function RenameDialog({
 						// biome-ignore lint/a11y/noAutofocus: the dialog exists to type a name
 						autoFocus
 						onFocus={(e) => e.currentTarget.select()}
+						onBlur={() => setTouched(true)}
+						aria-describedby="rename-status"
 						value={stem}
 						onChange={(e) => {
 							setStem(e.target.value);
 							setError(null);
 						}}
 						aria-label={t("New name")}
-						aria-invalid={!!error || undefined}
+						aria-invalid={!!(error || (touched && problem)) || undefined}
 						data-testid="rename-input"
 					/>
 					{ext && (
@@ -132,11 +137,14 @@ export function RenameDialog({
 						)}
 					</p>
 				)}
-				{(error || (problem && stem.trim())) && (
-					<p className={s.renameError} role="alert" data-testid="rename-error">
-						{error ?? t(problem ?? "")}
-					</p>
-				)}
+				<p
+					id="rename-status"
+					className={s.renameError}
+					aria-live="polite"
+					data-testid="rename-error"
+				>
+					{error ?? (touched && problem ? t(problem) : "")}
+				</p>
 			</form>
 		</Dialog>
 	);

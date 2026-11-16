@@ -44,9 +44,15 @@
 	transition: background-color var(--t-fast) var(--ease), transform
 		var(--t-fast) var(--ease);
 }
-.divider:hover > span,
+
 .divider:focus-visible > span,
 .divider:active > span {
 	transform: scaleX(3);
 	background: var(--accent);
+}
+@media (hover: hover) {
+	.divider:hover > span {
+		transform: scaleX(3);
+		background: var(--accent);
+	}
 }

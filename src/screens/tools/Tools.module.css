@@ -89,9 +89,11 @@
 .tool[aria-pressed="true"] svg {
 	transform: scale(1.12);
 }
-.tool:hover {
-	background: var(--surface-2);
-	color: var(--text);
+@media (hover: hover) {
+	.tool:hover {
+		background: var(--surface-2);
+		color: var(--text);
+	}
 }
 .tool[aria-pressed="true"] {
 	background: var(--accent-soft);
@@ -902,9 +904,11 @@
 	height: 100%;
 	object-fit: contain;
 }
-.keptPick:hover {
-	border-color: var(--accent);
-	box-shadow: 0 0 0 3px var(--accent-soft);
+@media (hover: hover) {
+	.keptPick:hover {
+		border-color: var(--accent);
+		box-shadow: 0 0 0 3px var(--accent-soft);
+	}
 }
 
 /* ---------- Stamps ---------- */
@@ -959,9 +963,11 @@
 		var(--t-med) var(--ease), color var(--t-med) var(--ease), transform
 		var(--t-fast) var(--ease);
 }
-.preset:hover {
-	border-color: var(--accent);
-	color: var(--text);
+@media (hover: hover) {
+	.preset:hover {
+		border-color: var(--accent);
+		color: var(--text);
+	}
 }
 .preset:active {
 	transform: scale(0.95);
@@ -1079,12 +1085,15 @@
 	border-radius: var(--r-l, 14px);
 	background: var(--surface);
 	text-align: start;
-	transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+	transition: border-color var(--t-fast) var(--ease), background-color
+		var(--t-fast) var(--ease);
 }
-.toolCard:hover {
-	border-color: var(--accent);
-	background: var(--surface);
-	background: color-mix(in srgb, var(--accent-soft) 24%, var(--surface));
+@media (hover: hover) {
+	.toolCard:hover {
+		border-color: var(--accent);
+		background: var(--surface);
+		background: color-mix(in srgb, var(--accent-soft) 24%, var(--surface));
+	}
 }
 .toolIcon {
 	display: grid;
@@ -1271,8 +1280,10 @@
 	overflow: hidden;
 	transition: border-color var(--t-fast) var(--ease);
 }
-.featured:hover {
-	border-color: var(--accent);
+@media (hover: hover) {
+	.featured:hover {
+		border-color: var(--accent);
+	}
 }
 .featured > .toolIcon {
 	width: 56px;
@@ -1470,9 +1481,11 @@
 	font-size: 12px;
 	font-weight: 650;
 }
-.sortFiles:hover:not(:disabled) {
-	background: var(--surface-2);
-	color: var(--text);
+@media (hover: hover) {
+	.sortFiles:hover:not(:disabled) {
+		background: var(--surface-2);
+		color: var(--text);
+	}
 }
 .fileBadge {
 	display: grid;
@@ -2202,4 +2215,9 @@
 	margin: 0;
 	padding: 0;
 	min-height: 0;
+}
+
+.card:active,
+.featured:active {
+	background: var(--surface-3);
 }

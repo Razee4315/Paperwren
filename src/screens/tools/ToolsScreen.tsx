@@ -1187,6 +1187,7 @@ function ExtractTool({ file, onOpen }: ToolProps) {
 	const picked = kit.files[0];
 	const { running, run, feedback } = useRun(onOpen);
 	const [which, setWhich] = useState("");
+	const [touched, setTouched] = useState(false);
 	const [each, setEach] = useState(false);
 	const pages = picked?.pages ?? 0;
 	const list = picked
@@ -1205,13 +1206,16 @@ function ExtractTool({ file, onOpen }: ToolProps) {
 						className={s.field}
 						value={which}
 						onChange={(e) => setWhich(e.target.value)}
+						onBlur={() => setTouched(true)}
+						aria-invalid={(touched && !!which && !list) || undefined}
+						aria-describedby="extract-range-hint"
 						placeholder={t("For example 1-3, 5")}
 						dir="ltr"
 						data-testid="tool-pages-field"
 					/>
-					<p className={s.hint}>
-						{which && !list
-							? t("The document has {n} pages", { n: pages })
+					<p id="extract-range-hint" className={s.hint} aria-live="polite">
+						{touched && which && !list
+							? `${t("For example 1-3, 5")}. ${t("The document has {n} pages", { n: pages })}`
 							: each
 								? t(
 										"Each page is saved as a PDF of its own, together in a ZIP file.",

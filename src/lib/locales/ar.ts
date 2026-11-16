@@ -1382,4 +1382,6 @@ export const ar: Table = {
 	"Couldn't delete this note": "تعذّر حذف هذه الملاحظة",
 	"Couldn't change saved data": "تعذّر تغيير البيانات المحفوظة",
 	"A print job is already in progress": "هناك مهمة طباعة قيد التنفيذ بالفعل",
+	"No results. Try different words or turn off search options.":
+		"لا توجد نتائج. جرّب كلمات مختلفة أو أوقف خيارات البحث.",
 };

@@ -19,13 +19,17 @@
 	transition: background-color var(--t-fast) var(--ease), color var(--t-fast)
 		var(--ease);
 }
-.controls button:hover {
-	background: var(--surface-3);
-	color: var(--text);
+@media (hover: hover) {
+	.controls button:hover {
+		background: var(--surface-3);
+		color: var(--text);
+	}
 }
-.controls .close:hover {
-	background: #c42b1c;
-	color: #fff;
+@media (hover: hover) {
+	.controls .close:hover {
+		background: #c42b1c;
+		color: #fff;
+	}
 }
 .restore {
 	transform: scaleX(-1);
@@ -42,4 +46,13 @@
 :global(html[data-fs-bars]) .controls {
 	opacity: 0;
 	transition-duration: var(--t-instant);
+}
+
+.controls button:active {
+	background: var(--line-strong);
+	color: var(--text);
+}
+.controls .close:active {
+	background: #a32216;
+	color: #fff;
 }

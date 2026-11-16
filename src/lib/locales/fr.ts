@@ -1374,4 +1374,6 @@ export const fr: Table = {
 	"Couldn't change saved data":
 		"Impossible de modifier les données enregistrées",
 	"A print job is already in progress": "Une impression est déjà en cours",
+	"No results. Try different words or turn off search options.":
+		"Aucun résultat. Essayez d’autres mots ou désactivez les options de recherche.",
 };

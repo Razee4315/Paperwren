@@ -5,7 +5,7 @@ import type {
 	EventBus,
 	PDFFindController,
 } from "pdfjs-dist/web/pdf_viewer.mjs";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import s from "./PdfView.module.css";
 
 interface PageResult {
@@ -39,14 +39,33 @@ export function FindResults({
 	options: FindOptions;
 	onPick: (page: number) => void;
 }) {
+	const { matchCase, wholeWords } = options;
 	const [results, setResults] = useState<PageResult[]>([]);
 	const [pages, setPages] = useState(0);
+	const [published, setPublished] = useState("");
+	const [pending, setPending] = useState(true);
+	const signature = JSON.stringify([query, matchCase, wholeWords]);
+	const first = useRef(true);
 	const texts = useRef(new Map<number, Promise<string>>());
 
-	useEffect(() => {
+	useLayoutEffect(() => {
+		setPending(true);
+		setResults([]);
+		setPages(0);
 		let run = 0;
 		let timer = 0;
 		const refresh = async () => {
+			const state = finder.state as {
+				query?: string;
+				caseSensitive?: boolean;
+				entireWord?: boolean;
+			} | null;
+			if (
+				state?.query !== query ||
+				!!state.caseSensitive !== matchCase ||
+				!!state.entireWord !== wholeWords
+			)
+				return;
 			const now = ++run;
 			const found: Array<{ page: number; count: number; at: number }> = [];
 			(finder.pageMatches ?? []).forEach((matches: number[], index: number) => {
@@ -79,10 +98,12 @@ export function FindResults({
 				next.push({
 					page: entry.page,
 					count: entry.count,
-					...snippet(words, query, entry.at, options),
+					...snippet(words, query, entry.at, { matchCase, wholeWords }),
 				});
 			}
 			setResults(next);
+			setPublished(signature);
+			setPending(false);
 		};
 		const soon = () => {
 			window.clearTimeout(timer);
@@ -90,19 +111,40 @@ export function FindResults({
 		};
 		bus.on("updatetextlayermatches", soon);
 		bus.on("updatefindmatchescount", soon);
-		bus.on("updatefindcontrolstate", soon);
-		soon();
+		const stateChanged = (event: { state: number }) => {
+			if (event.state === 3) {
+				window.clearTimeout(timer);
+				run++;
+				setPending(true);
+				setResults([]);
+			} else soon();
+		};
+		bus.on("updatefindcontrolstate", stateChanged);
+		if (first.current) {
+			first.current = false;
+			soon();
+		}
 		return () => {
 			run++;
 			window.clearTimeout(timer);
 			bus.off("updatetextlayermatches", soon);
 			bus.off("updatefindmatchescount", soon);
-			bus.off("updatefindcontrolstate", soon);
+			bus.off("updatefindcontrolstate", stateChanged);
 		};
-	}, [doc, finder, bus, query, options]);
+	}, [doc, finder, bus, query, matchCase, wholeWords, signature]);
 
+	if (pending || published !== signature)
+		return (
+			<p className={s.findNone} aria-live="polite" aria-busy="true">
+				{t("Loading")}
+			</p>
+		);
 	if (!results.length)
-		return <p className={s.findNone}>{t("Nothing found yet.")}</p>;
+		return (
+			<p className={s.findNone} aria-live="polite">
+				{t("No results. Try different words or turn off search options.")}
+			</p>
+		);
 	return (
 		<div className={s.findList} data-testid="find-results">
 			<p className={s.findSum}>

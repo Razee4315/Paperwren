@@ -144,3 +144,14 @@
 		border-color: HighlightText;
 	}
 }
+
+@media (hover: hover) {
+	@media (hover: hover) {
+		.switchRow:hover {
+			background: var(--surface-2);
+		}
+	}
+}
+.switchRow:active {
+	background: var(--surface-3);
+}

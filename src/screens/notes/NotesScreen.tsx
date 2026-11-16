@@ -17,6 +17,7 @@ import {
 	restoreNotes,
 	saveNote,
 } from "@/lib/notes";
+import { withFeedback } from "@/lib/taskFeedback";
 import { relativeTime } from "@/screens/home/Home";
 import { announceSaved } from "@/screens/tools/saved";
 import { useBackClose, useNav } from "@/state/navigation";
@@ -73,8 +74,17 @@ export function NotesScreen() {
 		};
 	}, []);
 
+	const opening = useRef(0);
+	useEffect(
+		() => () => {
+			opening.current++;
+		},
+		[],
+	);
 	const openNote = async (id: string) => {
-		const note = await loadNote(id);
+		const request = ++opening.current;
+		const note = await withFeedback(`note-open-${id}`, () => loadNote(id));
+		if (request !== opening.current) return;
 		if (note) setOpen(note);
 		else toast(t("Couldn't open this note"));
 	};
@@ -197,7 +207,10 @@ export function NotesScreen() {
 			<button
 				type="button"
 				className={s.add}
-				onClick={() => setOpen(newNote())}
+				onClick={() => {
+					opening.current++;
+					setOpen(newNote());
+				}}
 				data-testid="note-new"
 			>
 				<Plus size={20} strokeWidth={2.5} />
@@ -215,7 +228,7 @@ export function NotesScreen() {
 						"Notes go with the app if it is removed. Keep this file somewhere safe.",
 					)}
 					disabled={!notes?.length}
-					onClick={backup}
+					onClick={() => withFeedback("notes-library", backup)}
 					testId="notes-backup"
 				>
 					{t("Back up all notes")}
@@ -242,7 +255,10 @@ export function NotesScreen() {
 							<Button variant="ghost" onClick={() => setOfferRestore(false)}>
 								{t("Cancel")}
 							</Button>
-							<Button onClick={restore} data-testid="notes-restore-go">
+							<Button
+								onClick={() => withFeedback("notes-library", restore)}
+								data-testid="notes-restore-go"
+							>
 								{t("Choose a file")}
 							</Button>
 						</>
@@ -583,7 +599,7 @@ function NoteEditor({
 			>
 				<SheetItem
 					icon={<FileDown size={20} />}
-					onClick={exportPdf}
+					onClick={() => withFeedback("notes-export", exportPdf)}
 					testId="note-pdf"
 				>
 					{t("Save as PDF")}

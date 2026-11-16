@@ -907,6 +907,7 @@ button.findCount {
 	font-weight: 650;
 }
 .renameError {
+	min-height: 1.5em;
 	margin: 8px 0 0;
 	font-size: 13px;
 	color: var(--danger, #b0312c);
@@ -922,4 +923,19 @@ button.findCount {
  * phone's slide reads as the window shaking. */
 :global(html.desktop) .shell {
 	animation: pw-fade-in var(--t-fast) var(--ease);
+}
+
+.pageField {
+	position: relative;
+}
+.pageError {
+	position: absolute;
+	top: 100%;
+	inset-inline-start: 0;
+	z-index: 50;
+	padding: 8px;
+	background: var(--surface);
+	color: var(--danger);
+	border: 1px solid var(--line);
+	border-radius: var(--r-s);
 }

@@ -1343,4 +1343,6 @@ export const ur: Table = {
 	"Couldn't delete this note": "یہ نوٹ حذف نہیں ہو سکا",
 	"Couldn't change saved data": "محفوظ ڈیٹا تبدیل نہیں ہو سکا",
 	"A print job is already in progress": "پرنٹ کا کام پہلے ہی جاری ہے",
+	"No results. Try different words or turn off search options.":
+		"کوئی نتیجہ نہیں ملا۔ دوسرے الفاظ آزمائیں یا تلاش کے اختیارات بند کریں۔",
 };

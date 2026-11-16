@@ -92,9 +92,11 @@
 	background: var(--surface);
 	text-align: start;
 }
-.row:hover {
-	background: var(--surface-2);
-	border-color: var(--accent);
+@media (hover: hover) {
+	.row:hover {
+		background: var(--surface-2);
+		border-color: var(--accent);
+	}
 }
 .row strong,
 .snippet {
@@ -281,4 +283,14 @@
 :global(html.desktop) .add svg {
 	width: 16px;
 	height: 16px;
+}
+
+.row:active,
+.tool:active {
+	background: var(--surface-3);
+}
+
+.swatch:active {
+	outline: 2px solid var(--line-control);
+	outline-offset: 2px;
 }

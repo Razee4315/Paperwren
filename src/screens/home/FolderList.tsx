@@ -12,6 +12,7 @@ import { formatFromName, kindOf } from "@/lib/formats";
 import { compareNames, formatDate, isolate, t, tn } from "@/lib/i18n";
 import { rememberPictures } from "@/lib/siblings";
 import type { OpenRequest } from "@/lib/types";
+import { useDelayed } from "@/lib/useDelayed";
 import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
 import { useBackClose, useNav } from "@/state/navigation";
 import { Button, FileBadge, IconButton, Sheet, SheetItem, Spinner } from "@/ui";
@@ -89,6 +90,7 @@ export function FolderList({
 	onRemove: () => void;
 }) {
 	const [listing, setListing] = useState<Listing>({ state: "loading" });
+	const showLoader = useDelayed(listing.state === "loading");
 	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState<KindFilter>("all");
 	const [shownRows, setShownRows] = useState(FIRST);
@@ -162,7 +164,9 @@ export function FolderList({
 	if (listing.state === "loading")
 		return (
 			<div className={s.noMatch} data-testid="folder-loading">
-				<Spinner label={t("Looking through {name}", { name: folder.name })} />
+				{showLoader && (
+					<Spinner label={t("Looking through {name}", { name: folder.name })} />
+				)}
 			</div>
 		);
 	if (listing.state === "failed")

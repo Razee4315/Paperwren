@@ -1,6 +1,8 @@
 import { isDesktop } from "@/lib/env";
 import { t } from "@/lib/i18n";
 import { keys } from "@/lib/keys";
+import { usePendingTasks } from "@/lib/taskFeedback";
+import { useDelayed } from "@/lib/useDelayed";
 import { useExitPresence } from "@/lib/useExitPresence";
 import { useBackClose } from "@/state/navigation";
 import { X } from "lucide-react";
@@ -16,6 +18,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "./Button";
+import { Spinner } from "./Misc";
 import s from "./Overlay.module.css";
 
 /** Open sheets and dialogs; the app is inert while there is one. */
@@ -165,7 +168,10 @@ export function useModalFocus(
 	}, [root]);
 }
 
-function Backdrop({ onClose, exit = true }: { onClose?: () => void; exit?: boolean }) {
+function Backdrop({
+	onClose,
+	exit = true,
+}: { onClose?: () => void; exit?: boolean }) {
 	const ref = useRef<HTMLDivElement>(null);
 	useExitPresence(ref, undefined, exit);
 	return (
@@ -612,6 +618,8 @@ export function toast(message: string, action?: ToastState["action"]) {
  * pointer or the keyboard is on it, so Undo can be reached in time.
  */
 export function ToastHost() {
+	const pending = usePendingTasks();
+	const showPending = useDelayed(pending);
 	const [current, setCurrent] = useState<ToastState | null>(null);
 	const [held, setHeld] = useState(false);
 	const visual = useRef<HTMLDivElement>(null);
@@ -641,6 +649,11 @@ export function ToastHost() {
 	return createPortal(
 		// biome-ignore lint/a11y/useSemanticElements: a live region, not form output
 		<div className={s.toastRegion} role="status" aria-live="polite">
+			{showPending && (
+				<div className={s.pending}>
+					<Spinner label={t("Loading")} />
+				</div>
+			)}
 			{current && (
 				<div
 					ref={visual}

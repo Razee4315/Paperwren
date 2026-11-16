@@ -325,9 +325,14 @@
 	text-align: start;
 	color: var(--text);
 }
-.item:hover:not(:disabled),
+
 .item:active:not(:disabled) {
 	background: var(--surface-2);
+}
+@media (hover: hover) {
+	.item:hover:not(:disabled) {
+		background: var(--surface-2);
+	}
 }
 .item:disabled {
 	opacity: 0.4;
@@ -397,9 +402,14 @@
 	flex-shrink: 0;
 	color: var(--text-2);
 }
-.tile:hover:not(:disabled),
+
 .tile:active:not(:disabled) {
 	background: var(--surface-2);
+}
+@media (hover: hover) {
+	.tile:hover:not(:disabled) {
+		background: var(--surface-2);
+	}
 }
 .tile:disabled {
 	opacity: 0.4;
@@ -466,8 +476,10 @@
 	padding: 4px 10px;
 	font-weight: 700;
 }
-:global(html.desktop) .toastAction:hover {
-	background: rgba(255, 255, 255, 0.12);
+@media (hover: hover) {
+	:global(html.desktop) .toastAction:hover {
+		background: rgba(255, 255, 255, 0.12);
+	}
 }
 
 .sheet {
@@ -486,3 +498,23 @@
 	}
 }
 
+.pending {
+	position: fixed;
+	top: calc(var(--bar-h) + var(--safe-top) + 8px);
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 8px 16px;
+	border: 1px solid var(--line);
+	border-radius: var(--r-m);
+	background: var(--surface);
+	color: var(--text);
+	pointer-events: none;
+}
+.toastAction:active {
+	background: var(--surface-3);
+	color: var(--text);
+}
+.item:active:not(:disabled),
+.tile:active:not(:disabled) {
+	background: var(--surface-3);
+}
