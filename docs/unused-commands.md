@@ -108,7 +108,7 @@ original; explicit file allow scopes and inherited deny scopes are preserved.
 These are command counts, not binary measurements.
 
 Passed one `cargo check --manifest-path src-tauri/Cargo.toml` with
-`CARGO_TARGET_DIR=C:\Users\Saqlain\Desktop\Other\Paperwren\src-tauri\target`
+a shared `CARGO_TARGET_DIR`
 and `REMOVE_UNUSED_COMMANDS` pointing to this worktree's absolute `src-tauri`
 directory. The latter is Tauri's documented internal CLI switch, used only in
 the checking process to exercise filtering too. No persistent environment or
