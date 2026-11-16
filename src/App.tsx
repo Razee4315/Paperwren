@@ -9,7 +9,7 @@ import { language, subscribe, t } from "@/lib/i18n";
 import { isFullscreenKey } from "@/lib/keys";
 import { backToCaller } from "@/lib/navigation";
 import { holdOpen, onSaveRefused } from "@/lib/openFiles";
-import { matches } from "@/lib/shortcuts";
+import { matches, whoHas } from "@/lib/shortcuts";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import { onStoreFailed } from "@/lib/storedValue";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
@@ -687,20 +687,28 @@ function Root() {
 
 	// The keyboard, as a desktop reader has it: Ctrl+O opens a file,
 	// Ctrl+W closes what is open, Ctrl+F on Home goes to its search (⌘
-	// for Ctrl on a Mac). In the app's own window the webview's reload
-	// and find-in-page keys would act on the app instead of the document,
-	// so they are not let through (a viewer's own Ctrl+F still opens its
-	// find bar).
+	// for Ctrl on a Mac). Unhandled browser keys are caught at window,
+	// after the document and its viewers have heard them.
 	const deep = screens.length > 1;
 	const shownKey = useRef(current);
 	shownKey.current = current;
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
-			const key = e.key.toLowerCase();
 			if (isDesktop && isFullscreenKey(e)) {
 				e.preventDefault();
 				toggleFullscreen();
+			} else if (
+				isDesktop &&
+				mod &&
+				!e.shiftKey &&
+				e.key === "," &&
+				!whoHas("Ctrl+,", settings.shortcuts)
+			) {
+				if (!ownsKeys()) return;
+				e.preventDefault();
+				if (!screensRef.current.some((s) => s.kind === "settings"))
+					push({ kind: "settings" });
 			} else if (matches(e, "open")) {
 				e.preventDefault();
 				// Not under a dialog or a tool: the keys are theirs.
@@ -763,26 +771,27 @@ function Root() {
 				// (viewer/hooks.ts), and nothing else may act on them.
 				e.preventDefault();
 			} else if (matches(e, "find") && !(e.ctrlKey && e.metaKey)) {
-				if (isTauri) e.preventDefault();
 				if (!deep) {
 					e.preventDefault();
 					document
 						.querySelector<HTMLInputElement>('[data-testid="home"] input')
 						?.focus();
 				}
-			} else if (
-				isTauri &&
-				(e.key === "F5" ||
-					e.key === "F3" ||
-					e.key === "F7" ||
-					(mod && (key === "r" || key === "g")))
-			) {
-				e.preventDefault();
 			}
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
-	}, [pick, back, close, closeTab, show, deep, moveTabTo]);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [
+		pick,
+		back,
+		close,
+		closeTab,
+		show,
+		deep,
+		moveTabTo,
+		push,
+		settings.shortcuts,
+	]);
 
 	// Ctrl+wheel, which is also how a trackpad pinch arrives: the same
 	// rule as the zoom keys above. A viewer takes it for its document
@@ -809,7 +818,7 @@ function Root() {
 	}, [stripShown]);
 
 	// A Mac's menu bar, in the app's language. Its commands press the
-	// keys above; Settings has no key of its own to press. Only a Mac
+	// keys above; Settings uses its own action. Only a Mac
 	// loads the code for it.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: built again when the language changes
 	useEffect(() => {
@@ -818,13 +827,14 @@ function Root() {
 			.then(({ installMenu }) =>
 				installMenu({
 					settings: () => {
+						if (!ownsKeys() || whoHas("Ctrl+,", settings.shortcuts)) return;
 						if (!screensRef.current.some((s) => s.kind === "settings"))
 							push({ kind: "settings" });
 					},
 				}),
 			)
 			.catch(() => {});
-	}, [lang, push]);
+	}, [lang, push, settings.shortcuts]);
 	const viewing = screens[screens.length - 1]?.kind === "viewer";
 	useEffect(() => {
 		if (!isTauri || !sharesFrame) return;

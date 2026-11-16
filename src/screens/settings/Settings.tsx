@@ -338,8 +338,8 @@ export function SettingsScreen() {
 			e.preventDefault();
 			back();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [back]);
 	const sections: Array<{ id: SectionId; label: string; icon: ReactNode }> = [
 		{ id: "appearance", label: t("Appearance"), icon: <Palette size={16} /> },

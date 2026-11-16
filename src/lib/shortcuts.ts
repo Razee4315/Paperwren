@@ -93,6 +93,7 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutDef> = {
 /** Keys that stay as they are, and what they do. `label` is how they
  * are printed where the keys can't be written as one combination. */
 export const FIXED = {
+	settings: { keys: ["Ctrl+,"], what: msg("Settings") },
 	scroll: {
 		keys: ["Space", "PageUp", "PageDown"],
 		what: msg("Scroll a screen at a time"),
@@ -142,6 +143,7 @@ export function fixedLabel(id: FixedId): string {
 
 /** Keys no shortcut may take: they type, scroll, close or undo. */
 const RESERVED = new Set([
+	"Ctrl+,",
 	"Escape",
 	"Tab",
 	"Shift+Tab",

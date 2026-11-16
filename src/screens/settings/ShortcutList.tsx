@@ -24,7 +24,15 @@ type Row = ShortcutId | { fixed: FixedId };
 const GROUPS: Array<[title: string, rows: Row[]]> = [
 	[
 		msg("Documents"),
-		["open", "close", { fixed: "tabs" }, "print", "fullscreen", "keys"],
+		[
+			"open",
+			"close",
+			{ fixed: "tabs" },
+			"print",
+			"fullscreen",
+			"keys",
+			{ fixed: "settings" },
+		],
 	],
 	[
 		msg("Moving around"),

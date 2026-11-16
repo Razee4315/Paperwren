@@ -450,8 +450,8 @@ export function Shell({
 			else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [active]);
 	const paperColor = usePageColor();
 	const pageColor = paper ? paperColor : undefined;
@@ -490,8 +490,8 @@ export function Shell({
 			e.preventDefault();
 			addRef.current();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [active, fileId]);
 
 	// --- read aloud ---
@@ -510,8 +510,8 @@ export function Shell({
 			e.preventDefault();
 			setReading((r) => !r);
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [active, canRead]);
 
 	// --- reading on a phone: dimmer, scrolling by itself, the volume
@@ -781,8 +781,8 @@ export function Shell({
 			e.preventDefault();
 			field.focus();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [active]);
 
 	// The keyboard scrolls the document from the moment it opens, without
@@ -909,8 +909,8 @@ export function Shell({
 			} else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [active, progressOf, pageKeys]);
 
 	const findRef = useRef(onFind);
@@ -950,11 +950,11 @@ export function Shell({
 		const onSelectAll = () => {
 			if (main.current) window.getSelection()?.selectAllChildren(main.current);
 		};
-		window.addEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
 		window.addEventListener(FIND_EVENT, onAsk);
 		window.addEventListener(SELECT_ALL_EVENT, onSelectAll);
 		return () => {
-			window.removeEventListener("keydown", onKey);
+			document.removeEventListener("keydown", onKey);
 			window.removeEventListener(FIND_EVENT, onAsk);
 			window.removeEventListener(SELECT_ALL_EVENT, onSelectAll);
 		};
@@ -1305,8 +1305,8 @@ export function FindBar({
 			} else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, []);
 
 	const label = state.busy

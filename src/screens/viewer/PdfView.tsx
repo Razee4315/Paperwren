@@ -1219,10 +1219,10 @@ export default function PdfView({
 			e.preventDefault();
 			stepRef.current(1);
 		};
-		window.addEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
 		window.addEventListener("mouseup", onMouse);
 		return () => {
-			window.removeEventListener("keydown", onKey);
+			document.removeEventListener("keydown", onKey);
 			window.removeEventListener("mouseup", onMouse);
 		};
 	}, [active, steps.forward]);
@@ -1313,8 +1313,8 @@ export default function PdfView({
 			else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [active, status]);
 
 	// Pages already drawn when the paper takes a colour get their
@@ -1631,8 +1631,8 @@ export default function PdfView({
 			else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [active, status]);
 	useEffect(() => {
 		const el = container.current;

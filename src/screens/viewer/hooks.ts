@@ -434,8 +434,8 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 			} else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [enabled, active]);
 
 	return useMemo<ZoomApi>(

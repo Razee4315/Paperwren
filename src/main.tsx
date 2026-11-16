@@ -2,6 +2,7 @@
 import "./lib/compat";
 // Then the start-up trace: it marks the first script running.
 import "./lib/traceBoot";
+import "./lib/browserKeys";
 import "@fontsource-variable/manrope";
 import "./styles/global.css";
 import { StrictMode } from "react";
