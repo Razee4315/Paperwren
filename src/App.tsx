@@ -11,6 +11,7 @@ import { backToCaller } from "@/lib/navigation";
 import { holdOpen, onSaveRefused } from "@/lib/openFiles";
 import { matches } from "@/lib/shortcuts";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
+import { onStoreFailed } from "@/lib/storedValue";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { type Tab, TabStrip, moveTab } from "@/screens/TabStrip";
 import { UpdateHost } from "@/screens/Updates";
@@ -869,6 +870,18 @@ function Root() {
 		]);
 	}, [tabs, screens]);
 	useEffect(() => onSaveRefused((note) => toast(t(note))), []);
+	// A setting, a bookmark, a mark or the recent list that could not be
+	// written is said, and can be tried again (lib/storedValue).
+	useEffect(
+		() =>
+			onStoreFailed((retry) =>
+				toast(t("Couldn't change saved data"), {
+					label: t("Try again"),
+					run: retry,
+				}),
+			),
+		[],
+	);
 
 	// A desktop app has no "Reload" or "Back" menu on a right-click, and
 	// the webview's own menu acts on the app, not the document (its

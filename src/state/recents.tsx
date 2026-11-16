@@ -13,6 +13,7 @@ import {
 	sortRecents,
 	updateEntry,
 } from "@/lib/recents";
+import { storeFailed } from "@/lib/storedValue";
 import { forgetThumb, moveThumb } from "@/lib/thumbs";
 import {
 	type Position,
@@ -186,7 +187,7 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 
 	const writing = useRef<Promise<unknown>>(Promise.resolve());
 	/** The last change written out (or failed to be). */
-	const saved = useRef<Promise<unknown>>(Promise.resolve());
+	const saved = useRef<Promise<boolean>>(Promise.resolve(true));
 	/** Changes made here so far: a read of the store begun before one of
 	 * them is older than what is shown. */
 	const changes = useRef(0);
@@ -222,6 +223,34 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		Array<[(prev: RecentEntry[]) => RecentEntry[], boolean]>
 	>([]);
 
+	/** Write the change `fn` made. One that fails is said, with Try
+	 * again; the list shown keeps it. */
+	const persist = useCallback(function persist(
+		fn: (prev: RecentEntry[]) => RecentEntry[],
+	) {
+		let done: Promise<unknown>;
+		if (SHARED) {
+			// One after another, so two changes never read the same list.
+			done = writing.current
+				.then(() => backend.storeGet(STORAGE_KEYS.recents))
+				.then((stored) => {
+					const there = stored ? normalizeRecents(stored) : [];
+					const merged = fn(there);
+					return merged === there
+						? undefined
+						: backend.storeSet(STORAGE_KEYS.recents, merged);
+				});
+			writing.current = done.catch(() => {});
+		} else done = backend.storeSet(STORAGE_KEYS.recents, current.current);
+		saved.current = done.then(
+			() => true,
+			() => {
+				storeFailed(() => persist(fn));
+				return false;
+			},
+		);
+	}, []);
+
 	/** Every mutation goes through here: state, persistence, and
 	 * deletion of managed copies nothing references any more. An
 	 * `undoable` change keeps those copies until its list is restored or
@@ -238,23 +267,7 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			if (next === prev) return prev;
 			changes.current++;
 			apply(next);
-			if (SHARED) {
-				// One after another, so two changes never read the same list.
-				writing.current = writing.current
-					.then(() => backend.storeGet(STORAGE_KEYS.recents))
-					.then((stored) => {
-						const there = stored ? normalizeRecents(stored) : [];
-						const merged = fn(there);
-						return merged === there
-							? undefined
-							: backend.storeSet(STORAGE_KEYS.recents, merged);
-					})
-					.catch(() => {});
-				saved.current = writing.current;
-			} else
-				saved.current = backend
-					.storeSet(STORAGE_KEYS.recents, next)
-					.catch(() => {});
+			persist(fn);
 			// A picked original the list now names is held over restarts
 			// (so it can still be renamed); one it no longer names is let go,
 			// with its copy.
@@ -271,7 +284,7 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			else release();
 			return prev;
 		},
-		[apply, stores],
+		[apply, persist, stores],
 	);
 
 	useEffect(() => {
@@ -402,7 +415,8 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			});
 			return moved ? next : prev;
 		});
-		void saved.current.then(() => forgetUnsaved(moves));
+		// Kept apart until the list with them is written.
+		void saved.current.then((ok) => ok && forgetUnsaved(moves));
 	}, [commit, stores]);
 
 	const setPosition = useCallback<RecentsApi["setPosition"]>(

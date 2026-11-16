@@ -10,6 +10,7 @@ import {
 	resolveTheme,
 } from "@/lib/settings";
 import { setCustomShortcuts } from "@/lib/shortcuts";
+import { type StoredValue, createStoredValue } from "@/lib/storedValue";
 import {
 	DEFAULT_SETTINGS,
 	type ResolvedTheme,
@@ -58,6 +59,12 @@ const THEME_COLOR: Record<ResolvedTheme, string> = {
 	"plain-dark": "#0e0e10",
 };
 
+/** Desktop windows share the store (see the focus refresh below). */
+const SHARED = isTauri && isDesktop;
+/** A burst of changes this close together (a slider dragged) is one
+ * write, made after the last. */
+const WRITE_AFTER = 250;
+
 function systemPrefersDark() {
 	return (
 		typeof window !== "undefined" &&
@@ -83,24 +90,35 @@ export async function loadSettings(): Promise<Settings> {
 export function SettingsProvider({ children }: { children: ReactNode }) {
 	// Held in stores, so that a reader of one setting is not drawn again
 	// when another changes (useSetting); useSettings still hears them all.
-	const [stores] = useState<SettingsStores>(() => {
-		// Until the settings are read, the theme last used (index.html has
-		// already applied it), so the first render does not switch it back
-		// to the default.
-		const theme = hintedTheme();
-		const values = createStore(
-			theme ? { ...DEFAULT_SETTINGS, theme } : DEFAULT_SETTINGS,
-		);
-		// The keys every handler checks: set as the settings are read, so
-		// a change applies to the very next key press.
-		setCustomShortcuts(values.get().shortcuts);
-		values.subscribe(() => setCustomShortcuts(values.get().shortcuts));
-		return {
-			values,
-			ready: createStore(false),
-			systemDark: createStore(!!systemPrefersDark()),
-		};
-	});
+	const [stores] = useState<SettingsStores & { saved: StoredValue<Settings> }>(
+		() => {
+			// Until the settings are read, the theme last used (index.html has
+			// already applied it), so the first render does not switch it back
+			// to the default.
+			const theme = hintedTheme();
+			// Read once; a change before that waits for it, a burst of
+			// changes (a slider) is one write, and a failed write is said.
+			const saved = createStoredValue<Settings>({
+				key: STORAGE_KEYS.settings,
+				initial: theme ? { ...DEFAULT_SETTINGS, theme } : DEFAULT_SETTINGS,
+				normalize: normalizeSettings,
+				read: loadSettings,
+				shared: SHARED,
+				delay: WRITE_AFTER,
+			});
+			const values = saved.value;
+			// The keys every handler checks: set as the settings are read, so
+			// a change applies to the very next key press.
+			setCustomShortcuts(values.get().shortcuts);
+			values.subscribe(() => setCustomShortcuts(values.get().shortcuts));
+			return {
+				saved,
+				values,
+				ready: saved.ready,
+				systemDark: createStore(!!systemPrefersDark()),
+			};
+		},
+	);
 	const settings = useSyncExternalStore(
 		stores.values.subscribe,
 		stores.values.get,
@@ -112,32 +130,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 	);
 
 	useEffect(() => {
-		let alive = true;
-		loadSettings().then((s) => {
-			if (!alive) return;
-			stores.values.set(s);
-			stores.ready.set(true);
-		});
-		return () => {
-			alive = false;
-		};
+		void stores.saved.load();
 	}, [stores]);
 
 	// Desktop: each open document is a window of its own, and they share
 	// the settings. Coming back to a window, take up what was changed in
-	// another (the theme, most of all), so that this one does not write
-	// its older copy back over it.
+	// another (the theme, most of all). A change made here is written
+	// onto the settings as stored then, so it does not put back this
+	// window's older copy of the others.
 	useEffect(() => {
-		if (!ready || !isTauri || !isDesktop) return;
-		const refresh = () => {
-			loadSettings()
-				.then((fresh) => {
-					const mine = stores.values.get();
-					if (JSON.stringify(mine) !== JSON.stringify(fresh))
-						stores.values.set(fresh);
-				})
-				.catch(() => {});
-		};
+		if (!ready || !SHARED) return;
+		const refresh = () => stores.saved.refresh();
 		window.addEventListener("focus", refresh);
 		return () => window.removeEventListener("focus", refresh);
 	}, [ready, stores]);
@@ -194,11 +197,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 	}, [ready, settings.language]);
 
 	const update = useCallback(
-		<K extends keyof Settings>(key: K, value: Settings[K]) => {
-			const next = { ...stores.values.get(), [key]: value };
-			backend.storeSet(STORAGE_KEYS.settings, next).catch(() => {});
-			stores.values.set(next);
-		},
+		<K extends keyof Settings>(key: K, value: Settings[K]) =>
+			stores.saved.edit((settings) => ({ ...settings, [key]: value })),
 		[stores],
 	);
 

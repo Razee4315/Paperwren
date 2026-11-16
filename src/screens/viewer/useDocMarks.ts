@@ -5,6 +5,7 @@ import {
 	saveMarks,
 	watchMarks,
 } from "@/lib/docMarks";
+import { storeFailed } from "@/lib/storedValue";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /** A step that can be undone: the marks as they were. */
@@ -54,12 +55,14 @@ export function useDocMarks(
 	const current = useRef({ key, name, list, note, scales, persist });
 	const unsaved = useRef(false);
 	const timer = useRef(0);
+	/** What was kept has been read for the document now open: nothing is
+	 * written before, or it would go over what is stored. */
+	const loaded = useRef<string | null>(null);
 
-	const flush = useCallback(() => {
-		window.clearTimeout(timer.current);
-		if (!unsaved.current) return;
-		unsaved.current = false;
-		const doc = current.current;
+	/** Write `doc` down. One that cannot be is said, and stays unsaved
+	 * (here, while it is the one open) to be written with the next change
+	 * or Try again. */
+	const write = useCallback((doc: typeof current.current) => {
 		if (!doc.key || !doc.persist) return;
 		saveMarks(
 			{
@@ -71,13 +74,45 @@ export function useDocMarks(
 				updatedAt: Date.now(),
 			},
 			current,
-		).catch(() => {});
+		).catch(() => {
+			const retry = () => {
+				if (current.current.key === doc.key) {
+					unsaved.current = true;
+					flushRef.current();
+				} else write(doc);
+			};
+			if (current.current.key === doc.key) unsaved.current = true;
+			storeFailed(retry);
+		});
 	}, []);
 
+	const flush = useCallback(() => {
+		window.clearTimeout(timer.current);
+		if (!unsaved.current) return;
+		const doc = current.current;
+		if (loaded.current !== doc.key) return;
+		unsaved.current = false;
+		write(doc);
+	}, [write]);
+	const flushRef = useRef(flush);
+	flushRef.current = flush;
+
 	// Another document: what is waiting to be written belongs to the last
-	// one, and goes under its key before this one's takes over.
-	if (current.current.key !== key) flush();
+	// one, and goes under its key (once drawn, below) before this one's
+	// takes over.
+	const outgoing = useRef<typeof current.current | null>(null);
+	if (current.current.key !== key) {
+		if (unsaved.current && loaded.current === current.current.key)
+			outgoing.current = current.current;
+		unsaved.current = false;
+	}
 	current.current = { key, name, list, note, scales, persist };
+	// biome-ignore lint/correctness/useExhaustiveDependencies: runs when the document changes
+	useEffect(() => {
+		const doc = outgoing.current;
+		outgoing.current = null;
+		if (doc) write(doc);
+	}, [key, write]);
 
 	const changed = useCallback(() => {
 		unsaved.current = true;
@@ -93,25 +128,45 @@ export function useDocMarks(
 		past.current = [];
 		future.current = [];
 		setSteps({ back: 0, forward: 0 });
+		loaded.current = null;
 		if (!key) return;
 		if (!persist) {
+			loaded.current = key;
 			setReady(true);
 			return;
 		}
 		let alive = true;
 		loadMarks(key).then((doc) => {
 			if (!alive) return;
-			if (doc) {
-				setList(doc.marks);
-				setNoteState(doc.note);
-				setScalesState(doc.scales ?? {});
-			}
+			// Marks made before what was kept came (a stroke as the editor
+			// opened) are added to it, and written with it.
+			const early = unsaved.current ? current.current : null;
+			const kept = doc?.marks ?? [];
+			const marks = early
+				? [
+						...kept,
+						...early.list.filter((m) => !kept.some((k) => k.id === m.id)),
+					]
+				: kept;
+			const text = early?.note || (doc?.note ?? "");
+			const sizes = { ...doc?.scales, ...early?.scales };
+			current.current = {
+				...current.current,
+				list: marks,
+				note: text,
+				scales: sizes,
+			};
+			setList(marks);
+			setNoteState(text);
+			setScalesState(sizes);
+			loaded.current = key;
 			setReady(true);
+			if (early) changed();
 		});
 		return () => {
 			alive = false;
 		};
-	}, [key, persist]);
+	}, [key, persist, changed]);
 
 	// Changed elsewhere (Mark up from the tools, another tab or window,
 	// Settings): what is shown here follows, or the next save here would
