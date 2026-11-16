@@ -102,7 +102,7 @@
 	color: var(--text);
 	font-size: 14px;
 	font-weight: 600;
-	animation: pw-fade-in 160ms ease-out;
+	animation: pw-fade-in var(--t-med) var(--ease);
 }
 .trail:hover {
 	background: var(--surface-2);
@@ -128,7 +128,7 @@
 	box-shadow: var(--shadow-2);
 	font-size: 14px;
 	white-space: nowrap;
-	animation: pw-fade-in 160ms ease-out;
+	animation: pw-fade-in var(--t-med) var(--ease);
 }
 .scanOffer > svg {
 	flex: none;
@@ -265,7 +265,7 @@ button.extra[aria-pressed="false"] {
 	background: var(--surface);
 	color: var(--text);
 	box-shadow: var(--shadow-2);
-	animation: pw-rise 120ms ease-out;
+	animation: pw-rise var(--t-fast) var(--ease);
 	touch-action: manipulation;
 	user-select: none;
 	-webkit-user-select: none;
@@ -311,7 +311,7 @@ button.extra[aria-pressed="false"] {
 	border-radius: 50%;
 	flex: none;
 	box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.18);
-	transition: transform 120ms ease-out;
+	transition: transform var(--t-fast) var(--ease);
 }
 .barSwatch:hover {
 	transform: scale(1.14);
