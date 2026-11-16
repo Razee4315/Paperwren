@@ -25,7 +25,11 @@ import {
 	SideBySideContext,
 	clampRatio,
 } from "@/screens/viewer/pane";
-import { NavigationProvider, useNav } from "@/state/navigation";
+import {
+	NavigationProvider,
+	useNavActions,
+	useNavScreens,
+} from "@/state/navigation";
 import {
 	RecentsProvider,
 	useRecentsActions,
@@ -256,7 +260,10 @@ function Root() {
 	// Every screen is drawn from here, so a change of language redraws
 	// them all.
 	const lang = useSyncExternalStore(subscribe, language);
-	const { state, push, replace, back, close, reset, onLeave } = useNav();
+	// The screens, not the whole state: an overlay opening or closing (a
+	// menu, a dialog) does not draw Root.
+	const screens = useNavScreens();
+	const { push, replace, back, close, reset, onLeave } = useNavActions();
 	// The list itself is only read in handlers (list()): a change of it
 	// does not draw Root.
 	const { remove, list: recentList } = useRecentsActions();
@@ -288,7 +295,7 @@ function Root() {
 	/** A change of tab is under way; anything else that takes the
 	 * document away (Back) closes its tab. */
 	const leaving = useRef(false);
-	const top = state.screens[state.screens.length - 1];
+	const top = screens[screens.length - 1];
 	const current = top?.kind === "viewer" ? top.key : null;
 	/** Two documents side by side (a desktop's wide window): the tabs in
 	 * each half, and where the halves meet. The one on show (`current`)
@@ -337,7 +344,7 @@ function Root() {
 			setTabs(rest);
 			tabsRef.current = rest;
 			used.current = used.current.filter((k) => k !== key);
-			const shown = stateRef.current.screens.some(
+			const shown = screensRef.current.some(
 				(screen) => screen.kind === "viewer" && screen.key === key,
 			);
 			if (!shown) return;
@@ -450,14 +457,14 @@ function Root() {
 			leaving.current = false;
 			return;
 		}
-		const stillOpen = state.screens.some(
+		const stillOpen = screens.some(
 			(screen) => screen.kind === "viewer" && screen.key === was,
 		);
 		if (was !== null && !stillOpen) closeTab(was);
-	}, [current, state.screens, closeTab]);
+	}, [current, screens, closeTab]);
 
-	const stateRef = useRef(state);
-	stateRef.current = state;
+	const screensRef = useRef(screens);
+	screensRef.current = screens;
 
 	const pick = useCallback(
 		async (replacing?: RecentEntry) => {
@@ -552,7 +559,7 @@ function Root() {
 		}
 		const timer = window.setTimeout(() => {
 			resumed.current = true;
-			const busy = stateRef.current.screens.some((x) => x.kind === "viewer");
+			const busy = screensRef.current.some((x) => x.kind === "viewer");
 			if (busy) return;
 			const last = [...recentList()]
 				.filter((entry) => !entry.unavailable)
@@ -637,7 +644,7 @@ function Root() {
 	// and find-in-page keys would act on the app instead of the document,
 	// so they are not let through (a viewer's own Ctrl+F still opens its
 	// find bar).
-	const deep = state.screens.length > 1;
+	const deep = screens.length > 1;
 	const shownKey = useRef(current);
 	shownKey.current = current;
 	useEffect(() => {
@@ -755,8 +762,6 @@ function Root() {
 	// A Mac's menu bar, in the app's language. Its commands press the
 	// keys above; Settings has no key of its own to press. Only a Mac
 	// loads the code for it.
-	const screensRef = useRef(state.screens);
-	screensRef.current = state.screens;
 	// biome-ignore lint/correctness/useExhaustiveDependencies: built again when the language changes
 	useEffect(() => {
 		if (!isTauri || !sharesFrame) return;
@@ -771,7 +776,7 @@ function Root() {
 			)
 			.catch(() => {});
 	}, [lang, push]);
-	const viewing = state.screens[state.screens.length - 1]?.kind === "viewer";
+	const viewing = screens[screens.length - 1]?.kind === "viewer";
 	useEffect(() => {
 		if (!isTauri || !sharesFrame) return;
 		import("@/lib/macMenu")
@@ -809,7 +814,7 @@ function Root() {
 	useEffect(() => {
 		retainMemoryFiles([
 			...tabs.map((tab) => tab.request.reopen),
-			...state.screens.map((screen) =>
+			...screens.map((screen) =>
 				screen.kind === "viewer"
 					? screen.request.reopen
 					: screen.kind === "tools"
@@ -819,11 +824,11 @@ function Root() {
 		]);
 		holdOpen("documents", [
 			...tabs.map((tab) => tab.request.reopen),
-			...state.screens.map((screen) =>
+			...screens.map((screen) =>
 				screen.kind === "viewer" ? screen.request.reopen : undefined,
 			),
 		]);
-	}, [tabs, state.screens]);
+	}, [tabs, screens]);
 	useEffect(() => onSaveRefused((note) => toast(t(note))), []);
 
 	// A desktop app has no "Reload" or "Back" menu on a right-click, and
@@ -921,8 +926,8 @@ function Root() {
 				lang={lang}
 				keys={settings.shortcuts}
 			/>
-			{state.screens.map((screen, i) => {
-				const atTop = i === state.screens.length - 1;
+			{screens.map((screen, i) => {
+				const atTop = i === screens.length - 1;
 				if (screen.kind === "settings")
 					return <SettingsScreen key="settings" />;
 				if (screen.kind === "notes")

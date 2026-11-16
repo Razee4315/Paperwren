@@ -13,7 +13,7 @@ import { compareNames, formatDate, isolate, t, tn } from "@/lib/i18n";
 import { rememberPictures } from "@/lib/siblings";
 import type { OpenRequest } from "@/lib/types";
 import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
-import { useBackClose, useNav } from "@/state/navigation";
+import { useBackClose, useNavScreens } from "@/state/navigation";
 import { Button, FileBadge, IconButton, Sheet, SheetItem, Spinner } from "@/ui";
 import {
 	ChevronRight,
@@ -156,7 +156,7 @@ export function FolderList({
 	const up = () => goTo(node.path.split("/").slice(0, -1).join("/"));
 	// Back goes up a folder before it leaves the list: only while the list
 	// is on show, not under a document opened from it.
-	const onTop = useNav().state.screens.length === 1;
+	const onTop = useNavScreens().length === 1;
 	useBackClose("folder-up", deeper && onTop, up);
 
 	if (listing.state === "loading")
