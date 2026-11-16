@@ -26,7 +26,7 @@ import {
 	renameRefused,
 	renameWay,
 } from "./rename";
-import { createSerializedWriter } from "./serializedWriter";
+import { createCheckedWriter } from "./serializedWriter";
 import type { OpenRequest, Reopen } from "./types";
 
 export interface ImportsStats {
@@ -176,6 +176,8 @@ interface Backend {
 	 * change it while it is open; null where that cannot be known. */
 	stamp(reopen: Reopen): Promise<number | null>;
 	storeGet(key: string): Promise<unknown>;
+	/** Writes for one key land in the order made; one that fails rejects
+	 * (the next still runs), so a caller can say it was not kept. */
 	storeSet(key: string, value: unknown): Promise<void>;
 	importsStats(): Promise<ImportsStats>;
 	importsClear(): Promise<void>;
@@ -1312,7 +1314,7 @@ export function requestForBytes(name: string, bytes: Uint8Array): OpenRequest {
 
 export const backend: Backend = {
 	...raw,
-	storeSet: createSerializedWriter((key, value) => raw.storeSet(key, value)),
+	storeSet: createCheckedWriter((key, value) => raw.storeSet(key, value)),
 	saveFile(name, bytes, mime) {
 		return saveAsking(
 			(open) => raw.saveFile(name, bytes, mime, open),
