@@ -4,6 +4,7 @@
   "version": "1.8.0",
   "identifier": "app.paperwren.docs",
   "build": {
+    "removeUnusedCommands": true,
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "devUrl": "http://localhost:1420",
