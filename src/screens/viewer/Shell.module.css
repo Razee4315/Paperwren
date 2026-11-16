@@ -252,37 +252,6 @@
 	transition-duration: var(--t-fast) var(--ease);
 }
 /* The details dialog: label over value, long paths wrap. */
-.details {
-	display: grid;
-	gap: 12px;
-	text-align: start;
-}
-.details dt {
-	font-size: 12px;
-	font-weight: 700;
-	color: var(--text-3);
-}
-.details dd {
-	overflow-wrap: anywhere;
-	user-select: text;
-}
-/* A desktop's details are a two-column table: label, then value. */
-:global(html.desktop) .details > div {
-	display: grid;
-	grid-template-columns: 96px minmax(0, 1fr);
-	gap: 12px;
-	align-items: baseline;
-}
-:global(html.desktop) .details {
-	gap: 9px;
-}
-:global(html.desktop) .details dt {
-	font-weight: 600;
-}
-:global(html.desktop) .details dd {
-	color: var(--text);
-	font-size: 13.5px;
-}
 .hiddenTop {
 	margin-top: calc(-1 * (var(--bar-h) + var(--safe-top) + 1px));
 	opacity: 0;
@@ -896,29 +865,6 @@ button.findCount {
 }
 
 /* Rename: the name to type, and its extension kept beside it. */
-.renameField {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-}
-.renameExt {
-	flex-shrink: 0;
-	color: var(--text-2);
-	font-weight: 650;
-}
-.renameError {
-	min-height: 1.5em;
-	margin: 8px 0 0;
-	font-size: 13px;
-	color: var(--danger, #b0312c);
-}
-/* Only the app's name for the file changes: said before it is done. */
-.renameNote {
-	margin: 8px 0 0;
-	font-size: 13px;
-	color: var(--text-2);
-}
-
 /* Desktop: a window's screens change in place, with a short fade; a
  * phone's slide reads as the window shaking. */
 :global(html.desktop) .shell {

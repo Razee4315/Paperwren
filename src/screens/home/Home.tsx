@@ -13,9 +13,9 @@ import { samplePdf } from "@/lib/sample";
 import { loadThumb, watchThumb } from "@/lib/thumbs";
 import { traceMark } from "@/lib/trace";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
+import { FileDetails, HandOffItems } from "@/screens/files/FileActions";
+import { RenameDialog } from "@/screens/files/RenameDialog";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
-import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
-import { RenameDialog } from "@/screens/viewer/RenameDialog";
 import { MAX_FOLDERS, useFolders } from "@/state/folders";
 import { useRecents } from "@/state/recents";
 import {
