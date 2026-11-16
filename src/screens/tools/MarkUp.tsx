@@ -251,8 +251,8 @@ export function MarkUp({
 			else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [ownsKeys]);
 
 	const pageWidth = Math.max(200, width) * zoom;

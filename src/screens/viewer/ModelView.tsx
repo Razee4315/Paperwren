@@ -205,8 +205,8 @@ export default function ModelView({
 			else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [active, phase]);
 
 	const details = useMemo<Array<[string, string]>>(

@@ -516,8 +516,8 @@ export const Marking = forwardRef<
 				setMenu(null);
 			}
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [active, canMark, undo, redo]);
 
 	// A bar left on a mark would point at the wrong place after a scroll.

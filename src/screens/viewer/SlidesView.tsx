@@ -833,8 +833,8 @@ export default function SlidesView({
 			else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [active, presenting]);
 
 	const total = deck?.slides.length ?? 0;

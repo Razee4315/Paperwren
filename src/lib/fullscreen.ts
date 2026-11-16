@@ -321,7 +321,7 @@ export function watchFullscreen(): () => void {
 	let stop = () => {};
 	let settled: ReturnType<typeof atEdges> | null = null;
 	if (ofWindow) {
-		window.addEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
 		appWindow()
 			.then((win) => {
 				const follow = () =>
@@ -354,7 +354,7 @@ export function watchFullscreen(): () => void {
 		syncNow = () => {};
 		windowFull = false;
 		document.removeEventListener("fullscreenchange", sync);
-		window.removeEventListener("keydown", onKey);
+		document.removeEventListener("keydown", onKey);
 		window.removeEventListener("mousemove", onMove);
 		delete root.dataset.fullscreen;
 		delete root.dataset.reveal;

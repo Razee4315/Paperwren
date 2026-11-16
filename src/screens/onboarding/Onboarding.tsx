@@ -131,8 +131,8 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 			if (e.key === "ArrowRight") go(step + forward);
 			if (e.key === "ArrowLeft") go(step - forward);
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [go, step, forward]);
 
 	// The welcome covers the app: the keyboard starts inside it.
