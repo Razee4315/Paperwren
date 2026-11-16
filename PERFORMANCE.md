@@ -171,7 +171,7 @@ Every row is a change that is on `px/main`. "Measured" says what was observed an
 | 4.x | Stored values, leave guards, recents lifetime, scan queue (`9f3b006`, `8f96266`, `666dcfc`, `1062171`, `4516ee8`) | Behaviour fixes, not speed. Checked in the dev server; see `BEHAVIOR_NOTES.md` |
 | 5.4 | Tab strip scrolls and uses one tab stop (`bfcc93c`) | No timing. At 15 tabs the row is 1,828 px wide and all tabs are reachable by scroll and keyboard |
 | 6.x | Motion tokens, exits, transform-only animation (`MOTION.md`) | OCR progress at 6x: 25 frame gaps, largest 16.8 ms, none over 20 ms (one small sample). The sheet exit failed the budget (25.2 ms gap) and was removed. The 6x budget is not verified for every animation |
-| D | `build.removeUnusedCommands` on, desktop permissions listed one by one (`76c3e1a`) | Allowed plugin and core commands: desktop 117 to 28, mobile 100 to 4 (command counts, **not** binary size). `cargo check` with pruning passed in 31.57 s. **Binary saving not measured.** Keep only if CI shows 300 KB or more, as the plan says (see `docs/unused-commands.md`) |
+| D | `build.removeUnusedCommands` on, desktop permissions listed one by one (`76c3e1a`) | Allowed plugin and core commands: desktop 117 to 28, mobile 100 to 4 (command counts, **not** binary size). `cargo check` with pruning passed in 31.57 s. CI Windows builds of the same commit with the flag on and off: `paperwren.exe` 26,774,528 to 25,951,744 bytes (**-804 KB**); NSIS installer 23,667,083 to 23,487,000 bytes (-176 KB); MSI 24,223,744 to 23,945,216 bytes (-272 KB). Above the 300 KB gate, so kept |
 
 ### Tried and not kept
 
