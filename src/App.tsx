@@ -26,6 +26,14 @@ import {
 	clampRatio,
 } from "@/screens/viewer/pane";
 import {
+	LeaveScope,
+	askLeave,
+	docScope,
+	guardedScopes,
+	onGuardsChange,
+	screenScope,
+} from "@/state/leave";
+import {
 	NavigationProvider,
 	useNavActions,
 	useNavScreens,
@@ -42,6 +50,7 @@ import {
 } from "@/state/settings";
 import {
 	DropHint,
+	LeaveHost,
 	LinkGuard,
 	OpeningView,
 	ScreenLoading,
@@ -50,6 +59,7 @@ import {
 	ToastHost,
 	WindowControls,
 	modalOpen,
+	ownsKeys,
 	toast,
 } from "@/ui";
 import { Copy, Search, TextSelect } from "lucide-react";
@@ -221,16 +231,20 @@ const DocView = memo(function DocView({
 		[tabbed, visible, side, ratio, narrow, calls, docKey],
 	);
 	return (
-		<ViewerScreen
-			request={request}
-			active={active}
-			pane={pane}
-			onClose={onClose}
-			onReplace={onReplace}
-			onOpen={calls.open}
-			onTools={calls.tools}
-			onLocate={onLocate}
-		/>
+		// What the document (and a tool opened over it) would lose is
+		// asked about when it goes: a tab and its screen share the key.
+		<LeaveScope.Provider value={docScope(docKey)}>
+			<ViewerScreen
+				request={request}
+				active={active}
+				pane={pane}
+				onClose={onClose}
+				onReplace={onReplace}
+				onOpen={calls.open}
+				onTools={calls.tools}
+				onLocate={onLocate}
+			/>
+		</LeaveScope.Provider>
 	);
 });
 
@@ -325,7 +339,8 @@ function Root() {
 		},
 		[reset],
 	);
-	const closeTab = useCallback(
+	/** Take the tab of `key` away, asking nothing (see closeTab). */
+	const dropTab = useCallback(
 		(key: number) => {
 			const rest = tabsRef.current.filter((tab) => tab.key !== key);
 			const pair = splitRef.current;
@@ -361,6 +376,20 @@ function Root() {
 		},
 		[show, reset],
 	);
+	/** A tab whose work would be lost asks first, on show. */
+	const showScope = useCallback(
+		(scope: string) => {
+			const tab = tabsRef.current.find((one) => docScope(one.key) === scope);
+			if (tab && tab.key !== shownKey.current) show(tab);
+		},
+		[show],
+	);
+	/** Close the tab of `key` (its X, Ctrl+W, the close arrow), once what
+	 * it would lose has been asked about. */
+	const closeTab = useCallback(
+		(key: number) => askLeave([docScope(key)], () => dropTab(key), showScope),
+		[dropTab, showScope],
+	);
 	const goHome = useCallback(() => {
 		leaving.current = true;
 		reset([]);
@@ -382,10 +411,16 @@ function Root() {
 			const gone = list.filter((_, i) =>
 				which === "others" ? i !== at : i > at,
 			);
-			if (gone.some((tab) => tab.key === current)) show(keep);
-			for (const tab of gone) closeTab(tab.key);
+			askLeave(
+				gone.map((tab) => docScope(tab.key)),
+				() => {
+					if (gone.some((tab) => tab.key === shownKey.current)) show(keep);
+					for (const tab of gone) dropTab(tab.key);
+				},
+				showScope,
+			);
 		},
-		[current, show, closeTab],
+		[show, dropTab, showScope],
 	);
 
 	const open = useCallback(
@@ -460,8 +495,9 @@ function Root() {
 		const stillOpen = screens.some(
 			(screen) => screen.kind === "viewer" && screen.key === was,
 		);
-		if (was !== null && !stillOpen) closeTab(was);
-	}, [current, screens, closeTab]);
+		// Back has already asked about what it would lose.
+		if (was !== null && !stillOpen) dropTab(was);
+	}, [current, screens, dropTab]);
 
 	const screensRef = useRef(screens);
 	screensRef.current = screens;
@@ -656,9 +692,11 @@ function Root() {
 				toggleFullscreen();
 			} else if (matches(e, "open")) {
 				e.preventDefault();
-				pick();
+				// Not under a dialog or a tool: the keys are theirs.
+				if (ownsKeys()) pick();
 			} else if (matches(e, "close") && deep) {
 				e.preventDefault();
+				if (!ownsKeys()) return;
 				if (shownKey.current !== null) closeTab(shownKey.current);
 				else close();
 			} else if (
@@ -858,6 +896,11 @@ function Root() {
 			.catch(() => toast(t("Couldn't copy")));
 	};
 	const kept = keptTabs(tabs, used.current);
+	// A tab with work it would lose stays drawn, however many are opened
+	// after it.
+	const guarded = useSyncExternalStore(onGuardsChange, guardedScopes);
+	for (const tab of tabs)
+		if (guarded.split(" ").includes(docScope(tab.key))) kept.add(tab.key);
 
 	// What Home and the documents are handed, the same at every render:
 	// they are drawn again for what they show, not each time Root is.
@@ -930,21 +973,27 @@ function Root() {
 				const atTop = i === screens.length - 1;
 				if (screen.kind === "settings")
 					return <SettingsScreen key="settings" />;
+				// What a screen would lose is asked about when it goes.
+				const scope = screenScope(screen, i);
 				if (screen.kind === "notes")
 					return (
-						<Suspense key="notes" fallback={<ScreenLoading />}>
-							<NotesScreen />
-						</Suspense>
+						<LeaveScope.Provider key="notes" value={scope}>
+							<Suspense fallback={<ScreenLoading />}>
+								<NotesScreen />
+							</Suspense>
+						</LeaveScope.Provider>
 					);
 				if (screen.kind === "tools")
 					return (
-						<Suspense key={`tools-${i}`} fallback={<ScreenLoading />}>
-							<ToolsScreen
-								start={screen.tool as ToolId | undefined}
-								file={screen.file}
-								onOpen={open}
-							/>
-						</Suspense>
+						<LeaveScope.Provider key={`tools-${i}`} value={scope}>
+							<Suspense fallback={<ScreenLoading />}>
+								<ToolsScreen
+									start={screen.tool as ToolId | undefined}
+									file={screen.file}
+									onOpen={open}
+								/>
+							</Suspense>
+						</LeaveScope.Provider>
 					);
 				// A document under another one (several shared at once, a file
 				// dropped while reading) is not kept in memory: Back opens it
@@ -1101,6 +1150,7 @@ function Root() {
 				)}
 			</Sheet>
 			<LinkGuard />
+			<LeaveHost show={showScope} />
 			<ToastHost />
 			<UpdateHost paused={welcome !== false} />
 			<WindowControls />

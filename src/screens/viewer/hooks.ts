@@ -5,6 +5,7 @@ import { readOfficeMeta } from "@/lib/officeMeta";
 import { matches } from "@/lib/shortcuts";
 import type { Position } from "@/lib/types";
 import { useSettings } from "@/state/settings";
+import { ownsKeys } from "@/ui/Overlay";
 import {
 	type RefObject,
 	useCallback,
@@ -422,7 +423,9 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 		if (!enabled || !active) return;
 		const onKey = (e: KeyboardEvent) => {
 			const z = api.current;
-			if (!z) return;
+			// A tool or dialog over the document has the keys (Fill and
+			// sign has no zoom of its own: the page under it stays as it is).
+			if (!z || !ownsKeys()) return;
 			if (matches(e, "zoomIn")) z.zoomBy(1.25);
 			else if (matches(e, "zoomOut")) z.zoomBy(1 / 1.25);
 			else if (matches(e, "zoomReset")) {

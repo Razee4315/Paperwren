@@ -15,6 +15,7 @@ import {
 	useReducer,
 	useRef,
 } from "react";
+import { askLeave, holdsWork, screenScope } from "./leave";
 
 declare global {
 	interface Window {
@@ -112,9 +113,24 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 			}
 			return true;
 		}
-		if (leaveRef.current?.({ ...current, overlays: open })) return true;
-		if (!canGoBack(current)) return false;
-		dispatch({ type: "pop" });
+		// The screen on top goes (or the app, back to the one that opened
+		// the document): what would be lost there is asked about first.
+		const going = (now: NavState) => {
+			if (leaveRef.current?.(now)) return true;
+			if (!canGoBack(now)) return false;
+			dispatch({ type: "pop" });
+			return true;
+		};
+		const at = current.screens.length - 1;
+		const screen = current.screens[at];
+		const where = [screenScope(screen, at)];
+		if (!holdsWork(where)) return going({ ...current, overlays: open });
+		askLeave(where, () => {
+			// Answered Discard: unless the screen has gone some other way
+			// meanwhile. The question itself is the overlay closing now.
+			const now = stateRef.current;
+			if (now.screens[at] === screen) going({ ...now, overlays: [] });
+		});
 		return true;
 	}, [noteClosed]);
 
@@ -131,7 +147,15 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 		(screen: Screen) => dispatch({ type: "push", screen }),
 		[],
 	);
-	const close = useCallback(() => dispatch({ type: "pop" }), []);
+	const close = useCallback(() => {
+		const { screens } = stateRef.current;
+		const at = screens.length - 1;
+		const screen = screens[at];
+		if (at < 1) return;
+		askLeave([screenScope(screen, at)], () => {
+			if (stateRef.current.screens[at] === screen) dispatch({ type: "pop" });
+		});
+	}, []);
 	const reset = useCallback(
 		(screens: Screen[]) => dispatch({ type: "reset", screens }),
 		[],
