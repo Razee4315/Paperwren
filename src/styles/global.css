@@ -1,13 +1,16 @@
 /*
  * Paperwren design tokens.
  *
- * Flat and calm: solid colours only (no gradients, blur or drop
- * shadows); surfaces are separated by tone and hairlines. Three
- * themes, each with its own signature accent, tuned for long reading:
+ * Flat and calm: solid colours only (no gradients or blur); surfaces
+ * are separated by tone and hairlines. Only floating layers (dialogs,
+ * menus, toasts, popovers) may lift with a shadow. Five themes, tuned
+ * for long reading:
  *   light  "Paper"  warm off-white, pine-teal accent
  *   sepia  "Sand"   low-blue-light parchment, terracotta accent
  *   dark   "Ink"    soft charcoal (not pure black), mint accent
+ *   plain-light, plain-dark  white and near-black, for plain pages
  * Themes are one attribute: data-theme. Components only read variables.
+ * Every colour meets its contrast rule in every theme (docs/tokens.md).
  */
 
 :root {
