@@ -30,6 +30,12 @@ export function useExitPresence(
 			visual.setAttribute("aria-hidden", "true");
 			visual.dataset.exiting = "";
 			visual.removeAttribute("id");
+			// The copy is only a picture of what closed: nothing may find it
+			// by the names the live element answers to.
+			visual.removeAttribute("data-testid");
+			visual
+				.querySelectorAll("[data-testid]")
+				.forEach((node) => node.removeAttribute("data-testid"));
 			visual
 				.querySelectorAll<HTMLElement>(
 					"button, input, select, textarea, a, [tabindex]",

@@ -1213,6 +1213,11 @@ function ExtractTool({ file, onOpen }: ToolProps) {
 	const list = picked
 		? parsePages(which || (each ? `1-${pages}` : ""), pages)
 		: null;
+	// A range still being typed ("1-", "3,") is not called wrong until the
+	// field is left; one that cannot become right ("9" of 3 pages) is
+	// said at once, as the disabled button needs a reason.
+	const unfinished = /[-,\s]$/.test(which);
+	const wrongRange = !!which && !list && (touched || !unfinished);
 	return (
 		<>
 			<OnePdf kit={kit} />
@@ -1227,14 +1232,14 @@ function ExtractTool({ file, onOpen }: ToolProps) {
 						value={which}
 						onChange={(e) => setWhich(e.target.value)}
 						onBlur={() => setTouched(true)}
-						aria-invalid={(touched && !!which && !list) || undefined}
+						aria-invalid={wrongRange || undefined}
 						aria-describedby="extract-range-hint"
 						placeholder={t("For example 1-3, 5")}
 						dir="ltr"
 						data-testid="tool-pages-field"
 					/>
 					<p id="extract-range-hint" className={s.hint} aria-live="polite">
-						{touched && which && !list
+						{wrongRange
 							? `${t("For example 1-3, 5")}. ${t("The document has {n} pages", { n: pages })}`
 							: each
 								? t(
