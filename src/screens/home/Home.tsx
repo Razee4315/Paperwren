@@ -192,7 +192,7 @@ export function Home({
 		now: Pick<OpenRequest, "id" | "name" | "reopen">,
 	) => void;
 }) {
-	const { entries, ready, togglePin, remove, restore } = useRecents();
+	const { entries, ready, togglePin, remove, restore, settle } = useRecents();
 	// The first screen is on show (PAPERWREN_TRACE, lib/trace.ts).
 	useEffect(() => traceMark("Home ready"), []);
 	const [query, setQuery] = useState("");
@@ -680,9 +680,11 @@ export function Home({
 							onClick={() => {
 								const previous = remove(menuFor.id);
 								setMenuFor(null);
+								// Its copy is kept for as long as the Undo is up.
 								toast(t("Removed from recents"), {
 									label: t("Undo"),
 									run: () => restore(previous),
+									onExpire: () => settle(previous),
 								});
 							}}
 							testId="menu-remove"

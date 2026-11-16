@@ -280,7 +280,7 @@ function Root() {
 	const { push, replace, back, close, reset, onLeave } = useNavActions();
 	// The list itself is only read in handlers (list()): a change of it
 	// does not draw Root.
-	const { remove, list: recentList } = useRecentsActions();
+	const { remove, settle, list: recentList } = useRecentsActions();
 	const recentsReady = useRecentsReady();
 	const settings = useSettingsOf("reopenLast", "shortcuts");
 	const settingsReady = useSettingsReady();
@@ -509,7 +509,8 @@ function Root() {
 			try {
 				const request = await backend.pickFile();
 				if (!request) return;
-				if (replacing && replacing.id !== request.id) remove(replacing.id);
+				if (replacing && replacing.id !== request.id)
+					settle(remove(replacing.id));
 				open(
 					replacing?.position
 						? { ...request, position: replacing.position }
@@ -522,7 +523,7 @@ function Root() {
 				besideOf.current = null;
 			}
 		},
-		[open, remove],
+		[open, remove, settle],
 	);
 
 	// --- side by side ---

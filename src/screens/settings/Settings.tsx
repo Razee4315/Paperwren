@@ -305,7 +305,7 @@ function SectionList({
 export function SettingsScreen() {
 	const { back } = useNavActions();
 	const { settings, update } = useSettings();
-	const { entries, clear, restore, markUnavailable } = useRecents();
+	const { entries, clear, restore, settle, markUnavailable } = useRecents();
 	const [stored, setStored] = useState<{ bytes: number; files: number } | null>(
 		null,
 	);
@@ -610,6 +610,7 @@ export function SettingsScreen() {
 											update("keepRecents", true);
 											restore(previous);
 										},
+										onExpire: () => settle(previous),
 									});
 								}}
 								testId="keep-recents"
@@ -637,6 +638,7 @@ export function SettingsScreen() {
 									toast(t("Recents cleared"), {
 										label: t("Undo"),
 										run: () => restore(previous),
+										onExpire: () => settle(previous),
 									});
 								}}
 								data-testid="clear-recents"
