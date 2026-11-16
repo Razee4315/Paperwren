@@ -14,7 +14,7 @@ import { canSpeak } from "@/lib/speech";
 import type { PageColor, Position } from "@/lib/types";
 import { useBookmarks } from "@/state/bookmarks";
 import { useBackClose } from "@/state/navigation";
-import { useSettings } from "@/state/settings";
+import { useSetting, useSettings, useTheme } from "@/state/settings";
 import {
 	IconButton,
 	Sheet,
@@ -128,8 +128,7 @@ export const PAGE_COLOR_NAMES: Record<PageColor, string> = {
 
 /** The paper the reader chose, as drawn: "original", "sepia" or "dark". */
 export function usePageColor() {
-	const { settings, theme } = useSettings();
-	return resolvePageColor(settings.pageColor, theme);
+	return resolvePageColor(useSetting("pageColor"), useTheme());
 }
 
 /** The choice of paper, from a viewer's menu. It is the same setting

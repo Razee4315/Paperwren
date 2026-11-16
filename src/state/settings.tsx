@@ -41,6 +41,8 @@ const SettingsContext = createContext<SettingsApi | null>(null);
 interface SettingsStores {
 	values: Store<Settings>;
 	ready: Store<boolean>;
+	/** The device is in dark mode (for the theme "system"). */
+	systemDark: Store<boolean>;
 }
 /** The stores and `update`, which never change: no reader is drawn again
  * through this context. */
@@ -93,14 +95,21 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 		// a change applies to the very next key press.
 		setCustomShortcuts(values.get().shortcuts);
 		values.subscribe(() => setCustomShortcuts(values.get().shortcuts));
-		return { values, ready: createStore(false) };
+		return {
+			values,
+			ready: createStore(false),
+			systemDark: createStore(!!systemPrefersDark()),
+		};
 	});
 	const settings = useSyncExternalStore(
 		stores.values.subscribe,
 		stores.values.get,
 	);
 	const ready = useSyncExternalStore(stores.ready.subscribe, stores.ready.get);
-	const [systemDark, setSystemDark] = useState(systemPrefersDark);
+	const systemDark = useSyncExternalStore(
+		stores.systemDark.subscribe,
+		stores.systemDark.get,
+	);
 
 	useEffect(() => {
 		let alive = true;
@@ -136,10 +145,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
 		if (!mq) return;
-		const on = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+		const on = (e: MediaQueryListEvent) => stores.systemDark.set(e.matches);
 		mq.addEventListener("change", on);
 		return () => mq.removeEventListener("change", on);
-	}, []);
+	}, [stores]);
 
 	useEffect(() => {
 		if (ready) hintTheme(settings.theme);
@@ -232,6 +241,17 @@ export function useSettingsOf<K extends keyof Settings>(
 	...keys: K[]
 ): Pick<Settings, K> {
 	return usePick(useStores().values, keys);
+}
+
+/** The theme as drawn ("system" resolved); the reader is drawn again
+ * only when it changes. */
+export function useTheme(): ResolvedTheme {
+	const { values, systemDark } = useStores();
+	const theme = useSelect(values, (settings) => settings.theme);
+	return resolveTheme(
+		theme,
+		useSelect(systemDark, (dark) => dark),
+	);
 }
 
 /** Whether the settings have been read from storage. */

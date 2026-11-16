@@ -25,7 +25,7 @@ import { textPicture } from "@/lib/textBox";
 import { loadThumb, saveThumb } from "@/lib/thumbs";
 import type { PdfFlow, Position } from "@/lib/types";
 import { useBackClose } from "@/state/navigation";
-import { useSettings } from "@/state/settings";
+import { useSettingsOf, useTheme } from "@/state/settings";
 import {
 	Button,
 	Dialog,
@@ -273,7 +273,17 @@ export default function PdfView({
 }: ViewerProps) {
 	const brokenRef = useRef(onBroken);
 	brokenRef.current = onBroken;
-	const { settings, theme } = useSettings();
+	// Only what it reads: a change of another setting (the side panel,
+	// in every tab at once) does not draw the whole viewer again.
+	const settings = useSettingsOf(
+		"rememberPosition",
+		"pdfFlow",
+		"pdfZoom",
+		"pageColor",
+		"tapToTurn",
+		"keepRecents",
+	);
+	const theme = useTheme();
 	const container = useRef<HTMLDivElement>(null);
 	const viewerEl = useRef<HTMLDivElement>(null);
 	const hud = useRef<HTMLDivElement>(null);
