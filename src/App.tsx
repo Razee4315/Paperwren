@@ -26,7 +26,11 @@ import {
 	clampRatio,
 } from "@/screens/viewer/pane";
 import { NavigationProvider, useNav } from "@/state/navigation";
-import { RecentsProvider, useRecents } from "@/state/recents";
+import {
+	RecentsProvider,
+	useRecentsActions,
+	useRecentsReady,
+} from "@/state/recents";
 import {
 	SettingsProvider,
 	useSettingsOf,
@@ -253,7 +257,10 @@ function Root() {
 	// them all.
 	const lang = useSyncExternalStore(subscribe, language);
 	const { state, push, replace, back, close, reset, onLeave } = useNav();
-	const { entries, remove, ready: recentsReady } = useRecents();
+	// The list itself is only read in handlers (list()): a change of it
+	// does not draw Root.
+	const { remove, list: recentList } = useRecentsActions();
+	const recentsReady = useRecentsReady();
 	const settings = useSettingsOf("reopenLast", "shortcuts");
 	const settingsReady = useSettingsReady();
 	const nextKey = useRef(1);
@@ -536,8 +543,6 @@ function Root() {
 	const resumed = useRef(false);
 	const openRecentRef = useRef(openRecent);
 	openRecentRef.current = openRecent;
-	const recentsRef = useRef(entries);
-	recentsRef.current = entries;
 	useEffect(() => {
 		if (resumed.current || !settingsReady || !recentsReady) return;
 		if (welcome !== false) return;
@@ -549,13 +554,13 @@ function Root() {
 			resumed.current = true;
 			const busy = stateRef.current.screens.some((x) => x.kind === "viewer");
 			if (busy) return;
-			const last = [...recentsRef.current]
+			const last = [...recentList()]
 				.filter((entry) => !entry.unavailable)
 				.sort((a, b) => b.openedAt - a.openedAt)[0];
 			if (last) openRecentRef.current(last);
 		}, 400);
 		return () => window.clearTimeout(timer);
-	}, [settingsReady, recentsReady, welcome, settings.reopenLast]);
+	}, [settingsReady, recentsReady, welcome, settings.reopenLast, recentList]);
 
 	// Android "Open with": MainActivity copies the file into private
 	// storage and calls window.__paperwrenOpenFile (see index.html);
@@ -625,9 +630,6 @@ function Root() {
 		const timer = window.setTimeout(() => idle(warmReader), WARM_AFTER);
 		return () => window.clearTimeout(timer);
 	}, []);
-
-	const entriesRef = useRef(entries);
-	entriesRef.current = entries;
 
 	// The keyboard, as a desktop reader has it: Ctrl+O opens a file,
 	// Ctrl+W closes what is open, Ctrl+F on Home goes to its search (⌘
@@ -874,7 +876,7 @@ function Root() {
 			open,
 			tools: openTools,
 			locate: (key, id) => {
-				const entry = entriesRef.current.find((e) => e.id === id);
+				const entry = recentList().find((e) => e.id === id);
 				closeTab(key);
 				pick(entry);
 			},
@@ -884,7 +886,7 @@ function Root() {
 				if (tab) show(tab);
 			},
 		}),
-		[closeTab, replaceTab, open, openTools, pick, show],
+		[closeTab, replaceTab, open, openTools, pick, show, recentList],
 	);
 	/** A phone's one document on top. */
 	const stackCalls = useMemo<DocCalls>(
@@ -895,13 +897,13 @@ function Root() {
 			open,
 			tools: openTools,
 			locate: (_key, id) => {
-				const entry = entriesRef.current.find((e) => e.id === id);
+				const entry = recentList().find((e) => e.id === id);
 				back();
 				pick(entry);
 			},
 			focus: () => {},
 		}),
-		[close, replace, open, openTools, back, pick],
+		[close, replace, open, openTools, back, pick, recentList],
 	);
 	const narrowLeft = narrowHalves[0] === "1";
 	const narrowRight = narrowHalves[1] === "1";

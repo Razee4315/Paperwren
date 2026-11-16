@@ -6,7 +6,7 @@ import type { DecryptResult } from "@/lib/parseWorker";
 import { isEncryptedPackage, sniffFormat } from "@/lib/sniff";
 import type { OpenRequest, Position } from "@/lib/types";
 import { holdScreen } from "@/lib/wake";
-import { useRecents } from "@/state/recents";
+import { useIsRecent, useRecentsActions } from "@/state/recents";
 import { useSetting } from "@/state/settings";
 import { Button, Dialog, ErrorArt, OpeningView } from "@/ui";
 import {
@@ -178,8 +178,18 @@ function Viewer({
 	/** Open the tools (or one of them) with this file. */
 	onTools?: (tool: string | undefined, file: OpenRequest) => void;
 }) {
-	const { entries, record, setPosition, markUnavailable, remove } =
-		useRecents();
+	// Read in handlers, not drawn from: a change of the list (another
+	// document read on, a pin on Home) does not draw this one again.
+	const {
+		record,
+		setPosition,
+		positionOf,
+		flushPositions,
+		list,
+		markUnavailable,
+		remove,
+	} = useRecentsActions();
+	const isRecent = useIsRecent(request.id);
 	const [loaded, setLoaded] = useState<Loaded | null>(null);
 	const [failure, setFailure] = useState<OpenFailure | null>(null);
 	// A very large file is read only once the reader has said so.
@@ -189,8 +199,7 @@ function Viewer({
 	// Position at open time; later writes must not re-trigger restores.
 	// A reload starts from where the reader had got to.
 	const [initialPosition, setInitialPosition] = useState<Position | undefined>(
-		() =>
-			request.position ?? entries.find((e) => e.id === request.id)?.position,
+		() => request.position ?? positionOf(request.id),
 	);
 	// Counts the reads of the file: a reload reads it again.
 	const [reads, setReads] = useState(0);
@@ -216,7 +225,7 @@ function Viewer({
 			return;
 		}
 		const { name, verified } = displayName(request, format);
-		firstOpen.current = !entries.some((e) => e.id === request.id);
+		firstOpen.current = !list().some((e) => e.id === request.id);
 		// A file inside another one has no place to reopen it from.
 		if (request.reopen.kind !== "memory")
 			record({
@@ -290,9 +299,7 @@ function Viewer({
 		reads,
 	);
 	const reload = () => {
-		setInitialPosition(
-			(was) => entries.find((e) => e.id === request.id)?.position ?? was,
-		);
+		setInitialPosition((was) => positionOf(request.id) ?? was);
 		setLoaded(null);
 		setReads((n) => n + 1);
 	};
@@ -301,6 +308,11 @@ function Viewer({
 		(p: Position) => setPosition(request.id, p),
 		[request.id, setPosition],
 	);
+	// Where the reader got to goes into Recent files as they leave the
+	// document: for another tab, Home, Settings, or closing it.
+	useEffect(() => {
+		if (active) return flushPositions;
+	}, [active, flushPositions]);
 
 	// The screen stays on only while this document is the one on show.
 	const keepAwake = useSetting("keepAwake");
@@ -311,7 +323,6 @@ function Viewer({
 
 	if (failure) {
 		const copy = failureCopy(failure, request.name);
-		const isRecent = entries.some((e) => e.id === request.id);
 		return (
 			<Dialog
 				open
@@ -409,9 +420,7 @@ function Viewer({
 									name,
 									nameVerified: true,
 									reopen,
-									position:
-										entries.find((e) => e.id === request.id)?.position ??
-										initialPosition,
+									position: positionOf(id) ?? initialPosition,
 								}),
 				size: loaded.data.byteLength || loaded.size,
 				openOther: onReplace,

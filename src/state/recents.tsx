@@ -3,6 +3,7 @@ import { isDesktop, isTauri } from "@/lib/env";
 import { isOpaqueName } from "@/lib/formats";
 import {
 	capOrigins,
+	cleanPosition,
 	idForReopen,
 	migrateLegacyRecents,
 	normalizeRecents,
@@ -28,15 +29,29 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from "react";
 import { moveBookmarks } from "./bookmarks";
 import { useSettingsOf, useSettingsReady } from "./settings";
+import { type Store, createStore, useSelect } from "./store";
 
-interface RecentsApi {
+interface RecentsApi extends RecentsActions {
 	entries: RecentEntry[];
 	ready: boolean;
+}
+
+interface RecentsActions {
 	record: (entry: Omit<RecentEntry, "pinned" | "openedAt">) => void;
+	/** Where the reader is in `id`. Kept apart from the list until
+	 * flushPositions (or a pause of a few seconds). */
 	setPosition: (id: string, position: Position) => void;
+	/** Where the reader was in `id`: the latest position, put in the
+	 * list yet or not. */
+	positionOf: (id: string) => Position | undefined;
+	/** Put the positions kept apart in the list (and storage) now. */
+	flushPositions: () => void;
+	/** The list as it is now, for a handler. */
+	list: () => RecentEntry[];
 	togglePin: (id: string) => void;
 	markUnavailable: (id: string) => void;
 	/** Removes one entry and returns the list as it was, for Undo. */
@@ -62,6 +77,56 @@ const UNDO_MS = 6000;
 const SHARED = isTauri && isDesktop;
 
 const RecentsContext = createContext<RecentsApi | null>(null);
+/** What never changes: the actions, and the stores behind the narrow
+ * readers. Nobody is drawn again through it. */
+const RecentsFixedContext = createContext<{
+	actions: RecentsActions;
+	stores: { entries: Store<RecentEntry[]>; ready: Store<boolean> };
+} | null>(null);
+
+/** A pause in reading this long puts where the reader is in the list. */
+const POSITION_IDLE = 5000;
+
+/** Positions not yet in the stored list, also kept where a write is
+ * immediate and small (the web view's own storage): a window closed,
+ * or an app stopped, moments after the reader moved still opens there
+ * the next time. Taken off once the list with them is written. */
+const UNSAVED_KEY = "paperwren.positions-unsaved";
+
+function unsavedRaw(): Record<string, unknown> {
+	try {
+		const raw = JSON.parse(localStorage.getItem(UNSAVED_KEY) ?? "{}");
+		return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+	} catch {
+		return {};
+	}
+}
+function writeUnsaved(all: Record<string, unknown>) {
+	try {
+		if (Object.keys(all).length)
+			localStorage.setItem(UNSAVED_KEY, JSON.stringify(all));
+		else localStorage.removeItem(UNSAVED_KEY);
+	} catch {
+		// No storage (a private window): the list still has the last pause.
+	}
+}
+function noteUnsaved(id: string, position: Position) {
+	writeUnsaved({ ...unsavedRaw(), [id]: position });
+}
+function forgetUnsaved(moves: Map<string, Position>) {
+	const all = unsavedRaw();
+	for (const [id, position] of moves)
+		if (JSON.stringify(all[id]) === JSON.stringify(position)) delete all[id];
+	writeUnsaved(all);
+}
+function readUnsaved(): Array<[string, Position]> {
+	const out: Array<[string, Position]> = [];
+	for (const [id, value] of Object.entries(unsavedRaw())) {
+		const position = cleanPosition(value);
+		if (position) out.push([id, position]);
+	}
+	return out;
+}
 
 function managedPaths(entries: RecentEntry[]): string[] {
 	return entries
@@ -86,8 +151,17 @@ async function load(): Promise<RecentEntry[]> {
 export function RecentsProvider({ children }: { children: ReactNode }) {
 	const settings = useSettingsOf("recentsLimit", "keepRecents");
 	const settingsReady = useSettingsReady();
-	const [entries, setEntries] = useState<RecentEntry[]>([]);
-	const [ready, setReady] = useState(false);
+	// In stores, so a reader of one thing about the list (is it read,
+	// is this file in it) is not drawn again at every change of it.
+	const [stores] = useState(() => ({
+		entries: createStore<RecentEntry[]>([]),
+		ready: createStore(false),
+	}));
+	const entries = useSyncExternalStore(
+		stores.entries.subscribe,
+		stores.entries.get,
+	);
+	const ready = useSyncExternalStore(stores.ready.subscribe, stores.ready.get);
 	const limitRef = useRef(settings.recentsLimit);
 	limitRef.current = settings.recentsLimit;
 	const keepRef = useRef(settings.keepRecents);
@@ -96,12 +170,17 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 	// The list as of the last change, readable at once: two changes in
 	// one tick must each see the other.
 	const current = useRef(entries);
-	const apply = useCallback((next: RecentEntry[]) => {
-		current.current = next;
-		setEntries(next);
-	}, []);
+	const apply = useCallback(
+		(next: RecentEntry[]) => {
+			current.current = next;
+			stores.entries.set(next);
+		},
+		[stores],
+	);
 
 	const writing = useRef<Promise<unknown>>(Promise.resolve());
+	/** The last change written out (or failed to be). */
+	const saved = useRef<Promise<unknown>>(Promise.resolve());
 
 	// Coming back to this window, show what the other windows did since.
 	useEffect(() => {
@@ -142,7 +221,11 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 							: backend.storeSet(STORAGE_KEYS.recents, merged);
 					})
 					.catch(() => {});
-			} else backend.storeSet(STORAGE_KEYS.recents, next).catch(() => {});
+				saved.current = writing.current;
+			} else
+				saved.current = backend
+					.storeSet(STORAGE_KEYS.recents, next)
+					.catch(() => {});
 			// A picked original the list now names is held over restarts
 			// (so it can still be renamed); one it no longer names is let go,
 			// with its copy.
@@ -167,12 +250,12 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		load().then((list) => {
 			if (!alive) return;
 			apply(list);
-			setReady(true);
+			stores.ready.set(true);
 		});
 		return () => {
 			alive = false;
 		};
-	}, [apply]);
+	}, [apply, stores]);
 
 	// Wait until Home has settled; use the latest list if it changed meanwhile.
 	useEffect(() => {
@@ -255,18 +338,75 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		[commit],
 	);
 
+	// Where the reader is changes at every pause while reading. Each change
+	// put in the list drew Home and every reader of the list again and
+	// wrote the whole list out, so they wait here, and go in together
+	// when the document is left, the app is put away, or reading has
+	// paused for a while.
+	const pending = useRef(new Map<string, Position>());
+	const idle = useRef(0);
+	const flushPositions = useCallback(() => {
+		window.clearTimeout(idle.current);
+		// Until the list is read, there is nothing to put them in.
+		if (!pending.current.size || !stores.ready.get()) return;
+		const moves = new Map(pending.current);
+		pending.current.clear();
+		// No re-sort: where the reader is does not change the order.
+		commit((prev) => {
+			let moved = false;
+			const next = prev.map((e) => {
+				const position = moves.get(e.id);
+				if (!position || position === e.position) return e;
+				moved = true;
+				return { ...e, position };
+			});
+			return moved ? next : prev;
+		});
+		void saved.current.then(() => forgetUnsaved(moves));
+	}, [commit, stores]);
+
 	const setPosition = useCallback<RecentsApi["setPosition"]>(
 		(id, position) => {
 			if (!keepRef.current) return;
-			// Positions change constantly while reading; no re-sort needed.
-			commit((prev) =>
-				prev.some((e) => e.id === id)
-					? prev.map((e) => (e.id === id ? { ...e, position } : e))
-					: prev,
-			);
+			pending.current.set(id, position);
+			noteUnsaved(id, position);
+			window.clearTimeout(idle.current);
+			idle.current = window.setTimeout(flushPositions, POSITION_IDLE);
 		},
-		[commit],
+		[flushPositions],
 	);
+
+	const positionOf = useCallback<RecentsApi["positionOf"]>(
+		(id) =>
+			pending.current.get(id) ??
+			current.current.find((e) => e.id === id)?.position,
+		[],
+	);
+	const list = useCallback(() => current.current, []);
+
+	// Positions a run before this one had not put in the list (it was
+	// closed or stopped moments after the reader moved) go in now.
+	useEffect(() => {
+		if (!ready) return;
+		for (const [id, position] of readUnsaved())
+			if (!pending.current.has(id)) pending.current.set(id, position);
+		flushPositions();
+	}, [ready, flushPositions]);
+
+	// And the app put away (Android: another app, the home screen) or
+	// the page going.
+	useEffect(() => {
+		const hide = () => {
+			if (document.visibilityState === "hidden") flushPositions();
+		};
+		document.addEventListener("visibilitychange", hide);
+		window.addEventListener("pagehide", flushPositions);
+		return () => {
+			document.removeEventListener("visibilitychange", hide);
+			window.removeEventListener("pagehide", flushPositions);
+			flushPositions();
+		};
+	}, [flushPositions]);
 
 	const togglePin = useCallback<RecentsApi["togglePin"]>(
 		(id) =>
@@ -321,17 +461,24 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			commit((prev) => renameRecent(prev, id, name, reopen).list);
 			moveBookmarks(id, now);
 			moveThumb(id, now);
+			const position = pending.current.get(id);
+			if (position && now !== id) {
+				pending.current.delete(id);
+				pending.current.set(now, position);
+				noteUnsaved(now, position);
+			}
 			return now;
 		},
 		[commit],
 	);
 
-	const api = useMemo(
+	const actions = useMemo<RecentsActions>(
 		() => ({
-			entries,
-			ready,
 			record,
 			setPosition,
+			positionOf,
+			flushPositions,
+			list,
 			togglePin,
 			markUnavailable,
 			remove,
@@ -340,10 +487,11 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			rename,
 		}),
 		[
-			entries,
-			ready,
 			record,
 			setPosition,
+			positionOf,
+			flushPositions,
+			list,
 			togglePin,
 			markUnavailable,
 			remove,
@@ -352,13 +500,47 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			rename,
 		],
 	);
+	const api = useMemo(
+		() => ({ entries, ready, ...actions }),
+		[entries, ready, actions],
+	);
+	const fixed = useMemo(() => ({ actions, stores }), [actions, stores]);
 	return (
-		<RecentsContext.Provider value={api}>{children}</RecentsContext.Provider>
+		<RecentsFixedContext.Provider value={fixed}>
+			<RecentsContext.Provider value={api}>{children}</RecentsContext.Provider>
+		</RecentsFixedContext.Provider>
 	);
 }
 
+/** The list and everything that changes it: the reader is drawn again
+ * at every change of the list. */
 export function useRecents(): RecentsApi {
 	const ctx = useContext(RecentsContext);
 	if (!ctx) throw new Error("useRecents must be used inside RecentsProvider");
 	return ctx;
+}
+
+function useFixed() {
+	const ctx = useContext(RecentsFixedContext);
+	if (!ctx) throw new Error("recents read outside RecentsProvider");
+	return ctx;
+}
+
+/** What changes the list, and `list()` to read it in a handler: the same
+ * functions at every render, so the reader is never drawn again for
+ * them. */
+export function useRecentsActions(): RecentsActions {
+	return useFixed().actions;
+}
+
+/** Whether the list has been read from storage. */
+export function useRecentsReady(): boolean {
+	return useSelect(useFixed().stores.ready, (ready) => ready);
+}
+
+/** Whether the file of `id` is in the list. */
+export function useIsRecent(id: string): boolean {
+	return useSelect(useFixed().stores.entries, (list) =>
+		list.some((e) => e.id === id),
+	);
 }

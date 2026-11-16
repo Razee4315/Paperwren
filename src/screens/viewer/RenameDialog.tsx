@@ -3,7 +3,7 @@ import { joinName, nameProblem, splitName } from "@/lib/fileName";
 import { t } from "@/lib/i18n";
 import { renameRefusal } from "@/lib/rename";
 import type { Reopen } from "@/lib/types";
-import { useRecents } from "@/state/recents";
+import { useRecentsActions } from "@/state/recents";
 import { Button, Dialog, toast } from "@/ui";
 import { useState } from "react";
 import s from "./Shell.module.css";
@@ -29,7 +29,7 @@ export function RenameDialog({
 	/** The file now has `name`, at `reopen`, known in recents as `id`. */
 	onRenamed?: (name: string, reopen: Reopen, id: string) => void;
 }) {
-	const recents = useRecents();
+	const recents = useRecentsActions();
 	const [stem0, ext] = splitName(file.name);
 	const [stem, setStem] = useState(stem0);
 	const [busy, setBusy] = useState(false);
