@@ -13,7 +13,7 @@ import { compareNames, formatDate, isolate, t, tn } from "@/lib/i18n";
 import { rememberPictures } from "@/lib/siblings";
 import type { OpenRequest } from "@/lib/types";
 import { useDelayed } from "@/lib/useDelayed";
-import { FileDetails, HandOffItems } from "@/screens/viewer/FileMenu";
+import { FileDetails, HandOffItems } from "@/screens/files/FileActions";
 import { useBackClose, useNavScreens } from "@/state/navigation";
 import { Button, FileBadge, IconButton, Sheet, SheetItem, Spinner } from "@/ui";
 import {

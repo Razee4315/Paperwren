@@ -15,7 +15,6 @@ import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { type Tab, TabStrip, moveTab } from "@/screens/TabStrip";
 import { UpdateHost } from "@/screens/Updates";
 import { Home } from "@/screens/home/Home";
-import { SettingsScreen } from "@/screens/settings/Settings";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
 import { SplitDivider } from "@/screens/viewer/SplitDivider";
 import {
@@ -69,6 +68,15 @@ import {
 // The viewer engines (pdf.js, docx-preview, the grid) are the bulk of
 // the code; Home must not pay for them at cold start.
 const ViewerScreen = lazy(() => import("@/screens/viewer/ViewerScreen"));
+const loadSettings = () => import("@/screens/settings/Settings");
+const LazySettings = lazy(() =>
+	loadSettings().then((m) => ({ default: m.SettingsScreen })),
+);
+const SettingsScreen = () => (
+	<Suspense fallback={null}>
+		<LazySettings />
+	</Suspense>
+);
 const loadTools = () => import("@/screens/tools/ToolsScreen");
 const loadNotes = () => import("@/screens/notes/NotesScreen");
 const ToolsScreen = lazy(() =>
@@ -92,6 +100,7 @@ function warmReader() {
 	// Then Tools and Notes, at the next quiet moment: each is opened
 	// from Home, and should come up as quickly as the reader does.
 	idle(() => {
+		void loadSettings().catch(() => {});
 		void loadTools().catch(() => {});
 		void loadNotes().catch(() => {});
 	});

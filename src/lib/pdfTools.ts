@@ -95,6 +95,24 @@ export function digitallySigned(bytes: Uint8Array): boolean {
 	return holds(bytes, "/ByteRange");
 }
 
+/** Same marker search, yielding between bounded chunks for the reader. */
+export async function digitallySignedSliced(
+	bytes: Uint8Array,
+	cancelled: () => boolean = () => false,
+): Promise<boolean> {
+	const mark = "/ByteRange";
+	const chunk = 64 * 1024;
+	for (let start = 0; start < bytes.length; start += chunk) {
+		// Yield before the first slice too, so the rendered page can paint.
+		await new Promise<void>((resolve) => setTimeout(resolve, 0));
+		if (cancelled()) return false;
+		// Overlap catches a marker crossing a chunk boundary.
+		if (holds(bytes.subarray(start, start + chunk + mark.length - 1), mark))
+			return true;
+	}
+	return false;
+}
+
 /** The page's box as shown (pdf.js shows the crop box), and the turn
  * the file gives it, in degrees clockwise. */
 export function shownBox(page: PDFPage) {

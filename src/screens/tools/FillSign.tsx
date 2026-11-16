@@ -59,7 +59,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { whole } from "../viewer/pdfCrop";
-import { CopyWarnings } from "./MarkUp";
+import { CopyWarnings } from "./CopyWarnings";
 import { SignaturePad } from "./SignaturePad";
 import { StampPad } from "./StampPad";
 import s from "./Tools.module.css";

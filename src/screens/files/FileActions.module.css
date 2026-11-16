@@ -1,0 +1,66 @@
+.details {
+	display: grid;
+	gap: 12px;
+	text-align: start;
+}
+.details dt {
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--text-3);
+}
+.details dd {
+	overflow-wrap: anywhere;
+	user-select: text;
+}
+/* A desktop's details are a two-column table: label, then value. */
+:global(html.desktop) .details > div {
+	display: grid;
+	grid-template-columns: 96px minmax(0, 1fr);
+	gap: 12px;
+	align-items: baseline;
+}
+:global(html.desktop) .details {
+	gap: 9px;
+}
+:global(html.desktop) .details dt {
+	font-weight: 600;
+}
+:global(html.desktop) .details dd {
+	color: var(--text);
+	font-size: 13.5px;
+}
+.renameField {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.renameExt {
+	flex-shrink: 0;
+	color: var(--text-2);
+	font-weight: 650;
+}
+.renameError {
+	min-height: 1.5em;
+	margin: 8px 0 0;
+	font-size: 13px;
+	color: var(--danger, #b0312c);
+}
+/* Only the app's name for the file changes: said before it is done. */
+.renameNote {
+	margin: 8px 0 0;
+	font-size: 13px;
+	color: var(--text-2);
+}
+
+.input {
+	width: 100%;
+	height: 46px;
+	padding: 0 14px;
+	border-radius: var(--r-m);
+	border: 1px solid var(--line-control);
+	background: var(--surface-2);
+	outline: none;
+}
+.input:focus {
+	border-color: var(--accent);
+}

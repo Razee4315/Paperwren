@@ -6,7 +6,7 @@ import type { Reopen } from "@/lib/types";
 import { useRecentsActions } from "@/state/recents";
 import { Button, Dialog, toast } from "@/ui";
 import { useState } from "react";
-import s from "./Shell.module.css";
+import s from "./FileActions.module.css";
 
 /**
  * Give a file a new name. The extension stays as it is, so a file
