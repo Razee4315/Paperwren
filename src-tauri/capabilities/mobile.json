@@ -5,10 +5,13 @@
 	"platforms": ["android", "iOS"],
 	"windows": ["main"],
 	"permissions": [
-		"core:default",
+		"core:event:allow-listen",
+		"core:event:allow-unlisten",
 		"dialog:allow-open",
+		"fs:deny-webview-data-linux",
+		"fs:deny-webview-data-windows",
 		{
-			"identifier": "fs:default",
+			"identifier": "fs:allow-read-file",
 			"allow": [
 				{ "path": "content://**" },
 				{ "path": "$APPDATA/imports/**" },
