@@ -21,6 +21,8 @@ mod error;
 mod folder;
 mod imports;
 mod open;
+#[cfg(desktop)]
+mod placement;
 mod save;
 mod store;
 mod trace;
@@ -369,8 +371,16 @@ pub fn run() {
     builder
         .manage(Waiting::at_launch())
         // The windows of the configuration exist by the time this runs.
+        // On a computer the window starts hidden: it is put back where it
+        // was left, then shown (placement.rs).
         .setup(|_app| {
             trace::mark("window created");
+            #[cfg(desktop)]
+            if let Some(window) = _app.get_webview_window("main") {
+                let store = data_dir(_app.handle(), "store").ok();
+                placement::open(&window, store.as_deref());
+                trace::mark("window shown");
+            }
             Ok(())
         })
         .on_page_load(|_webview, payload| match payload.event() {

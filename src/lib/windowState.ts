@@ -1,10 +1,10 @@
 /**
  * The desktop window opens where, and as large as, it was left.
  *
- * Done from the web layer with the window commands the desktop
- * capability allows, so the Rust shell needs no plugin for it. The
- * saved place is only used when it is still on a screen (a monitor may
- * have been unplugged since).
+ * The shell puts the window back before it is shown
+ * (src-tauri/src/placement.rs); the page keeps the place saved as the
+ * window moves. The saved place is only used when it is still on a
+ * screen (a monitor may have been unplugged since).
  */
 
 import { backend } from "./backend";
@@ -43,7 +43,8 @@ export function normalizePlace(value: unknown): WindowPlace | null {
 	return { x, y, w, h, maximized: raw.maximized === true };
 }
 
-/** True when enough of the title bar is on one of the screens to grab. */
+/** True when enough of the title bar is on one of the screens to grab.
+ * The shell applies the same rule (`reachable` in placement.rs). */
 export function reachable(place: WindowPlace, screens: Screen[]): boolean {
 	return screens.some(
 		(s) =>
@@ -54,8 +55,8 @@ export function reachable(place: WindowPlace, screens: Screen[]): boolean {
 	);
 }
 
-/** Put the window back, then keep its place saved as it changes. */
-export async function restoreWindow(): Promise<void> {
+/** Keep the window's place saved as it changes. */
+export async function watchWindow(): Promise<void> {
 	if (!isTauri || !isDesktop) return;
 	const api = await import("@tauri-apps/api/window");
 	const win = api.getCurrentWindow();
@@ -74,24 +75,9 @@ export async function restoreWindow(): Promise<void> {
 	};
 	let last = normalizePlace(await backend.storeGet(KEY).catch(() => null));
 	// The size to go back to when a maximised window is restored: the
-	// one it last had while it was not maximised.
+	// one it last had while it was not maximised (a window the shell
+	// opened maximised cannot be asked for it).
 	let normal: WindowPlace = last ? { ...last, maximized: false } : await read();
-
-	if (last) {
-		const screens = (await api.availableMonitors().catch(() => [])).map(
-			(m) => ({
-				x: m.position.x,
-				y: m.position.y,
-				w: m.size.width,
-				h: m.size.height,
-			}),
-		);
-		if (reachable(last, screens)) {
-			await win.setSize(new api.PhysicalSize(last.w, last.h));
-			await win.setPosition(new api.PhysicalPosition(last.x, last.y));
-		}
-		if (last.maximized) await win.maximize();
-	}
 
 	let timer = 0;
 	const save = () => {
