@@ -1,8 +1,8 @@
-import { scrollBehavior } from "@/lib/motion";
 import { backend, formatBytes } from "@/lib/backend";
 import { clearAllMarks, loadMarkList, restoreMarks } from "@/lib/docMarks";
 import { isDesktop, isTauri, isTouch, ownsFrame, sharesFrame } from "@/lib/env";
 import { LANGUAGES, type LanguageSetting, msg, t, tn } from "@/lib/i18n";
+import { scrollBehavior } from "@/lib/motion";
 import { clearReads, readCount } from "@/lib/ocrStore";
 import { PAGE_VIEWS } from "@/lib/pageViews";
 import {

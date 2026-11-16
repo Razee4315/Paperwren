@@ -1,6 +1,6 @@
-import { scrollBehavior } from "@/lib/motion";
 import type { FileFormat } from "@/lib/formats";
 import { locale, t } from "@/lib/i18n";
+import { scrollBehavior } from "@/lib/motion";
 import { readOfficeMeta } from "@/lib/officeMeta";
 import { matches } from "@/lib/shortcuts";
 import type { Position } from "@/lib/types";
@@ -373,7 +373,8 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 			e.preventDefault();
 			const wheel =
 				g?.kind === "wheel" ? g : begin("wheel", e.clientX, e.clientY);
-			if (layer) layer.style.transition = "transform var(--t-instant) var(--ease)";
+			if (layer)
+				layer.style.transition = "transform var(--t-instant) var(--ease)";
 			const delta = Math.max(-WHEEL_CAP, Math.min(WHEEL_CAP, e.deltaY));
 			update(wheel.f * Math.exp(-delta * 0.01), wheel.x, wheel.y);
 			window.clearTimeout(timer);
