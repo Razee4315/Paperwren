@@ -19,8 +19,11 @@
 	height: 100%;
 	overflow-x: auto;
 	overflow-y: hidden;
-	scrollbar-width: thin;
-	scrollbar-color: var(--line-strong) transparent;
+	/* Back to auto (global.css sets thin for every element): Chromium
+	 * only uses the 3 px bar below, with no arrow buttons, while both
+	 * are auto. */
+	scrollbar-width: auto;
+	scrollbar-color: auto;
 }
 .tabs::-webkit-scrollbar {
 	height: 3px;
