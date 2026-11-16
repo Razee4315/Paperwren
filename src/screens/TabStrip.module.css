@@ -17,14 +17,24 @@
 	gap: 2px;
 	min-width: 0;
 	height: 100%;
-	overflow: hidden;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: var(--line-strong) transparent;
+}
+.tabs::-webkit-scrollbar {
+	height: 3px;
+}
+.tabs::-webkit-scrollbar-thumb {
+	background: var(--line-strong);
+	border-radius: 3px;
 }
 .tab {
 	display: flex;
 	align-items: center;
 	flex: 0 1 auto;
 	width: 220px;
-	min-width: 72px;
+	min-width: 120px;
 	height: calc(100% - 6px);
 	padding-inline-start: 10px;
 	border-radius: var(--r-s) var(--r-s) 0 0;

@@ -5,7 +5,13 @@ import { t, uiDir } from "@/lib/i18n";
 import type { OpenRequest } from "@/lib/types";
 import { Sheet, SheetDivider, SheetItem, formatColor, toast } from "@/ui";
 import { Columns2, FolderOpen, Plus, X } from "lucide-react";
-import { type PointerEvent, useRef, useState } from "react";
+import {
+	type PointerEvent,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import s from "./TabStrip.module.css";
 
 export interface Tab {
@@ -103,6 +109,58 @@ export function TabStrip({
 	const rtl = uiDir() === "rtl";
 	const row = useRef<HTMLDivElement>(null);
 	const press = useRef<Press | null>(null);
+	const focused = useRef<number | null>(null);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reveal after selection, order, or direction changes
+	useLayoutEffect(() => {
+		const active = row.current?.querySelector<HTMLElement>(
+			'[aria-selected="true"]',
+		);
+		active?.parentElement?.scrollIntoView({
+			block: "nearest",
+			inline: "nearest",
+		});
+		if (
+			focused.current !== null &&
+			!tabs.some((tab) => tab.key === focused.current)
+		) {
+			(
+				active ?? row.current?.querySelector<HTMLElement>('[role="tab"]')
+			)?.focus();
+		}
+	}, [current, tabs, rtl]);
+
+	useEffect(() => {
+		const el = row.current;
+		if (!el) return;
+		// A mouse wheel follows reading order; trackpad horizontal motion stays native.
+		const wheel = (event: WheelEvent) => {
+			if (
+				event.ctrlKey ||
+				Math.abs(event.deltaX) >= Math.abs(event.deltaY) ||
+				el.scrollWidth <= el.clientWidth
+			)
+				return;
+			event.preventDefault();
+			const unit =
+				event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? el.clientWidth : 1;
+			el.scrollLeft += event.deltaY * unit * (rtl ? -1 : 1);
+		};
+		el.addEventListener("wheel", wheel, { passive: false });
+		const resize = new ResizeObserver(() => {
+			el.querySelector<HTMLElement>(
+				'[aria-selected="true"]',
+			)?.parentElement?.scrollIntoView({
+				block: "nearest",
+				inline: "nearest",
+			});
+		});
+		resize.observe(el);
+		return () => {
+			el.removeEventListener("wheel", wheel);
+			resize.disconnect();
+		};
+	}, [rtl]);
 	const [drag, setDrag] = useState<{
 		key: number;
 		from: number;
@@ -119,7 +177,9 @@ export function TabStrip({
 		].map((el) => el.getBoundingClientRect());
 		const box = boxes[from];
 		if (!box) return;
-		const gap = boxes[1] ? Math.abs(boxes[1].left - boxes[0].right) : 0;
+		const gap = boxes[1]
+			? Math.abs(boxes[1].left - boxes[0].left) - boxes[0].width
+			: 0;
 		press.current = {
 			key: tab.key,
 			from,
@@ -201,6 +261,8 @@ export function TabStrip({
 				ref={row}
 				className={s.tabs}
 				role="tablist"
+				aria-label={t("Open documents")}
+				data-roving-tabs
 				data-tauri-drag-region="deep"
 			>
 				{tabs.map((tab, i) => {
@@ -222,7 +284,10 @@ export function TabStrip({
 							onPointerCancel={cancel}
 							onLostPointerCapture={() => press.current?.dragging && cancel()}
 							onAuxClick={(e) => {
-								if (e.button === 1) onClose(tab);
+								if (e.button === 1) {
+									e.preventDefault();
+									onClose(tab);
+								}
 							}}
 							onContextMenu={(e) => {
 								e.preventDefault();
@@ -234,6 +299,24 @@ export function TabStrip({
 								type="button"
 								role="tab"
 								aria-selected={on}
+								tabIndex={on || (current === null && i === 0) ? 0 : -1}
+								onFocus={() => {
+									focused.current = tab.key;
+								}}
+								onBlur={() => {
+									focused.current = null;
+								}}
+								onKeyDown={(e) => {
+									if (
+										e.key === "Delete" &&
+										!e.altKey &&
+										!e.ctrlKey &&
+										!e.metaKey
+									) {
+										e.preventDefault();
+										onClose(tab);
+									}
+								}}
 								className={s.main}
 								title={tab.request.name}
 								onClick={() => onShow(tab)}
@@ -257,6 +340,8 @@ export function TabStrip({
 							<button
 								type="button"
 								className={s.close}
+								tabIndex={-1}
+								data-tauri-drag-region="false"
 								aria-label={t("Close {name}", { name: tab.request.name })}
 								title={t("Close")}
 								onClick={() => onClose(tab)}
@@ -271,6 +356,7 @@ export function TabStrip({
 			<button
 				type="button"
 				className={s.home}
+				data-tauri-drag-region="false"
 				aria-label={t("Open another file")}
 				title={t("Open another file")}
 				onClick={onHome}

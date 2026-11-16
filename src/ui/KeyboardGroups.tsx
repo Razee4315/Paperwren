@@ -15,6 +15,9 @@ export function KeyboardGroups() {
 			Array.from(group.querySelectorAll<HTMLElement>(controls)).filter(
 				(item) =>
 					owner(item) === group &&
+					// Tab close buttons are separate actions, never arrow-key destinations.
+					(!group.matches('[role="tablist"][data-roving-tabs]') ||
+						item.matches('[role="tab"]')) &&
 					item.getAttribute("aria-disabled") !== "true" &&
 					item.getClientRects().length > 0,
 			);
