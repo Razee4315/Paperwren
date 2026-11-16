@@ -491,6 +491,16 @@ export default function PdfView({
 		let task: PDFDocumentLoadingTask | null = null;
 		let release = () => {};
 		setStatus("loading");
+		// Drop the old proxy as its loading task is destroyed on replacement.
+		setDoc(null);
+		setFault(null);
+		setPasswordWrong(false);
+		passwordRef.current = undefined;
+		unlock.current = null;
+		setOutline(null);
+		setDetails([]);
+		setRights({ mark: true, fill: true });
+		setProtection(null);
 		setSigned(null);
 		const drawn = new Promise<void>((resolve) => {
 			firstDraw.current = resolve;
@@ -501,8 +511,7 @@ export default function PdfView({
 				// cancelled before it gets here, so the bytes are given away once.
 				if (!alive) return;
 				if (data.byteLength === 0) {
-					setStatus("error");
-					return;
+					throw new Error("Empty PDF");
 				}
 				// Read before pdf.js takes the bytes away to its worker.
 				const sample = fileSample(new Uint8Array(data));
@@ -549,8 +558,8 @@ export default function PdfView({
 					});
 					pdf
 						.getOutline()
-						.then((o) => setOutline((o as unknown as Outline[]) ?? []))
-						.catch(() => setOutline([]));
+						.then((o) => alive && setOutline((o as unknown as Outline[]) ?? []))
+						.catch(() => alive && setOutline([]));
 					readAttachments(pdf)
 						.then((found) => alive && setAttachments(found))
 						.catch(() => {});
@@ -633,6 +642,7 @@ export default function PdfView({
 			});
 		return () => {
 			alive = false;
+			signatureScan.current = async () => false;
 			firstDraw.current?.();
 			firstDraw.current = null;
 			// Ends the load and frees the document, whichever it reached,
@@ -1588,9 +1598,15 @@ export default function PdfView({
 	};
 
 	const askSaveMarks = async () => {
-		const found = await signatureScan.current();
-		if (found || protection) setAskSigned(true);
-		else void saveWithMarks();
+		const scan = signatureScan.current;
+		try {
+			const found = await scan();
+			if (scan !== signatureScan.current) return;
+			if (found || protection) setAskSigned(true);
+			else void saveWithMarks();
+		} catch {
+			toast(t("Couldn't save a copy"));
+		}
 	};
 
 	// Two pages side by side need the room: a wide window, a tablet or an
