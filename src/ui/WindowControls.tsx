@@ -1,5 +1,6 @@
 import { isTauri, ownsFrame } from "@/lib/env";
 import { t } from "@/lib/i18n";
+import { atEdges } from "@/lib/settle";
 import { Copy, Minus, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -28,6 +29,7 @@ export function WindowControls() {
 		if (!ownsFrame || !isTauri) return;
 		let alive = true;
 		let stop = () => {};
+		let settled: ReturnType<typeof atEdges> | null = null;
 		import("@tauri-apps/api/window")
 			.then(({ getCurrentWindow }) => {
 				const win = getCurrentWindow();
@@ -37,7 +39,10 @@ export function WindowControls() {
 						.then((is) => alive && setMaximized(is))
 						.catch(() => {});
 				sync();
-				return win.onResized(sync);
+				// Asked as a resize starts and once it has settled, not at
+				// every step of it.
+				settled = atEdges(sync);
+				return win.onResized(settled);
 			})
 			.then((unlisten) => {
 				if (alive) stop = unlisten;
@@ -47,6 +52,7 @@ export function WindowControls() {
 		return () => {
 			alive = false;
 			stop();
+			settled?.cancel();
 		};
 	}, []);
 
