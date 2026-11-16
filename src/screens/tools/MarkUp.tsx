@@ -7,7 +7,7 @@ import {
 	newMarkId,
 } from "@/lib/docMarks";
 import { copyName } from "@/lib/fileName";
-import { msg, t } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { UNITS, lengthOf, measureLabel, scaleFrom } from "@/lib/measure";
 import {
 	type PageTextItem,
@@ -17,7 +17,6 @@ import {
 } from "@/lib/pageText";
 import { NOTE_SIZE, type TextPicture, addMarkup } from "@/lib/pdfMarkup";
 import { type Protection, ToolError } from "@/lib/pdfTools";
-import { copyNote } from "@/lib/protection";
 import {
 	LINE_HEIGHT,
 	layoutText,
@@ -60,6 +59,7 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { CopyWarnings } from "./CopyWarnings";
 import { FillPage } from "./FillSign";
 import s from "./Tools.module.css";
 import { curve, markHit, pushPoint } from "./ink";
@@ -95,32 +95,6 @@ type Writing = {
 	text: string;
 };
 
-const SIGNED_WARNING = msg(
-	"This PDF has a digital signature. A changed copy won't keep it valid.",
-);
-
-/** What a copy of this file will not keep, said where a copy is about
- * to be saved: a digital signature, a password or limits. Nothing for a
- * file with none of them. */
-export function CopyWarnings({
-	signed = false,
-	protection = null,
-}: {
-	signed?: boolean;
-	protection?: Protection | null;
-}) {
-	const note = copyNote(protection);
-	return (
-		<>
-			{signed && <p className={s.hint}>{t(SIGNED_WARNING)}</p>}
-			{note && (
-				<p className={s.hint} data-testid="copy-note">
-					{note}
-				</p>
-			)}
-		</>
-	);
-}
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 /** Shorter than this on screen, a measuring line is a slip. */

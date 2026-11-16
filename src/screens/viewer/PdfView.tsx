@@ -16,7 +16,7 @@ import {
 	pdfAsset,
 } from "@/lib/pdfEngine";
 import { type TextPicture, addMarkup } from "@/lib/pdfMarkup";
-import { type Protection, digitallySigned } from "@/lib/pdfTools";
+import { type Protection, digitallySignedSliced } from "@/lib/pdfTools";
 import { PrintCancelled } from "@/lib/print";
 import { resolvePageColor } from "@/lib/settings";
 import { hintFor, matches } from "@/lib/shortcuts";
@@ -82,13 +82,16 @@ import type {
 } from "pdfjs-dist/web/pdf_viewer.mjs";
 import "pdfjs-dist/web/pdf_viewer.css";
 import { drawPage } from "@/lib/pagePicture";
-import { FillSign } from "@/screens/tools/FillSign";
-import { CopyWarnings, type MarkTool, MarkUp } from "@/screens/tools/MarkUp";
-import { ReadText } from "@/screens/tools/ReadText";
+
+import { CopyWarnings } from "@/screens/tools/CopyWarnings";
+import type { MarkTool } from "@/screens/tools/MarkUp";
+
 import { markHit } from "@/screens/tools/ink";
 import { pdfSource } from "@/screens/tools/readSource";
 import { announceSaved } from "@/screens/tools/saved";
 import {
+	Suspense,
+	lazy,
 	useCallback,
 	useContext,
 	useEffect,
@@ -154,6 +157,16 @@ import { pageFileName, savePicture } from "./savePicture";
 import { pdfSpeech } from "./speechSources";
 import type { ViewerProps } from "./types";
 import { useDocMarks } from "./useDocMarks";
+
+const FillSign = lazy(() =>
+	import("@/screens/tools/FillSign").then((m) => ({ default: m.FillSign })),
+);
+const MarkUp = lazy(() =>
+	import("@/screens/tools/MarkUp").then((m) => ({ default: m.MarkUp })),
+);
+const ReadText = lazy(() =>
+	import("@/screens/tools/ReadText").then((m) => ({ default: m.ReadText })),
+);
 
 /**
  * PDF on pdf.js's own viewer component (the engine behind Firefox's
@@ -396,7 +409,7 @@ export default function PdfView({
 	// What the page on show suggests: reading a scan, signing a form.
 	const [offer, setOffer] = useState<"scan" | "sign" | null>(null);
 	const [refused, setRefused] = useState<string[]>([]);
-	const [signed, setSigned] = useState(false);
+	const [signed, setSigned] = useState<boolean | null>(null);
 	const [askSigned, setAskSigned] = useState(false);
 	const [fillFrom, setFillFrom] = useState(0);
 	const finder = useRef<PDFFindController | null>(null);
@@ -468,6 +481,8 @@ export default function PdfView({
 	// being copied, so a large file is held once, not twice. A locked
 	// file asks for its password through the same load, so trying a
 	// password never reads the file again.
+	const signatureScan = useRef<() => Promise<boolean>>(async () => false);
+	const firstDraw = useRef<(() => void) | null>(null);
 	const unlock = useRef<((password: string) => void) | null>(null);
 	const nameRef = useRef(name);
 	nameRef.current = name;
@@ -476,6 +491,10 @@ export default function PdfView({
 		let task: PDFDocumentLoadingTask | null = null;
 		let release = () => {};
 		setStatus("loading");
+		setSigned(null);
+		const drawn = new Promise<void>((resolve) => {
+			firstDraw.current = resolve;
+		});
 		loadEngine()
 			.then(({ pdfjs }) => {
 				// In development React runs this effect twice; the first run is
@@ -487,7 +506,6 @@ export default function PdfView({
 				}
 				// Read before pdf.js takes the bytes away to its worker.
 				const sample = fileSample(new Uint8Array(data));
-				setSigned(digitallySigned(new Uint8Array(data)));
 				const started = documentWorker(pdfjs);
 				release = started.release;
 				task = pdfjs.getDocument({
@@ -508,6 +526,20 @@ export default function PdfView({
 				};
 				return task.promise.then((pdf) => {
 					if (!alive) return;
+					let scan: Promise<boolean> | undefined;
+					signatureScan.current = () => {
+						scan ??= drawn.then(async () => {
+							if (!alive) return false;
+							// The worker owns the original bytes now. Read them back only
+							// after a page is visible, then search in bounded slices.
+							const bytes = await pdf.getData();
+							const found = await digitallySignedSliced(bytes, () => !alive);
+							if (alive) setSigned(found);
+							return found;
+						});
+						return scan;
+					};
+					void signatureScan.current().catch(() => {});
 					setDoc(pdf);
 					setPages(pdf.numPages);
 					setStatus("ready");
@@ -601,6 +633,8 @@ export default function PdfView({
 			});
 		return () => {
 			alive = false;
+			firstDraw.current?.();
+			firstDraw.current = null;
 			// Ends the load and frees the document, whichever it reached,
 			// then the worker that read it.
 			if (task)
@@ -739,6 +773,8 @@ export default function PdfView({
 				paintPage.current(e.source),
 			);
 			eventBus.on("pagerendered", (e: { source: DrawnPage }) => {
+				firstDraw.current?.();
+				firstDraw.current = null;
 				keepPictures.current(e.source);
 				paintPage.current(e.source);
 			});
@@ -1329,7 +1365,7 @@ export default function PdfView({
 					const { pdfjs } = await loadEngine();
 					if (await looksScanned(proxy, pdfjs.OPS)) next = "scan";
 				}
-				if (!next && rights.fill && !signed) {
+				if (!next && rights.fill && signed === false) {
 					const notes = (await proxy.getAnnotations()) as Array<{
 						fieldType?: string;
 					}>;
@@ -1551,8 +1587,9 @@ export default function PdfView({
 		}
 	};
 
-	const askSaveMarks = () => {
-		if (signed || protection) setAskSigned(true);
+	const askSaveMarks = async () => {
+		const found = await signatureScan.current();
+		if (found || protection) setAskSigned(true);
 		else void saveWithMarks();
 	};
 
@@ -2471,42 +2508,48 @@ export default function PdfView({
 				</StateView>
 			)}
 
-			{markingUp && doc && (
-				<MarkUp
-					doc={doc}
-					name={name}
-					password={passwordRef.current}
-					store={marks}
-					start={markingUp}
-					signed={signed}
-					protection={protection}
-					onClose={() => setMarkingUp(null)}
-					onSaved={(saved) => announceSaved(saved, file?.openOver)}
-				/>
+			{markingUp && doc && signed !== null && (
+				<Suspense fallback={null}>
+					<MarkUp
+						doc={doc}
+						name={name}
+						password={passwordRef.current}
+						store={marks}
+						start={markingUp}
+						signed={signed}
+						protection={protection}
+						onClose={() => setMarkingUp(null)}
+						onSaved={(saved) => announceSaved(saved, file?.openOver)}
+					/>
+				</Suspense>
 			)}
 
 			{readingText && textSource && (
-				<ReadText
-					source={textSource}
-					docKey={markDoc?.persist ? markDoc.key : null}
-					start={page - 1}
-					onClose={() => setReadingText(false)}
-					onSaved={(saved) => announceSaved(saved, file?.openOver)}
-				/>
+				<Suspense fallback={null}>
+					<ReadText
+						source={textSource}
+						docKey={markDoc?.persist ? markDoc.key : null}
+						start={page - 1}
+						onClose={() => setReadingText(false)}
+						onSaved={(saved) => announceSaved(saved, file?.openOver)}
+					/>
+				</Suspense>
 			)}
 
-			{filling && doc && (
-				<FillSign
-					doc={doc}
-					name={name}
-					password={passwordRef.current}
-					canMark={rights.mark}
-					signed={signed}
-					protection={protection}
-					startPage={fillFrom}
-					onClose={() => setFilling(false)}
-					onSaved={(saved) => announceSaved(saved, file?.openOver)}
-				/>
+			{filling && doc && signed !== null && (
+				<Suspense fallback={null}>
+					<FillSign
+						doc={doc}
+						name={name}
+						password={passwordRef.current}
+						canMark={rights.mark}
+						signed={signed}
+						protection={protection}
+						startPage={fillFrom}
+						onClose={() => setFilling(false)}
+						onSaved={(saved) => announceSaved(saved, file?.openOver)}
+					/>
+				</Suspense>
 			)}
 			<PasswordDialog
 				open={status === "password"}
@@ -2521,7 +2564,7 @@ export default function PdfView({
 				testId="pdf"
 			/>
 
-			{cropping && doc && (
+			{cropping && doc && signed !== null && (
 				<CropPages
 					doc={doc}
 					name={name}
@@ -2650,7 +2693,7 @@ export default function PdfView({
 					</>
 				}
 			>
-				<CopyWarnings signed={signed} protection={protection} />
+				<CopyWarnings signed={signed === true} protection={protection} />
 			</Dialog>
 
 			<Sheet

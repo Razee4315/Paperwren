@@ -30,7 +30,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { CopyWarnings } from "../tools/MarkUp";
+import { CopyWarnings } from "../tools/CopyWarnings";
 import { useFit, usePainted } from "../tools/scan/Corners";
 import s from "./CropPages.module.css";
 import {
