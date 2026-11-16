@@ -6,11 +6,12 @@ import { scrollBehavior } from "@/lib/motion";
 import { clearReads, readCount } from "@/lib/ocrStore";
 import { PAGE_VIEWS } from "@/lib/pageViews";
 import {
-	SIGNATURES_KEY,
-	STAMPS_KEY,
+	forgetAllSignatures,
+	forgetAllStamps,
 	loadSignatures,
 	loadStamps,
-	normalizeSignatures,
+	restoreSignatures,
+	restoreStamps,
 } from "@/lib/signatures";
 import type {
 	PageColor,
@@ -305,7 +306,7 @@ function SectionList({
 export function SettingsScreen() {
 	const { back } = useNavActions();
 	const { settings, update } = useSettings();
-	const { entries, clear, restore, markUnavailable } = useRecents();
+	const { entries, clear, restore, settle, markUnavailable } = useRecents();
 	const [stored, setStored] = useState<{ bytes: number; files: number } | null>(
 		null,
 	);
@@ -610,6 +611,7 @@ export function SettingsScreen() {
 											update("keepRecents", true);
 											restore(previous);
 										},
+										onExpire: () => settle(previous),
 									});
 								}}
 								testId="keep-recents"
@@ -637,6 +639,7 @@ export function SettingsScreen() {
 									toast(t("Recents cleared"), {
 										label: t("Undo"),
 										run: () => restore(previous),
+										onExpire: () => settle(previous),
 									});
 								}}
 								data-testid="clear-recents"
@@ -724,20 +727,15 @@ export function SettingsScreen() {
 								disabled={clearBusy || signatureCount === 0}
 								onClick={() =>
 									savedAction(async () => {
-										const kept = normalizeSignatures(
-											await backend.storeGet(SIGNATURES_KEY),
-										);
-										await backend.storeSet(SIGNATURES_KEY, []);
+										const kept = await forgetAllSignatures();
 										setSignatureCount(0);
 										toast(t("Signatures forgotten"), {
 											label: t("Undo"),
 											run: () =>
-												savedAction(async () =>
-													backend
-														.storeSet(SIGNATURES_KEY, kept)
-														.then(() => setSignatureCount(kept.length))
-														.then(() => {}),
-												),
+												savedAction(async () => {
+													await restoreSignatures(kept);
+													setSignatureCount(kept.length);
+												}),
 										});
 									})
 								}
@@ -760,20 +758,15 @@ export function SettingsScreen() {
 								disabled={clearBusy || stampCount === 0}
 								onClick={() =>
 									savedAction(async () => {
-										const kept = normalizeSignatures(
-											await backend.storeGet(STAMPS_KEY),
-										);
-										await backend.storeSet(STAMPS_KEY, []);
+										const kept = await forgetAllStamps();
 										setStampCount(0);
 										toast(t("Stamps forgotten"), {
 											label: t("Undo"),
 											run: () =>
-												savedAction(async () =>
-													backend
-														.storeSet(STAMPS_KEY, kept)
-														.then(() => setStampCount(kept.length))
-														.then(() => {}),
-												),
+												savedAction(async () => {
+													await restoreStamps(kept);
+													setStampCount(kept.length);
+												}),
 										});
 									})
 								}

@@ -13,6 +13,7 @@ import {
 	sortRecents,
 	updateEntry,
 } from "@/lib/recents";
+import { storeFailed } from "@/lib/storedValue";
 import { forgetThumb, moveThumb } from "@/lib/thumbs";
 import {
 	type Position,
@@ -54,19 +55,25 @@ interface RecentsActions {
 	list: () => RecentEntry[];
 	togglePin: (id: string) => void;
 	markUnavailable: (id: string) => void;
-	/** Removes one entry and returns the list as it was, for Undo. */
+	/** Removes one entry and returns the list as it was, for Undo. The
+	 * copies the entry held are kept until that list is restored or
+	 * settled. */
 	remove: (id: string) => RecentEntry[];
-	/** Clears the list and returns it for Undo. */
+	/** Clears the list and returns it for Undo (kept the same way). */
 	clear: () => RecentEntry[];
 	/** Puts back whatever of `entries` is no longer in the list. */
 	restore: (entries: RecentEntry[]) => void;
+	/** The chance to undo the change that returned `entries` has passed
+	 * (its Undo message went): let go of the copies it took out. */
+	settle: (entries: RecentEntry[]) => void;
 	/** A file was given a new name (and, on a desktop, a new path): its
 	 * entry and bookmarks follow it. Returns the id it has now. */
 	rename: (id: string, name: string, reopen: Reopen) => string;
 }
 
-/** How long a removed entry's managed copy outlives it, so the
- * snackbar's Undo can bring back an entry that still opens. */
+/** How long the copies of a list cleared with no Undo on this screen
+ * (recents turned off in another window) outlive it. A change made here
+ * keeps them for as long as its Undo message is up instead (settle). */
 const UNDO_MS = 6000;
 
 /** On a desktop every document opened from the file manager is its own
@@ -180,15 +187,23 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 
 	const writing = useRef<Promise<unknown>>(Promise.resolve());
 	/** The last change written out (or failed to be). */
-	const saved = useRef<Promise<unknown>>(Promise.resolve());
+	const saved = useRef<Promise<boolean>>(Promise.resolve(true));
+	/** Changes made here so far: a read of the store begun before one of
+	 * them is older than what is shown. */
+	const changes = useRef(0);
 
 	// Coming back to this window, show what the other windows did since.
 	useEffect(() => {
 		if (!SHARED || !ready) return;
 		const refresh = () => {
+			const before = changes.current;
 			writing.current = writing.current
 				.then(() => backend.storeGet(STORAGE_KEYS.recents))
 				.then((stored) => {
+					// A change made here meanwhile is written after this read,
+					// onto the list as it is then: this one would hide it, so a
+					// read after that write is shown instead.
+					if (changes.current !== before) return refresh();
 					const there = stored ? normalizeRecents(stored) : [];
 					if (JSON.stringify(there) !== JSON.stringify(current.current))
 						apply(there);
@@ -199,33 +214,60 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		return () => window.removeEventListener("focus", refresh);
 	}, [ready, apply]);
 
+	/** Copies an undoable change took out, kept until its Undo is gone:
+	 * by the list it returned. */
+	const held = useRef(new Map<RecentEntry[], () => void>());
+	/** Changes asked for before the list was read: made once it is, so
+	 * nothing is written over a list that has not been seen. */
+	const early = useRef<
+		Array<[(prev: RecentEntry[]) => RecentEntry[], boolean]>
+	>([]);
+
+	/** Write the change `fn` made. One that fails is said, with Try
+	 * again; the list shown keeps it. */
+	const persist = useCallback(function persist(
+		fn: (prev: RecentEntry[]) => RecentEntry[],
+	) {
+		let done: Promise<unknown>;
+		if (SHARED) {
+			// One after another, so two changes never read the same list.
+			done = writing.current
+				.then(() => backend.storeGet(STORAGE_KEYS.recents))
+				.then((stored) => {
+					const there = stored ? normalizeRecents(stored) : [];
+					const merged = fn(there);
+					return merged === there
+						? undefined
+						: backend.storeSet(STORAGE_KEYS.recents, merged);
+				});
+			writing.current = done.catch(() => {});
+		} else done = backend.storeSet(STORAGE_KEYS.recents, current.current);
+		saved.current = done.then(
+			() => true,
+			() => {
+				storeFailed(() => persist(fn));
+				return false;
+			},
+		);
+	}, []);
+
 	/** Every mutation goes through here: state, persistence, and
 	 * deletion of managed copies nothing references any more. An
-	 * `undoable` change keeps those copies for a moment, so Undo restores
-	 * entries that still open. Returns the list as it was. */
+	 * `undoable` change keeps those copies until its list is restored or
+	 * settled, so Undo restores entries that still open. Returns the list
+	 * as it was. */
 	const commit = useCallback(
 		(fn: (prev: RecentEntry[]) => RecentEntry[], undoable = false) => {
 			const prev = current.current;
+			if (!stores.ready.get()) {
+				early.current.push([fn, undoable]);
+				return prev;
+			}
 			const next = fn(prev);
 			if (next === prev) return prev;
+			changes.current++;
 			apply(next);
-			if (SHARED) {
-				// One after another, so two changes never read the same list.
-				writing.current = writing.current
-					.then(() => backend.storeGet(STORAGE_KEYS.recents))
-					.then((stored) => {
-						const there = stored ? normalizeRecents(stored) : [];
-						const merged = fn(there);
-						return merged === there
-							? undefined
-							: backend.storeSet(STORAGE_KEYS.recents, merged);
-					})
-					.catch(() => {});
-				saved.current = writing.current;
-			} else
-				saved.current = backend
-					.storeSet(STORAGE_KEYS.recents, next)
-					.catch(() => {});
+			persist(fn);
 			// A picked original the list now names is held over restarts
 			// (so it can still be renamed); one it no longer names is let go,
 			// with its copy.
@@ -238,11 +280,11 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 				for (const uri of originsChanged(prev, current.current).released)
 					backend.releaseDocument(uri);
 			};
-			if (undoable) window.setTimeout(release, UNDO_MS);
+			if (undoable) held.current.set(prev, release);
 			else release();
 			return prev;
 		},
-		[apply],
+		[apply, persist, stores],
 	);
 
 	useEffect(() => {
@@ -251,11 +293,15 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			if (!alive) return;
 			apply(list);
 			stores.ready.set(true);
+			// What was asked for meanwhile (a document read before the list
+			// came), now onto the list as stored.
+			const asked = early.current.splice(0);
+			for (const [fn, undoable] of asked) commit(fn, undoable);
 		});
 		return () => {
 			alive = false;
 		};
-	}, [apply, stores]);
+	}, [apply, commit, stores]);
 
 	// Wait until Home has settled; use the latest list if it changed meanwhile.
 	useEffect(() => {
@@ -320,10 +366,17 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 	}, [ready, commit]);
 
 	// Turning recents off clears them (and, once the chance to undo has
-	// passed, their managed copies).
+	// passed, their managed copies). Settings clears them itself, with an
+	// Undo; this is for a change heard from another window.
 	useEffect(() => {
-		if (settingsReady && ready && !settings.keepRecents)
-			commit((prev) => (prev.length ? [] : prev), true);
+		if (!settingsReady || !ready || settings.keepRecents) return;
+		const before = commit((prev) => (prev.length ? [] : prev), true);
+		const timer = window.setTimeout(() => {
+			const release = held.current.get(before);
+			held.current.delete(before);
+			release?.();
+		}, UNDO_MS);
+		return () => window.clearTimeout(timer);
 	}, [settingsReady, ready, settings.keepRecents, commit]);
 
 	const record = useCallback<RecentsApi["record"]>(
@@ -362,7 +415,8 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			});
 			return moved ? next : prev;
 		});
-		void saved.current.then(() => forgetUnsaved(moves));
+		// Kept apart until the list with them is written.
+		void saved.current.then((ok) => ok && forgetUnsaved(moves));
 	}, [commit, stores]);
 
 	const setPosition = useCallback<RecentsApi["setPosition"]>(
@@ -444,6 +498,8 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 	);
 	const restore = useCallback<RecentsApi["restore"]>(
 		(list) => {
+			// Its copies are named again: nothing to let go.
+			held.current.delete(list);
 			commit((prev) => {
 				const missing = list.filter((e) => !prev.some((p) => p.id === e.id));
 				return missing.length ? sortRecents([...prev, ...missing]) : prev;
@@ -451,6 +507,11 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		},
 		[commit],
 	);
+	const settle = useCallback<RecentsApi["settle"]>((list) => {
+		const release = held.current.get(list);
+		held.current.delete(list);
+		release?.();
+	}, []);
 
 	const rename = useCallback<RecentsApi["rename"]>(
 		(id, name, reopen) => {
@@ -484,6 +545,7 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			remove,
 			clear,
 			restore,
+			settle,
 			rename,
 		}),
 		[
@@ -497,6 +559,7 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			remove,
 			clear,
 			restore,
+			settle,
 			rename,
 		],
 	);

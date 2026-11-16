@@ -18,6 +18,7 @@ import {
 	loadStamps,
 	pngBytes,
 } from "@/lib/signatures";
+import { useLeaveGuard } from "@/state/leave";
 import { useBackClose } from "@/state/navigation";
 import {
 	Button,
@@ -400,10 +401,18 @@ export function FillSign({
 	}, [fields, values]);
 	const dirty = items.length > 0 || changedFields.length > 0;
 
+	/** Where Discard goes: this editor's own close, or a close of the
+	 * whole document asked about here (state/leave). */
+	const leaveTo = useRef(onClose);
 	const close = useCallback(() => {
+		leaveTo.current = onClose;
 		if (dirty) setLeaving(true);
 		else onClose();
 	}, [dirty, onClose]);
+	useLeaveGuard(dirty, (go) => {
+		leaveTo.current = go;
+		setLeaving(true);
+	});
 	useBackClose("fill-sign", true, close);
 	useModalFocus(editor, () => {
 		if (tool || selected) {
@@ -1204,7 +1213,10 @@ export function FillSign({
 							</Button>
 							<Button
 								variant="danger"
-								onClick={onClose}
+								onClick={() => {
+									setLeaving(false);
+									leaveTo.current();
+								}}
 								data-testid="fill-discard"
 							>
 								{t("Discard")}

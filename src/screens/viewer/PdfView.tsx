@@ -24,6 +24,7 @@ import { pageAsksForSignature } from "@/lib/signatureSpots";
 import { textPicture } from "@/lib/textBox";
 import { loadThumb, saveThumb } from "@/lib/thumbs";
 import type { PdfFlow, Position } from "@/lib/types";
+import { useLeaveGuard } from "@/state/leave";
 import { useBackClose } from "@/state/navigation";
 import { useSettingsOf, useTheme } from "@/state/settings";
 import {
@@ -391,12 +392,13 @@ export default function PdfView({
 		(container as { current: HTMLDivElement | null }).current = el;
 		setScrollBox(el);
 	}, []);
-	// With a password nothing is kept, so going is worth a question.
-	const [leaving, setLeaving] = useState(false);
-	const leave = () => {
-		if (!marks.persist && marks.ready && marks.list.length) setLeaving(true);
-		else onClose();
-	};
+	// With a password nothing is kept, so going is worth a question,
+	// whichever way the document goes (the close arrow, Back, Ctrl+W, the
+	// tab's X, the window): `leaving` is where Discard goes.
+	const [leaving, setLeaving] = useState<{ go: () => void } | null>(null);
+	useLeaveGuard(!marks.persist && marks.ready && marks.list.length > 0, (go) =>
+		setLeaving({ go }),
+	);
 	const [marksOpen, setMarksOpen] = useState(false);
 	const [readingText, setReadingText] = useState(false);
 	// What a copy will not keep: the password it was opened with, or the
@@ -2378,7 +2380,7 @@ export default function PdfView({
 		<Shell
 			name={name}
 			format={format}
-			onClose={leave}
+			onClose={onClose}
 			active={active}
 			hud={hud}
 			progressOf={container}
@@ -2669,17 +2671,23 @@ export default function PdfView({
 			</Dialog>
 
 			<Dialog
-				open={leaving}
+				open={leaving !== null}
 				title={t("Leave without saving?")}
-				onClose={() => setLeaving(false)}
+				onClose={() => setLeaving(null)}
 				alert
 				testId="reader-leave"
 				actions={
 					<>
-						<Button variant="ghost" onClick={() => setLeaving(false)}>
+						<Button variant="ghost" onClick={() => setLeaving(null)}>
 							{t("Keep editing")}
 						</Button>
-						<Button variant="danger" onClick={onClose}>
+						<Button
+							variant="danger"
+							onClick={() => {
+								setLeaving(null);
+								leaving?.go();
+							}}
+						>
 							{t("Discard")}
 						</Button>
 					</>

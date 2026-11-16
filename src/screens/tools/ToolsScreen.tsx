@@ -36,6 +36,7 @@ import {
 } from "@/lib/pdfTools";
 import { sniffFormat } from "@/lib/sniff";
 import type { OpenRequest } from "@/lib/types";
+import { LeaveScope, askLeave, useLeaveGuard } from "@/state/leave";
 import { useBackClose, useNavActions } from "@/state/navigation";
 import { Button, IconButton, toast } from "@/ui";
 import { zipSync } from "fflate";
@@ -65,7 +66,14 @@ import {
 	Trash2,
 } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type ReactNode,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useDocMarks } from "../viewer/useDocMarks";
 import { FillSign } from "./FillSign";
 import { MarkUp } from "./MarkUp";
@@ -271,8 +279,11 @@ export function ToolsScreen({
 }) {
 	const { back } = useNavActions();
 	const [tool, setTool] = useState<ToolId | null>(start ?? null);
-	// Back from a tool opened from the list returns to the list.
-	useBackClose("tool", !!tool && !start, () => setTool(null));
+	// Back from a tool opened from the list returns to the list, once
+	// what the tool holds unsaved has been asked about.
+	const scope = useContext(LeaveScope);
+	const toList = () => askLeave([scope], () => setTool(null));
+	useBackClose("tool", !!tool && !start, toList);
 	const shown = TOOLS.find((x) => x.id === tool);
 	const heading = useRef<HTMLHeadingElement>(null);
 	const previousTool = useRef(tool);
@@ -332,7 +343,7 @@ export function ToolsScreen({
 			<header className={s.screenBar} data-tauri-drag-region="deep">
 				<IconButton
 					label={t("Back")}
-					onClick={() => (tool && !start ? setTool(null) : back())}
+					onClick={() => (tool && !start ? toList() : back())}
 					data-testid="tools-back"
 				>
 					<ArrowLeft size={22} className="pw-flip" />
@@ -1064,6 +1075,10 @@ function OrganizeTool({ file, onOpen }: ToolProps) {
 		!!order &&
 		(order.length !== (picked?.pages ?? 0) ||
 			order.some((p, i) => p.page !== i || p.turn !== 0));
+	// Pages put in a new order and not saved since are asked about before
+	// the tool goes.
+	const [savedOrder, setSavedOrder] = useState<typeof order>(null);
+	useLeaveGuard(changed && order !== savedOrder);
 	return (
 		<>
 			<OnePdf kit={kit} />
@@ -1167,16 +1182,21 @@ function OrganizeTool({ file, onOpen }: ToolProps) {
 				label={t("Save a copy")}
 				disabled={!changed}
 				running={running}
-				onClick={() =>
-					run(async () => ({
+				onClick={async () => {
+					// Counted as kept from the press (leaving while it saves
+					// does not ask), and as not kept again if the save fails.
+					const before = savedOrder;
+					setSavedOrder(order);
+					const done = await run(async () => ({
 						name: copyName(picked.name, t("organized")),
 						bytes: await buildPdf(
 							[picked],
 							pages.map((p) => ({ file: 0, page: p.page, turn: p.turn })),
 						),
 						mime: PDF,
-					}))
-				}
+					}));
+					if (!done) setSavedOrder(before);
+				}}
 			/>
 		</>
 	);

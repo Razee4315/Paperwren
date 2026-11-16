@@ -20,6 +20,7 @@ import {
 import { withFeedback } from "@/lib/taskFeedback";
 import { relativeTime } from "@/screens/home/Home";
 import { announceSaved } from "@/screens/tools/saved";
+import { useLeaveGuard } from "@/state/leave";
 import { useBackClose, useNavActions } from "@/state/navigation";
 import {
 	Button,
@@ -349,28 +350,37 @@ function NoteEditor({
 		};
 	}, []);
 
-	const close = useCallback(async () => {
-		if (mutation.current) return;
-		mutation.current = true;
-		setBusy(true);
-		try {
-			while (await store()) {
-				if (stored.current === latest.current) {
-					onClose();
-					return;
+	/** Write the note down, then `leave` (by default this editor's own
+	 * close; Ctrl+W or the window closing hand theirs). */
+	const closeThen = useCallback(
+		async (leave: () => void) => {
+			if (mutation.current) return;
+			mutation.current = true;
+			setBusy(true);
+			try {
+				while (await store()) {
+					if (stored.current === latest.current) {
+						leave();
+						return;
+					}
 				}
+				// The write failed: the first Back keeps the draft open with
+				// Try again; a second Back leaves, so a full or read-only disk
+				// never traps the reader here.
+				if (leaveAnyway.current) leave();
+				else leaveAnyway.current = true;
+			} finally {
+				mutation.current = false;
+				setBusy(false);
 			}
-			// The write failed: the first Back keeps the draft open with
-			// Try again; a second Back leaves, so a full or read-only disk
-			// never traps the reader here.
-			if (leaveAnyway.current) onClose();
-			else leaveAnyway.current = true;
-		} finally {
-			mutation.current = false;
-			setBusy(false);
-		}
-	}, [onClose, store]);
+		},
+		[store],
+	);
+	const close = useCallback(() => closeThen(onClose), [closeThen, onClose]);
 	useBackClose("note", true, close);
+	// Any other way out (Ctrl+W, the window) writes it down first too,
+	// and is held the same way when that fails.
+	useLeaveGuard(note !== stored.current, (go) => void closeThen(go));
 
 	const setBlock = (id: string, change: Partial<NoteBlock>) =>
 		update({

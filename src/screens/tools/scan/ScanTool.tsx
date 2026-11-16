@@ -7,6 +7,7 @@ import { findPage, warmUp } from "@/lib/scan/detect";
 import { scaleQuad } from "@/lib/scan/geometry";
 import { ScanJob, decodePhoto, photoScale } from "@/lib/scan/job";
 import type { OpenRequest } from "@/lib/types";
+import { useLeaveGuard } from "@/state/leave";
 import { Button, IconButton, Switch, toast } from "@/ui";
 import {
 	ArrowLeft,
@@ -304,8 +305,19 @@ export function ScanTool({
 
 	const working = pages.filter((p) => p.state === "working").length;
 	const failed = pages.some((p) => p.state === "failed");
+	// Pages taken and not saved since are asked about before the tool goes.
+	const [savedPages, setSavedPages] = useState<ScanPage[] | null>(null);
+	useLeaveGuard(pages.length > 0 && pages !== savedPages);
 
-	const save = () =>
+	const save = async () => {
+		const before = savedPages;
+		setSavedPages(pagesRef.current);
+		const done = await make();
+		// The pages as saved (those still being made have finished since),
+		// or as not kept if the save failed.
+		setSavedPages(done ? pagesRef.current : before);
+	};
+	const make = () =>
 		run(async () => {
 			// Wait for pages still being made.
 			for (;;) {

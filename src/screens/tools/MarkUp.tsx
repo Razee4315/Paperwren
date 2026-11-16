@@ -26,6 +26,7 @@ import {
 } from "@/lib/textBox";
 import { whole } from "@/screens/viewer/pdfCrop";
 import type { MarkStore } from "@/screens/viewer/useDocMarks";
+import { useLeaveGuard } from "@/state/leave";
 import { useBackClose } from "@/state/navigation";
 import { Button, Dialog, IconButton, NoteField, Spinner, toast } from "@/ui";
 import { useModalFocus } from "@/ui/Overlay";
@@ -218,12 +219,20 @@ export function MarkUp({
 
 	// Only a file with a password loses what is not saved as a copy.
 	const atRisk = !store.persist && items.length > 0;
+	/** Where Discard goes: this editor's own close, or a close of the
+	 * whole document asked about here (state/leave). */
+	const leaveTo = useRef(onClose);
 	const close = useCallback(() => {
+		leaveTo.current = onClose;
 		if (atRisk) setLeaving(true);
 		else onClose();
 	}, [atRisk, onClose]);
+	useLeaveGuard(atRisk, (go) => {
+		leaveTo.current = go;
+		setLeaving(true);
+	});
 	useBackClose("mark-up", true, close);
-	useModalFocus(editor, close);
+	const ownsKeys = useModalFocus(editor, close);
 
 	/** Change what is on the pages, as one step of undo. */
 	const change = store.set;
@@ -232,6 +241,8 @@ export function MarkUp({
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			if (!(e.ctrlKey || e.metaKey)) return;
+			// Not while its Save or Leave question is over it.
+			if (!ownsKeys()) return;
 			if ((e.target as Element | null)?.closest("input, textarea")) return;
 			const key = e.key.toLowerCase();
 			if (key === "z" && !e.shiftKey) stepKeys.current.undo();
@@ -242,7 +253,7 @@ export function MarkUp({
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, []);
+	}, [ownsKeys]);
 
 	const pageWidth = Math.max(200, width) * zoom;
 	const draws = tool !== "move";
@@ -1057,8 +1068,9 @@ export function MarkUp({
 							<Button
 								variant="danger"
 								onClick={() => {
+									setLeaving(false);
 									store.set([]);
-									onClose();
+									leaveTo.current();
 								}}
 								data-testid="mark-discard"
 							>

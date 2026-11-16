@@ -189,6 +189,7 @@ function Viewer({
 		list,
 		markUnavailable,
 		remove,
+		settle,
 	} = useRecentsActions();
 	const isRecent = useIsRecent(request.id);
 	const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -378,7 +379,8 @@ function Viewer({
 							<Button
 								variant="danger"
 								onClick={() => {
-									remove(request.id);
+									// No Undo here: what it held goes at once.
+									settle(remove(request.id));
 									onClose();
 								}}
 							>
@@ -454,7 +456,7 @@ function Viewer({
 						onClose={onClose}
 						active={active}
 						onBroken={() => {
-							if (firstOpen.current) remove(request.id);
+							if (firstOpen.current) settle(remove(request.id));
 						}}
 					/>
 				</Suspense>

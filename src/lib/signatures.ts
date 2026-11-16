@@ -4,7 +4,6 @@
  * URL, with its size. Nothing leaves the device.
  */
 
-import { backend } from "./backend";
 import {
 	type InkOptions,
 	type PixelImage,
@@ -13,6 +12,7 @@ import {
 	oneInk,
 	readPhoto,
 } from "./inkFromPhoto";
+import { createStoredValue } from "./storedValue";
 
 export interface Signature {
 	id: string;
@@ -52,33 +52,91 @@ export function normalizeSignatures(raw: unknown): Signature[] {
 		.slice(0, MAX_SIGNATURES);
 }
 
-async function loadKept(key: string): Promise<Signature[]> {
-	return normalizeSignatures(await backend.storeGet(key).catch(() => null));
+/** Each list is read once, and every change is made to it as it is in
+ * the store then (another window may have kept one meanwhile), one
+ * change at a time. A change that cannot be written is said, and kept
+ * to be tried again. */
+const kept = {
+	[SIGNATURES_KEY]: createStoredValue<Signature[]>({
+		key: SIGNATURES_KEY,
+		initial: [],
+		normalize: normalizeSignatures,
+		shared: true,
+	}),
+	[STAMPS_KEY]: createStoredValue<Signature[]>({
+		key: STAMPS_KEY,
+		initial: [],
+		normalize: normalizeSignatures,
+		shared: true,
+	}),
+};
+type KeptKey = keyof typeof kept;
+
+async function loadKept(key: KeptKey): Promise<Signature[]> {
+	const list = kept[key];
+	await list.load();
+	// What another window kept since.
+	list.refresh();
+	await list.flush();
+	return list.value.get();
 }
 
-async function keep(key: string, picture: Signature): Promise<Signature[]> {
-	const list = [
-		picture,
-		...(await loadKept(key)).filter((s) => s.src !== picture.src),
-	].slice(0, MAX_SIGNATURES);
-	await backend.storeSet(key, list).catch(() => {});
-	return list;
+async function keep(key: KeptKey, picture: Signature): Promise<Signature[]> {
+	const list = kept[key];
+	await list.load();
+	list.edit((was) =>
+		[picture, ...was.filter((s) => s.src !== picture.src)].slice(
+			0,
+			MAX_SIGNATURES,
+		),
+	);
+	await list.flush();
+	return list.value.get();
 }
 
-async function forget(key: string, id: string): Promise<Signature[]> {
-	const list = (await loadKept(key)).filter((s) => s.id !== id);
-	await backend.storeSet(key, list).catch(() => {});
-	return list;
+async function forget(key: KeptKey, id: string): Promise<Signature[]> {
+	const list = kept[key];
+	await list.load();
+	list.edit((was) => was.filter((s) => s.id !== id));
+	await list.flush();
+	return list.value.get();
+}
+
+/** Forget every one of a kind (Settings). Returns them, for Undo;
+ * rejects when that could not be kept (nothing is forgotten then). */
+async function forgetAll(key: KeptKey): Promise<Signature[]> {
+	let previous: Signature[] = [];
+	await kept[key].commit((was) => {
+		previous = was;
+		return [];
+	});
+	return previous;
+}
+
+/** Put back what forgetAll took a moment ago. */
+async function restore(key: KeptKey, previous: Signature[]) {
+	await kept[key].commit((was) =>
+		[...was, ...previous.filter((s) => !was.some((w) => w.id === s.id))].slice(
+			0,
+			MAX_SIGNATURES,
+		),
+	);
 }
 
 export const loadSignatures = () => loadKept(SIGNATURES_KEY);
 export const keepSignature = (signature: Signature) =>
 	keep(SIGNATURES_KEY, signature);
 export const forgetSignature = (id: string) => forget(SIGNATURES_KEY, id);
+export const forgetAllSignatures = () => forgetAll(SIGNATURES_KEY);
+export const restoreSignatures = (previous: Signature[]) =>
+	restore(SIGNATURES_KEY, previous);
 
 export const loadStamps = () => loadKept(STAMPS_KEY);
 export const keepStamp = (stamp: Signature) => keep(STAMPS_KEY, stamp);
 export const forgetStamp = (id: string) => forget(STAMPS_KEY, id);
+export const forgetAllStamps = () => forgetAll(STAMPS_KEY);
+export const restoreStamps = (previous: Signature[]) =>
+	restore(STAMPS_KEY, previous);
 
 /** The smallest box around what is drawn (alpha above a trace), with
  * a little room, or null when nothing is. */

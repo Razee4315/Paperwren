@@ -31,6 +31,12 @@ export const modalOpen = () => modals - leaving > 0;
  * is under them instead of being lost. */
 let leaving = 0;
 
+/** Who has the keyboard: the app itself while nothing is over it
+ * (`depth` 0), else the top dialog or tool (its depth, which
+ * useModalFocus hands back). Every key handler asks this one thing, so
+ * a key reaches only the layer that is on top. */
+export const ownsKeys = (depth = 0) => modals - leaving === depth;
+
 /** Where the pointer last went down, and whether that was a right
  * click: on a desktop a menu opens there, not at the foot of the
  * window. */
@@ -106,9 +112,11 @@ export function placeMenu(
 export function useModalFocus(
 	root: React.RefObject<HTMLElement | null>,
 	onClose: () => void,
-) {
+): () => boolean {
 	const closeRef = useRef(onClose);
 	closeRef.current = onClose;
+	// This layer's depth while open; -1 (never on top) otherwise.
+	const own = useRef(-1);
 	useLayoutEffect(() => {
 		const opener = document.activeElement as HTMLElement | null;
 		const field = root.current?.querySelector<HTMLElement>(
@@ -119,12 +127,13 @@ export function useModalFocus(
 		// taken out of reach of Tab and assistive tech while one is open.
 		const app = document.getElementById("root");
 		const depth = ++modals;
+		own.current = depth;
 		app?.setAttribute("inert", "");
 		let left = false;
 		let gone = false;
 		const onKey = (e: KeyboardEvent) => {
 			// Only the top dialog handles keys (for example Save over the editor).
-			if (left || modals - leaving !== depth) return;
+			if (left || !ownsKeys(depth)) return;
 			// A field recording a new shortcut owns every key, Esc and Tab
 			// included (Settings, Keyboard shortcuts).
 			if ((e.target as Element | null)?.closest?.("[data-records-keys]"))
@@ -161,11 +170,14 @@ export function useModalFocus(
 		return () => {
 			window.removeEventListener("keydown", onKey, true);
 			gone = true;
+			own.current = -1;
 			if (left) leaving--;
 			if (--modals === 0) app?.removeAttribute("inert");
 			opener?.focus?.();
 		};
 	}, [root]);
+	// Whether this layer has the keyboard now, for its own shortcuts.
+	return useCallback(() => ownsKeys(own.current), []);
 }
 
 function Backdrop({
@@ -595,18 +607,40 @@ function DialogPanel({
 
 // ---------- Toasts ----------
 
+interface ToastAction {
+	label: string;
+	run: () => void;
+	/** The message went without its action being taken: what the action
+	 * could have brought back may now be let go. Called once, when it
+	 * times out or a newer message of the same words takes its place;
+	 * never while it is on screen. */
+	onExpire?: () => void;
+}
+
 interface ToastState {
 	message: string;
-	action?: { label: string; run: () => void };
+	action?: ToastAction;
 	key: number;
+	/** How long it has left on screen, in ms, */
+	left: number;
+	/** counted from here while its time is running. */
+	since?: number;
 }
 
-let pushToast: ((t: Omit<ToastState, "key">) => void) | null = null;
+let pushToast: ((t: { message: string; action?: ToastAction }) => void) | null =
+	null;
 
 /** Show a short message, optionally with one action (e.g. Undo). */
-export function toast(message: string, action?: ToastState["action"]) {
-	pushToast?.({ message, action });
+export function toast(message: string, action?: ToastAction) {
+	if (pushToast) pushToast({ message, action });
+	// Nowhere to show it: the chance to act has passed at once.
+	else action?.onExpire?.();
 }
+
+/** Messages with an action waiting to come back, at most. */
+const WAITING = 2;
+/** A message coming back stays at least this long. */
+const BACK_FOR = 2500;
 
 /**
  * The messages at the foot of the screen ("Bookmark added", Undo).
@@ -616,18 +650,58 @@ export function toast(message: string, action?: ToastState["action"]) {
  * clicked. The live region stays in place and only its words change, so
  * a screen reader announces each message. A message waits while the
  * pointer or the keyboard is on it, so Undo can be reached in time.
+ *
+ * One message at a time, but one with an action (Undo, Try again) is not
+ * lost to the next: it steps aside for it and comes back with the time
+ * it had left. Only a newer message of the same words ends it, as a
+ * second "Removed from recents" does the first.
  */
 export function ToastHost() {
 	const pending = usePendingTasks();
 	const showPending = useDelayed(pending);
 	const [current, setCurrent] = useState<ToastState | null>(null);
+	const currentRef = useRef(current);
+	currentRef.current = current;
+	const waiting = useRef<ToastState[]>([]);
+	const keys = useRef(0);
 	const [held, setHeld] = useState(false);
 	const visual = useRef<HTMLDivElement>(null);
 	useExitPresence(visual, current?.key);
-	const show = useCallback(
-		(t: Omit<ToastState, "key">) => setCurrent({ ...t, key: Date.now() }),
-		[],
-	);
+	const end = useCallback((gone: ToastState, acted: boolean) => {
+		if (!acted) gone.action?.onExpire?.();
+		const next = waiting.current.shift() ?? null;
+		currentRef.current = next;
+		setCurrent(next);
+	}, []);
+	const show = useCallback((t: { message: string; action?: ToastAction }) => {
+		const now = currentRef.current;
+		if (now?.action) {
+			if (now.message === t.message) now.action.onExpire?.();
+			else {
+				const spent = now.since ? Date.now() - now.since : 0;
+				waiting.current.unshift({
+					...now,
+					since: undefined,
+					left: Math.max(now.left - spent, BACK_FOR),
+				});
+			}
+		}
+		// A newer message of the same words ends one waiting, too; and no
+		// more than a few wait.
+		const same = waiting.current.filter((one) => one.message === t.message);
+		waiting.current = waiting.current.filter(
+			(one) => one.message !== t.message,
+		);
+		for (const dropped of [...same, ...waiting.current.splice(WAITING)])
+			dropped.action?.onExpire?.();
+		const next = {
+			...t,
+			key: ++keys.current,
+			left: t.action ? 6000 : 3000,
+		};
+		currentRef.current = next;
+		setCurrent(next);
+	}, []);
 	useEffect(() => {
 		pushToast = show;
 		return () => {
@@ -636,12 +710,16 @@ export function ToastHost() {
 	}, [show]);
 	useEffect(() => {
 		if (!current || held) return;
-		const t = window.setTimeout(
-			() => setCurrent(null),
-			current.action ? 6000 : 3000,
-		);
-		return () => window.clearTimeout(t);
-	}, [current, held]);
+		const started = Date.now();
+		current.since = started;
+		const t = window.setTimeout(() => end(current, false), current.left);
+		return () => {
+			window.clearTimeout(t);
+			// Paused while held: what is left is kept.
+			current.since = undefined;
+			current.left -= Date.now() - started;
+		};
+	}, [current, held, end]);
 	// A message gone from under the pointer no longer holds the next one.
 	useEffect(() => {
 		if (!current) setHeld(false);
@@ -672,7 +750,7 @@ export function ToastHost() {
 							className={s.toastAction}
 							onClick={() => {
 								current.action?.run();
-								setCurrent(null);
+								end(current, true);
 							}}
 						>
 							{current.action.label}
