@@ -493,6 +493,9 @@ function SignTool({ file, onOpen }: ToolProps) {
 	const doc = usePdf(kit.files[0]);
 	const [open, setOpen] = useState(false);
 	const picked = kit.files[0];
+	useEffect(() => {
+		void import("./FillSign");
+	}, []);
 	const signed = useMemo(
 		() => (picked ? digitallySigned(picked.bytes) : false),
 		[picked],
@@ -556,6 +559,9 @@ function MarkUpTool({ file, onOpen }: ToolProps) {
 	const doc = usePdf(kit.files[0]);
 	const [open, setOpen] = useState(false);
 	const picked = kit.files[0];
+	useEffect(() => {
+		void import("./MarkUp");
+	}, []);
 	const key = useMemo(
 		() => (picked ? contentKey(fileSample(picked.bytes)) : null),
 		[picked],

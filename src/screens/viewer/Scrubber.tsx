@@ -48,6 +48,7 @@ export function Scrubber({
 		let lastScrollTop = el.scrollTop;
 		let lastScrollAt = 0;
 		let lastScrollDelta = 0;
+		let scrollStreak = 0;
 
 		const range = () => el.scrollHeight - el.clientHeight;
 		const travel = () => rail.clientHeight - KNOB;
@@ -56,6 +57,7 @@ export function Scrubber({
 			handle.style.transform = `translateY(${ratio * travel()}px)`;
 		};
 		const inMomentum = () =>
+			scrollStreak >= 2 &&
 			performance.now() - lastScrollAt < MOMENTUM_MS &&
 			lastScrollDelta > MOMENTUM_PX;
 		const rest = () => {
@@ -106,8 +108,14 @@ export function Scrubber({
 		const onScroll = () => {
 			const top = el.scrollTop;
 			if (grab === null) {
-				lastScrollDelta = Math.abs(top - lastScrollTop);
-				lastScrollAt = performance.now();
+				const now = performance.now();
+				const delta = Math.abs(top - lastScrollTop);
+				scrollStreak =
+					now - lastScrollAt < MOMENTUM_MS && delta > MOMENTUM_PX
+						? scrollStreak + 1
+						: 0;
+				lastScrollDelta = delta;
+				lastScrollAt = now;
 			}
 			lastScrollTop = top;
 			// Not worth a handle until there are a few screens to cross.
