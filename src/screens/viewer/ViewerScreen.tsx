@@ -1,13 +1,24 @@
 import { backend, formatBytes } from "@/lib/backend";
 import { type OpenFailure, classifyError, failureCopy } from "@/lib/errors";
-import { type FileFormat, friendlyName, isLargeFile } from "@/lib/formats";
+import {
+	type FileFormat,
+	formatFromName,
+	friendlyName,
+	isLargeFile,
+} from "@/lib/formats";
 import { t } from "@/lib/i18n";
 import type { DecryptResult } from "@/lib/parseWorker";
+import {
+	type PdfStreamSource,
+	STREAM_OVER,
+	canStream,
+	streamSource,
+} from "@/lib/pdfRange";
 import { isEncryptedPackage, sniffFormat } from "@/lib/sniff";
 import type { OpenRequest, Position } from "@/lib/types";
 import { holdScreen } from "@/lib/wake";
-import { useRecents } from "@/state/recents";
-import { useSettings } from "@/state/settings";
+import { useIsRecent, useRecentsActions } from "@/state/recents";
+import { useSetting } from "@/state/settings";
 import { Button, Dialog, ErrorArt, OpeningView } from "@/ui";
 import {
 	Component,
@@ -17,12 +28,13 @@ import {
 	lazy,
 	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
 import { PasswordDialog } from "./Dialogs";
 import { FileChangedBar, useFileChanged } from "./FileChanged";
-import { ViewerFileContext } from "./FileMenu";
+import { type ViewerFile, ViewerFileContext } from "./FileMenu";
 import styles from "./Pane.module.css";
 import { type Pane, PaneContext } from "./pane";
 import { runWorker } from "./runWorker";
@@ -83,7 +95,30 @@ type Loaded = {
 	name: string;
 	/** Bytes read; kept because a viewer may transfer `data` away. */
 	size: number;
+	/** A large PDF read a piece at a time; `data` is then empty. */
+	stream?: PdfStreamSource;
+	/** True when the file was unlocked with a password. */
+	passwordProtected?: boolean;
 };
+
+/** A PDF that may be read a piece at a time: one named so, or a phone's
+ * document with no name to go by, from a place that can be read so. */
+function mayStream(request: OpenRequest): boolean {
+	const named = formatFromName(request.name);
+	return (named === "pdf" || named === "unknown") && canStream(request.reopen);
+}
+
+/** The file as a stream when it is a PDF large enough to be worth it,
+ * else null and it is read whole. Its first KiB is read to be sure it is
+ * a PDF (the header may follow some junk). */
+async function pdfStream(
+	request: OpenRequest,
+): Promise<PdfStreamSource | null> {
+	const stream = await streamSource(request.reopen);
+	if (!stream || stream.size <= STREAM_OVER) return null;
+	const head = (await stream.readRange(0, 1024)).slice().buffer as ArrayBuffer;
+	return sniffFormat(head, request.name) === "pdf" ? stream : null;
+}
 
 /** A file can hold something an engine chokes on while drawing. That
  * must end in an honest message, never a blank app. */
@@ -178,19 +213,32 @@ function Viewer({
 	/** Open the tools (or one of them) with this file. */
 	onTools?: (tool: string | undefined, file: OpenRequest) => void;
 }) {
-	const { entries, record, setPosition, markUnavailable, remove } =
-		useRecents();
+	// Read in handlers, not drawn from: a change of the list (another
+	// document read on, a pin on Home) does not draw this one again.
+	const {
+		record,
+		setPosition,
+		positionOf,
+		flushPositions,
+		list,
+		markUnavailable,
+		remove,
+		settle,
+	} = useRecentsActions();
+	const isRecent = useIsRecent(request.id);
 	const [loaded, setLoaded] = useState<Loaded | null>(null);
 	const [failure, setFailure] = useState<OpenFailure | null>(null);
-	// A very large file is read only once the reader has said so.
+	// A very large file is read only once the reader has said so. A PDF
+	// that can be streamed is never read whole, so it is not asked about.
 	const [allowed, setAllowed] = useState(
-		() => !isLargeFile(request.name, request.size),
+		() => !isLargeFile(request.name, request.size) || mayStream(request),
 	);
+	// The reader said "Open anyway".
+	const confirmed = useRef(false);
 	// Position at open time; later writes must not re-trigger restores.
 	// A reload starts from where the reader had got to.
 	const [initialPosition, setInitialPosition] = useState<Position | undefined>(
-		() =>
-			request.position ?? entries.find((e) => e.id === request.id)?.position,
+		() => request.position ?? positionOf(request.id),
 	);
 	// Counts the reads of the file: a reload reads it again.
 	const [reads, setReads] = useState(0);
@@ -209,14 +257,27 @@ function Viewer({
 
 	/** Show what the bytes turned out to be. `size` is the file's own
 	 * size, which for a protected file is not that of its contents. */
-	const show = (data: ArrayBuffer, size: number) => {
+	const show = (
+		data: ArrayBuffer,
+		size: number,
+		passwordProtected?: boolean,
+	) => {
 		const format = sniffFormat(data, request.name);
 		if (format === "unknown") {
 			setFailure("unsupported");
 			return;
 		}
+		present(format, size, data, undefined, passwordProtected);
+	};
+	const present = (
+		format: FileFormat,
+		size: number,
+		data: ArrayBuffer,
+		stream?: PdfStreamSource,
+		passwordProtected?: boolean,
+	) => {
 		const { name, verified } = displayName(request, format);
-		firstOpen.current = !entries.some((e) => e.id === request.id);
+		firstOpen.current = !list().some((e) => e.id === request.id);
 		// A file inside another one has no place to reopen it from.
 		if (request.reopen.kind !== "memory")
 			record({
@@ -228,28 +289,32 @@ function Viewer({
 				reopen: request.reopen,
 				position: request.position,
 			});
-		setLoaded({ data, format, name, size });
+		setLoaded({ data, format, name, size, stream, passwordProtected });
 	};
 
 	const unlock = (password: string) => {
 		if (!locked) return;
 		const { data } = locked;
 		setLocked({ data, wrong: false, busy: true });
-		unlocking.current = new AbortController();
+		unlocking.current?.abort();
+		const controller = new AbortController();
+		unlocking.current = controller;
 		runWorker<DecryptResult>(
 			{ type: "decrypt", buffer: data, password },
-			unlocking.current.signal,
+			controller.signal,
 		)
 			.then((result) => {
+				if (controller.signal.aborted) return;
 				if (result.ok) {
 					setLocked(null);
-					show(result.data, data.byteLength);
+					show(result.data, data.byteLength, true);
 				} else if (result.reason === "password")
 					setLocked({ data, wrong: true, busy: false });
 				else setFailure(result.reason === "corrupt" ? "corrupt" : "password");
 			})
 			.catch((err) => {
-				if (err?.name !== "AbortError") setFailure("corrupt");
+				if (!controller.signal.aborted && err?.name !== "AbortError")
+					setFailure("corrupt");
 			});
 	};
 
@@ -257,28 +322,42 @@ function Viewer({
 	useEffect(() => {
 		if (!allowed) return;
 		let alive = true;
-		backend
-			.read(request.reopen)
-			.then((data) => {
+		const open = async () => {
+			if (mayStream(request)) {
+				// Any trouble reading it in pieces, and it is read whole, which
+				// says what is wrong the way it always has.
+				const stream = await pdfStream(request).catch(() => null);
 				if (!alive) return;
-				if (data.byteLength === 0)
-					throw Object.assign(new Error("empty"), { failure: "empty" });
-				if (isEncryptedPackage(data))
-					setLocked({ data, wrong: false, busy: false });
-				else show(data, data.byteLength);
-			})
-			.catch((err) => {
-				if (!alive) return;
-				const kind: OpenFailure =
-					err?.failure === "empty" ? "empty" : classifyError(err);
-				setFailure(kind);
-				if (
-					kind === "not_found" ||
-					kind === "permission" ||
-					kind === "unreadable"
-				)
-					markUnavailable(request.id);
-			});
+				if (stream) {
+					present("pdf", stream.size, new ArrayBuffer(0), stream);
+					return;
+				}
+				// Not streamed after all: a very large file waits for the reader.
+				if (!confirmed.current && isLargeFile(request.name, request.size)) {
+					setAllowed(false);
+					return;
+				}
+			}
+			const data = await backend.read(request.reopen);
+			if (!alive) return;
+			if (data.byteLength === 0)
+				throw Object.assign(new Error("empty"), { failure: "empty" });
+			if (isEncryptedPackage(data))
+				setLocked({ data, wrong: false, busy: false });
+			else show(data, data.byteLength);
+		};
+		open().catch((err) => {
+			if (!alive) return;
+			const kind: OpenFailure =
+				err?.failure === "empty" ? "empty" : classifyError(err);
+			setFailure(kind);
+			if (
+				kind === "not_found" ||
+				kind === "permission" ||
+				kind === "unreadable"
+			)
+				markUnavailable(request.id);
+		});
 		return () => {
 			alive = false;
 		};
@@ -290,9 +369,7 @@ function Viewer({
 		reads,
 	);
 	const reload = () => {
-		setInitialPosition(
-			(was) => entries.find((e) => e.id === request.id)?.position ?? was,
-		);
+		setInitialPosition((was) => positionOf(request.id) ?? was);
 		setLoaded(null);
 		setReads((n) => n + 1);
 	};
@@ -301,17 +378,61 @@ function Viewer({
 		(p: Position) => setPosition(request.id, p),
 		[request.id, setPosition],
 	);
+	// Where the reader got to goes into Recent files as they leave the
+	// document: for another tab, Home, Settings, or closing it.
+	useEffect(() => {
+		if (active) return flushPositions;
+	}, [active, flushPositions]);
 
 	// The screen stays on only while this document is the one on show.
-	const { settings } = useSettings();
+	const keepAwake = useSetting("keepAwake");
 	const reading = !!loaded && active;
 	useEffect(() => {
-		if (settings.keepAwake && reading) return holdScreen();
-	}, [settings.keepAwake, reading]);
+		if (keepAwake && reading) return holdScreen();
+	}, [keepAwake, reading]);
+
+	// One value while the file and what it is handed stay the same: the
+	// bar, the file menu and the viewer that read it are not drawn again
+	// for a new object at each render.
+	const fileContext = useMemo<ViewerFile | null>(
+		() =>
+			loaded && {
+				file: {
+					name: loaded.name,
+					format: loaded.format,
+					reopen: request.reopen,
+				},
+				id: request.id,
+				// Shown again under its new name, from where it now is.
+				onRenamed:
+					request.reopen.kind === "memory"
+						? undefined
+						: (name, reopen, id) =>
+								onReplace({
+									...request,
+									id,
+									name,
+									nameVerified: true,
+									reopen,
+									position: positionOf(id) ?? initialPosition,
+								}),
+				// Read when asked: a viewer may hand `data` on (to a worker),
+				// after which its own size is gone.
+				get size() {
+					return loaded.data.byteLength || loaded.size;
+				},
+				openOther: onReplace,
+				openOver: onOpen,
+				openTools:
+					onTools && request.reopen.kind !== "memory"
+						? (tool) => onTools(tool, request)
+						: undefined,
+			},
+		[loaded, request, onReplace, onOpen, onTools, positionOf, initialPosition],
+	);
 
 	if (failure) {
 		const copy = failureCopy(failure, request.name);
-		const isRecent = entries.some((e) => e.id === request.id);
 		return (
 			<Dialog
 				open
@@ -326,7 +447,8 @@ function Viewer({
 							<Button
 								variant="danger"
 								onClick={() => {
-									remove(request.id);
+									// No Undo here: what it held goes at once.
+									settle(remove(request.id));
 									onClose();
 								}}
 							>
@@ -360,7 +482,13 @@ function Viewer({
 						<Button variant="ghost" onClick={onClose}>
 							{t("Cancel")}
 						</Button>
-						<Button onClick={() => setAllowed(true)} data-testid="large-open">
+						<Button
+							onClick={() => {
+								confirmed.current = true;
+								setAllowed(true);
+							}}
+							data-testid="large-open"
+						>
 							{t("Open anyway")}
 						</Button>
 					</>
@@ -390,50 +518,21 @@ function Viewer({
 	const View = VIEWERS[loaded.format];
 	if (!View) return null;
 	return (
-		<ViewerFileContext.Provider
-			value={{
-				file: {
-					name: loaded.name,
-					format: loaded.format,
-					reopen: request.reopen,
-				},
-				id: request.id,
-				// Shown again under its new name, from where it now is.
-				onRenamed:
-					request.reopen.kind === "memory"
-						? undefined
-						: (name, reopen, id) =>
-								onReplace({
-									...request,
-									id,
-									name,
-									nameVerified: true,
-									reopen,
-									position:
-										entries.find((e) => e.id === request.id)?.position ??
-										initialPosition,
-								}),
-				size: loaded.data.byteLength || loaded.size,
-				openOther: onReplace,
-				openOver: onOpen,
-				openTools:
-					onTools && request.reopen.kind !== "memory"
-						? (tool) => onTools(tool, request)
-						: undefined,
-			}}
-		>
+		<ViewerFileContext.Provider value={fileContext}>
 			<ViewerBoundary name={loaded.name} onClose={onClose}>
 				<Suspense fallback={<OpeningView name={request.name} />}>
 					<View
 						data={loaded.data}
+						stream={loaded.stream}
 						name={loaded.name}
 						format={loaded.format}
 						position={initialPosition}
 						onPosition={onPosition}
 						onClose={onClose}
 						active={active}
+						passwordProtected={loaded.passwordProtected}
 						onBroken={() => {
-							if (firstOpen.current) remove(request.id);
+							if (firstOpen.current) settle(remove(request.id));
 						}}
 					/>
 				</Suspense>

@@ -1,6 +1,5 @@
 import { LANGUAGES, type LanguageSetting } from "./i18n";
 import { normalizeShortcuts } from "./shortcuts";
-import { SPEECH_RATES } from "./speech";
 import {
 	DEFAULT_SETTINGS,
 	type PageColor,
@@ -9,6 +8,7 @@ import {
 	type ReadingBars,
 	type ReadingFont,
 	type ResolvedTheme,
+	SPEECH_RATES,
 	type Settings,
 	type ThemeSetting,
 	type UpdateChecks,
@@ -22,6 +22,28 @@ export const THEMES: ThemeSetting[] = [
 	"plain-light",
 	"plain-dark",
 ];
+
+/** Where the theme setting is also kept for index.html, which applies
+ * it before the first paint (the settings are read a moment later). */
+const THEME_HINT_KEY = "paperwren.theme-hint";
+
+export function hintedTheme(): ThemeSetting | null {
+	try {
+		const value = localStorage.getItem(THEME_HINT_KEY) as ThemeSetting;
+		return THEMES.includes(value) ? value : null;
+	} catch {
+		return null;
+	}
+}
+
+export function hintTheme(theme: ThemeSetting) {
+	try {
+		localStorage.setItem(THEME_HINT_KEY, theme);
+	} catch {
+		// No storage: the next start opens in the default theme, then
+		// changes.
+	}
+}
 
 /** Themes from v0.10 folded into the three that remain. */
 const RETIRED_THEMES: Record<string, ResolvedTheme> = {

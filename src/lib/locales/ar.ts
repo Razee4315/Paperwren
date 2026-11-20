@@ -1015,7 +1015,6 @@ export const ar: Table = {
 	"Language of the document": "لغة المستند",
 	"Reading page {n} of {total}": "جارٍ قراءة الصفحة {n} من {total}",
 	searchable: "قابل للبحث",
-	"Nothing found yet.": "لم يُعثر على شيء بعد.",
 	"Showing the first {n} pages.": "تُعرض أول {n} صفحة.",
 	"Try a sample document": "جرّب مستندًا تجريبيًا",
 	"Found on {n} pages": {
@@ -1379,4 +1378,11 @@ export const ar: Table = {
 		"ستُفتح النسخة دون كلمة مرور. لتقفلها مرة أخرى، استخدم «إضافة كلمة مرور».",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"يضع ملف PDF هذا قيودًا على ما يفعله القارئ، مثل النسخ. ولن تحمل النسخة أي قيود.",
+	"Couldn't delete this note": "تعذّر حذف هذه الملاحظة",
+	"Couldn't change saved data": "تعذّر تغيير البيانات المحفوظة",
+	"A print job is already in progress": "هناك مهمة طباعة قيد التنفيذ بالفعل",
+	"No results. Try different words or turn off search options.":
+		"لا توجد نتائج. جرّب كلمات مختلفة أو أوقف خيارات البحث.",
+	"Hide highlights": "إخفاء التمييزات",
+	"Show highlights": "إظهار التمييزات",
 };

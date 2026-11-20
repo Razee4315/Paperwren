@@ -107,10 +107,12 @@
 	border: 1px solid var(--line);
 	border-radius: var(--r-m);
 	background: var(--surface-2);
-	transition: border-color var(--t-fast);
+	transition: border-color var(--t-fast) var(--ease);
 }
-.pageOpen:hover {
-	border-color: var(--accent);
+@media (hover: hover) {
+	.pageOpen:hover {
+		border-color: var(--accent);
+	}
 }
 .pageOpen:focus-visible {
 	outline: 2px solid var(--accent);
@@ -232,9 +234,11 @@
 	font-size: 13px;
 	font-weight: 700;
 }
-.addTile button:hover {
-	background: var(--accent-soft);
-	background: color-mix(in srgb, var(--accent) 16%, var(--accent-soft));
+@media (hover: hover) {
+	.addTile button:hover {
+		background: var(--accent-soft);
+		background: color-mix(in srgb, var(--accent) 16%, var(--accent-soft));
+	}
 }
 .tapHint {
 	color: var(--text-2);
@@ -387,7 +391,7 @@
 .mask {
 	fill: rgba(18, 18, 16, 0.5);
 	fill-rule: evenodd;
-	transition: fill var(--t-med);
+	transition: fill var(--t-med) var(--ease);
 }
 .outline {
 	fill: none;
@@ -405,7 +409,7 @@
 	stroke-width: 3;
 	vector-effect: non-scaling-stroke;
 	pointer-events: none;
-	transition: r var(--t-fast);
+	transition: r var(--t-fast) var(--ease);
 }
 .edgeHandle {
 	fill: var(--accent);
@@ -579,8 +583,10 @@
 .look:last-child {
 	margin-inline-end: auto;
 }
-.look:hover {
-	background: var(--surface-2);
+@media (hover: hover) {
+	.look:hover {
+		background: var(--surface-2);
+	}
 }
 .look[aria-pressed="true"] {
 	border-color: var(--accent);
@@ -641,5 +647,22 @@
 	.handles,
 	.frame[data-settle] > canvas {
 		animation: none;
+	}
+}
+
+.pageOpen:active,
+.add:active,
+.look:active {
+	outline: 2px solid var(--line-control);
+	outline-offset: -2px;
+}
+
+@media (forced-colors: active) {
+	.stepper li[aria-current="step"] {
+		forced-color-adjust: none;
+		background: Highlight;
+		color: HighlightText;
+		outline: 2px solid ButtonText;
+		outline-offset: -2px;
 	}
 }

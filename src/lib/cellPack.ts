@@ -82,13 +82,18 @@ export function packCells(
 	};
 }
 
+/** Most cell objects a store keeps made at once: some screens' worth. */
+const MADE_MAX = 20_000;
+
 /** Packed cells, read as a Map of place to cell. */
 export class CellStore implements Cells {
 	private readonly keys: Int32Array;
 	private readonly styles: Int32Array;
 	private readonly values: string[];
 	private readonly rich: Map<number, Omit<GridCell, "value" | "style">>;
-	/** The cells asked for so far: the same cell is the same object. */
+	/** The cells asked for lately: the same cell is the same object
+	 * while it is kept. Held to `MADE_MAX`, the oldest let go first, so
+	 * scrolling through a huge sheet does not keep every cell it saw. */
 	private readonly made = new Map<number, GridCell>();
 
 	constructor(packed: PackedCells) {
@@ -125,6 +130,10 @@ export class CellStore implements Cells {
 				...(style >= 0 ? { style } : {}),
 				...this.rich.get(i),
 			};
+			if (this.made.size >= MADE_MAX) {
+				const oldest = this.made.keys().next().value;
+				if (oldest !== undefined) this.made.delete(oldest);
+			}
 			this.made.set(i, cell);
 		}
 		return cell;

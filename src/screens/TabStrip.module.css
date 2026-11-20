@@ -17,14 +17,27 @@
 	gap: 2px;
 	min-width: 0;
 	height: 100%;
-	overflow: hidden;
+	overflow-x: auto;
+	overflow-y: hidden;
+	/* Back to auto (global.css sets thin for every element): Chromium
+	 * only uses the 3 px bar below, with no arrow buttons, while both
+	 * are auto. */
+	scrollbar-width: auto;
+	scrollbar-color: auto;
+}
+.tabs::-webkit-scrollbar {
+	height: 3px;
+}
+.tabs::-webkit-scrollbar-thumb {
+	background: var(--line-strong);
+	border-radius: 3px;
 }
 .tab {
 	display: flex;
 	align-items: center;
 	flex: 0 1 auto;
 	width: 220px;
-	min-width: 72px;
+	min-width: 120px;
 	height: calc(100% - 6px);
 	padding-inline-start: 10px;
 	border-radius: var(--r-s) var(--r-s) 0 0;
@@ -130,9 +143,23 @@
 /* Going into full screen or out, it fades with the bars and leaves or
  * comes back under the veil (lib/fullscreen.ts), not at once. */
 .strip {
-	transition: opacity 120ms var(--ease);
+	transition: opacity var(--t-fast) var(--ease);
 }
 :global(html[data-fs-bars]) .strip {
 	opacity: 0;
-	transition-duration: 80ms;
+	transition-duration: var(--t-instant);
+}
+
+.main:focus-visible,
+.close:focus-visible {
+	outline-offset: -3px;
+}
+
+@media (forced-colors: active) {
+	.on {
+		forced-color-adjust: none;
+		background: Highlight;
+		color: HighlightText;
+		border: 1px solid ButtonText;
+	}
 }

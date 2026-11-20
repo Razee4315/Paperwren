@@ -21,46 +21,82 @@ export function useFileChanged(
 	read: number,
 ): [changed: boolean, dismiss: () => void] {
 	const base = useRef<number | null>(null);
+	const generation = useRef(0);
 	const [changed, setChanged] = useState(false);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: a new read sets a new base
 	useEffect(() => {
+		const mine = ++generation.current;
 		base.current = null;
 		setChanged(false);
-		backend.stamp(reopen).then((at) => {
-			base.current = at;
-		});
+		backend
+			.stamp(reopen)
+			.then((at) => {
+				if (mine === generation.current) base.current = at;
+			})
+			.catch(() => {});
+		return () => {
+			generation.current++;
+		};
 	}, [reopen, read]);
 	useEffect(() => {
 		if (!watching) return;
 		let alive = true;
+		let id = 0;
 		const look = () => {
 			if (document.visibilityState !== "visible" || base.current === null)
 				return;
-			backend.stamp(reopen).then((at) => {
-				if (
-					alive &&
-					at !== null &&
-					base.current !== null &&
-					at !== base.current
-				)
-					setChanged(true);
-			});
+			const mine = generation.current;
+			backend
+				.stamp(reopen)
+				.then((at) => {
+					if (
+						alive &&
+						mine === generation.current &&
+						at !== null &&
+						base.current !== null &&
+						at !== base.current
+					)
+						setChanged(true);
+				})
+				.catch(() => {});
 		};
-		const id = window.setInterval(look, LOOK_MS);
-		window.addEventListener("focus", look);
-		document.addEventListener("visibilitychange", look);
+		const stop = () => {
+			if (!id) return;
+			window.clearInterval(id);
+			id = 0;
+		};
+		const sync = (checkNow: boolean) => {
+			if (document.visibilityState === "visible" && document.hasFocus()) {
+				if (checkNow) look();
+				if (!id) id = window.setInterval(look, LOOK_MS);
+			} else {
+				stop();
+			}
+		};
+		const onFocus = () => sync(true);
+		const onBlur = () => stop();
+		const onVisibility = () => sync(true);
+		sync(false);
+		window.addEventListener("focus", onFocus);
+		window.addEventListener("blur", onBlur);
+		document.addEventListener("visibilitychange", onVisibility);
 		return () => {
 			alive = false;
-			window.clearInterval(id);
-			window.removeEventListener("focus", look);
-			document.removeEventListener("visibilitychange", look);
+			stop();
+			window.removeEventListener("focus", onFocus);
+			window.removeEventListener("blur", onBlur);
+			document.removeEventListener("visibilitychange", onVisibility);
 		};
 	}, [reopen, watching]);
 	const dismiss = () => {
 		// Asked again only if it changes once more.
-		backend.stamp(reopen).then((at) => {
-			base.current = at;
-		});
+		const mine = ++generation.current;
+		backend
+			.stamp(reopen)
+			.then((at) => {
+				if (mine === generation.current) base.current = at;
+			})
+			.catch(() => {});
 		setChanged(false);
 	};
 	return [changed, dismiss];

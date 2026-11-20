@@ -1,3 +1,5 @@
+@import "../../styles/motion.css";
+
 .screen {
 	position: fixed;
 	inset: var(--tab-strip, 0px) 0 0;
@@ -53,7 +55,6 @@
 	flex: 1;
 	min-width: 0;
 	border: 0;
-	outline: 0;
 	background: none;
 	color: var(--text);
 	font: inherit;
@@ -93,9 +94,11 @@
 	background: var(--surface);
 	text-align: start;
 }
-.row:hover {
-	background: var(--surface-2);
-	border-color: var(--accent);
+@media (hover: hover) {
+	.row:hover {
+		background: var(--surface-2);
+		border-color: var(--accent);
+	}
 }
 .row strong,
 .snippet {
@@ -132,7 +135,6 @@
 	min-width: 0;
 	padding: 8px;
 	border: 0;
-	outline: 0;
 	background: none;
 	color: var(--text);
 	font: inherit;
@@ -231,7 +233,6 @@
 	min-height: 48px;
 	padding: 4px;
 	border: 0;
-	outline: 0;
 	resize: none;
 	overflow: hidden;
 	background: none;
@@ -284,4 +285,26 @@
 :global(html.desktop) .add svg {
 	width: 16px;
 	height: 16px;
+}
+
+.row:active,
+.tool:active {
+	background: var(--surface-3);
+}
+
+.swatch:active {
+	outline: 2px solid var(--line-control);
+	outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+	.swatch {
+		forced-color-adjust: none;
+		border-color: Canvas;
+		outline: 1px solid ButtonText;
+	}
+	.swatch[aria-pressed="true"] {
+		outline: 2px solid Highlight;
+		outline-offset: 2px;
+	}
 }

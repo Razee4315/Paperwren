@@ -91,6 +91,8 @@ export async function decodePhoto(blob: Blob): Promise<Photo> {
 /** One photo's worker. Requests run one at a time, in order. */
 export class ScanJob {
 	private worker: Worker;
+	private closed = false;
+	private reject: ((err: Error) => void) | null = null;
 	private chain: Promise<unknown> = Promise.resolve();
 	readonly width: number;
 	readonly height: number;
@@ -110,6 +112,11 @@ export class ScanJob {
 	): Promise<ScanAnswer & { ok: true }> {
 		const run = () =>
 			new Promise<ScanAnswer & { ok: true }>((resolve, reject) => {
+				if (this.closed) {
+					reject(new Error("scan closed"));
+					return;
+				}
+				this.reject = reject;
 				this.worker.onmessage = (e: MessageEvent<ScanAnswer>) =>
 					e.data.ok ? resolve(e.data) : reject(new Error(e.data.error));
 				this.worker.onerror = (e) => reject(new Error(e.message || "worker"));
@@ -147,6 +154,9 @@ export class ScanJob {
 	}
 
 	close(): void {
+		this.closed = true;
+		this.reject?.(new Error("scan closed"));
+		this.reject = null;
 		this.worker.terminate();
 	}
 }

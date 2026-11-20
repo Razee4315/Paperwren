@@ -1,9 +1,11 @@
 import type { FileFormat } from "@/lib/formats";
 import { locale, t } from "@/lib/i18n";
+import { scrollBehavior } from "@/lib/motion";
 import { readOfficeMeta } from "@/lib/officeMeta";
 import { matches } from "@/lib/shortcuts";
 import type { Position } from "@/lib/types";
-import { useSettings } from "@/state/settings";
+import { useSetting } from "@/state/settings";
+import { ownsKeys } from "@/ui/Overlay";
 import {
 	type RefObject,
 	useCallback,
@@ -61,10 +63,10 @@ export interface ZoomApi {
 	zoomBy(factor: number, origin?: [number, number]): void;
 }
 
-const ZOOM_MS = 170;
+const ZOOM_MS = 180;
 /** How long the document glides to where a zoom really left it. */
-const SETTLE_MS = 220;
-const EASE = "cubic-bezier(0.2, 0, 0, 1)";
+const SETTLE_MS = 240;
+
 /** One wheel notch on a mouse is deltaY 100; a trackpad pinch sends
  * single digits. Capping keeps a notch to a gentle step, about 17%, as
  * in other readers (a bigger one feels like a jump). */
@@ -169,7 +171,7 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 				if (Math.hypot(ex, ey) > 1) {
 					layer.style.transform = `translate(${-ex}px, ${-ey}px)`;
 					layer.getBoundingClientRect(); // start the glide from there
-					layer.style.transition = `transform ${SETTLE_MS}ms ${EASE}`;
+					layer.style.transition = "transform var(--t-slow) var(--ease)";
 					layer.style.transform = "";
 					settling = window.setTimeout(() => {
 						settling = 0;
@@ -264,7 +266,7 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 				finish();
 			} else if (layer) {
 				glide.f = glide.goal;
-				layer.style.transition = `transform ${ZOOM_MS}ms ${EASE}`;
+				layer.style.transition = "transform var(--t-med) var(--ease)";
 				layer.getBoundingClientRect(); // start the transition from rest
 				layer.style.transform = `scale(${glide.f})`;
 				timer = window.setTimeout(finish, ZOOM_MS + 20);
@@ -372,7 +374,8 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 			e.preventDefault();
 			const wheel =
 				g?.kind === "wheel" ? g : begin("wheel", e.clientX, e.clientY);
-			if (layer) layer.style.transition = "transform 90ms ease-out";
+			if (layer)
+				layer.style.transition = "transform var(--t-instant) var(--ease)";
 			const delta = Math.max(-WHEEL_CAP, Math.min(WHEEL_CAP, e.deltaY));
 			update(wheel.f * Math.exp(-delta * 0.01), wheel.x, wheel.y);
 			window.clearTimeout(timer);
@@ -420,7 +423,9 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 		if (!enabled || !active) return;
 		const onKey = (e: KeyboardEvent) => {
 			const z = api.current;
-			if (!z) return;
+			// A tool or dialog over the document has the keys (Fill and
+			// sign has no zoom of its own: the page under it stays as it is).
+			if (!z || !ownsKeys()) return;
 			if (matches(e, "zoomIn")) z.zoomBy(1.25);
 			else if (matches(e, "zoomOut")) z.zoomBy(1 / 1.25);
 			else if (matches(e, "zoomReset")) {
@@ -429,8 +434,8 @@ export function useZoom(options: ZoomOptions): ZoomApi {
 			} else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [enabled, active]);
 
 	return useMemo<ZoomApi>(
@@ -469,13 +474,12 @@ export function useScrollMemory(
 	onPosition: (p: Position) => void,
 	zoom?: number,
 ) {
-	const { settings } = useSettings();
+	const remember = useSetting("rememberPosition");
 	const restored = useRef(false);
 	const onPositionRef = useRef(onPosition);
 	onPositionRef.current = onPosition;
 	const zoomRef = useRef(zoom);
 	zoomRef.current = zoom;
-	const remember = settings.rememberPosition;
 
 	useEffect(() => {
 		const el = scroller.current;
@@ -588,9 +592,9 @@ export function useTapToTurn(
 	scroller: RefObject<HTMLElement | null>,
 	onStep?: (dir: 1 | -1) => void,
 ): (x: number) => boolean {
-	const { settings } = useSettings();
-	const on = useRef(settings.tapToTurn);
-	on.current = settings.tapToTurn;
+	const tapToTurn = useSetting("tapToTurn");
+	const on = useRef(tapToTurn);
+	on.current = tapToTurn;
 	const step = useRef(onStep);
 	step.current = onStep;
 	return useCallback(
@@ -606,7 +610,7 @@ export function useTapToTurn(
 				el.scrollTo({
 					left:
 						(Math.round(el.scrollLeft / el.clientWidth) + dir) * el.clientWidth,
-					behavior: "smooth",
+					behavior: scrollBehavior(),
 				});
 			else el.scrollTop += dir * el.clientHeight * 0.9;
 			return true;

@@ -23,7 +23,9 @@
  * browser tests stand in for the window with window.__paperwrenWindow.
  */
 
+import { ownsKeys } from "@/ui/Overlay";
 import { isDesktop, isTauri } from "./env";
+import { atEdges } from "./settle";
 
 const REVEAL_AT = 2;
 const HIDE_PAST = 140;
@@ -308,7 +310,7 @@ export function watchFullscreen(): () => void {
 	// handed round.
 	const onKey = (e: KeyboardEvent) => {
 		if (e.key !== "Escape" || !windowFull || held) return;
-		if (document.querySelector('[aria-modal="true"]')) return;
+		if (!ownsKeys()) return;
 		window.setTimeout(() => {
 			if (!e.defaultPrevented) leaveFullscreen();
 		});
@@ -318,8 +320,9 @@ export function watchFullscreen(): () => void {
 	// of (the green button, the menu, a swipe), each of which resizes it.
 	let alive = true;
 	let stop = () => {};
+	let settled: ReturnType<typeof atEdges> | null = null;
 	if (ofWindow) {
-		window.addEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
 		appWindow()
 			.then((win) => {
 				const follow = () =>
@@ -333,7 +336,10 @@ export function watchFullscreen(): () => void {
 						.catch(() => {});
 				syncNow = follow;
 				follow();
-				return win.onResized(follow);
+				// Asked as a resize starts and once it has settled, not at
+				// every step of a drag.
+				settled = atEdges(follow);
+				return win.onResized(settled);
 			})
 			.then((unlisten) => {
 				if (alive) stop = unlisten;
@@ -345,10 +351,11 @@ export function watchFullscreen(): () => void {
 	return () => {
 		alive = false;
 		stop();
+		settled?.cancel();
 		syncNow = () => {};
 		windowFull = false;
 		document.removeEventListener("fullscreenchange", sync);
-		window.removeEventListener("keydown", onKey);
+		document.removeEventListener("keydown", onKey);
 		window.removeEventListener("mousemove", onMove);
 		delete root.dataset.fullscreen;
 		delete root.dataset.reveal;

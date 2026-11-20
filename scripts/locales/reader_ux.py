@@ -2,7 +2,6 @@
 
 ROWS = [
     # ---- Find results and the home screen ----
-    ("Nothing found yet.", "ابھی کچھ نہیں ملا۔", "لم يُعثر على شيء بعد.", "暂时没有找到内容。", "अभी कुछ नहीं मिला।", "Aún no se ha encontrado nada.", "Rien trouvé pour le moment.", "Пока ничего не найдено.", "Nada encontrado ainda."),
     ("Showing the first {n} pages.", "پہلے {n} صفحات دکھائے جا رہے ہیں۔", "تُعرض أول {n} صفحة.", "显示前 {n} 页。", "पहले {n} पृष्ठ दिखाए जा रहे हैं।", "Se muestran las primeras {n} páginas.", "Affichage des {n} premières pages.", "Показаны первые страницы: {n}.", "Mostrando as primeiras {n} páginas."),
     ("Try a sample document", "نمونے کی دستاویز آزمائیں", "جرّب مستندًا تجريبيًا", "试试示例文档", "नमूना दस्तावेज़ आज़माएँ", "Prueba un documento de muestra", "Essayer un document d'exemple", "Попробовать пример документа", "Experimente um documento de exemplo"),
     (

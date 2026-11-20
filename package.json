@@ -1,11 +1,12 @@
 {
   "name": "paperwren",
   "private": true,
-  "version": "1.8.0",
+  "version": "1.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "postbuild": "node scripts/check-dist.mjs",
     "preview": "vite preview",
     "lint": "biome check .",
     "format": "biome format --write .",

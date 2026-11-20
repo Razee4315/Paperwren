@@ -26,8 +26,10 @@
 	font-weight: 700;
 	color: var(--text-2);
 }
-.skip:hover {
-	background: var(--surface-2);
+@media (hover: hover) {
+	.skip:hover {
+		background: var(--surface-2);
+	}
 }
 
 .stage {
@@ -152,15 +154,23 @@
 	gap: 6px;
 }
 .dot {
+	width: 24px;
+	height: 24px;
+	display: grid;
+	place-items: center;
+	border-radius: 999px;
+}
+.dot::after {
+	content: "";
 	width: 8px;
 	height: 8px;
 	border-radius: 999px;
-	background: var(--surface-3);
-	transition: width var(--t-med) var(--ease), background-color var(--t-med)
+	background: var(--line-control);
+	transition: transform var(--t-med) var(--ease), background-color var(--t-med)
 		var(--ease);
 }
-.dotOn {
-	width: 22px;
+.dotOn::after {
+	transform: scaleX(2.75);
 	background: var(--accent);
 }
 .next {
@@ -176,7 +186,27 @@
 	font-size: 16px;
 	transition: background-color var(--t-fast) var(--ease);
 }
-.next:hover,
+
 .next:active {
 	background: var(--accent-hover);
+}
+@media (hover: hover) {
+	.next:hover {
+		background: var(--accent-hover);
+	}
+}
+
+@media (forced-colors: active) {
+	.dot::after {
+		forced-color-adjust: none;
+		background: ButtonText;
+	}
+	.dotOn::after {
+		background: HighlightText;
+	}
+}
+
+.dot:active,
+.skip:active {
+	background: var(--surface-3);
 }

@@ -9,7 +9,7 @@
 //! only relative paths of at most two plain components, so nothing
 //! here can be steered outside the imports directory.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, SystemTime};
@@ -18,9 +18,12 @@ use serde::Serialize;
 
 use crate::error::{AppError, AppResult, ErrorKind};
 
-/// Half-written copies (dot-prefixed temp files) older than this are
-/// leftovers from a killed ingest and are swept by `prune`.
-const STALE_TEMP: Duration = Duration::from_secs(24 * 60 * 60);
+/// Half-written copies (dot-prefixed temp files) not written to for
+/// this long are leftovers from a killed ingest and are swept by
+/// `prune`. A copy still coming in is written to all the time, so its
+/// time stays new however long it takes. A day let a killed 250 MB
+/// ingest sit on the phone long after it was of any use.
+const STALE_TEMP: Duration = Duration::from_secs(60 * 60);
 
 /// A copy this new may be a file that is being opened right now: the
 /// Android layer copies it in before the web layer has recorded it, so
@@ -128,6 +131,29 @@ fn remove_entry(root: &Path, path: &Path) -> bool {
     removed
 }
 
+/// Hash folders left empty (a copy removed by an older build, a temp
+/// file swept). One made moments ago may be about to get its file (the
+/// Android layer makes the folder, then moves the copy in), so only an
+/// old one goes. `remove_dir` never removes a folder with anything in it.
+fn remove_empty_folders(root: &Path, now: SystemTime) {
+    let Ok(top) = fs::read_dir(root) else {
+        return;
+    };
+    for item in top.flatten() {
+        let Ok(meta) = fs::symlink_metadata(item.path()) else {
+            continue;
+        };
+        if !meta.is_dir() {
+            continue;
+        }
+        let modified = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+        let age = now.duration_since(modified).unwrap_or_default();
+        if age >= FRESH_COPY {
+            let _ = fs::remove_dir(item.path());
+        }
+    }
+}
+
 pub fn stats(root: &Path) -> Stats {
     walk(root)
         .iter()
@@ -165,10 +191,18 @@ pub fn remove(root: &Path, rels: &[String]) -> u64 {
 }
 
 /// Housekeeping: drop stale temp files and unreferenced copies (but
-/// not ones copied in moments ago), then evict the oldest referenced
-/// copies until the total fits `max_bytes`.
+/// not ones copied in moments ago) and the hash folders left empty,
+/// then evict referenced copies until the total fits `max_bytes`.
+///
+/// `keep` is in the order the app wants the copies, most wanted first:
+/// the documents open now, then Recent files as listed (pinned, then
+/// the latest opened). Eviction starts from its end, so an open
+/// document goes last.
 pub fn prune(root: &Path, keep: &[String], max_bytes: u64, now: SystemTime) -> PruneReport {
-    let keep: HashSet<&str> = keep.iter().map(String::as_str).collect();
+    let mut rank: HashMap<&str, usize> = HashMap::new();
+    for (i, rel) in keep.iter().enumerate() {
+        rank.entry(rel.as_str()).or_insert(i);
+    }
     let mut report = PruneReport::default();
     let mut live = Vec::new();
     for entry in walk(root) {
@@ -179,8 +213,8 @@ pub fn prune(root: &Path, keep: &[String], max_bytes: u64, now: SystemTime) -> P
             }
             continue;
         }
-        if keep.contains(entry.rel.as_str()) {
-            live.push(entry);
+        if let Some(&at) = rank.get(entry.rel.as_str()) {
+            live.push((at, entry));
             continue;
         }
         // A clock that went backwards reads as age zero: kept.
@@ -189,9 +223,11 @@ pub fn prune(root: &Path, keep: &[String], max_bytes: u64, now: SystemTime) -> P
             report.orphans_removed += 1;
         }
     }
-    live.sort_by_key(|e| e.modified);
-    let mut total: u64 = live.iter().map(|e| e.bytes).sum();
-    for entry in &live {
+    remove_empty_folders(root, now);
+    // Least wanted first.
+    live.sort_by_key(|(at, _)| std::cmp::Reverse(*at));
+    let mut total: u64 = live.iter().map(|(_, e)| e.bytes).sum();
+    for (_, entry) in &live {
         if total <= max_bytes {
             break;
         }
@@ -272,13 +308,14 @@ mod tests {
     }
 
     #[test]
-    fn prune_drops_orphans_then_evicts_oldest() {
+    fn prune_drops_orphans_then_evicts_least_wanted() {
         let root = scratch("prune");
         put(&root, "h1/old.pdf", 100);
         std::thread::sleep(Duration::from_millis(20));
         put(&root, "h2/new.pdf", 100);
         put(&root, "orphan.pdf", 50);
         // An hour on: the orphan is no longer a copy that just arrived.
+        // The list wants the older copy more (opened since, or open now).
         let report = prune(
             &root,
             &["h1/old.pdf".into(), "h2/new.pdf".into()],
@@ -286,9 +323,60 @@ mod tests {
             SystemTime::now() + Duration::from_secs(60 * 60),
         );
         assert_eq!(report.orphans_removed, 1);
-        assert_eq!(report.evicted, vec!["h1/old.pdf".to_string()]);
+        assert_eq!(report.evicted, vec!["h2/new.pdf".to_string()]);
         assert_eq!(report.bytes_after, 100);
-        assert!(root.join("h2/new.pdf").exists());
+        assert!(root.join("h1/old.pdf").exists());
+        assert!(!root.join("h2").exists());
+    }
+
+    #[test]
+    fn prune_evicts_from_the_end_of_keep_and_an_open_copy_last() {
+        let root = scratch("prune-order");
+        put(&root, "h1/open.pdf", 100);
+        put(&root, "h2/a.pdf", 100);
+        put(&root, "h3/b.pdf", 100);
+        // The open document first, and again where the list has it.
+        let keep: Vec<String> = ["h1/open.pdf", "h3/b.pdf", "h2/a.pdf", "h1/open.pdf"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        let report = prune(&root, &keep, 100, SystemTime::now());
+        assert_eq!(
+            report.evicted,
+            vec!["h2/a.pdf".to_string(), "h3/b.pdf".to_string()]
+        );
+        assert!(root.join("h1/open.pdf").exists());
+        // Named twice, counted once.
+        assert_eq!(report.bytes_after, 100);
+    }
+
+    #[test]
+    fn prune_sweeps_stale_temp_files_after_an_hour() {
+        let root = scratch("temp");
+        put(&root, ".incoming.123.tmp", 10);
+        put(&root, "h1/.part.tmp", 10);
+        let soon = SystemTime::now() + Duration::from_secs(30 * 60);
+        prune(&root, &[], u64::MAX, soon);
+        assert!(root.join(".incoming.123.tmp").exists());
+        assert!(root.join("h1/.part.tmp").exists());
+        let later = SystemTime::now() + STALE_TEMP + Duration::from_secs(1);
+        prune(&root, &[], u64::MAX, later);
+        assert!(!root.join(".incoming.123.tmp").exists());
+        assert!(!root.join("h1").exists());
+    }
+
+    #[test]
+    fn prune_removes_old_empty_folders_only() {
+        let root = scratch("empty");
+        fs::create_dir_all(root.join("h1")).unwrap();
+        put(&root, "h2/kept.pdf", 10);
+        // Just made: it may be about to get its copy.
+        prune(&root, &["h2/kept.pdf".into()], u64::MAX, SystemTime::now());
+        assert!(root.join("h1").exists());
+        let later = SystemTime::now() + FRESH_COPY + Duration::from_secs(1);
+        prune(&root, &["h2/kept.pdf".into()], u64::MAX, later);
+        assert!(!root.join("h1").exists());
+        assert!(root.join("h2/kept.pdf").exists());
     }
 
     #[test]

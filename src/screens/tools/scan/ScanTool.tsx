@@ -5,8 +5,9 @@ import { t, tn } from "@/lib/i18n";
 import { SCAN_MARK, scansToPdf } from "@/lib/pdfTools";
 import { findPage, warmUp } from "@/lib/scan/detect";
 import { scaleQuad } from "@/lib/scan/geometry";
-import { ScanJob, decodePhoto, photoScale } from "@/lib/scan/job";
+import { type Photo, ScanJob, decodePhoto, photoScale } from "@/lib/scan/job";
 import type { OpenRequest } from "@/lib/types";
+import { useLeaveGuard } from "@/state/leave";
 import { Button, IconButton, Switch, toast } from "@/ui";
 import {
 	ArrowLeft,
@@ -80,9 +81,15 @@ export function ScanTool({
 	file?: OpenRequest;
 	onOpen: (request: OpenRequest) => void;
 }) {
-	const [pages, setPages] = useState<ScanPage[]>([]);
+	const [pages, showPages] = useState<ScanPage[]>([]);
 	const pagesRef = useRef(pages);
-	pagesRef.current = pages;
+	const alive = useRef(true);
+	const jobs = useRef(new Set<ScanJob>());
+	const setPages = useCallback((change: (list: ScanPage[]) => ScanPage[]) => {
+		if (!alive.current) return;
+		pagesRef.current = change(pagesRef.current);
+		showPages(pagesRef.current);
+	}, []);
 	const [editing, setEditing] = useState<{
 		source: Blob;
 		key?: number;
@@ -116,12 +123,17 @@ export function ScanTool({
 					return { ...p, ...next };
 				}),
 			),
-		[],
+		[setPages],
 	);
 
 	/** Make the full-size page, then let the photo's worker go. */
 	const renderNow = useCallback(
 		async (key: number, version: number, job: ScanJob, setup: PageSetup) => {
+			if (!alive.current) {
+				job.close();
+				return;
+			}
+			jobs.current.add(job);
 			try {
 				const made = await job.render(setup.quad, setup.quarters, setup.look);
 				update(key, (p) =>
@@ -140,6 +152,7 @@ export function ScanTool({
 					p.version === version ? { state: "failed" } : null,
 				);
 			} finally {
+				jobs.current.delete(job);
 				job.close();
 			}
 		},
@@ -148,6 +161,7 @@ export function ScanTool({
 	/** The same in the background, one page at a time. */
 	const render = useCallback(
 		(key: number, version: number, job: ScanJob, setup: PageSetup) => {
+			jobs.current.add(job);
 			queue.current = queue.current.then(() =>
 				renderNow(key, version, job, setup),
 			);
@@ -177,24 +191,44 @@ export function ScanTool({
 			setPages((list) => [...list, ...added]);
 			for (const page of added) {
 				queue.current = queue.current.then(async () => {
+					if (!alive.current) return;
+					let photo: Photo | null = null;
+					let handed = false;
 					try {
-						const photo = await decodePhoto(page.source);
+						photo = await decodePhoto(page.source);
+						const scale = photoScale(photo);
+						// Batch scans never show the editor canvas.
+						photo.view.width = 0;
+						photo.view.height = 0;
+						if (!alive.current) return;
 						const found = await findPage(photo.find);
+						photo.find.width = 0;
+						photo.find.height = 0;
+						if (!alive.current) return;
 						const setup: PageSetup = {
-							quad: scaleQuad(found.quad, photoScale(photo).find),
+							quad: scaleQuad(found.quad, scale.find),
 							quarters: 0,
 							look: "clean",
 						};
 						update(page.key, () => setup);
+						handed = true;
 						// Made now, not queued: only one photo is held at a time.
 						await renderNow(page.key, 1, new ScanJob(photo.bitmap), setup);
 					} catch {
 						update(page.key, () => ({ state: "failed" }));
+					} finally {
+						if (photo) {
+							if (!handed) photo.bitmap.close();
+							photo.view.width = 0;
+							photo.view.height = 0;
+							photo.find.width = 0;
+							photo.find.height = 0;
+						}
 					}
 				});
 			}
 		},
-		[renderNow, update],
+		[renderNow, update, setPages],
 	);
 
 	const take = (list: FileList | null) => {
@@ -213,13 +247,21 @@ export function ScanTool({
 		given.current = true;
 		backend
 			.read(file.reopen)
-			.then((bytes) => setEditing({ source: new Blob([bytes]) }))
-			.catch((err) => toast(unreadNote(err, file.name)));
+			.then((bytes) => {
+				if (alive.current) setEditing({ source: new Blob([bytes]) });
+			})
+			.catch((err) => {
+				if (alive.current) toast(unreadNote(err, file.name));
+			});
 	}, [file]);
 
 	useEffect(() => {
+		alive.current = true;
 		warmUp();
 		return () => {
+			alive.current = false;
+			for (const job of jobs.current) job.close();
+			jobs.current.clear();
 			for (const p of pagesRef.current)
 				if (p.thumb) URL.revokeObjectURL(p.thumb);
 		};
@@ -276,8 +318,16 @@ export function ScanTool({
 
 	const working = pages.filter((p) => p.state === "working").length;
 	const failed = pages.some((p) => p.state === "failed");
+	// Pages taken and not saved since are asked about before the tool goes.
+	const [savedPages, setSavedPages] = useState<ScanPage[] | null>(null);
+	useLeaveGuard(pages.length > 0 && pages !== savedPages);
 
-	const save = () =>
+	const save = async () => {
+		const done = await make();
+		// Mark saved only once the PDF has actually been saved.
+		if (done && alive.current) setSavedPages(pagesRef.current);
+	};
+	const make = () =>
 		run(async () => {
 			// Wait for pages still being made.
 			for (;;) {
@@ -285,6 +335,7 @@ export function ScanTool({
 				await before;
 				if (before === queue.current) break;
 			}
+			if (!alive.current) return null;
 			const ready = pagesRef.current;
 			if (!ready.length || ready.some((p) => !p.jpeg || p.state !== "ready"))
 				throw new Error("pages not ready");
@@ -295,12 +346,14 @@ export function ScanTool({
 					height: p.height ?? 1,
 				})),
 			);
+			const bytes = await scansToPdf(scans, {
+				paper,
+				mark: mark ? SCAN_MARK : undefined,
+			});
+			if (!alive.current) return null;
 			return {
 				name: scanName(),
-				bytes: await scansToPdf(scans, {
-					paper,
-					mark: mark ? SCAN_MARK : undefined,
-				}),
+				bytes,
 				mime: "application/pdf",
 			};
 		});

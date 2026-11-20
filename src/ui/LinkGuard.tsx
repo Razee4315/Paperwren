@@ -35,10 +35,17 @@ export function LinkGuard() {
 
 	useEffect(() => {
 		const onClick = (e: MouseEvent) => {
-			const anchor = (e.target as Element | null)?.closest?.("a[href]");
+			// An SVG link (xlink:href) and an image map's area follow too.
+			const anchor = (e.target as Element | null)?.closest?.(
+				"a[href], a[xlink\\:href], area[href]",
+			);
 			if (!anchor) return;
 			e.preventDefault();
-			const href = anchor.getAttribute("href")?.trim() ?? "";
+			const href = (
+				anchor.getAttribute("href") ??
+				anchor.getAttribute("xlink:href") ??
+				""
+			).trim();
 			if (href.startsWith("#")) scrollToAnchor(href);
 			else if (EXTERNAL.test(href)) setLink(href);
 		};

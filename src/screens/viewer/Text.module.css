@@ -177,42 +177,6 @@
 }
 /* Source code: its syntax in the theme's own colours (lib/highlight.ts).
  * A page colour of its own lends the code that theme too. */
-.wrap {
-	--code-keyword: #8f3f71;
-	--code-string: #2b6e2f;
-	--code-number: #9a5b00;
-	--code-comment: #8a877f;
-	--code-title: #1f5f8b;
-	--code-type: #6d4aa8;
-	--code-attr: #a4502e;
-	--code-meta: #5b5952;
-	--code-add: #2b6e2f;
-	--code-del: #b0312c;
-}
-:global([data-theme="sepia"]) .wrap,
-.wrap.wrap:global([data-theme="sepia"]) {
-	--code-keyword: #8a3b5c;
-	--code-string: #4f6b1f;
-	--code-number: #9a4f12;
-	--code-comment: #968470;
-	--code-title: #2f5a7a;
-	--code-type: #6a4c8c;
-	--code-attr: #a4502e;
-	--code-meta: #6a5a47;
-}
-:global([data-theme="dark"]) .wrap,
-.wrap.wrap:global([data-theme="dark"]) {
-	--code-keyword: #e39ac3;
-	--code-string: #9fd28e;
-	--code-number: #f0b968;
-	--code-comment: #7b7872;
-	--code-title: #8cc4ee;
-	--code-type: #c3a6f0;
-	--code-attr: #f0a07a;
-	--code-meta: #aaa69e;
-	--code-add: #9fd28e;
-	--code-del: #f08a85;
-}
 .wrap :global(.hljs-keyword),
 .wrap :global(.hljs-selector-tag),
 .wrap :global(.hljs-built_in),
@@ -296,7 +260,7 @@
 	display: inline-block;
 	width: 1.1em;
 	color: var(--text-3);
-	transition: transform 120ms ease;
+	transition: transform var(--t-fast) var(--ease);
 }
 .branch[open] > summary::before {
 	transform: rotate(90deg);

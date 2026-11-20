@@ -261,8 +261,14 @@ export function paintMarks(
 	for (const mark of marks) {
 		const group = el("g", {});
 		group.setAttribute("data-mark", mark.id);
-		if (pulse === mark.id) group.classList.add("pw-mark-pulse");
 		group.append(...shapes(mark, map.pw, map.ph, label));
+		if (pulse === mark.id) {
+			const outline = group.cloneNode(true) as SVGGElement;
+			outline.removeAttribute("data-mark");
+			outline.classList.add("pw-mark-pulse");
+			overGroup.append(outline);
+			hasOver = true;
+		}
 		if (blended(mark)) {
 			underGroup.append(group);
 			hasUnder = true;

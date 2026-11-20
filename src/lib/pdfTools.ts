@@ -95,6 +95,24 @@ export function digitallySigned(bytes: Uint8Array): boolean {
 	return holds(bytes, "/ByteRange");
 }
 
+/** Same marker search, yielding between bounded chunks for the reader. */
+export async function digitallySignedSliced(
+	bytes: Uint8Array,
+	cancelled: () => boolean = () => false,
+): Promise<boolean> {
+	const mark = "/ByteRange";
+	const chunk = 64 * 1024;
+	for (let start = 0; start < bytes.length; start += chunk) {
+		// Yield before the first slice too, so the rendered page can paint.
+		await new Promise<void>((resolve) => setTimeout(resolve, 0));
+		if (cancelled()) return false;
+		// Overlap catches a marker crossing a chunk boundary.
+		if (holds(bytes.subarray(start, start + chunk + mark.length - 1), mark))
+			return true;
+	}
+	return false;
+}
+
 /** The page's box as shown (pdf.js shows the crop box), and the turn
  * the file gives it, in degrees clockwise. */
 export function shownBox(page: PDFPage) {
@@ -290,13 +308,22 @@ export async function buildPdf(
 			wanted[i].length ? out.copyPages(doc, wanted[i]) : Promise.resolve([]),
 		),
 	);
+	// Where each wanted page sits in its file's copies, and the copies
+	// already placed: looked up, not searched, so a long document's
+	// thousands of picks stay linear.
+	const at = wanted.map(
+		(pages) => new Map<number, number>(pages.map((page, n) => [page, n])),
+	);
+	const placed = new Set<PDFPage>();
 	for (const pick of picks) {
-		const source = copied[pick.file]?.[wanted[pick.file].indexOf(pick.page)];
+		const n = at[pick.file]?.get(pick.page);
+		const source = n === undefined ? undefined : copied[pick.file]?.[n];
 		if (!source) continue;
 		// The same page twice needs a copy of its own.
-		const page = out.getPages().includes(source)
+		const page = placed.has(source)
 			? (await out.copyPages(docs[pick.file], [pick.page]))[0]
 			: source;
+		placed.add(page);
 		if (pick.turn)
 			page.setRotation(
 				degrees((((page.getRotation().angle + pick.turn) % 360) + 360) % 360),

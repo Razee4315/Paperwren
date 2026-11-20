@@ -228,13 +228,16 @@ export async function restoreNotes(bytes: ArrayBuffer): Promise<number | null> {
 	const incoming = data.notes
 		.flatMap((raw) => validNote(raw) ?? [])
 		.sort((a, b) => a.updatedAt - b.updatedAt);
+	// Each note is written as it comes; the list once, at the end, not
+	// read and written again for every note.
 	for (const note of incoming) {
 		if ((here.get(note.id)?.updatedAt ?? -1) >= note.updatedAt) continue;
-		await saveNote(note);
+		await backend.storeSet(noteKey(note.id), note);
+		here.set(note.id, summarize(note));
 		added++;
 	}
-	// Saving puts a note on top; the list stays newest first.
-	const list = (await loadNotes()).sort((a, b) => b.updatedAt - a.updatedAt);
+	// The list stays newest first.
+	const list = [...here.values()].sort((a, b) => b.updatedAt - a.updatedAt);
 	await backend.storeSet(NOTES_KEY, list);
 	if (Array.isArray(data.marks)) await restoreMarks(data.marks);
 	return added;

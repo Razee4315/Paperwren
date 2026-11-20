@@ -992,7 +992,6 @@ export const ur: Table = {
 	"Language of the document": "دستاویز کی زبان",
 	"Reading page {n} of {total}": "صفحہ {n} از {total} پڑھا جا رہا ہے",
 	searchable: "قابلِ تلاش",
-	"Nothing found yet.": "ابھی کچھ نہیں ملا۔",
 	"Showing the first {n} pages.": "پہلے {n} صفحات دکھائے جا رہے ہیں۔",
 	"Try a sample document": "نمونے کی دستاویز آزمائیں",
 	"Found on {n} pages": {
@@ -1340,4 +1339,11 @@ export const ur: Table = {
 		'کاپی بغیر پاس ورڈ کے کھل جائے گی۔ اسے دوبارہ مقفل کرنے کے لیے "پاس ورڈ لگائیں" استعمال کریں۔',
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"اس PDF میں پڑھنے والے پر پابندیاں ہیں، جیسے متن کاپی کرنا۔ کاپی پر کوئی پابندی نہیں ہوگی۔",
+	"Couldn't delete this note": "یہ نوٹ حذف نہیں ہو سکا",
+	"Couldn't change saved data": "محفوظ ڈیٹا تبدیل نہیں ہو سکا",
+	"A print job is already in progress": "پرنٹ کا کام پہلے ہی جاری ہے",
+	"No results. Try different words or turn off search options.":
+		"کوئی نتیجہ نہیں ملا۔ دوسرے الفاظ آزمائیں یا تلاش کے اختیارات بند کریں۔",
+	"Hide highlights": "نمایاں چھپائیں",
+	"Show highlights": "نمایاں دکھائیں",
 };

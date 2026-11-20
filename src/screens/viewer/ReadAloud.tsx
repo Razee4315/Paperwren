@@ -1,6 +1,6 @@
 import { language, t, uiDir } from "@/lib/i18n";
 import { SPEECH_RATES, Stopped, guessLang, speaker } from "@/lib/speech";
-import { useSettings } from "@/state/settings";
+import { useSetting, useUpdateSetting } from "@/state/settings";
 import { IconButton, toast } from "@/ui";
 import { Pause, Play, SkipBack, SkipForward, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,11 +25,12 @@ export function ReadAloud({
 	active: boolean;
 	onClose: () => void;
 }) {
-	const { settings, update } = useSettings();
+	const speechRate = useSetting("speechRate");
+	const update = useUpdateSetting();
 	const voice = speaker();
 	const [playing, setPlaying] = useState(true);
-	const rateRef = useRef(settings.speechRate);
-	rateRef.current = settings.speechRate;
+	const rateRef = useRef(speechRate);
+	rateRef.current = speechRate;
 
 	// What has been said, what is being said, what was skipped back over,
 	// and the rest of the document, still to be read.
@@ -40,13 +41,28 @@ export function ReadAloud({
 	/** Each run of reading has a number: an older one stops on its own. */
 	const run = useRef(0);
 
-	const next = useCallback(async (): Promise<SpeechPiece | null> => {
-		const queued = ahead.current.pop();
-		if (queued) return queued;
-		flow.current ??= source();
-		const step = await flow.current.next();
-		return step.done ? null : step.value;
-	}, [source]);
+	const fetching = useRef<Promise<unknown>>(Promise.resolve());
+	const next = useCallback(
+		(mine: number): Promise<SpeechPiece | null> => {
+			const pending = fetching.current.then(async () => {
+				if (mine !== run.current) return null;
+				const queued = ahead.current.pop();
+				if (queued) return queued;
+				flow.current ??= source();
+				const step = await flow.current.next();
+				const piece = step.done ? null : step.value;
+				if (mine !== run.current) {
+					// Put it behind pieces queued by Back, before the next fetch.
+					if (piece) ahead.current.unshift(piece);
+					return null;
+				}
+				return piece;
+			});
+			fetching.current = pending.catch(() => {});
+			return pending;
+		},
+		[source],
+	);
 
 	const finish = useCallback(() => {
 		run.current++;
@@ -61,7 +77,7 @@ export function ReadAloud({
 			if (!voice) return;
 			const mine = ++run.current;
 			setPlaying(true);
-			let current = piece ?? (await next());
+			let current = piece ?? (await next(mine));
 			while (current && mine === run.current) {
 				now.current = current;
 				current.show?.();
@@ -79,7 +95,7 @@ export function ReadAloud({
 				}
 				if (mine !== run.current) return;
 				behind.current = [...behind.current, current].slice(-BEHIND);
-				current = await next();
+				current = await next(mine);
 			}
 			if (mine === run.current && !current) {
 				// The end of the document.
@@ -137,7 +153,7 @@ export function ReadAloud({
 		read(previous);
 	};
 	const faster = () => {
-		const at = SPEECH_RATES.indexOf(settings.speechRate);
+		const at = SPEECH_RATES.indexOf(speechRate);
 		const rate = SPEECH_RATES[(at + 1) % SPEECH_RATES.length];
 		update("speechRate", rate);
 		rateRef.current = rate;
@@ -184,11 +200,11 @@ export function ReadAloud({
 				type="button"
 				className={s.speechRate}
 				onClick={faster}
-				aria-label={t("Reading speed {n}×", { n: settings.speechRate })}
+				aria-label={t("Reading speed {n}×", { n: speechRate })}
 				title={t("Reading speed")}
 				data-testid="read-aloud-rate"
 			>
-				{settings.speechRate}×
+				{speechRate}×
 			</button>
 			<IconButton
 				label={t("Stop reading")}

@@ -301,63 +301,135 @@ export function moveKeyed<T>(
  * list keeps well under it. */
 export const ORIGINS_KEPT = 100;
 
-/** The Android documents the app keeps access to for these entries:
- * the originals of picked copies, and documents opened where they are
- * (a saved copy, a file in a folder). */
-function heldDocuments(entries: RecentEntry[]): Set<string> {
-	const held = new Set<string>();
-	for (const e of entries) {
-		if (e.reopen.kind === "managed" && e.reopen.origin)
-			held.add(e.reopen.origin);
-		else if (e.reopen.kind === "uri") held.add(e.reopen.uri);
-	}
-	return held;
+/** A document inside a folder the reader chose to browse
+ * (content://<provider>/tree/<folder>/document/<file>). Access to it is
+ * the folder's: the app never holds or gives back access for one such
+ * document, so the folder's access is never touched through it. */
+export function isTreeDocument(uri: string): boolean {
+	return /^content:\/\/[^/]+\/tree\//.test(uri);
 }
 
-function originsIn(entries: RecentEntry[]): string[] {
+/** The document whose access over restarts an entry needs from Android:
+ * the original of a picked copy, or a document opened where it is (a
+ * file picked with "Open file", a saved copy). None for a file in a
+ * folder the reader chose (the folder's access covers it) or a file
+ * off a phone. */
+export function lastingDocument(entry: RecentEntry): string | null {
+	const { reopen } = entry;
+	if (reopen.kind === "managed") return reopen.origin ?? null;
+	if (
+		reopen.kind === "uri" &&
+		reopen.uri.startsWith("content://") &&
+		!isTreeDocument(reopen.uri)
+	)
+		return reopen.uri;
+	return null;
+}
+
+function lastingIn(entries: RecentEntry[]): string[] {
 	const found: string[] = [];
-	for (const e of entries)
-		if (e.reopen.kind === "managed" && e.reopen.origin)
-			found.push(e.reopen.origin);
+	for (const e of entries) {
+		const uri = lastingDocument(e);
+		if (uri) found.push(uri);
+	}
 	return found;
 }
 
 /**
- * The originals whose access changes from `prev` to `next`: `kept` are
+ * The documents whose access changes from `prev` to `next`: `kept` are
  * new to the list (access to them is to be held over restarts), and
  * `released` are no longer named by any entry (access can be given
- * back). A document still opened where it is, under another entry, is
- * never released.
+ * back). A document still named by another entry (a copy's original
+ * that is also opened where it is) is never released, nor is a file in
+ * a folder the reader chose.
  */
 export function originsChanged(
 	prev: RecentEntry[],
 	next: RecentEntry[],
 ): { kept: string[]; released: string[] } {
-	const before = new Set(originsIn(prev));
-	const still = heldDocuments(next);
+	const before = new Set(lastingIn(prev));
+	const still = new Set(lastingIn(next));
 	return {
-		kept: [...new Set(originsIn(next))].filter((uri) => !before.has(uri)),
+		kept: [...still].filter((uri) => !before.has(uri)),
 		released: [...before].filter((uri) => !still.has(uri)),
 	};
 }
 
-/** Only the `cap` most recently opened entries keep their original's
- * address; older ones go on opening from the copy, renamed in the app
- * only. The same list when none is over. */
+/** Only the `cap` most recently opened entries keep access to their
+ * document over restarts. Older copies keep opening from the copy,
+ * renamed in the app only. An older document picked with "Open file"
+ * has no copy, so it leaves the list (a pinned one stays). The same
+ * list when none is over. */
 export function capOrigins(
 	list: RecentEntry[],
 	cap = ORIGINS_KEPT,
 ): RecentEntry[] {
-	const withOrigin = list
-		.filter((e) => e.reopen.kind === "managed" && e.reopen.origin)
+	const holding = list
+		.filter((e) => lastingDocument(e))
 		.sort((a, b) => b.openedAt - a.openedAt);
-	if (withOrigin.length <= cap) return list;
-	const over = new Set(withOrigin.slice(cap).map((e) => e.id));
-	return list.map((e) =>
-		over.has(e.id) && e.reopen.kind === "managed"
-			? { ...e, reopen: { kind: "managed", path: e.reopen.path } }
-			: e,
-	);
+	if (holding.length <= cap) return list;
+	const over = new Set(holding.slice(cap).map((e) => e.id));
+	return list
+		.filter((e) => !(over.has(e.id) && e.reopen.kind === "uri" && !e.pinned))
+		.map((e) =>
+			over.has(e.id) && e.reopen.kind === "managed"
+				? { ...e, reopen: { kind: "managed", path: e.reopen.path } }
+				: e,
+		);
+}
+
+/** A picked document whose access was taken at the pick waits this long
+ * for its entry before it may be given back: the pick is opened, then
+ * recorded, a moment later. */
+export const PICK_GRACE = 60_000;
+
+/**
+ * Access taken when a document was picked ("Open file" keeps its
+ * address instead of copying it), by document: when it was picked.
+ * Recent files names most of them; one it never names (a tool's file,
+ * a document that did not open, Recent files off) is given back, or
+ * Android's limit on such grants fills and the oldest go, folders
+ * included. `release` are to be given back now: not named by `list`,
+ * not open, and picked in a run before this one (`startedAt`) or more
+ * than `grace` ago. `settled` leave the ledger: those, and the ones
+ * the list names now (it gives them back when it stops naming them).
+ */
+export function strayGrants(
+	pending: Record<string, number>,
+	list: RecentEntry[],
+	open: string[],
+	now: number,
+	startedAt: number,
+	grace = PICK_GRACE,
+): { release: string[]; settled: string[] } {
+	const named = new Set(lastingIn(list));
+	const opened = new Set(open);
+	const release: string[] = [];
+	const settled: string[] = [];
+	for (const [uri, at] of Object.entries(pending)) {
+		if (named.has(uri)) settled.push(uri);
+		else if (!opened.has(uri) && (at < startedAt || now - at > grace)) {
+			release.push(uri);
+			settled.push(uri);
+		}
+	}
+	return { release, settled };
+}
+
+/** The ledger of picked grants as stored: document to time picked. */
+export function normalizeGrants(stored: unknown): Record<string, number> {
+	const out: Record<string, number> = {};
+	if (!stored || typeof stored !== "object" || Array.isArray(stored))
+		return out;
+	for (const [uri, at] of Object.entries(stored as Record<string, unknown>))
+		if (
+			uri.startsWith("content://") &&
+			typeof at === "number" &&
+			Number.isFinite(at) &&
+			at >= 0
+		)
+			out[uri] = at;
+	return out;
 }
 
 /** Managed-copy path relative to the imports directory, as the Rust

@@ -1,6 +1,9 @@
 import { isDesktop } from "@/lib/env";
 import { t } from "@/lib/i18n";
 import { keys } from "@/lib/keys";
+import { usePendingTasks } from "@/lib/taskFeedback";
+import { useDelayed } from "@/lib/useDelayed";
+import { useExitPresence } from "@/lib/useExitPresence";
 import { useBackClose } from "@/state/navigation";
 import { X } from "lucide-react";
 import {
@@ -15,6 +18,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "./Button";
+import { Spinner } from "./Misc";
 import s from "./Overlay.module.css";
 
 /** Open sheets and dialogs; the app is inert while there is one. */
@@ -26,6 +30,12 @@ export const modalOpen = () => modals - leaving > 0;
  * render: they no longer count, so a second quick Esc goes on to what
  * is under them instead of being lost. */
 let leaving = 0;
+
+/** Who has the keyboard: the app itself while nothing is over it
+ * (`depth` 0), else the top dialog or tool (its depth, which
+ * useModalFocus hands back). Every key handler asks this one thing, so
+ * a key reaches only the layer that is on top. */
+export const ownsKeys = (depth = 0) => modals - leaving === depth;
 
 /** Where the pointer last went down, and whether that was a right
  * click: on a desktop a menu opens there, not at the foot of the
@@ -102,10 +112,12 @@ export function placeMenu(
 export function useModalFocus(
 	root: React.RefObject<HTMLElement | null>,
 	onClose: () => void,
-) {
+): () => boolean {
 	const closeRef = useRef(onClose);
 	closeRef.current = onClose;
-	useEffect(() => {
+	// This layer's depth while open; -1 (never on top) otherwise.
+	const own = useRef(-1);
+	useLayoutEffect(() => {
 		const opener = document.activeElement as HTMLElement | null;
 		const field = root.current?.querySelector<HTMLElement>(
 			"input:not([data-no-focus]), textarea:not([data-no-focus])",
@@ -115,12 +127,13 @@ export function useModalFocus(
 		// taken out of reach of Tab and assistive tech while one is open.
 		const app = document.getElementById("root");
 		const depth = ++modals;
+		own.current = depth;
 		app?.setAttribute("inert", "");
 		let left = false;
 		let gone = false;
 		const onKey = (e: KeyboardEvent) => {
 			// Only the top dialog handles keys (for example Save over the editor).
-			if (left || modals - leaving !== depth) return;
+			if (left || !ownsKeys(depth)) return;
 			// A field recording a new shortcut owns every key, Esc and Tab
 			// included (Settings, Keyboard shortcuts).
 			if ((e.target as Element | null)?.closest?.("[data-records-keys]"))
@@ -157,11 +170,26 @@ export function useModalFocus(
 		return () => {
 			window.removeEventListener("keydown", onKey, true);
 			gone = true;
+			own.current = -1;
 			if (left) leaving--;
 			if (--modals === 0) app?.removeAttribute("inert");
 			opener?.focus?.();
 		};
 	}, [root]);
+	// Whether this layer has the keyboard now, for its own shortcuts.
+	return useCallback(() => ownsKeys(own.current), []);
+}
+
+function Backdrop({
+	onClose,
+	exit = true,
+}: { onClose?: () => void; exit?: boolean }) {
+	const ref = useRef<HTMLDivElement>(null);
+	useExitPresence(ref, undefined, exit);
+	return (
+		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape and Back provide keyboard dismissal
+		<div ref={ref} className={s.scrim} onClick={onClose} aria-hidden="true" />
+	);
 }
 
 interface PanelProps {
@@ -198,8 +226,10 @@ export function Sheet({
 function SheetPanel({ title, onClose, children, testId }: PanelProps) {
 	const ref = useRef<HTMLDivElement>(null);
 	const [drag, setDrag] = useState(0);
+	const [dragging, setDragging] = useState(false);
 	const start = useRef<number | null>(null);
 	useModalFocus(ref, onClose);
+	// Retained sheet exits exceeded the throttled frame budget.
 
 	// The handle and the title pull the sheet down to close it. Not the
 	// buttons beside the title: holding the pointer for the drag would
@@ -208,6 +238,7 @@ function SheetPanel({ title, onClose, children, testId }: PanelProps) {
 		if ((e.target as Element).closest("button, a, input, select, textarea"))
 			return;
 		start.current = e.clientY;
+		setDragging(true);
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 	};
 	const onMove = (e: React.PointerEvent) => {
@@ -216,14 +247,14 @@ function SheetPanel({ title, onClose, children, testId }: PanelProps) {
 	const onUp = () => {
 		if (start.current === null) return;
 		start.current = null;
+		setDragging(false);
 		if (drag > 90) onClose();
 		else setDrag(0);
 	};
 
 	return (
 		<>
-			{/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer shortcut; Escape and Back close it from the keyboard */}
-			<div className={s.scrim} onClick={onClose} aria-hidden="true" />
+			<Backdrop onClose={onClose} exit={false} />
 			<div
 				ref={ref}
 				className={s.sheet}
@@ -233,11 +264,10 @@ function SheetPanel({ title, onClose, children, testId }: PanelProps) {
 				aria-label={typeof title === "string" ? title : undefined}
 				tabIndex={-1}
 				data-testid={testId}
-				style={
-					drag
-						? { transform: `translateY(${drag}px)`, transition: "none" }
-						: undefined
-				}
+				style={{
+					transform: `translateY(${drag}px)`,
+					transition: dragging ? "none" : undefined,
+				}}
 			>
 				<div
 					onPointerDown={onDown}
@@ -280,6 +310,7 @@ function MenuPanel({ title, onClose, children, testId }: PanelProps) {
 	const [anchor] = useState(anchorBox);
 	const [at, setAt] = useState<CSSProperties>({ visibility: "hidden" });
 	useModalFocus(ref, onClose);
+	useExitPresence(ref);
 
 	useLayoutEffect(() => {
 		const el = ref.current;
@@ -535,12 +566,16 @@ function DialogPanel({
 	wide: boolean;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
+	const descriptionId = useId();
+	const wrap = useRef<HTMLDivElement>(null);
 	useModalFocus(ref, onClose);
+	useExitPresence(wrap);
 	return (
 		<>
-			<div className={s.scrim} aria-hidden="true" />
+			<Backdrop />
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer shortcut; Escape and Back close it from the keyboard */}
 			<div
+				ref={wrap}
 				className={`${s.dialogWrap} ${fullScreen ? s.fullScreen : ""} ${wide ? s.wide : ""}`}
 				onClick={onClose}
 			>
@@ -551,13 +586,18 @@ function DialogPanel({
 					role={alert ? "alertdialog" : "dialog"}
 					aria-modal="true"
 					aria-label={title}
+					aria-describedby={children ? descriptionId : undefined}
 					tabIndex={-1}
 					onClick={(e) => e.stopPropagation()}
 					data-testid={testId}
 				>
 					{art && <div className={s.dialogArt}>{art}</div>}
 					<h2 className={s.dialogTitle}>{title}</h2>
-					{children && <div className={s.dialogBody}>{children}</div>}
+					{children && (
+						<div id={descriptionId} className={s.dialogBody}>
+							{children}
+						</div>
+					)}
 					<div className={s.dialogActions}>{actions}</div>
 				</div>
 			</div>
@@ -567,18 +607,40 @@ function DialogPanel({
 
 // ---------- Toasts ----------
 
+interface ToastAction {
+	label: string;
+	run: () => void;
+	/** The message went without its action being taken: what the action
+	 * could have brought back may now be let go. Called once, when it
+	 * times out or a newer message of the same words takes its place;
+	 * never while it is on screen. */
+	onExpire?: () => void;
+}
+
 interface ToastState {
 	message: string;
-	action?: { label: string; run: () => void };
+	action?: ToastAction;
 	key: number;
+	/** How long it has left on screen, in ms, */
+	left: number;
+	/** counted from here while its time is running. */
+	since?: number;
 }
 
-let pushToast: ((t: Omit<ToastState, "key">) => void) | null = null;
+let pushToast: ((t: { message: string; action?: ToastAction }) => void) | null =
+	null;
 
 /** Show a short message, optionally with one action (e.g. Undo). */
-export function toast(message: string, action?: ToastState["action"]) {
-	pushToast?.({ message, action });
+export function toast(message: string, action?: ToastAction) {
+	if (pushToast) pushToast({ message, action });
+	// Nowhere to show it: the chance to act has passed at once.
+	else action?.onExpire?.();
 }
+
+/** Messages with an action waiting to come back, at most. */
+const WAITING = 2;
+/** A message coming back stays at least this long. */
+const BACK_FOR = 2500;
 
 /**
  * The messages at the foot of the screen ("Bookmark added", Undo).
@@ -588,14 +650,58 @@ export function toast(message: string, action?: ToastState["action"]) {
  * clicked. The live region stays in place and only its words change, so
  * a screen reader announces each message. A message waits while the
  * pointer or the keyboard is on it, so Undo can be reached in time.
+ *
+ * One message at a time, but one with an action (Undo, Try again) is not
+ * lost to the next: it steps aside for it and comes back with the time
+ * it had left. Only a newer message of the same words ends it, as a
+ * second "Removed from recents" does the first.
  */
 export function ToastHost() {
+	const pending = usePendingTasks();
+	const showPending = useDelayed(pending);
 	const [current, setCurrent] = useState<ToastState | null>(null);
+	const currentRef = useRef(current);
+	currentRef.current = current;
+	const waiting = useRef<ToastState[]>([]);
+	const keys = useRef(0);
 	const [held, setHeld] = useState(false);
-	const show = useCallback(
-		(t: Omit<ToastState, "key">) => setCurrent({ ...t, key: Date.now() }),
-		[],
-	);
+	const visual = useRef<HTMLDivElement>(null);
+	useExitPresence(visual, current?.key);
+	const end = useCallback((gone: ToastState, acted: boolean) => {
+		if (!acted) gone.action?.onExpire?.();
+		const next = waiting.current.shift() ?? null;
+		currentRef.current = next;
+		setCurrent(next);
+	}, []);
+	const show = useCallback((t: { message: string; action?: ToastAction }) => {
+		const now = currentRef.current;
+		if (now?.action) {
+			if (now.message === t.message) now.action.onExpire?.();
+			else {
+				const spent = now.since ? Date.now() - now.since : 0;
+				waiting.current.unshift({
+					...now,
+					since: undefined,
+					left: Math.max(now.left - spent, BACK_FOR),
+				});
+			}
+		}
+		// A newer message of the same words ends one waiting, too; and no
+		// more than a few wait.
+		const same = waiting.current.filter((one) => one.message === t.message);
+		waiting.current = waiting.current.filter(
+			(one) => one.message !== t.message,
+		);
+		for (const dropped of [...same, ...waiting.current.splice(WAITING)])
+			dropped.action?.onExpire?.();
+		const next = {
+			...t,
+			key: ++keys.current,
+			left: t.action ? 6000 : 3000,
+		};
+		currentRef.current = next;
+		setCurrent(next);
+	}, []);
 	useEffect(() => {
 		pushToast = show;
 		return () => {
@@ -604,12 +710,16 @@ export function ToastHost() {
 	}, [show]);
 	useEffect(() => {
 		if (!current || held) return;
-		const t = window.setTimeout(
-			() => setCurrent(null),
-			current.action ? 6000 : 3000,
-		);
-		return () => window.clearTimeout(t);
-	}, [current, held]);
+		const started = Date.now();
+		current.since = started;
+		const t = window.setTimeout(() => end(current, false), current.left);
+		return () => {
+			window.clearTimeout(t);
+			// Paused while held: what is left is kept.
+			current.since = undefined;
+			current.left -= Date.now() - started;
+		};
+	}, [current, held, end]);
 	// A message gone from under the pointer no longer holds the next one.
 	useEffect(() => {
 		if (!current) setHeld(false);
@@ -617,8 +727,14 @@ export function ToastHost() {
 	return createPortal(
 		// biome-ignore lint/a11y/useSemanticElements: a live region, not form output
 		<div className={s.toastRegion} role="status" aria-live="polite">
+			{showPending && (
+				<div className={s.pending}>
+					<Spinner label={t("Loading")} />
+				</div>
+			)}
 			{current && (
 				<div
+					ref={visual}
 					className={s.toast}
 					key={current.key}
 					onPointerEnter={() => setHeld(true)}
@@ -634,7 +750,7 @@ export function ToastHost() {
 							className={s.toastAction}
 							onClick={() => {
 								current.action?.run();
-								setCurrent(null);
+								end(current, true);
 							}}
 						>
 							{current.action.label}

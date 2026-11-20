@@ -1,14 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { androidSaved, requestForSaved } from "../backend";
 import {
+	PICK_GRACE,
+	capOrigins,
 	cleanPosition,
 	folderOf,
 	idForReopen,
+	isTreeDocument,
+	lastingDocument,
 	managedRelPath,
 	migrateLegacyRecents,
+	normalizeGrants,
 	normalizeRecents,
+	originsChanged,
 	recordOpen,
 	sharedNames,
+	strayGrants,
 } from "../recents";
 import type { RecentEntry, Reopen } from "../types";
 
@@ -290,5 +297,127 @@ describe("two recent files of one name", () => {
 			entry("c", "Other.pdf"),
 		]);
 		expect([...twins]).toEqual(["notes.pdf"]);
+	});
+});
+
+describe("documents opened where they are (Open file, #95)", () => {
+	const PICKED =
+		"content://com.android.providers.downloads.documents/document/msf%3A31";
+	const TREE =
+		"content://com.android.externalstorage.documents/tree/primary%3ADownload";
+	const IN_FOLDER = `${TREE}/document/primary%3ADownload%2Fa.pdf`;
+	const doc = (u: string, extra: Partial<RecentEntry> = {}): RecentEntry => ({
+		...entry(0),
+		id: idForReopen({ kind: "uri", uri: u }),
+		reopen: { kind: "uri", uri: u },
+		...extra,
+	});
+	const copyOf = (origin: string, openedAt = 0): RecentEntry => ({
+		...entry(0),
+		id: idForReopen({ kind: "managed", path: `/imports/${openedAt}/a.pdf` }),
+		reopen: { kind: "managed", path: `/imports/${openedAt}/a.pdf`, origin },
+		openedAt,
+	});
+
+	it("tells a folder's document from one picked on its own", () => {
+		expect(isTreeDocument(IN_FOLDER)).toBe(true);
+		expect(isTreeDocument(PICKED)).toBe(false);
+		expect(lastingDocument(doc(PICKED))).toBe(PICKED);
+		expect(lastingDocument(doc(IN_FOLDER))).toBeNull();
+		expect(lastingDocument(copyOf(PICKED))).toBe(PICKED);
+		expect(
+			lastingDocument(entry(1, { reopen: { kind: "path", path: "/a" } })),
+		).toBeNull();
+	});
+
+	it("holds a picked document the list names, and lets it go when it leaves", () => {
+		const a = doc(PICKED);
+		expect(originsChanged([], [a])).toEqual({ kept: [PICKED], released: [] });
+		expect(originsChanged([a], [])).toEqual({ kept: [], released: [PICKED] });
+	});
+
+	it("never holds or lets go of a file in a folder the reader chose", () => {
+		const f = doc(IN_FOLDER);
+		expect(originsChanged([], [f])).toEqual({ kept: [], released: [] });
+		expect(originsChanged([f], [])).toEqual({ kept: [], released: [] });
+	});
+
+	it("keeps access while another entry still names the document", () => {
+		const a = doc(PICKED);
+		const copy = copyOf(PICKED);
+		expect(originsChanged([a, copy], [copy]).released).toEqual([]);
+		expect(originsChanged([a, copy], [a]).released).toEqual([]);
+		expect(originsChanged([a, copy], []).released).toEqual([PICKED]);
+	});
+
+	it("drops the oldest picked documents past the cap, but not a pinned one", () => {
+		const d = (n: number, extra: Partial<RecentEntry> = {}) =>
+			doc(`content://media/document/${n}`, { openedAt: n, ...extra });
+		const folder = doc(IN_FOLDER, { openedAt: 0 });
+		const list = [
+			d(4),
+			d(3),
+			d(2, { pinned: true }),
+			d(1),
+			copyOf(PICKED, 5),
+			folder,
+		];
+		expect(capOrigins(list, 5)).toBe(list);
+		const capped = capOrigins(list, 2);
+		// Newest two (the copy, d4) keep access; d3 and d1 leave; d2 is
+		// pinned and stays; the folder's file is not counted.
+		expect(capped.map((e) => e.id)).toEqual(
+			[d(4), d(2), copyOf(PICKED, 5), folder].map((e) => e.id),
+		);
+		expect(originsChanged(list, capped).released).toEqual([
+			"content://media/document/3",
+			"content://media/document/1",
+		]);
+	});
+});
+
+describe("access taken at a pick that no entry took up", () => {
+	const A = "content://media/document/1";
+	const B = "content://media/document/2";
+	const C = "content://media/document/3";
+	const named: RecentEntry = {
+		...entry(0),
+		id: idForReopen({ kind: "uri", uri: A }),
+		reopen: { kind: "uri", uri: A },
+	};
+	const started = 1_000_000;
+
+	it("leaves the ledger once the list names it", () => {
+		expect(
+			strayGrants({ [A]: started + 1 }, [named], [], started + 2, started),
+		).toEqual({ release: [], settled: [A] });
+	});
+
+	it("is given back once closed and past its first moments", () => {
+		const now = started + PICK_GRACE + 10;
+		const pending = { [B]: started + 5, [C]: now - 1 };
+		expect(strayGrants(pending, [named], [], now, started)).toEqual({
+			release: [B],
+			settled: [B],
+		});
+		// Open in a tab or a tool: kept, however old.
+		expect(strayGrants(pending, [named], [B], now, started)).toEqual({
+			release: [],
+			settled: [],
+		});
+	});
+
+	it("from a run before this one is given back at once", () => {
+		expect(
+			strayGrants({ [B]: started - 1 }, [], [], started + 1, started),
+		).toEqual({ release: [B], settled: [B] });
+	});
+
+	it("is read back only where well formed", () => {
+		expect(
+			normalizeGrants({ [A]: 5, "file:///x": 1, [B]: "no", [C]: -1 }),
+		).toEqual({ [A]: 5 });
+		expect(normalizeGrants(null)).toEqual({});
+		expect(normalizeGrants([A])).toEqual({});
 	});
 });

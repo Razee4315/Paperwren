@@ -49,7 +49,7 @@ function glyphFor(format: FileFormat): Glyph {
 }
 
 function GlyphShape({ glyph }: { glyph: Glyph }) {
-	const w = "#fff";
+	const w = "var(--on-format, #fff)";
 	switch (glyph) {
 		case "pdf":
 			// A bookmarked page: reading-first.
@@ -206,7 +206,7 @@ export function FileIcon({
 				fontWeight="800"
 				fontSize={label.length > 3 ? 8 : 9}
 				letterSpacing="0.4"
-				fill="#fff"
+				fill="var(--on-format, #fff)"
 			>
 				{label}
 			</text>

@@ -67,11 +67,25 @@ function thumbOf(bitmap: ImageBitmap, quarters: number): Promise<Blob | null> {
 	canvas.width = side ? h : w;
 	canvas.height = side ? w : h;
 	const ctx = canvas.getContext("2d");
-	if (!ctx) return Promise.resolve(null);
+	if (!ctx) {
+		canvas.width = 0;
+		canvas.height = 0;
+		return Promise.resolve(null);
+	}
 	ctx.translate(canvas.width / 2, canvas.height / 2);
 	ctx.rotate((quarters * Math.PI) / 2);
 	ctx.drawImage(bitmap, -w / 2, -h / 2, w, h);
-	return new Promise((done) => canvas.toBlob(done, "image/jpeg", 0.82));
+	return new Promise((done) =>
+		canvas.toBlob(
+			(blob) => {
+				canvas.width = 0;
+				canvas.height = 0;
+				done(blob);
+			},
+			"image/jpeg",
+			0.82,
+		),
+	);
 }
 
 /**
@@ -160,16 +174,22 @@ export function ScanEditor({
 		async (p: Photo, from: Quad) => {
 			setPhase("finding");
 			const started = performance.now();
-			const result = await findPage(p.find);
-			// Long enough to see what happened, never a flash.
-			const wait = 650 - (performance.now() - started);
-			if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-			if (!alive.current) return;
-			const scale = photoScale(p);
-			const to = scaleQuad(result.quad, scale.find / scale.view);
-			setFound(result.found);
-			setPhase("edges");
-			glide(from, to);
+			try {
+				const result = await findPage(p.find);
+				// Long enough to see what happened, never a flash.
+				const wait = 650 - (performance.now() - started);
+				if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+				if (!alive.current) return;
+				const scale = photoScale(p);
+				const to = scaleQuad(result.quad, scale.find / scale.view);
+				setFound(result.found);
+				setPhase("edges");
+				glide(from, to);
+			} catch {
+				if (!alive.current) return;
+				setFound(false);
+				setPhase("edges");
+			}
 		},
 		[glide],
 	);
@@ -184,6 +204,10 @@ export function ScanEditor({
 			.then((p) => {
 				if (cancelled) {
 					p.bitmap.close();
+					p.view.width = 0;
+					p.view.height = 0;
+					p.find.width = 0;
+					p.find.height = 0;
 					return;
 				}
 				const scale = photoScale(p);
@@ -199,19 +223,30 @@ export function ScanEditor({
 				}
 			})
 			.catch(() => {
-				if (!cancelled) setPhase("failed");
+				if (!cancelled && alive.current) setPhase("failed");
 			});
 		return () => {
 			cancelled = true;
 		};
 	}, []);
 
-	// Let go of the worker and the previews, unless the page was kept.
+	// Let go of the worker, canvases and previews, unless the page was kept.
 	useEffect(
 		() => () => {
 			if (!handedOver.current) job.current?.close();
 		},
 		[],
+	);
+	useEffect(
+		() => () => {
+			if (photo) {
+				photo.view.width = 0;
+				photo.view.height = 0;
+				photo.find.width = 0;
+				photo.find.height = 0;
+			}
+		},
+		[photo],
 	);
 	useEffect(
 		() => () => {
@@ -268,6 +303,7 @@ export function ScanEditor({
 		finished.current = true;
 		setFinishing(true);
 		const thumb = await thumbOf(looks[look], quarters).catch(() => null);
+		if (!alive.current) return;
 		handedOver.current = true;
 		onDone({
 			quad: scaleQuad(outline, scale.view),

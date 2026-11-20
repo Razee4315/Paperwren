@@ -924,7 +924,6 @@ export const zh: Table = {
 	"Language of the document": "文档语言",
 	"Reading page {n} of {total}": "正在读取第 {n} 页，共 {total} 页",
 	searchable: "可搜索",
-	"Nothing found yet.": "暂时没有找到内容。",
 	"Showing the first {n} pages.": "显示前 {n} 页。",
 	"Try a sample document": "试试示例文档",
 	"Found on {n} pages": "在 {n} 页中找到",
@@ -1248,4 +1247,11 @@ export const zh: Table = {
 		"副本打开时不需要密码。如需重新加密，请使用“添加密码”。",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"此 PDF 限制阅读者的某些操作，例如复制。副本将没有这些限制。",
+	"Couldn't delete this note": "无法删除此笔记",
+	"Couldn't change saved data": "无法更改已保存的数据",
+	"A print job is already in progress": "已有打印任务正在进行",
+	"No results. Try different words or turn off search options.":
+		"没有结果。请尝试其他词语或关闭搜索选项。",
+	"Hide highlights": "隐藏高亮",
+	"Show highlights": "显示高亮",
 };

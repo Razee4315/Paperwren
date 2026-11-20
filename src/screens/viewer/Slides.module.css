@@ -127,7 +127,10 @@
 	outline: none;
 	touch-action: none;
 	user-select: none;
-	animation: pw-fade-in var(--t-med) var(--ease);
+	animation: pw-screen-in var(--t-med) var(--ease);
+}
+:global(html.desktop) .present {
+	animation: pw-fade-in var(--t-fast) var(--ease);
 }
 /* With a mouse the pointer leaves with the controls. */
 .present[data-idle] {

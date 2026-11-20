@@ -2,12 +2,15 @@ import { backend } from "@/lib/backend";
 import { isDesktop, isTauri } from "@/lib/env";
 import { loadLanguage, resolveLanguage, setLanguage } from "@/lib/i18n";
 import {
+	hintTheme,
+	hintedTheme,
 	isDarkTheme,
 	migrateLegacySettings,
 	normalizeSettings,
 	resolveTheme,
 } from "@/lib/settings";
 import { setCustomShortcuts } from "@/lib/shortcuts";
+import { type StoredValue, createStoredValue } from "@/lib/storedValue";
 import {
 	DEFAULT_SETTINGS,
 	type ResolvedTheme,
@@ -23,7 +26,9 @@ import {
 	useEffect,
 	useMemo,
 	useState,
+	useSyncExternalStore,
 } from "react";
+import { type Store, createStore, usePick, useSelect } from "./store";
 
 interface SettingsApi {
 	settings: Settings;
@@ -34,6 +39,18 @@ interface SettingsApi {
 
 const SettingsContext = createContext<SettingsApi | null>(null);
 
+interface SettingsStores {
+	values: Store<Settings>;
+	ready: Store<boolean>;
+	/** The device is in dark mode (for the theme "system"). */
+	systemDark: Store<boolean>;
+}
+/** The stores and `update`, which never change: no reader is drawn again
+ * through this context. */
+const SettingsStoresContext = createContext<
+	(SettingsStores & { update: SettingsApi["update"] }) | null
+>(null);
+
 const THEME_COLOR: Record<ResolvedTheme, string> = {
 	light: "#f3f1ec",
 	sepia: "#ede3d0",
@@ -41,6 +58,12 @@ const THEME_COLOR: Record<ResolvedTheme, string> = {
 	"plain-light": "#ffffff",
 	"plain-dark": "#0e0e10",
 };
+
+/** Desktop windows share the store (see the focus refresh below). */
+const SHARED = isTauri && isDesktop;
+/** A burst of changes this close together (a slider dragged) is one
+ * write, made after the last. */
+const WRITE_AFTER = 250;
 
 function systemPrefersDark() {
 	return (
@@ -65,51 +88,74 @@ export async function loadSettings(): Promise<Settings> {
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-	const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-	// The keys every handler checks: set as the settings are read, so a
-	// change applies to the very next key press.
-	setCustomShortcuts(settings.shortcuts);
-	const [ready, setReady] = useState(false);
-	const [systemDark, setSystemDark] = useState(systemPrefersDark);
+	// Held in stores, so that a reader of one setting is not drawn again
+	// when another changes (useSetting); useSettings still hears them all.
+	const [stores] = useState<SettingsStores & { saved: StoredValue<Settings> }>(
+		() => {
+			// Until the settings are read, the theme last used (index.html has
+			// already applied it), so the first render does not switch it back
+			// to the default.
+			const theme = hintedTheme();
+			// Read once; a change before that waits for it, a burst of
+			// changes (a slider) is one write, and a failed write is said.
+			const saved = createStoredValue<Settings>({
+				key: STORAGE_KEYS.settings,
+				initial: theme ? { ...DEFAULT_SETTINGS, theme } : DEFAULT_SETTINGS,
+				normalize: normalizeSettings,
+				read: loadSettings,
+				shared: SHARED,
+				delay: WRITE_AFTER,
+			});
+			const values = saved.value;
+			// The keys every handler checks: set as the settings are read, so
+			// a change applies to the very next key press.
+			setCustomShortcuts(values.get().shortcuts);
+			values.subscribe(() => setCustomShortcuts(values.get().shortcuts));
+			return {
+				saved,
+				values,
+				ready: saved.ready,
+				systemDark: createStore(!!systemPrefersDark()),
+			};
+		},
+	);
+	const settings = useSyncExternalStore(
+		stores.values.subscribe,
+		stores.values.get,
+	);
+	const ready = useSyncExternalStore(stores.ready.subscribe, stores.ready.get);
+	const systemDark = useSyncExternalStore(
+		stores.systemDark.subscribe,
+		stores.systemDark.get,
+	);
 
 	useEffect(() => {
-		let alive = true;
-		loadSettings().then((s) => {
-			if (!alive) return;
-			setSettings(s);
-			setReady(true);
-		});
-		return () => {
-			alive = false;
-		};
-	}, []);
+		void stores.saved.load();
+	}, [stores]);
 
 	// Desktop: each open document is a window of its own, and they share
 	// the settings. Coming back to a window, take up what was changed in
-	// another (the theme, most of all), so that this one does not write
-	// its older copy back over it.
+	// another (the theme, most of all). A change made here is written
+	// onto the settings as stored then, so it does not put back this
+	// window's older copy of the others.
 	useEffect(() => {
-		if (!ready || !isTauri || !isDesktop) return;
-		const refresh = () => {
-			loadSettings()
-				.then((fresh) =>
-					setSettings((mine) =>
-						JSON.stringify(mine) === JSON.stringify(fresh) ? mine : fresh,
-					),
-				)
-				.catch(() => {});
-		};
+		if (!ready || !SHARED) return;
+		const refresh = () => stores.saved.refresh();
 		window.addEventListener("focus", refresh);
 		return () => window.removeEventListener("focus", refresh);
-	}, [ready]);
+	}, [ready, stores]);
 
 	useEffect(() => {
 		const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
 		if (!mq) return;
-		const on = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+		const on = (e: MediaQueryListEvent) => stores.systemDark.set(e.matches);
 		mq.addEventListener("change", on);
 		return () => mq.removeEventListener("change", on);
-	}, []);
+	}, [stores]);
+
+	useEffect(() => {
+		if (ready) hintTheme(settings.theme);
+	}, [ready, settings.theme]);
 
 	const theme = resolveTheme(settings.theme, systemDark);
 	// Books, Markdown and reading view take the face the reader picked.
@@ -151,27 +197,69 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 	}, [ready, settings.language]);
 
 	const update = useCallback(
-		<K extends keyof Settings>(key: K, value: Settings[K]) => {
-			setSettings((prev) => {
-				const next = { ...prev, [key]: value };
-				backend.storeSet(STORAGE_KEYS.settings, next).catch(() => {});
-				return next;
-			});
-		},
-		[],
+		<K extends keyof Settings>(key: K, value: Settings[K]) =>
+			stores.saved.edit((settings) => ({ ...settings, [key]: value })),
+		[stores],
 	);
 
 	const api = useMemo(
 		() => ({ settings, ready, update, theme }),
 		[settings, ready, update, theme],
 	);
+	const fixed = useMemo(() => ({ ...stores, update }), [stores, update]);
 	return (
-		<SettingsContext.Provider value={api}>{children}</SettingsContext.Provider>
+		<SettingsStoresContext.Provider value={fixed}>
+			<SettingsContext.Provider value={api}>
+				{children}
+			</SettingsContext.Provider>
+		</SettingsStoresContext.Provider>
 	);
 }
 
+/** Every setting, the theme and `update`: the reader is drawn again
+ * whenever any setting changes. Hot screens read single settings with
+ * useSetting / useSettingsOf instead. */
 export function useSettings(): SettingsApi {
 	const ctx = useContext(SettingsContext);
 	if (!ctx) throw new Error("useSettings must be used inside SettingsProvider");
 	return ctx;
+}
+
+function useStores(): SettingsStores & { update: SettingsApi["update"] } {
+	const ctx = useContext(SettingsStoresContext);
+	if (!ctx) throw new Error("settings read outside SettingsProvider");
+	return ctx;
+}
+
+/** One setting; the reader is drawn again only when it changes. */
+export function useSetting<K extends keyof Settings>(key: K): Settings[K] {
+	return useSelect(useStores().values, (settings) => settings[key]);
+}
+
+/** Some settings, as one object that keeps its identity while they do. */
+export function useSettingsOf<K extends keyof Settings>(
+	...keys: K[]
+): Pick<Settings, K> {
+	return usePick(useStores().values, keys);
+}
+
+/** The theme as drawn ("system" resolved); the reader is drawn again
+ * only when it changes. */
+export function useTheme(): ResolvedTheme {
+	const { values, systemDark } = useStores();
+	const theme = useSelect(values, (settings) => settings.theme);
+	return resolveTheme(
+		theme,
+		useSelect(systemDark, (dark) => dark),
+	);
+}
+
+/** Whether the settings have been read from storage. */
+export function useSettingsReady(): boolean {
+	return useSelect(useStores().ready, (ready) => ready);
+}
+
+/** Change one setting (and save it). The same function at every render. */
+export function useUpdateSetting(): SettingsApi["update"] {
+	return useStores().update;
 }

@@ -75,8 +75,10 @@
 .sectionLink svg {
 	flex-shrink: 0;
 }
-.sectionLink:hover {
-	color: var(--text);
+@media (hover: hover) {
+	.sectionLink:hover {
+		color: var(--text);
+	}
 }
 .sectionLink[aria-current="true"] {
 	border-color: transparent;
@@ -112,8 +114,10 @@
 		background: none;
 		font-size: 14px;
 	}
-	.sectionLink:hover {
-		background: var(--surface-2);
+	@media (hover: hover) {
+		.sectionLink:hover {
+			background: var(--surface-2);
+		}
 	}
 	.column {
 		width: 100%;
@@ -212,7 +216,7 @@
 	width: calc((100% - 8px) / var(--n));
 	border-radius: 10px;
 	background: var(--surface);
-	box-shadow: 0 0 0 1px var(--line-strong);
+	box-shadow: 0 0 0 1px var(--line-control);
 	transform: translateX(calc(100% * var(--i)));
 	transition: transform var(--t-med) var(--ease);
 }
@@ -244,8 +248,10 @@
 	text-align: start;
 	transition: background-color var(--t-fast) var(--ease);
 }
-.action:hover:not(:disabled) {
-	background: var(--surface-2);
+@media (hover: hover) {
+	.action:hover:not(:disabled) {
+		background: var(--surface-2);
+	}
 }
 .action:active:not(:disabled) {
 	background: var(--surface-3);
@@ -341,7 +347,7 @@
 	display: inline-block;
 	min-width: 24px;
 	padding: 2px 7px;
-	border: 1px solid var(--line-strong);
+	border: 1px solid var(--line-control);
 	border-bottom-width: 2px;
 	border-radius: 6px;
 	background: var(--surface);
@@ -370,8 +376,10 @@
 	border-radius: var(--r-s);
 	border: 1px solid transparent;
 }
-.combo:hover {
-	background: var(--surface-2);
+@media (hover: hover) {
+	.combo:hover {
+		background: var(--surface-2);
+	}
 }
 .combo[data-recording] {
 	border-color: var(--accent);
@@ -399,8 +407,10 @@
 	font-weight: 650;
 	color: var(--accent);
 }
-.keysReset:hover {
-	background: var(--surface-2);
+@media (hover: hover) {
+	.keysReset:hover {
+		background: var(--surface-2);
+	}
 }
 
 /* What's new, version by version. */
@@ -481,4 +491,24 @@
  * phone's slide reads as the window shaking. */
 :global(html.desktop) .page {
 	animation: pw-fade-in var(--t-fast) var(--ease);
+}
+
+@media (forced-colors: active) {
+	.thumb {
+		forced-color-adjust: none;
+		background: Highlight;
+		border: 1px solid HighlightText;
+	}
+	.segment[aria-checked="true"] {
+		color: HighlightText;
+	}
+}
+
+.sectionLink:active,
+.action:active,
+.segment:active,
+.choice:active,
+.combo:active,
+.keysReset:active {
+	background: var(--surface-3);
 }

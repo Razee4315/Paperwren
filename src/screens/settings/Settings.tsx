@@ -2,13 +2,16 @@ import { backend, formatBytes } from "@/lib/backend";
 import { clearAllMarks, loadMarkList, restoreMarks } from "@/lib/docMarks";
 import { isDesktop, isTauri, isTouch, ownsFrame, sharesFrame } from "@/lib/env";
 import { LANGUAGES, type LanguageSetting, msg, t, tn } from "@/lib/i18n";
+import { scrollBehavior } from "@/lib/motion";
 import { clearReads, readCount } from "@/lib/ocrStore";
 import { PAGE_VIEWS } from "@/lib/pageViews";
 import {
-	SIGNATURES_KEY,
-	STAMPS_KEY,
+	forgetAllSignatures,
+	forgetAllStamps,
 	loadSignatures,
 	loadStamps,
+	restoreSignatures,
+	restoreStamps,
 } from "@/lib/signatures";
 import type {
 	PageColor,
@@ -23,7 +26,7 @@ import {
 	restoreBookmarks,
 	useBookmarkCount,
 } from "@/state/bookmarks";
-import { useNav } from "@/state/navigation";
+import { useNavActions } from "@/state/navigation";
 import { useRecents } from "@/state/recents";
 import { useSettings } from "@/state/settings";
 import {
@@ -33,7 +36,7 @@ import {
 	Sheet,
 	Switch,
 	ThemePicker,
-	modalOpen,
+	ownsKeys,
 	toast,
 } from "@/ui";
 import {
@@ -229,12 +232,18 @@ function SectionList({
 }) {
 	const [current, setCurrent] = useState<SectionId>(sections[0].id);
 	const list = useRef<HTMLElement>(null);
+	// A section chosen by clicking stays highlighted during smooth travel
+	// and at the foot of the page until the reader scrolls manually.
+	const pinned = useRef<SectionId | null>(null);
+	const scrolling = useRef(false);
+	const lockTimer = useRef(0);
 	useEffect(() => {
 		const box = scroller.current;
 		if (!box) return;
 		let frame = 0;
 		const read = () => {
 			frame = 0;
+			if (scrolling.current || pinned.current !== null) return;
 			const top = box.getBoundingClientRect().top;
 			const heads = [...box.querySelectorAll<HTMLElement>("h2[data-section]")];
 			// At the foot of the page the last one is being read, however
@@ -250,15 +259,73 @@ function SectionList({
 			if (on) setCurrent(on as SectionId);
 		};
 		const onScroll = () => {
+			if (scrolling.current || pinned.current !== null) return;
 			if (!frame) frame = requestAnimationFrame(read);
+		};
+		const onScrollEnd = () => {
+			window.clearTimeout(lockTimer.current);
+			scrolling.current = false;
+		};
+		const unlockManual = () => {
+			if (!scrolling.current && pinned.current === null) return;
+			window.clearTimeout(lockTimer.current);
+			scrolling.current = false;
+			pinned.current = null;
+		};
+		const onTouchStart = (e: TouchEvent) => {
+			if (list.current?.contains(e.target as Node)) return;
+			unlockManual();
+		};
+		const onPointerDown = (e: PointerEvent) => {
+			if (list.current?.contains(e.target as Node)) return;
+			// Dragging the scroller's scrollbar, touching, or middle-click scrolling.
+			if (e.target === box || e.pointerType === "touch" || e.button === 1) {
+				unlockManual();
+			}
+		};
+		const onKeyDown = (e: KeyboardEvent) => {
+			if (!ownsKeys()) return;
+			if (
+				e.key !== "ArrowUp" &&
+				e.key !== "ArrowDown" &&
+				e.key !== "PageUp" &&
+				e.key !== "PageDown" &&
+				e.key !== "Home" &&
+				e.key !== "End" &&
+				e.key !== " "
+			) {
+				return;
+			}
+			const target = e.target as HTMLElement | null;
+			if (target?.closest("input, textarea, select")) return;
+			if (
+				e.key === " " &&
+				target?.closest(
+					"button, [role='button'], [role='switch'], [role='radio']",
+				)
+			) {
+				return;
+			}
+			unlockManual();
 		};
 		// The first section is the one on show; read the page once it is
 		// drawn, rather than making the browser lay it out early for this.
 		onScroll();
 		box.addEventListener("scroll", onScroll, { passive: true });
+		box.addEventListener("scrollend", onScrollEnd);
+		box.addEventListener("wheel", unlockManual, { passive: true });
+		box.addEventListener("touchstart", onTouchStart, { passive: true });
+		box.addEventListener("pointerdown", onPointerDown, { passive: true });
+		window.addEventListener("keydown", onKeyDown);
 		return () => {
 			cancelAnimationFrame(frame);
+			window.clearTimeout(lockTimer.current);
 			box.removeEventListener("scroll", onScroll);
+			box.removeEventListener("scrollend", onScrollEnd);
+			box.removeEventListener("wheel", unlockManual);
+			box.removeEventListener("touchstart", onTouchStart);
+			box.removeEventListener("pointerdown", onPointerDown);
+			window.removeEventListener("keydown", onKeyDown);
 		};
 	}, [scroller]);
 	// The chip being read stays in view in the row.
@@ -269,16 +336,24 @@ function SectionList({
 		);
 		if (!row || !chip || row.scrollWidth <= row.clientWidth) return;
 		const left = chip.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2;
-		row.scrollTo({ left, behavior: "smooth" });
+		row.scrollTo({ left, behavior: scrollBehavior() });
 	}, [current]);
 	const go = (id: SectionId) => {
 		setCurrent(id);
-		const calm = window.matchMedia?.(
-			"(prefers-reduced-motion: reduce)",
-		).matches;
+		pinned.current = id;
+		window.clearTimeout(lockTimer.current);
+		const behavior = scrollBehavior();
+		if (behavior === "smooth") {
+			scrolling.current = true;
+			lockTimer.current = window.setTimeout(() => {
+				scrolling.current = false;
+			}, 800);
+		} else {
+			scrolling.current = false;
+		}
 		document.getElementById(`settings-${id}`)?.scrollIntoView({
 			block: "start",
-			behavior: calm ? "auto" : "smooth",
+			behavior,
 		});
 	};
 	return (
@@ -301,9 +376,9 @@ function SectionList({
 }
 
 export function SettingsScreen() {
-	const { back } = useNav();
+	const { back } = useNavActions();
 	const { settings, update } = useSettings();
-	const { entries, clear, restore, markUnavailable } = useRecents();
+	const { entries, clear, restore, settle, markUnavailable } = useRecents();
 	const [stored, setStored] = useState<{ bytes: number; files: number } | null>(
 		null,
 	);
@@ -331,12 +406,12 @@ export function SettingsScreen() {
 	useEffect(() => {
 		if (!isDesktop) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (e.key !== "Escape" || e.defaultPrevented || modalOpen()) return;
+			if (e.key !== "Escape" || e.defaultPrevented || !ownsKeys()) return;
 			e.preventDefault();
 			back();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [back]);
 	const sections: Array<{ id: SectionId; label: string; icon: ReactNode }> = [
 		{ id: "appearance", label: t("Appearance"), icon: <Palette size={16} /> },
@@ -372,14 +447,30 @@ export function SettingsScreen() {
 			.catch(() => setStored(null));
 	}, []);
 
-	const clearCopies = async () => {
-		setConfirmCopies(false);
-		await backend.importsClear().catch(() => {});
-		for (const e of entries)
-			if (e.reopen.kind === "managed") markUnavailable(e.id);
-		setStored({ bytes: 0, files: 0 });
-		toast(t("Stored copies deleted"));
+	const clearing = useRef(false);
+	const [clearBusy, setClearBusy] = useState(false);
+	const savedAction = async (action: () => Promise<void>) => {
+		if (clearing.current) return;
+		clearing.current = true;
+		setClearBusy(true);
+		try {
+			await action();
+		} catch {
+			toast(t("Couldn't change saved data"));
+		} finally {
+			clearing.current = false;
+			setClearBusy(false);
+		}
 	};
+	const clearCopies = () =>
+		savedAction(async () => {
+			await backend.importsClear();
+			setConfirmCopies(false);
+			for (const e of entries)
+				if (e.reopen.kind === "managed") markUnavailable(e.id);
+			setStored({ bytes: 0, files: 0 });
+			toast(t("Stored copies deleted"));
+		});
 
 	return (
 		<div className={s.page} data-testid="settings">
@@ -592,6 +683,7 @@ export function SettingsScreen() {
 											update("keepRecents", true);
 											restore(previous);
 										},
+										onExpire: () => settle(previous),
 									});
 								}}
 								testId="keep-recents"
@@ -619,6 +711,7 @@ export function SettingsScreen() {
 									toast(t("Recents cleared"), {
 										label: t("Undo"),
 										run: () => restore(previous),
+										onExpire: () => settle(previous),
 									});
 								}}
 								data-testid="clear-recents"
@@ -641,14 +734,19 @@ export function SettingsScreen() {
 							<button
 								type="button"
 								className={s.action}
-								disabled={bookmarkCount === 0}
-								onClick={async () => {
-									const previous = await clearBookmarks();
-									toast(t("Bookmarks deleted"), {
-										label: t("Undo"),
-										run: () => restoreBookmarks(previous),
-									});
-								}}
+								disabled={clearBusy || bookmarkCount === 0}
+								onClick={() =>
+									savedAction(async () => {
+										const previous = await clearBookmarks();
+										toast(t("Bookmarks deleted"), {
+											label: t("Undo"),
+											run: () =>
+												savedAction(async () => {
+													await restoreBookmarks(previous);
+												}),
+										});
+									})
+								}
 								data-testid="clear-bookmarks"
 							>
 								<span className={s.actionText}>
@@ -665,19 +763,23 @@ export function SettingsScreen() {
 							<button
 								type="button"
 								className={s.action}
-								disabled={markedCount === 0}
-								onClick={async () => {
-									const previous = await clearAllMarks();
-									await clearReads();
-									setMarkedCount(0);
-									toast(t("Highlights deleted"), {
-										label: t("Undo"),
-										run: () =>
-											restoreMarks(previous).then((count) =>
-												setMarkedCount(count),
-											),
-									});
-								}}
+								disabled={clearBusy || markedCount === 0}
+								onClick={() =>
+									savedAction(async () => {
+										const previous = await clearAllMarks();
+										await clearReads();
+										setMarkedCount(0);
+										toast(t("Highlights deleted"), {
+											label: t("Undo"),
+											run: () =>
+												savedAction(async () =>
+													restoreMarks(previous).then((count) =>
+														setMarkedCount(count),
+													),
+												),
+										});
+									})
+								}
 								data-testid="clear-marks"
 							>
 								<span className={s.actionText}>
@@ -694,20 +796,21 @@ export function SettingsScreen() {
 							<button
 								type="button"
 								className={s.action}
-								disabled={signatureCount === 0}
-								onClick={async () => {
-									const kept = await loadSignatures();
-									await backend.storeSet(SIGNATURES_KEY, []).catch(() => {});
-									setSignatureCount(0);
-									toast(t("Signatures forgotten"), {
-										label: t("Undo"),
-										run: () =>
-											backend
-												.storeSet(SIGNATURES_KEY, kept)
-												.then(() => setSignatureCount(kept.length))
-												.catch(() => {}),
-									});
-								}}
+								disabled={clearBusy || signatureCount === 0}
+								onClick={() =>
+									savedAction(async () => {
+										const kept = await forgetAllSignatures();
+										setSignatureCount(0);
+										toast(t("Signatures forgotten"), {
+											label: t("Undo"),
+											run: () =>
+												savedAction(async () => {
+													await restoreSignatures(kept);
+													setSignatureCount(kept.length);
+												}),
+										});
+									})
+								}
 								data-testid="clear-signatures"
 							>
 								<span className={s.actionText}>
@@ -724,20 +827,21 @@ export function SettingsScreen() {
 							<button
 								type="button"
 								className={s.action}
-								disabled={stampCount === 0}
-								onClick={async () => {
-									const kept = await loadStamps();
-									await backend.storeSet(STAMPS_KEY, []).catch(() => {});
-									setStampCount(0);
-									toast(t("Stamps forgotten"), {
-										label: t("Undo"),
-										run: () =>
-											backend
-												.storeSet(STAMPS_KEY, kept)
-												.then(() => setStampCount(kept.length))
-												.catch(() => {}),
-									});
-								}}
+								disabled={clearBusy || stampCount === 0}
+								onClick={() =>
+									savedAction(async () => {
+										const kept = await forgetAllStamps();
+										setStampCount(0);
+										toast(t("Stamps forgotten"), {
+											label: t("Undo"),
+											run: () =>
+												savedAction(async () => {
+													await restoreStamps(kept);
+													setStampCount(kept.length);
+												}),
+										});
+									})
+								}
 								data-testid="clear-stamps"
 							>
 								<span className={s.actionText}>
@@ -750,7 +854,7 @@ export function SettingsScreen() {
 							<button
 								type="button"
 								className={s.action}
-								disabled={!stored || stored.files === 0}
+								disabled={clearBusy || !stored || stored.files === 0}
 								onClick={() => setConfirmCopies(true)}
 							>
 								<span className={s.actionText}>
@@ -955,7 +1059,12 @@ export function SettingsScreen() {
 						<Button variant="ghost" onClick={() => setConfirmCopies(false)}>
 							{t("Cancel")}
 						</Button>
-						<Button variant="danger" onClick={clearCopies}>
+						<Button
+							variant="danger"
+							onClick={clearCopies}
+							disabled={clearBusy}
+							aria-busy={clearBusy}
+						>
 							{t("Delete")}
 						</Button>
 					</>

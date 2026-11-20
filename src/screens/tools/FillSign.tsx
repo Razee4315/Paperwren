@@ -18,6 +18,7 @@ import {
 	loadStamps,
 	pngBytes,
 } from "@/lib/signatures";
+import { useLeaveGuard } from "@/state/leave";
 import { useBackClose } from "@/state/navigation";
 import {
 	Button,
@@ -59,7 +60,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { whole } from "../viewer/pdfCrop";
-import { CopyWarnings } from "./MarkUp";
+import { CopyWarnings } from "./CopyWarnings";
 import { SignaturePad } from "./SignaturePad";
 import { StampPad } from "./StampPad";
 import s from "./Tools.module.css";
@@ -248,33 +249,38 @@ async function picture(
 	const canvas = document.createElement("canvas");
 	canvas.width = w;
 	canvas.height = h;
-	const ctx = canvas.getContext("2d");
-	if (!ctx) throw new Error("no canvas");
-	ctx.strokeStyle = ink;
-	ctx.fillStyle = ink;
-	ctx.lineCap = "round";
-	ctx.lineJoin = "round";
-	if (item.kind === "check" || item.kind === "cross") {
-		ctx.lineWidth = Math.max(2, Math.min(w, h) * 0.12);
-		ctx.beginPath();
-		if (item.kind === "check") {
-			ctx.moveTo(w * 0.16, h * 0.55);
-			ctx.lineTo(w * 0.42, h * 0.8);
-			ctx.lineTo(w * 0.86, h * 0.2);
+	try {
+		const ctx = canvas.getContext("2d");
+		if (!ctx) throw new Error("no canvas");
+		ctx.strokeStyle = ink;
+		ctx.fillStyle = ink;
+		ctx.lineCap = "round";
+		ctx.lineJoin = "round";
+		if (item.kind === "check" || item.kind === "cross") {
+			ctx.lineWidth = Math.max(2, Math.min(w, h) * 0.12);
+			ctx.beginPath();
+			if (item.kind === "check") {
+				ctx.moveTo(w * 0.16, h * 0.55);
+				ctx.lineTo(w * 0.42, h * 0.8);
+				ctx.lineTo(w * 0.86, h * 0.2);
+			} else {
+				ctx.moveTo(w * 0.2, h * 0.2);
+				ctx.lineTo(w * 0.8, h * 0.8);
+				ctx.moveTo(w * 0.8, h * 0.2);
+				ctx.lineTo(w * 0.2, h * 0.8);
+			}
+			ctx.stroke();
 		} else {
-			ctx.moveTo(w * 0.2, h * 0.2);
-			ctx.lineTo(w * 0.8, h * 0.8);
-			ctx.moveTo(w * 0.8, h * 0.2);
-			ctx.lineTo(w * 0.2, h * 0.8);
+			ctx.font = `${h / 1.2}px ${getComputedStyle(document.body).fontFamily}`;
+			ctx.textBaseline = "middle";
+			ctx.direction = "inherit";
+			ctx.fillText(item.text ?? "", 0, h / 2, w);
 		}
-		ctx.stroke();
-	} else {
-		ctx.font = `${h / 1.2}px ${getComputedStyle(document.body).fontFamily}`;
-		ctx.textBaseline = "middle";
-		ctx.direction = "inherit";
-		ctx.fillText(item.text ?? "", 0, h / 2, w);
+		return pngBytes(canvas.toDataURL("image/png"));
+	} finally {
+		canvas.width = 0;
+		canvas.height = 0;
 	}
-	return pngBytes(canvas.toDataURL("image/png"));
 }
 
 /**
@@ -341,12 +347,23 @@ export function FillSign({
 	const [sizes, setSizes] = useState<Array<[number, number]>>([]);
 	const scroller = useRef<HTMLDivElement>(null);
 	const editor = useRef<HTMLDivElement>(null);
+	const alive = useRef(true);
+	const savingRef = useRef(false);
+	const forgettingRef = useRef(false);
+	const [forgetting, setForgetting] = useState<string | null>(null);
 
 	useEffect(() => {
-		let alive = true;
+		alive.current = true;
+		return () => {
+			alive.current = false;
+		};
+	}, []);
+
+	useEffect(() => {
+		let live = true;
 		readFields(doc)
-			.then((found) => alive && setForm(found))
-			.catch(() => alive && setForm({ fields: [], locked: new Set() }));
+			.then((found) => live && setForm(found))
+			.catch(() => live && setForm({ fields: [], locked: new Set() }));
 		// Each page's size as shown, in points, for laying the pages out.
 		(async () => {
 			const out: Array<[number, number]> = [];
@@ -355,12 +372,16 @@ export function FillSign({
 				const view = whole(page, () => page.getViewport({ scale: 1 }));
 				out.push([view.width, view.height]);
 			}
-			if (alive) setSizes(out);
+			if (live) setSizes(out);
 		})().catch(() => {});
-		loadSignatures().then((list) => alive && setSignatures(list));
-		loadStamps().then((list) => alive && setStamps(list));
+		loadSignatures()
+			.then((list) => live && setSignatures(list))
+			.catch(() => {});
+		loadStamps()
+			.then((list) => live && setStamps(list))
+			.catch(() => {});
 		return () => {
-			alive = false;
+			live = false;
 		};
 	}, [doc]);
 
@@ -400,12 +421,20 @@ export function FillSign({
 	}, [fields, values]);
 	const dirty = items.length > 0 || changedFields.length > 0;
 
+	/** Where Discard goes: this editor's own close, or a close of the
+	 * whole document asked about here (state/leave). */
+	const leaveTo = useRef(onClose);
 	const close = useCallback(() => {
+		leaveTo.current = onClose;
 		if (dirty) setLeaving(true);
 		else onClose();
 	}, [dirty, onClose]);
+	useLeaveGuard(dirty, (go) => {
+		leaveTo.current = go;
+		setLeaving(true);
+	});
 	useBackClose("fill-sign", true, close);
-	useModalFocus(editor, () => {
+	const owns = useModalFocus(editor, () => {
 		if (tool || selected) {
 			setTool(null);
 			setSelected(null);
@@ -417,15 +446,18 @@ export function FillSign({
 		setItems((list) =>
 			list.map((item) => (item.id === id ? { ...item, ...change } : item)),
 		);
-	const remove = (id: string) => {
+	const remove = useCallback((id: string) => {
 		setItems((list) => list.filter((item) => item.id !== id));
 		setSelected(null);
 		setEditing(null);
-	};
+	}, []);
 
 	// Delete takes away what is picked; Escape lets go of it.
+	const keyState = useRef({ editing, selected, remove });
+	keyState.current = { editing, selected, remove };
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			if (!owns()) return;
 			if (!editor.current?.contains(e.target as Node)) return;
 			if (
 				(e.target as Element | null)?.closest(
@@ -433,10 +465,15 @@ export function FillSign({
 				)
 			)
 				return;
-			if (editing || !selected) return;
+			const {
+				editing: isEditing,
+				selected: picked,
+				remove: drop,
+			} = keyState.current;
+			if (isEditing || !picked) return;
 			if (e.key === "Delete" || e.key === "Backspace") {
 				e.preventDefault();
-				remove(selected);
+				drop(picked);
 			} else if (e.key === "Escape") {
 				e.stopPropagation();
 				setSelected(null);
@@ -444,7 +481,7 @@ export function FillSign({
 		};
 		window.addEventListener("keydown", onKey, true);
 		return () => window.removeEventListener("keydown", onKey, true);
-	});
+	}, [owns]);
 
 	// A tool chosen from the keyboard has no spot tapped for it: it is put
 	// in the middle of the page on screen, to be moved with the arrows.
@@ -478,6 +515,7 @@ export function FillSign({
 	}, [tool]);
 
 	const pick = (next: Tool, keyboard = false) => {
+		target.current = null;
 		byKeys.current = keyboard;
 		setAgain(null);
 		setSelected(null);
@@ -605,7 +643,36 @@ export function FillSign({
 		);
 	};
 
+	const forgetKept = async (kind: Kept, id: string) => {
+		if (forgettingRef.current) return;
+		forgettingRef.current = true;
+		setForgetting(id);
+		try {
+			if (kind === "stamp") {
+				const list = await forgetStamp(id);
+				if (!alive.current) return;
+				setStamps(list);
+				if (!list.length) setChooser(null);
+				return;
+			}
+			const list = await forgetSignature(id);
+			if (!alive.current) return;
+			setSignatures(list);
+			if (!list.some((x) => !!x.initials === (kind === "initials"))) {
+				target.current = null;
+				setChooser(null);
+			}
+		} catch {
+			if (alive.current) toast(t("Couldn't change saved data"));
+		} finally {
+			forgettingRef.current = false;
+			if (alive.current) setForgetting(null);
+		}
+	};
+
 	const save = async () => {
+		if (savingRef.current) return;
+		savingRef.current = true;
 		setSaving("busy");
 		try {
 			const marks: Mark[] = [];
@@ -648,6 +715,7 @@ export function FillSign({
 				marks,
 				flatten,
 			});
+			if (!alive.current) return;
 			const signed = items.some(
 				(i) => i.kind === "sign" || i.kind === "initials",
 			);
@@ -656,6 +724,7 @@ export function FillSign({
 				bytes,
 				"application/pdf",
 			);
+			if (!alive.current) return;
 			if (!saved) {
 				setSaving("ask");
 				return;
@@ -664,12 +733,15 @@ export function FillSign({
 			onSaved?.(saved);
 			onClose();
 		} catch (err) {
+			if (!alive.current) return;
 			setSaving("ask");
 			toast(
 				err instanceof ToolError && err.reason === "password"
 					? t("This PDF's password is needed to save a copy")
 					: t("Couldn't save a copy"),
 			);
+		} finally {
+			savingRef.current = false;
 		}
 	};
 
@@ -698,6 +770,7 @@ export function FillSign({
 		<Button
 			onClick={() => setSaving("ask")}
 			disabled={!dirty || saving === "busy"}
+			aria-busy={saving === "busy" || undefined}
 			data-testid="fill-save"
 		>
 			{t("Save a copy")}
@@ -1076,20 +1149,9 @@ export function FillSign({
 										? t("Forget this stamp")
 										: t("Forget this signature")
 								}
-								onClick={async () => {
-									if (chooser === "stamp") {
-										const list = await forgetStamp(sig.id);
-										setStamps(list);
-										if (!list.length) setChooser(null);
-										return;
-									}
-									const list = await forgetSignature(sig.id);
-									setSignatures(list);
-									if (
-										!list.some((x) => !!x.initials === (chooser === "initials"))
-									)
-										setChooser(null);
-								}}
+								disabled={forgetting !== null}
+								aria-busy={forgetting === sig.id || undefined}
+								onClick={() => void forgetKept(chooser, sig.id)}
 							>
 								<Trash2 size={18} />
 							</IconButton>
@@ -1161,6 +1223,7 @@ export function FillSign({
 							<Button
 								onClick={save}
 								disabled={saving === "busy"}
+								aria-busy={saving === "busy" || undefined}
 								data-testid="fill-save-go"
 							>
 								{saving === "busy" ? t("Saving…") : t("Save")}
@@ -1201,7 +1264,10 @@ export function FillSign({
 							</Button>
 							<Button
 								variant="danger"
-								onClick={onClose}
+								onClick={() => {
+									setLeaving(false);
+									leaveTo.current();
+								}}
 								data-testid="fill-discard"
 							>
 								{t("Discard")}
@@ -1230,13 +1296,58 @@ function signedIn(field: Field, items: Item[]): boolean {
 	);
 }
 
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+
 /** How wide a line of text is, as a share of the page's width. */
 function textWidth(text: string, h: number, pw: number, ph: number): number {
-	const ctx = document.createElement("canvas").getContext("2d");
-	if (!ctx) return 0.3;
+	if (measureCtx === undefined)
+		measureCtx = document.createElement("canvas").getContext("2d");
+	if (!measureCtx) return 0.3;
 	const size = (h * ph) / 1.2;
-	ctx.font = `${size}px Helvetica, Arial, sans-serif`;
-	return (ctx.measureText(text || "M").width + size * 0.4) / pw;
+	measureCtx.font = `${size}px Helvetica, Arial, sans-serif`;
+	return (measureCtx.measureText(text || "M").width + size * 0.4) / pw;
+}
+
+interface PageObserverBucket {
+	io: IntersectionObserver;
+	listeners: Map<Element, (near: boolean) => void>;
+}
+
+const pageObservers = new WeakMap<Element, PageObserverBucket>();
+let viewportPageObserver: PageObserverBucket | null = null;
+
+/** One shared IntersectionObserver per scrolling container (or viewport). */
+function observePageNear(
+	el: Element,
+	onChange: (near: boolean) => void,
+): () => void {
+	const root = el.parentElement;
+	let bucket = root ? pageObservers.get(root) : viewportPageObserver;
+	if (!bucket) {
+		const listeners = new Map<Element, (near: boolean) => void>();
+		const io = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					listeners.get(entry.target)?.(entry.isIntersecting);
+				}
+			},
+			{ root: root ?? null, rootMargin: "800px 0px" },
+		);
+		bucket = { io, listeners };
+		if (root) pageObservers.set(root, bucket);
+		else viewportPageObserver = bucket;
+	}
+	bucket.listeners.set(el, onChange);
+	bucket.io.observe(el);
+	return () => {
+		bucket.io.unobserve(el);
+		bucket.listeners.delete(el);
+		if (bucket.listeners.size === 0) {
+			bucket.io.disconnect();
+			if (root) pageObservers.delete(root);
+			else viewportPageObserver = null;
+		}
+	};
 }
 
 /** Where and when a press on a page began. */
@@ -1298,38 +1409,45 @@ export function FillPage({
 	useEffect(() => {
 		const el = box.current;
 		if (!el) return;
-		const io = new IntersectionObserver(
-			([entry]) => setNear(entry.isIntersecting),
-			{ rootMargin: "800px 0px" },
-		);
-		io.observe(el);
-		return () => io.disconnect();
+		return observePageNear(el, setNear);
 	}, []);
 
 	useEffect(() => {
-		if (!near || width < 50 || forms === null) return;
+		const el = canvas.current;
+		if (!near || width < 50 || forms === null) {
+			if (el && (el.width || el.height)) {
+				el.width = 0;
+				el.height = 0;
+				delete el.dataset.drawn;
+			}
+			return;
+		}
 		let alive = true;
 		let task: { cancel(): void; promise: Promise<void> } | null = null;
 		const timer = window.setTimeout(async () => {
-			const proxy = await doc.getPage(page + 1);
-			const el = canvas.current;
-			const ctx = el?.getContext("2d");
-			if (!alive || !el || !ctx) return;
-			const density = Math.min(2, window.devicePixelRatio || 1);
-			// The whole page, whatever the reader has cropped on screen.
-			const base = whole(proxy, () => proxy.getViewport({ scale: 1 }));
-			const viewport = whole(proxy, () =>
-				proxy.getViewport({ scale: (width * density) / base.width }),
-			);
-			el.width = Math.ceil(viewport.width);
-			el.height = Math.ceil(viewport.height);
-			task = proxy.render({
-				canvasContext: ctx,
-				viewport,
-				annotationMode: forms ? ENABLE_FORMS : undefined,
-			});
-			await task.promise.catch(() => {});
-			if (alive) el.dataset.drawn = "1";
+			try {
+				const proxy = await doc.getPage(page + 1);
+				const target = canvas.current;
+				const ctx = target?.getContext("2d");
+				if (!alive || !target || !ctx) return;
+				const density = Math.min(2, window.devicePixelRatio || 1);
+				// The whole page, whatever the reader has cropped on screen.
+				const base = whole(proxy, () => proxy.getViewport({ scale: 1 }));
+				const viewport = whole(proxy, () =>
+					proxy.getViewport({ scale: (width * density) / base.width }),
+				);
+				target.width = Math.ceil(viewport.width);
+				target.height = Math.ceil(viewport.height);
+				task = proxy.render({
+					canvasContext: ctx,
+					viewport,
+					annotationMode: forms ? ENABLE_FORMS : undefined,
+				});
+				await task.promise.catch(() => {});
+				if (alive) target.dataset.drawn = "1";
+			} catch {
+				// Page could not be drawn or was cancelled.
+			}
 		}, 60);
 		return () => {
 			alive = false;
@@ -1337,6 +1455,18 @@ export function FillPage({
 			task?.cancel();
 		};
 	}, [doc, page, near, width, forms]);
+
+	// Release GPU/RAM backing store on unmount.
+	useEffect(() => {
+		const el = canvas.current;
+		return () => {
+			if (el) {
+				el.width = 0;
+				el.height = 0;
+				delete el.dataset.drawn;
+			}
+		};
+	}, []);
 
 	return (
 		<div

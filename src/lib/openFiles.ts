@@ -7,9 +7,14 @@
  */
 
 import { msg } from "./i18n";
+import { managedRelPath } from "./recents";
 import type { Reopen } from "./types";
 
 const held = new Map<string, string[]>();
+/** Everything each owner holds, a phone's copies and documents too, so
+ * housekeeping never deletes or gives back what is open. */
+const holding = new Map<string, Reopen[]>();
+const listeners = new Set<() => void>();
 
 /** The desktop paths among `reopens` (a phone's files are copies or
  * documents the system hands over: saving never reaches them). */
@@ -26,6 +31,44 @@ export function holdOpen(owner: string, reopens: Array<Reopen | undefined>) {
 	const paths = pathsOf(reopens);
 	if (paths.length) held.set(owner, paths);
 	else held.delete(owner);
+	const all = reopens.filter((r): r is Reopen => !!r);
+	const before = holding.get(owner) ?? [];
+	if (all.length) holding.set(owner, all);
+	else holding.delete(owner);
+	if (JSON.stringify(before) !== JSON.stringify(all))
+		for (const heard of [...listeners]) heard();
+}
+
+/** Hear when what is open changes (a document or a tool closed).
+ * Returns a stop. */
+export function watchOpen(heard: () => void): () => void {
+	listeners.add(heard);
+	return () => {
+		listeners.delete(heard);
+	};
+}
+
+/** The managed copies open now, relative to the imports directory, as
+ * the Rust housekeeping commands take them. */
+export function openManagedPaths(): string[] {
+	const paths = new Set<string>();
+	for (const reopen of [...holding.values()].flat()) {
+		const rel = reopen.kind === "managed" ? managedRelPath(reopen.path) : null;
+		if (rel) paths.add(rel);
+	}
+	return [...paths];
+}
+
+/** The Android documents open now: ones opened where they are, and the
+ * originals of open copies. */
+export function openDocuments(): string[] {
+	const uris = new Set<string>();
+	for (const reopen of [...holding.values()].flat()) {
+		if (reopen.kind === "uri") uris.add(reopen.uri);
+		else if (reopen.kind === "managed" && reopen.origin)
+			uris.add(reopen.origin);
+	}
+	return [...uris];
 }
 
 /** Every file open in this window, each once. */

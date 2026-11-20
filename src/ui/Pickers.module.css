@@ -102,3 +102,14 @@
 	background: var(--accent);
 	color: var(--on-accent);
 }
+
+@media (hover: hover) {
+	@media (hover: hover) {
+		.theme:hover {
+			background: var(--surface-2);
+		}
+	}
+}
+.theme:active {
+	background: var(--surface-3);
+}

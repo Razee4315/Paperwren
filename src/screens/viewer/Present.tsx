@@ -8,6 +8,7 @@ import { hintFor, matches } from "@/lib/shortcuts";
 import { holdScreen } from "@/lib/wake";
 import { useBackClose } from "@/state/navigation";
 import { IconButton } from "@/ui";
+import { useModalFocus } from "@/ui/Overlay";
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -47,13 +48,26 @@ export function clockOf(ms: number): string {
 }
 
 /** The time the show has run, which can be paused and started again. */
-function useStopwatch() {
+function useStopwatch(visible: boolean) {
 	const [, tick] = useState(0);
 	const run = useRef({ since: Date.now(), banked: 0, paused: false });
+	const paused = run.current.paused;
 	useEffect(() => {
-		const id = window.setInterval(() => tick((n) => n + 1), 500);
-		return () => window.clearInterval(id);
-	}, []);
+		let id: number | undefined;
+		const sync = () => {
+			window.clearInterval(id);
+			if (visible && !paused && !document.hidden) {
+				tick((n) => n + 1);
+				id = window.setInterval(() => tick((n) => n + 1), 500);
+			}
+		};
+		sync();
+		document.addEventListener("visibilitychange", sync);
+		return () => {
+			window.clearInterval(id);
+			document.removeEventListener("visibilitychange", sync);
+		};
+	}, [visible, paused]);
 	const now = run.current;
 	const elapsed = now.banked + (now.paused ? 0 : Date.now() - now.since);
 	return {
@@ -79,8 +93,8 @@ function useStopwatch() {
 
 /** The stopwatch and the time of day, ticking on their own so the
  * slides are not drawn again every second. */
-function PresenterTime() {
-	const watch = useStopwatch();
+function PresenterTime({ visible }: { visible: boolean }) {
+	const watch = useStopwatch(visible);
 	return (
 		<div className={s.presenterTime}>
 			<span className={s.presenterWatch} data-testid="presenter-watch">
@@ -124,6 +138,7 @@ function PresenterTime() {
  * turning the slide.
  */
 export function Present({
+	active = true,
 	width,
 	height,
 	total,
@@ -133,6 +148,7 @@ export function Present({
 	notes,
 	onClose,
 }: {
+	active?: boolean;
 	/** Slide size in CSS px. */
 	width: number;
 	height: number;
@@ -166,6 +182,7 @@ export function Present({
 
 	const close = useCallback(() => onClose(indexRef.current), [onClose]);
 	useBackClose("present", true, close);
+	const owns = useModalFocus(root, close);
 
 	useLayoutEffect(() => {
 		const fit = () => {
@@ -271,6 +288,7 @@ export function Present({
 
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			if (!owns()) return;
 			if (e.ctrlKey || e.metaKey || e.altKey) return;
 			// Enter and Space press the show's own buttons; Tab brings them back.
 			const control = (e.target as HTMLElement | null)?.closest?.(
@@ -301,7 +319,7 @@ export function Present({
 		};
 		window.addEventListener("keydown", onKey, true);
 		return () => window.removeEventListener("keydown", onKey, true);
-	}, [step, beyond, close, total, wake]);
+	}, [owns, step, beyond, close, total, wake]);
 
 	// The wheel turns slides, a notch at a time.
 	const wheeled = useRef(0);
@@ -322,7 +340,7 @@ export function Present({
 	const shift = (dx: number, animate: boolean) => {
 		const el = track.current;
 		if (!el) return;
-		el.style.transition = animate ? "transform 180ms ease-out" : "";
+		el.style.transition = animate ? "transform var(--t-med) var(--ease)" : "";
 		el.style.transform = dx ? `translateX(${dx}px)` : "";
 	};
 	const point = (e: React.PointerEvent) => {
@@ -453,7 +471,7 @@ export function Present({
 			</div>
 			{presenter && (
 				<aside className={s.presenter} data-testid="presenter">
-					<PresenterTime />
+					<PresenterTime visible={active} />
 					<p className={s.presenterLabel}>
 						{next >= 0
 							? t("Next: slide {n}", { n: next + 1 })

@@ -1,6 +1,6 @@
 import { t, uiDir } from "@/lib/i18n";
 import { MAX_DIM, SCROLL_SPEEDS } from "@/lib/settings";
-import { useSettings } from "@/state/settings";
+import { useSetting, useUpdateSetting } from "@/state/settings";
 import { IconButton, Sheet } from "@/ui";
 import { Pause, Play, Rabbit, Turtle, X } from "lucide-react";
 import { type RefObject, useEffect, useRef, useState } from "react";
@@ -21,10 +21,11 @@ export function AutoScroll({
 	of: RefObject<HTMLElement | null>;
 	onClose: () => void;
 }) {
-	const { settings, update } = useSettings();
+	const scrollSpeed = useSetting("scrollSpeed");
+	const update = useUpdateSetting();
 	const [running, setRunning] = useState(true);
-	const speed = useRef(settings.scrollSpeed);
-	speed.current = settings.scrollSpeed;
+	const speed = useRef(scrollSpeed);
+	speed.current = scrollSpeed;
 
 	useEffect(() => {
 		const el = of.current;
@@ -68,7 +69,7 @@ export function AutoScroll({
 			Math.round(
 				Math.min(
 					SCROLL_SPEEDS[1],
-					Math.max(SCROLL_SPEEDS[0], settings.scrollSpeed * by),
+					Math.max(SCROLL_SPEEDS[0], scrollSpeed * by),
 				),
 			),
 		);
@@ -109,7 +110,7 @@ export function AutoScroll({
 				<Rabbit size={18} />
 			</IconButton>
 			<span className={s.speechRate} data-testid="auto-scroll-speed">
-				{settings.scrollSpeed}
+				{scrollSpeed}
 			</span>
 			<IconButton
 				label={t("Stop scrolling")}
@@ -132,8 +133,9 @@ export function DimSheet({
 	open: boolean;
 	onClose: () => void;
 }) {
-	const { settings, update } = useSettings();
-	const percent = Math.round((settings.dim / MAX_DIM) * 100);
+	const dim = useSetting("dim");
+	const update = useUpdateSetting();
+	const percent = Math.round((dim / MAX_DIM) * 100);
 	return (
 		<Sheet
 			open={open}

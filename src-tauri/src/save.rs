@@ -8,8 +8,12 @@
 //!   reader has open, and a copy never goes over one of them.
 //! - **Rename** the document on show, in its own folder. The new name
 //!   must be a plain file name of a document type the app opens, and
-//!   another file of that name is never replaced.
+//!   another file of that name is never replaced, nor a link of that
+//!   name (one that leads nowhere included). A rename never makes a
+//!   document a script (`notes.txt` to `notes.bat`): the system would
+//!   run it when it is opened.
 
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 use crate::error::{AppError, AppResult, ErrorKind};
@@ -67,12 +71,24 @@ pub fn rename(path: &str, new_name: &str) -> AppResult<PathBuf> {
             "the name must keep a document's extension",
         ));
     }
+    // A script keeps its own extension; nothing else may take one.
+    if let Some(ext) = open::extension(&to) {
+        if open::is_script_extension(&ext)
+            && open::extension(&from).as_deref() != Some(ext.as_str())
+        {
+            return Err(AppError::new(
+                ErrorKind::InvalidName,
+                "the name may not make the document a script",
+            ));
+        }
+    }
     if to == from {
         return Ok(to);
     }
-    // Another file already has the name. A change of case alone is the
-    // same file on Windows and macOS, and is allowed.
-    if to.exists() && !same_file(&from, &to) {
+    // Another file already has the name, or a link does (one that leads
+    // nowhere too, which `exists` would miss). A change of case alone is
+    // the same file on Windows and macOS, and is allowed.
+    if to.symlink_metadata().is_ok() && !same_file(&from, &to) {
         return Err(AppError::new(ErrorKind::Exists, "a file has that name"));
     }
     std::fs::rename(&from, &to)?;
@@ -93,6 +109,48 @@ fn same_file(a: &Path, b: &Path) -> bool {
 #[cfg_attr(mobile, allow(dead_code))]
 pub fn is_open(path: &Path, open: &[String]) -> bool {
     open.iter().any(|o| same_file(path, Path::new(o)))
+}
+
+/// Write a copy the reader asked for at `path`: into a file of its own
+/// beside it, then moved over the name in one step, so a failure part
+/// way (a full disk, the app closed) leaves no half-written copy, nor a
+/// half-overwritten file the reader chose to replace. Where no file can
+/// be made beside it, or the move is refused, the copy is written
+/// straight to `path`, as before.
+#[cfg_attr(mobile, allow(dead_code))]
+pub fn write_copy(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    if let Some(tmp) = write_beside(path, bytes) {
+        match std::fs::rename(&tmp, path) {
+            Ok(()) => return Ok(()),
+            Err(_) => {
+                let _ = std::fs::remove_file(&tmp);
+            }
+        }
+    }
+    std::fs::write(path, bytes)
+}
+
+/// The bytes in a new hidden file in `path`'s folder, flushed to disk;
+/// None (and nothing left behind) when that fails.
+fn write_beside(path: &Path, bytes: &[u8]) -> Option<PathBuf> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let folder = path.parent()?;
+    let name = path.file_name()?.to_str()?;
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let tmp = folder.join(format!(".{name}.{}.{n}.tmp", std::process::id()));
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp)
+        .ok()?;
+    let written = file.write_all(bytes).and_then(|()| file.sync_all());
+    drop(file);
+    if written.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+        return None;
+    }
+    Some(tmp)
 }
 
 /// The open files in the `x-open` header, once decoded: one path a line.
@@ -157,6 +215,70 @@ mod tests {
         assert_eq!(to, dir.join("Renamed.pdf"));
         assert!(!a.exists());
         assert_eq!(fs::read(&to).unwrap(), b"%PDF-1.4 a");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_rename_never_makes_a_document_a_script() {
+        let dir = scratch("script");
+        let notes = dir.join("notes.txt");
+        fs::write(&notes, b"echo hi").unwrap();
+        for script in [
+            "notes.bat",
+            "notes.PS1",
+            "notes.sh",
+            "notes.kts",
+            "notes.js",
+        ] {
+            let err = rename(notes.to_str().unwrap(), script).unwrap_err();
+            assert_eq!(err.kind, ErrorKind::InvalidName, "{script}");
+        }
+        assert!(notes.exists());
+
+        // A script keeps its kind under a new name, in any case.
+        let tool = dir.join("tool.ps1");
+        fs::write(&tool, b"Write-Host hi").unwrap();
+        let to = rename(tool.to_str().unwrap(), "Renamed.PS1").unwrap();
+        assert_eq!(to, dir.join("Renamed.PS1"));
+        // But not another script's.
+        assert!(rename(to.to_str().unwrap(), "Renamed.bat").is_err());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn never_replaces_a_link_even_one_that_leads_nowhere() {
+        let dir = scratch("dangling");
+        let a = dir.join("first.pdf");
+        fs::write(&a, b"%PDF-1.4 a").unwrap();
+        let link = dir.join("taken.pdf");
+        std::os::unix::fs::symlink(dir.join("missing.pdf"), &link).unwrap();
+        assert!(!link.exists());
+
+        let err = rename(a.to_str().unwrap(), "taken.pdf").unwrap_err();
+        assert_eq!(err.kind, ErrorKind::Exists);
+        assert!(a.exists());
+        assert!(link.symlink_metadata().unwrap().file_type().is_symlink());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_copy_is_written_whole_and_leaves_nothing_beside_it() {
+        let dir = scratch("copy");
+        let target = dir.join("Copy.pdf");
+        write_copy(&target, b"%PDF-1.4 new").unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"%PDF-1.4 new");
+        // Over a file the reader chose to replace.
+        write_copy(&target, b"%PDF-1.4 again").unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"%PDF-1.4 again");
+        let names: Vec<String> = fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, vec!["Copy.pdf".to_owned()]);
+        // Into a folder that is not there: the error is the write's own.
+        let err = write_copy(&dir.join("gone").join("x.pdf"), b"x").unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
         let _ = fs::remove_dir_all(&dir);
     }
 

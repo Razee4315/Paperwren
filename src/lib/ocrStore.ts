@@ -42,11 +42,25 @@ export function validRead(raw: unknown): KeptRead | null {
 
 const LIST_KEY = "reads_v1";
 
+/** The list as last read or written: each page read saves, and the
+ * list is not read from the store again for every one. */
+let known: string[] | null = null;
+
 const readList = async (): Promise<string[]> => {
-	const list = await backend.storeGet(LIST_KEY).catch(() => null);
-	return Array.isArray(list)
+	if (known) return known;
+	let list: unknown;
+	try {
+		list = await backend.storeGet(LIST_KEY);
+	} catch {
+		// Not kept: the next ask reads it again.
+		return [];
+	}
+	const valid = Array.isArray(list)
 		? list.filter((key) => /^[0-9a-f]{32}$/.test(key))
 		: [];
+	// A write made while this was reading is the newer list.
+	known ??= valid;
+	return known;
 };
 
 export const loadRead = async (key: string) =>
@@ -55,9 +69,8 @@ export const loadRead = async (key: string) =>
 export async function saveRead(key: string, read: KeptRead | null) {
 	await backend.storeSet(storeKey(key), read).catch(() => {});
 	const rest = (await readList()).filter((other) => other !== key);
-	await backend
-		.storeSet(LIST_KEY, read ? [key, ...rest] : rest)
-		.catch(() => {});
+	known = read ? [key, ...rest] : rest;
+	await backend.storeSet(LIST_KEY, known).catch(() => {});
 }
 
 /** How many documents have text kept. */
@@ -67,5 +80,6 @@ export const readCount = async () => (await readList()).length;
 export async function clearReads() {
 	for (const key of await readList())
 		await backend.storeSet(storeKey(key), null).catch(() => {});
+	known = [];
 	await backend.storeSet(LIST_KEY, []).catch(() => {});
 }

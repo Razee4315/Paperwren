@@ -58,6 +58,9 @@ interface Utif {
 	toRGBA8(ifd: Ifd): Uint8Array;
 }
 
+/** How many drawn TIFF pages are kept at once. */
+const TIFF_KEPT = 8;
+
 /** A TIFF's pages, each drawn when it is shown. Reduced copies a scanner
  * adds as thumbnails (subfile type 1) are not pages. */
 async function tiff(buffer: ArrayBuffer): Promise<Pictures> {
@@ -70,13 +73,19 @@ async function tiff(buffer: ArrayBuffer): Promise<Pictures> {
 		const kind = (ifd.t254 as number[] | undefined)?.[0] ?? 0;
 		return ifd.t256 && ifd.t257 && (kind & 1) === 0;
 	});
+	// The last few pages drawn, kept to turn back to: a long scan is
+	// not held as hundreds of PNGs.
 	const drawn = new Map<number, Promise<Blob>>();
 	return {
 		count: pages.length,
 		type: "image/tiff",
 		page: (i) => {
 			let blob = drawn.get(i);
-			if (!blob) {
+			if (blob) {
+				// Most recently used goes to the back of the line.
+				drawn.delete(i);
+				drawn.set(i, blob);
+			} else {
 				blob = (async () => {
 					const ifd = pages[i];
 					UTIF.decodeImage(buffer, ifd, ifds);
@@ -105,6 +114,10 @@ async function tiff(buffer: ArrayBuffer): Promise<Pictures> {
 					return png;
 				})();
 				drawn.set(i, blob);
+				if (drawn.size > TIFF_KEPT) {
+					const oldest = drawn.keys().next().value;
+					if (oldest !== undefined) drawn.delete(oldest);
+				}
 			}
 			return blob;
 		},
@@ -173,7 +186,9 @@ let heicJobs = 0;
 const heicWaiting = new Map<number, (jpeg: Blob | null) => void>();
 
 /** A HEIC decoded by libheif in a worker (lib/heicWorker.ts), as a
- * JPEG; null when it cannot be. The worker is made on first use. */
+ * JPEG; null when it cannot be. The worker is made on first use. The
+ * bytes are handed over, not copied: `bytes` is empty afterwards when
+ * it was the whole of its buffer. */
 function libheifDecode(bytes: Uint8Array): Promise<Blob | null> {
 	if (typeof Worker === "undefined") return Promise.resolve(null);
 	if (!heicWorker) {
@@ -185,6 +200,10 @@ function libheifDecode(bytes: Uint8Array): Promise<Blob | null> {
 		) => {
 			heicWaiting.get(event.data.id)?.(event.data.jpeg);
 			heicWaiting.delete(event.data.id);
+			if (!heicWaiting.size) {
+				heicWorker?.terminate();
+				heicWorker = null;
+			}
 		};
 		heicWorker.onerror = () => {
 			for (const done of heicWaiting.values()) done(null);
@@ -196,14 +215,21 @@ function libheifDecode(bytes: Uint8Array): Promise<Blob | null> {
 	const id = ++heicJobs;
 	return new Promise((resolve) => {
 		heicWaiting.set(id, resolve);
-		heicWorker?.postMessage({ id, bytes });
+		// A view into a larger buffer is cut out first: handing that
+		// buffer over would empty whatever else it holds.
+		const own =
+			bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+				? bytes
+				: bytes.slice();
+		heicWorker?.postMessage({ id, bytes: own }, [own.buffer as ArrayBuffer]);
 	});
 }
 
 /**
  * A picture the webview cannot draw, handed back as a JPEG: drawn by
  * Android itself where it can, and a HEIC decoded by libheif where the
- * system cannot (Windows). Null where nothing can.
+ * system cannot (Windows). Null where nothing can. The bytes may be
+ * handed to a worker: do not read them afterwards.
  */
 export async function systemDecode(bytes: Uint8Array): Promise<Blob | null> {
 	const drawn = await androidDecode(bytes);
@@ -212,25 +238,43 @@ export async function systemDecode(bytes: Uint8Array): Promise<Blob | null> {
 	return libheifDecode(bytes);
 }
 
+/** The decodes MainActivity has not answered yet, by token. One
+ * answerer reads them all: decodes that overlap and end out of order
+ * each still reach their own caller. */
+const decodeWaiting = new Map<string, (jpeg: string | null) => void>();
+
+function hearDecoded() {
+	if (window.__paperwrenDecoded) return;
+	window.__paperwrenDecoded = (token, jpeg) => {
+		const done = decodeWaiting.get(token);
+		decodeWaiting.delete(token);
+		done?.(jpeg);
+	};
+}
+
 /** Android draws it (HEIC among others) and hands back a JPEG. */
 function androidDecode(bytes: Uint8Array): Promise<Blob | null> {
 	const bridge = window.__paperwrenAndroidExtras;
 	if (!bridge?.decodePicture || bytes.byteLength > DECODE_MAX)
 		return Promise.resolve(null);
+	hearDecoded();
 	const token = `d${++decodes}`;
 	return new Promise((resolve) => {
-		const previous = window.__paperwrenDecoded;
-		window.__paperwrenDecoded = (answered, jpeg) => {
-			if (answered !== token) return previous?.(answered, jpeg);
-			window.__paperwrenDecoded = previous;
+		decodeWaiting.set(token, (jpeg) => {
 			if (!jpeg) return resolve(null);
 			const raw = atob(jpeg);
 			const out = new Uint8Array(raw.length);
 			for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
 			resolve(new Blob([out], { type: "image/jpeg" }));
-		};
-		if (!bridge.decodePicture?.(toBase64(bytes), token)) {
-			window.__paperwrenDecoded = previous;
+		});
+		let asked = false;
+		try {
+			asked = !!bridge.decodePicture?.(toBase64(bytes), token);
+		} catch {
+			// The bridge refused it: as if it had said no.
+		}
+		if (!asked) {
+			decodeWaiting.delete(token);
 			resolve(null);
 		}
 	});

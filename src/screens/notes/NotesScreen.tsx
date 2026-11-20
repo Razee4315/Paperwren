@@ -17,9 +17,11 @@ import {
 	restoreNotes,
 	saveNote,
 } from "@/lib/notes";
+import { withFeedback } from "@/lib/taskFeedback";
 import { relativeTime } from "@/screens/home/Home";
 import { announceSaved } from "@/screens/tools/saved";
-import { useBackClose, useNav } from "@/state/navigation";
+import { useLeaveGuard } from "@/state/leave";
+import { useBackClose, useNavActions } from "@/state/navigation";
 import {
 	Button,
 	Dialog,
@@ -58,23 +60,37 @@ const safeName = (title: string) =>
 /** Written notes on this device: typed text and handwriting, side by
  * side, found by search, kept without being asked. */
 export function NotesScreen() {
-	const { back } = useNav();
+	const { back } = useNavActions();
 	const [notes, setNotes] = useState<NoteSummary[] | null>(null);
 	const [query, setQuery] = useState("");
 	const [open, setOpen] = useState<Note | null>(null);
 	const [menu, setMenu] = useState(false);
 	const [offerRestore, setOfferRestore] = useState(false);
+	const alive = useRef(true);
 
 	useEffect(() => {
-		let alive = true;
-		loadNotes().then((list) => alive && setNotes(list));
+		alive.current = true;
+		loadNotes()
+			.then((list) => {
+				if (alive.current) setNotes(list);
+			})
+			.catch(() => {});
 		return () => {
-			alive = false;
+			alive.current = false;
 		};
 	}, []);
 
+	const opening = useRef(0);
+	useEffect(
+		() => () => {
+			opening.current++;
+		},
+		[],
+	);
 	const openNote = async (id: string) => {
-		const note = await loadNote(id);
+		const request = ++opening.current;
+		const note = await withFeedback(`note-open-${id}`, () => loadNote(id));
+		if (request !== opening.current) return;
 		if (note) setOpen(note);
 		else toast(t("Couldn't open this note"));
 	};
@@ -87,9 +103,9 @@ export function NotesScreen() {
 				await backupNotes(),
 				"application/json",
 			);
-			if (saved) announceSaved(saved);
+			if (saved && alive.current) announceSaved(saved);
 		} catch {
-			toast(t("Couldn't save a copy"));
+			if (alive.current) toast(t("Couldn't save a copy"));
 		}
 	};
 
@@ -98,16 +114,19 @@ export function NotesScreen() {
 		setOfferRestore(false);
 		try {
 			const picked = await backend.pickFile();
-			if (!picked) return;
+			if (!picked || !alive.current) return;
 			const added = await restoreNotes(await backend.read(picked.reopen));
+			if (!alive.current) return;
 			if (added === null) {
 				toast(t("This isn't a Paperwren notes backup"));
 				return;
 			}
-			setNotes(await loadNotes());
+			const list = await loadNotes().catch(() => null);
+			if (!alive.current) return;
+			if (list) setNotes(list);
 			toast(tn(added, "{n} note brought back", "{n} notes brought back"));
 		} catch {
-			toast(t("Couldn't read this file"));
+			if (alive.current) toast(t("Couldn't read this file"));
 		}
 	};
 
@@ -118,7 +137,11 @@ export function NotesScreen() {
 				note={open}
 				onClose={() => {
 					setOpen(null);
-					loadNotes().then(setNotes);
+					loadNotes()
+						.then((list) => {
+							if (alive.current) setNotes(list);
+						})
+						.catch(() => {});
 				}}
 			/>
 		);
@@ -146,6 +169,8 @@ export function NotesScreen() {
 							<Search size={18} aria-hidden="true" />
 							<input
 								type="search"
+								spellCheck={false}
+								autoComplete="off"
 								placeholder={t("Search your notes")}
 								aria-label={t("Search your notes")}
 								value={query}
@@ -195,7 +220,10 @@ export function NotesScreen() {
 			<button
 				type="button"
 				className={s.add}
-				onClick={() => setOpen(newNote())}
+				onClick={() => {
+					opening.current++;
+					setOpen(newNote());
+				}}
 				data-testid="note-new"
 			>
 				<Plus size={20} strokeWidth={2.5} />
@@ -213,7 +241,7 @@ export function NotesScreen() {
 						"Notes go with the app if it is removed. Keep this file somewhere safe.",
 					)}
 					disabled={!notes?.length}
-					onClick={backup}
+					onClick={() => withFeedback("notes-library", backup)}
 					testId="notes-backup"
 				>
 					{t("Back up all notes")}
@@ -240,7 +268,10 @@ export function NotesScreen() {
 							<Button variant="ghost" onClick={() => setOfferRestore(false)}>
 								{t("Cancel")}
 							</Button>
-							<Button onClick={restore} data-testid="notes-restore-go">
+							<Button
+								onClick={() => withFeedback("notes-library", restore)}
+								data-testid="notes-restore-go"
+							>
 								{t("Choose a file")}
 							</Button>
 						</>
@@ -278,30 +309,55 @@ function NoteEditor({
 	const stored = useRef(first);
 	const timer = useRef(0);
 	/** The write under way, so leaving can wait for it. */
-	const writing = useRef<Promise<unknown>>(Promise.resolve());
+	const writing = useRef<Promise<boolean>>(Promise.resolve(true));
+	const mutation = useRef(false);
+	const removed = useRef(false);
+	const deletingNow = useRef(false);
+	const leaveAnyway = useRef(false);
+	const alive = useRef(true);
+	const [busy, setBusy] = useState(false);
+	const [dirty, setDirty] = useState(false);
 
-	const store = useCallback(() => {
+	useEffect(() => {
+		alive.current = true;
+		return () => {
+			alive.current = false;
+		};
+	}, []);
+
+	const store = useCallback(function storeNote(): Promise<boolean> {
 		window.clearTimeout(timer.current);
-		const now = latest.current;
-		if (now === stored.current) return writing.current;
-		const had = stored.current;
-		stored.current = now;
-		writing.current = writing.current
-			.then(() =>
-				// One never kept and still empty leaves nothing behind.
-				isEmptyNote(now)
-					? deleteNote(now.id)
-					: saveNote({ ...now, updatedAt: Date.now() }),
-			)
-			.catch(() => {
-				stored.current = had;
-				toast(t("Couldn't save this note"));
-			});
+		if (removed.current) return Promise.resolve(true);
+		if (deletingNow.current) return writing.current;
+		writing.current = writing.current.then(async () => {
+			const now = latest.current;
+			if (now === stored.current || removed.current) {
+				if (alive.current && latest.current === stored.current) setDirty(false);
+				return true;
+			}
+			try {
+				if (isEmptyNote(now)) await deleteNote(now.id);
+				else await saveNote({ ...now, updatedAt: Date.now() });
+				stored.current = now;
+				leaveAnyway.current = false;
+				if (alive.current) setDirty(latest.current !== now);
+				return true;
+			} catch {
+				toast(t("Couldn't save this note"), {
+					label: t("Try again"),
+					run: () => {
+						void storeNote();
+					},
+				});
+				return false;
+			}
+		});
 		return writing.current;
 	}, []);
 
 	const update = (change: Partial<Note>) => {
 		setNote((was) => ({ ...was, ...change }));
+		setDirty(true);
 		window.clearTimeout(timer.current);
 		timer.current = window.setTimeout(store, SAVE_AFTER);
 	};
@@ -320,11 +376,37 @@ function NoteEditor({
 		};
 	}, []);
 
-	const close = useCallback(async () => {
-		await store();
-		onClose();
-	}, [onClose, store]);
+	/** Write the note down, then `leave` (by default this editor's own
+	 * close; Ctrl+W or the window closing hand theirs). */
+	const closeThen = useCallback(
+		async (leave: () => void) => {
+			if (mutation.current) return;
+			mutation.current = true;
+			setBusy(true);
+			try {
+				while (await store()) {
+					if (stored.current === latest.current) {
+						leave();
+						return;
+					}
+				}
+				// The write failed: the first Back keeps the draft open with
+				// Try again; a second Back leaves, so a full or read-only disk
+				// never traps the reader here.
+				if (leaveAnyway.current) leave();
+				else leaveAnyway.current = true;
+			} finally {
+				mutation.current = false;
+				if (alive.current) setBusy(false);
+			}
+		},
+		[store],
+	);
+	const close = useCallback(() => closeThen(onClose), [closeThen, onClose]);
 	useBackClose("note", true, close);
+	// Any other way out (Ctrl+W, the window) writes it down first too,
+	// and is held the same way when that fails.
+	useLeaveGuard(dirty, (go) => void closeThen(go));
 
 	const setBlock = (id: string, change: Partial<NoteBlock>) =>
 		update({
@@ -378,18 +460,36 @@ function NoteEditor({
 	};
 
 	const remove = async () => {
+		if (mutation.current) return;
+		mutation.current = true;
+		deletingNow.current = true;
+		setBusy(true);
 		window.clearTimeout(timer.current);
-		// Nothing is left to write down when the editor closes.
-		stored.current = latest.current;
-		await writing.current;
-		await deleteNote(note.id).catch(() => {});
-		onClose();
+		try {
+			await writing.current;
+			await deleteNote(note.id);
+			removed.current = true;
+			if (alive.current) setDirty(false);
+			onClose();
+		} catch {
+			if (alive.current) toast(t("Couldn't delete this note"));
+		} finally {
+			deletingNow.current = false;
+			mutation.current = false;
+			if (alive.current) setBusy(false);
+		}
 	};
 
 	return (
 		<div className={s.screen} data-testid="note-editor">
 			<header className={s.bar} data-tauri-drag-region="deep">
-				<IconButton label={t("Back")} onClick={close} data-testid="note-back">
+				<IconButton
+					label={t("Back")}
+					onClick={close}
+					disabled={busy}
+					aria-busy={busy || undefined}
+					data-testid="note-back"
+				>
 					<ArrowLeft size={22} className="pw-flip" />
 				</IconButton>
 				<input
@@ -416,6 +516,7 @@ function NoteEditor({
 							type="button"
 							className={s.tool}
 							aria-pressed={!pen.erase}
+							aria-label={t("Pen")}
 							title={t("Pen")}
 							onClick={() => setPen({ ...pen, erase: false })}
 							data-testid="note-pen"
@@ -426,6 +527,7 @@ function NoteEditor({
 							type="button"
 							className={s.tool}
 							aria-pressed={pen.erase}
+							aria-label={t("Eraser")}
 							title={t("Eraser")}
 							onClick={() => setPen({ ...pen, erase: true })}
 							data-testid="note-eraser"
@@ -443,13 +545,13 @@ function NoteEditor({
 								onClick={() => setPen({ ...pen, color, erase: false })}
 							/>
 						))}
-						{WIDTHS.map((width) => (
+						{WIDTHS.map((width, i) => (
 							<button
 								key={width}
 								type="button"
 								className={s.tool}
 								aria-pressed={!pen.erase && pen.width === width}
-								aria-label={t("Thickness")}
+								aria-label={`${t("Thickness")} ${i + 1}`}
 								onClick={() => setPen({ ...pen, width, erase: false })}
 							>
 								<i
@@ -537,7 +639,7 @@ function NoteEditor({
 			>
 				<SheetItem
 					icon={<FileDown size={20} />}
-					onClick={exportPdf}
+					onClick={() => withFeedback("notes-export", exportPdf)}
 					testId="note-pdf"
 				>
 					{t("Save as PDF")}
@@ -558,16 +660,22 @@ function NoteEditor({
 					open
 					alert
 					title={t("Delete this note?")}
-					onClose={() => setDeleting(false)}
+					onClose={() => !busy && setDeleting(false)}
 					testId="note-delete-ask"
 					actions={
 						<>
-							<Button variant="ghost" onClick={() => setDeleting(false)}>
+							<Button
+								variant="ghost"
+								disabled={busy}
+								onClick={() => setDeleting(false)}
+							>
 								{t("Cancel")}
 							</Button>
 							<Button
 								variant="danger"
 								onClick={remove}
+								disabled={busy}
+								aria-busy={busy || undefined}
 								data-testid="note-delete-go"
 							>
 								{t("Delete")}

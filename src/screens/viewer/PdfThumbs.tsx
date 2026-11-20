@@ -44,6 +44,13 @@ export function PdfThumbs({
 		let busy = false;
 		const density = Math.min(2, window.devicePixelRatio || 1);
 
+		const releaseCanvas = (canvas: HTMLCanvasElement | null) => {
+			if (!canvas) return;
+			canvas.width = 0;
+			canvas.height = 0;
+			delete canvas.dataset.drawn;
+		};
+
 		const draw = async (cell: HTMLElement) => {
 			const canvas = cell.querySelector("canvas");
 			if (!canvas || canvas.dataset.drawn) return;
@@ -59,8 +66,15 @@ export function PdfThumbs({
 			canvas.height = Math.ceil(viewport.height);
 			cell.style.setProperty("--ratio", String(base.width / base.height));
 			const context = canvas.getContext("2d");
-			if (!context) return;
+			if (!context) {
+				releaseCanvas(canvas);
+				return;
+			}
 			await page.render({ canvasContext: context, viewport }).promise;
+			if (!alive || !wanted.has(cell)) {
+				releaseCanvas(canvas);
+				return;
+			}
 			canvas.dataset.drawn = "1";
 		};
 		const pump = async () => {
@@ -76,7 +90,11 @@ export function PdfThumbs({
 				} catch {
 					// A page that cannot be drawn keeps its blank card.
 					const canvas = next.querySelector("canvas");
-					if (canvas) canvas.dataset.drawn = "1";
+					if (canvas) {
+						canvas.width = 0;
+						canvas.height = 0;
+						canvas.dataset.drawn = "1";
+					}
 				}
 			}
 			busy = false;
@@ -89,9 +107,11 @@ export function PdfThumbs({
 					else {
 						wanted.delete(cell);
 						const canvas = cell.querySelector("canvas");
-						if (canvas?.dataset.drawn) {
-							canvas.width = canvas.height = 0;
-							delete canvas.dataset.drawn;
+						if (
+							canvas &&
+							(canvas.dataset.drawn || canvas.width || canvas.height)
+						) {
+							releaseCanvas(canvas);
 						}
 					}
 				}
@@ -105,7 +125,11 @@ export function PdfThumbs({
 			?.scrollIntoView({ block: "center" });
 		return () => {
 			alive = false;
+			wanted.clear();
 			seen.disconnect();
+			for (const canvas of root.querySelectorAll("canvas")) {
+				releaseCanvas(canvas);
+			}
 		};
 	}, [doc, rotation]);
 

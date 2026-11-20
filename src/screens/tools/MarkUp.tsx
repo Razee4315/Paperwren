@@ -7,7 +7,7 @@ import {
 	newMarkId,
 } from "@/lib/docMarks";
 import { copyName } from "@/lib/fileName";
-import { msg, t } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { UNITS, lengthOf, measureLabel, scaleFrom } from "@/lib/measure";
 import {
 	type PageTextItem,
@@ -17,7 +17,6 @@ import {
 } from "@/lib/pageText";
 import { NOTE_SIZE, type TextPicture, addMarkup } from "@/lib/pdfMarkup";
 import { type Protection, ToolError } from "@/lib/pdfTools";
-import { copyNote } from "@/lib/protection";
 import {
 	LINE_HEIGHT,
 	layoutText,
@@ -27,6 +26,7 @@ import {
 } from "@/lib/textBox";
 import { whole } from "@/screens/viewer/pdfCrop";
 import type { MarkStore } from "@/screens/viewer/useDocMarks";
+import { useLeaveGuard } from "@/state/leave";
 import { useBackClose } from "@/state/navigation";
 import { Button, Dialog, IconButton, NoteField, Spinner, toast } from "@/ui";
 import { useModalFocus } from "@/ui/Overlay";
@@ -60,6 +60,7 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { CopyWarnings } from "./CopyWarnings";
 import { FillPage } from "./FillSign";
 import s from "./Tools.module.css";
 import { curve, markHit, pushPoint } from "./ink";
@@ -95,32 +96,6 @@ type Writing = {
 	text: string;
 };
 
-const SIGNED_WARNING = msg(
-	"This PDF has a digital signature. A changed copy won't keep it valid.",
-);
-
-/** What a copy of this file will not keep, said where a copy is about
- * to be saved: a digital signature, a password or limits. Nothing for a
- * file with none of them. */
-export function CopyWarnings({
-	signed = false,
-	protection = null,
-}: {
-	signed?: boolean;
-	protection?: Protection | null;
-}) {
-	const note = copyNote(protection);
-	return (
-		<>
-			{signed && <p className={s.hint}>{t(SIGNED_WARNING)}</p>}
-			{note && (
-				<p className={s.hint} data-testid="copy-note">
-					{note}
-				</p>
-			)}
-		</>
-	);
-}
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 /** Shorter than this on screen, a measuring line is a slip. */
@@ -198,6 +173,15 @@ export function MarkUp({
 	const editor = useRef<HTMLDivElement>(null);
 	const textOf = useRef(new Map<number, Promise<TextLine[]>>());
 	const lines = useRef<TextLine[]>([]);
+	const alive = useRef(true);
+	const savingRef = useRef(false);
+
+	useEffect(() => {
+		alive.current = true;
+		return () => {
+			alive.current = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		let alive = true;
@@ -244,12 +228,20 @@ export function MarkUp({
 
 	// Only a file with a password loses what is not saved as a copy.
 	const atRisk = !store.persist && items.length > 0;
+	/** Where Discard goes: this editor's own close, or a close of the
+	 * whole document asked about here (state/leave). */
+	const leaveTo = useRef(onClose);
 	const close = useCallback(() => {
+		leaveTo.current = onClose;
 		if (atRisk) setLeaving(true);
 		else onClose();
 	}, [atRisk, onClose]);
+	useLeaveGuard(atRisk, (go) => {
+		leaveTo.current = go;
+		setLeaving(true);
+	});
 	useBackClose("mark-up", true, close);
-	useModalFocus(editor, close);
+	const ownsKeys = useModalFocus(editor, close);
 
 	/** Change what is on the pages, as one step of undo. */
 	const change = store.set;
@@ -258,6 +250,8 @@ export function MarkUp({
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			if (!(e.ctrlKey || e.metaKey)) return;
+			// Not while its Save or Leave question is over it.
+			if (!ownsKeys()) return;
 			if ((e.target as Element | null)?.closest("input, textarea")) return;
 			const key = e.key.toLowerCase();
 			if (key === "z" && !e.shiftKey) stepKeys.current.undo();
@@ -266,9 +260,9 @@ export function MarkUp({
 			else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
-	}, []);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [ownsKeys]);
 
 	const pageWidth = Math.max(200, width) * zoom;
 	const draws = tool !== "move";
@@ -352,12 +346,14 @@ export function MarkUp({
 			stroke.current = { kind: "line", page, from: at, to: at };
 		} else {
 			stroke.current = { kind: "text", page, from: at, to: at };
-			readLines(page).then((found) => {
-				if (stroke.current?.page === page) {
-					lines.current = found;
-					showLive();
-				}
-			});
+			readLines(page)
+				.then((found) => {
+					if (alive.current && stroke.current?.page === page) {
+						lines.current = found;
+						showLive();
+					}
+				})
+				.catch(() => {});
 			lines.current = [];
 		}
 		showLive();
@@ -454,7 +450,14 @@ export function MarkUp({
 		if (tool !== "highlight" && tool !== "underline" && tool !== "strike")
 			return;
 		// A quick first drag can end before the page's text has been read.
-		const picked = textBetween(await readLines(now.page), now.from, now.to);
+		let pageLines: TextLine[];
+		try {
+			pageLines = await readLines(now.page);
+		} catch {
+			return;
+		}
+		if (!alive.current) return;
+		const picked = textBetween(pageLines, now.from, now.to);
 		if (!picked) {
 			toast(t("There's no text to mark here. Use the pen or marker instead."));
 			return;
@@ -560,6 +563,8 @@ export function MarkUp({
 	};
 
 	const save = async () => {
+		if (savingRef.current) return;
+		savingRef.current = true;
 		setSaving("busy");
 		try {
 			const pictures: Array<TextPicture | undefined> = [];
@@ -575,11 +580,13 @@ export function MarkUp({
 				pictures,
 				labels: items.filter((i) => i.kind === "measure").map(labelFor),
 			});
+			if (!alive.current) return;
 			const saved = await backend.saveFile(
 				copyName(name, t("marked up")),
 				bytes,
 				"application/pdf",
 			);
+			if (!alive.current) return;
 			if (!saved) {
 				setSaving("ask");
 				return;
@@ -588,12 +595,15 @@ export function MarkUp({
 			onSaved?.(saved);
 			onClose();
 		} catch (err) {
+			if (!alive.current) return;
 			setSaving("ask");
 			toast(
 				err instanceof ToolError && err.reason === "password"
 					? t("This PDF's password is needed to save a copy")
 					: t("Couldn't save a copy"),
 			);
+		} finally {
+			savingRef.current = false;
 		}
 	};
 
@@ -732,6 +742,7 @@ export function MarkUp({
 					variant="secondary"
 					onClick={() => setSaving("ask")}
 					disabled={!items.length || saving === "busy"}
+					aria-busy={saving === "busy" || undefined}
 					data-testid="mark-save"
 				>
 					{t("Save a copy")}
@@ -1055,6 +1066,7 @@ export function MarkUp({
 							<Button
 								onClick={save}
 								disabled={saving === "busy"}
+								aria-busy={saving === "busy" || undefined}
 								data-testid="mark-save-go"
 							>
 								{saving === "busy" ? t("Saving…") : t("Save")}
@@ -1083,8 +1095,9 @@ export function MarkUp({
 							<Button
 								variant="danger"
 								onClick={() => {
+									setLeaving(false);
 									store.set([]);
-									onClose();
+									leaveTo.current();
 								}}
 								data-testid="mark-discard"
 							>

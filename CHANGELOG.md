@@ -1,5 +1,18 @@
 # What's new
 
+## 1.9.0
+
+- Large PDFs stream a piece at a time instead of loading whole into memory, fixing crashes on very large files and scanned picture PDFs and showing the first page sooner.
+- Hide or show highlights on the page from the Highlights panel while keeping your notes open beside the document.
+- Android: files chosen with Open file open directly without copying into app storage, managed copies are pruned during long sessions, and files opened from other apps stay out of Recents and return cleanly on Back.
+- Android: rotating from landscape to portrait keeps your page, duplicate scrollbars are hidden, and the edge scrubber ignores accidental touches while scrolling.
+- Desktop: the window opens already placed and coloured in your saved theme with no light flash, `Ctrl+,` (`Cmd+,` on macOS) opens Settings, and many open tabs scroll cleanly instead of clipping.
+- Every close path (tab X, `Ctrl+W`, Back, window close) asks before dropping unsaved edits, and failed saves or deletes keep your data and offer Try again.
+- Clicking a section in Settings highlights it straight away and keeps Updates and Privacy selected until you scroll by hand.
+- Memory and speed: closing a PDF releases all its pages, hidden tabs let go of drawn canvases while keeping your place, tools release offscreen pages and pictures as you go, and search and menus respond faster.
+- Accessibility: full Windows high-contrast (`forced-colors`) support, stronger borders and text contrast across all five themes, and arrow-key navigation across toolbars and tabs.
+- Security and privacy: stricter archive, link and file-path checks across desktop and Android, cleared password fields on close, and no saved bookmarks for password-protected files.
+
 ## 1.8.0
 
 - Bars while reading, in Settings: Always, Auto-hide or Tap only. On a phone the bars slide over the page without a stutter.

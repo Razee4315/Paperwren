@@ -143,9 +143,11 @@ jobs:
           releaseCommitish: ${{ needs.check-and-bump.outputs.commit }}
           releaseName: Paperwren v__VERSION__
           releaseBody: |
-            Paperwren v__VERSION__. Open anything. Instantly.
+            **Paperwren v__VERSION__** — Open anything. Instantly.
 
-            Downloads for Windows, macOS, Linux (beta: AppImage, .deb for Debian and Ubuntu, .rpm for Fedora) and Android are attached below. See the README for what Paperwren is and is not.
+            What's new: [Release notes (v__VERSION__)](https://github.com/Razee4315/Paperwren/blob/main/docs/releases/v__VERSION__.md) · [Full changelog](https://github.com/Razee4315/Paperwren/blob/main/CHANGELOG.md)
+
+            Downloads for Windows, macOS, Linux (AppImage, .deb, .rpm) and Android are attached below.
           releaseDraft: false
           prerelease: false
 

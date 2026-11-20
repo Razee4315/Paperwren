@@ -129,6 +129,7 @@ export const SCRIPT_EXTENSIONS = [
 	"zsh",
 	"ps1",
 	"bat",
+	"kts",
 	"lua",
 	"r",
 ];

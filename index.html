@@ -9,6 +9,25 @@
     />
     <meta name="theme-color" content="#ffffff" />
     <title>Paperwren</title>
+    <script>
+      // The theme last used, before anything is painted: the settings
+      // are read a moment later, and the page would otherwise open in
+      // the default theme and then change. settings.tsx keeps the hint.
+      // Inline scripts get a CSP hash when Tauri builds the app.
+      (function () {
+        try {
+          var theme = localStorage.getItem("paperwren.theme-hint");
+          if (theme === "system")
+            theme = window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "plain-dark"
+              : "plain-light";
+          if (/^(light|sepia|dark|plain-light|plain-dark)$/.test(theme || ""))
+            document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          // No storage: the default theme until the settings are read.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

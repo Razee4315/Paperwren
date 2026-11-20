@@ -57,7 +57,7 @@
 	height: 28px;
 	padding: 0 6px;
 	border-radius: var(--r-s);
-	border: 1px solid var(--line);
+	border: 1px solid var(--line-control);
 	background: var(--surface-2);
 	color: var(--text);
 	font-weight: 750;
@@ -252,37 +252,6 @@
 	transition-duration: var(--t-fast);
 }
 /* The details dialog: label over value, long paths wrap. */
-.details {
-	display: grid;
-	gap: 12px;
-	text-align: start;
-}
-.details dt {
-	font-size: 12px;
-	font-weight: 700;
-	color: var(--text-3);
-}
-.details dd {
-	overflow-wrap: anywhere;
-	user-select: text;
-}
-/* A desktop's details are a two-column table: label, then value. */
-:global(html.desktop) .details > div {
-	display: grid;
-	grid-template-columns: 96px minmax(0, 1fr);
-	gap: 12px;
-	align-items: baseline;
-}
-:global(html.desktop) .details {
-	gap: 9px;
-}
-:global(html.desktop) .details dt {
-	font-weight: 600;
-}
-:global(html.desktop) .details dd {
-	color: var(--text);
-	font-size: 13.5px;
-}
 .hiddenTop {
 	margin-top: calc(-1 * (var(--bar-h) + var(--safe-top) + 1px));
 	opacity: 0;
@@ -408,6 +377,7 @@
 		padding: 8px 4px;
 		overflow-y: auto;
 		overscroll-behavior: contain;
+		touch-action: pan-y;
 	}
 	:global(html:not(.desktop)) .bottom .zoom {
 		order: -1;
@@ -467,7 +437,7 @@
 	height: 38px;
 	padding: 0 12px;
 	border-radius: var(--r-m);
-	border: 1px solid var(--line);
+	border: 1px solid var(--line-control);
 	background: var(--surface-2);
 	outline: none;
 }
@@ -533,7 +503,7 @@ button.findCount {
 	width: min(460px, calc(100vw - 32px));
 	height: 44px;
 	padding: 0 4px 0 6px;
-	border: 1px solid var(--line-strong);
+	border: 1px solid var(--line-control);
 	border-radius: var(--r-m);
 	background: var(--surface);
 }
@@ -600,16 +570,16 @@ button.findCount {
 	background: var(--canvas);
 	opacity: 0;
 	pointer-events: none;
-	transition: opacity 120ms var(--ease);
+	transition: opacity var(--t-fast) var(--ease);
 }
 :global(html[data-fs-veil]) .body::after {
 	opacity: 1;
-	transition-duration: 80ms;
+	transition-duration: var(--t-instant);
 }
 :global(html[data-fs-bars]) .top:not(.pinned),
 :global(html[data-fs-bars]) .bottom {
 	opacity: 0;
-	transition-duration: 80ms;
+	transition-duration: var(--t-instant);
 }
 
 .pager {
@@ -637,7 +607,7 @@ button.findCount {
 	height: 46px;
 	padding: 0 14px;
 	border-radius: var(--r-m);
-	border: 1px solid var(--line-strong);
+	border: 1px solid var(--line-control);
 	background: var(--surface-2);
 	outline: none;
 }
@@ -755,15 +725,15 @@ button.findCount {
 	animation: pw-fade-in var(--t-med) var(--ease);
 }
 
-/* The scrubber: a handle on the right edge, for touch screens. */
+/* The scrubber: a compact handle on the inline-end edge, for touch screens. */
 .scrub {
 	display: none;
 	position: absolute;
 	top: calc(8px + var(--bars-top, 0px));
-	right: 0;
+	inset-inline-end: 0;
 	bottom: calc(8px + var(--bars-bottom, 0px));
 	z-index: 4;
-	width: 28px;
+	width: 22px;
 	pointer-events: none;
 	opacity: 0;
 	visibility: hidden;
@@ -784,10 +754,12 @@ button.findCount {
 .scrubKnob {
 	position: absolute;
 	top: 0;
-	right: 0;
-	width: 28px;
+	inset-inline-end: 0;
+	width: 22px;
 	height: 44px;
 	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
 }
 .scrub[data-on] .scrubKnob,
 .scrub[data-held] .scrubKnob {
@@ -797,23 +769,36 @@ button.findCount {
 	content: "";
 	position: absolute;
 	top: 0;
-	right: 3px;
+	inset-inline-end: 3px;
 	bottom: 0;
-	width: 8px;
+	width: 6px;
 	border-radius: 999px;
 	background: var(--text-3);
 	box-shadow: 0 0 0 1px var(--surface);
-	transition: width var(--t-fast) var(--ease), background var(--t-fast)
+	transform-origin: right;
+	transition: transform var(--t-fast) var(--ease), background var(--t-fast)
 		var(--ease);
 }
+:global([dir="rtl"]) .scrubKnob::before {
+	transform-origin: left;
+}
 .scrub[data-held] .scrubKnob::before {
-	width: 10px;
+	transform: scaleX(1.5);
 	background: var(--accent);
+}
+@media (forced-colors: active) {
+	.scrubKnob::before {
+		forced-color-adjust: none;
+		background: CanvasText;
+	}
+	.scrub[data-held] .scrubKnob::before {
+		background: Highlight;
+	}
 }
 .scrubLabel {
 	position: absolute;
 	top: 50%;
-	right: 34px;
+	inset-inline-end: 28px;
 	transform: translateY(-50%);
 	padding: 6px 12px;
 	border-radius: 999px;
@@ -855,9 +840,9 @@ button.findCount {
 	gap: 2px;
 	padding: 4px;
 	border-radius: 999px;
-	border: 1px solid var(--line-strong);
+	border: 1px solid var(--line-control);
 	background: var(--surface);
-	animation: pw-fade-in 160ms ease-out;
+	animation: pw-fade-in var(--t-med) var(--ease);
 }
 .speechRate {
 	min-width: 48px;
@@ -895,30 +880,23 @@ button.findCount {
 }
 
 /* Rename: the name to type, and its extension kept beside it. */
-.renameField {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-}
-.renameExt {
-	flex-shrink: 0;
-	color: var(--text-2);
-	font-weight: 650;
-}
-.renameError {
-	margin: 8px 0 0;
-	font-size: 13px;
-	color: var(--danger, #b0312c);
-}
-/* Only the app's name for the file changes: said before it is done. */
-.renameNote {
-	margin: 8px 0 0;
-	font-size: 13px;
-	color: var(--text-2);
-}
-
 /* Desktop: a window's screens change in place, with a short fade; a
  * phone's slide reads as the window shaking. */
 :global(html.desktop) .shell {
 	animation: pw-fade-in var(--t-fast) var(--ease);
+}
+
+.pageField {
+	position: relative;
+}
+.pageError {
+	position: absolute;
+	top: 100%;
+	inset-inline-start: 0;
+	z-index: 50;
+	padding: 8px;
+	background: var(--surface);
+	color: var(--danger);
+	border: 1px solid var(--line);
+	border-radius: var(--r-s);
 }

@@ -1,19 +1,22 @@
-import { backend, requestForManagedCopy } from "@/lib/backend";
+import {
+	backend,
+	requestForManagedCopy,
+	retainMemoryFiles,
+} from "@/lib/backend";
 import { isDesktop, isMac, isTauri, sharesFrame } from "@/lib/env";
 import { toggleFullscreen, watchFullscreen } from "@/lib/fullscreen";
 import { language, subscribe, t } from "@/lib/i18n";
 import { isFullscreenKey } from "@/lib/keys";
 import { backToCaller } from "@/lib/navigation";
 import { holdOpen, onSaveRefused } from "@/lib/openFiles";
-import { matches } from "@/lib/shortcuts";
+import { idForReopen } from "@/lib/recents";
+import { matches, whoHas } from "@/lib/shortcuts";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
+import { onStoreFailed } from "@/lib/storedValue";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
-import { type Tab, TabStrip, moveTab } from "@/screens/TabStrip";
-import { UpdateHost } from "@/screens/Updates";
+import type { Tab } from "@/screens/TabStrip";
 import { Home } from "@/screens/home/Home";
-import { SettingsScreen } from "@/screens/settings/Settings";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
-import { SplitDivider } from "@/screens/viewer/SplitDivider";
 import {
 	type Pane,
 	SPLIT_ROOM,
@@ -21,11 +24,32 @@ import {
 	SideBySideContext,
 	clampRatio,
 } from "@/screens/viewer/pane";
-import { NavigationProvider, useNav } from "@/state/navigation";
-import { RecentsProvider, useRecents } from "@/state/recents";
-import { SettingsProvider, useSettings } from "@/state/settings";
+import {
+	LeaveScope,
+	askLeave,
+	docScope,
+	guardedScopes,
+	onGuardsChange,
+	screenScope,
+} from "@/state/leave";
+import {
+	NavigationProvider,
+	useNavActions,
+	useNavScreens,
+} from "@/state/navigation";
+import {
+	RecentsProvider,
+	useRecentsActions,
+	useRecentsReady,
+} from "@/state/recents";
+import {
+	SettingsProvider,
+	useSettingsOf,
+	useSettingsReady,
+} from "@/state/settings";
 import {
 	DropHint,
+	LeaveHost,
 	LinkGuard,
 	OpeningView,
 	ScreenLoading,
@@ -33,13 +57,15 @@ import {
 	SheetItem,
 	ToastHost,
 	WindowControls,
-	modalOpen,
+	ownsKeys,
 	toast,
 } from "@/ui";
 import { Copy, Search, TextSelect } from "lucide-react";
 import {
+	type ComponentProps,
 	Suspense,
 	lazy,
+	memo,
 	useCallback,
 	useEffect,
 	useMemo,
@@ -51,6 +77,15 @@ import {
 // The viewer engines (pdf.js, docx-preview, the grid) are the bulk of
 // the code; Home must not pay for them at cold start.
 const ViewerScreen = lazy(() => import("@/screens/viewer/ViewerScreen"));
+const loadSettings = () => import("@/screens/settings/Settings");
+const LazySettings = lazy(() =>
+	loadSettings().then((m) => ({ default: m.SettingsScreen })),
+);
+const SettingsScreen = () => (
+	<Suspense fallback={null}>
+		<LazySettings />
+	</Suspense>
+);
 const loadTools = () => import("@/screens/tools/ToolsScreen");
 const loadNotes = () => import("@/screens/notes/NotesScreen");
 const ToolsScreen = lazy(() =>
@@ -61,6 +96,17 @@ const NotesScreen = lazy(() =>
 );
 // Shown once; never part of a regular launch's bundle.
 const Onboarding = lazy(() => import("@/screens/onboarding/Onboarding"));
+const TabStrip = lazy(() =>
+	import("@/screens/TabStrip").then((m) => ({ default: m.TabStrip })),
+);
+const SplitDivider = lazy(() =>
+	import("@/screens/viewer/SplitDivider").then((m) => ({
+		default: m.SplitDivider,
+	})),
+);
+const UpdateHost = lazy(() =>
+	import("@/screens/Updates").then((m) => ({ default: m.UpdateHost })),
+);
 
 /** The reader and pdf.js, fetched and compiled once Home has settled,
  * so the first document opens without waiting for them (most are PDFs).
@@ -71,10 +117,10 @@ function warmReader() {
 	// The PDF reader is a chunk of its own, behind the screen above.
 	void import("@/screens/viewer/PdfView").catch(() => {});
 	void import("@/lib/pdfEngine").then((m) => m.loadEngine()).catch(() => {});
-	// Then Tools and Notes, at the next quiet moment: each is opened
+	// Then Settings and Notes, at the next quiet moment: each is opened
 	// from Home, and should come up as quickly as the reader does.
 	idle(() => {
-		void loadTools().catch(() => {});
+		void loadSettings().catch(() => {});
 		void loadNotes().catch(() => {});
 	});
 }
@@ -87,6 +133,30 @@ const ONBOARDED_KEY = "onboarded";
 /** Tabs kept drawn besides the one on show, so a switch back is
  * instant; older ones are read again when shown. */
 const KEPT_TABS = 4;
+const MB = 1024 * 1024;
+/** And no more than about this much memory between them. */
+const KEPT_BYTES = 200 * MB;
+/** What a tab kept drawn is reckoned to hold: a viewer and its engine
+ * (about 24 MB measured for a small PDF), and its file about twice
+ * over (the bytes, and what the engine reads from them). A PDF behind
+ * another lets go of its drawn pages, so they are not counted. */
+const tabBytes = (tab: Tab) => 24 * MB + 2 * (tab.request.size || 0);
+/** The tabs kept drawn, the latest shown first, until there are
+ * KEPT_TABS of them or they would hold more than KEPT_BYTES: a few
+ * large documents are not all held at once. The latest is always
+ * kept. One left out opens again where it was left when shown. */
+function keptTabs(tabs: Tab[], used: number[]): Set<number> {
+	const kept = new Set<number>();
+	let bytes = 0;
+	for (let i = used.length - 1; i >= 0 && kept.size < KEPT_TABS; i--) {
+		const tab = tabs.find((one) => one.key === used[i]);
+		if (!tab) continue;
+		bytes += tabBytes(tab);
+		if (kept.size && bytes > KEPT_BYTES) break;
+		kept.add(tab.key);
+	}
+	return kept;
+}
 
 interface Split {
 	left: number;
@@ -104,7 +174,106 @@ function onResize(then: () => void) {
 	window.addEventListener("resize", then);
 	return () => window.removeEventListener("resize", then);
 }
-const windowWidth = () => window.innerWidth;
+/** A half narrower than this has no room for every button in its bar. */
+const NARROW_HALF = 720;
+/** What two documents side by side take from the window's width: where
+ * the halves meet, and whether each is narrow. Read as one string, so a
+ * resize that changes neither does not draw the window again (the raw
+ * width would, at every step of a drag). */
+function splitShape(ratio: number | null) {
+	return () => {
+		if (ratio === null) return "";
+		const width = window.innerWidth;
+		const at = clampRatio(ratio, width);
+		const narrow = (share: number) => (width * share < NARROW_HALF ? "1" : "0");
+		return `${at} ${narrow(at)}${narrow(1 - at)}`;
+	};
+}
+
+/** What a document's screen asks of the window. The same functions at
+ * every render, so the document is not drawn again for them. */
+interface DocCalls {
+	close: (key: number) => void;
+	replace: (key: number, request: OpenRequest) => void;
+	open: (request: OpenRequest) => void;
+	tools: (tool: string | undefined, file: OpenRequest) => void;
+	locate: (key: number, id: string) => void;
+	focus: (key: number) => void;
+}
+
+/**
+ * One document, drawn again only when what it is given changes, not at
+ * every render of Root (a menu opening in another tab, a step of a
+ * resize). The language and the keys are given too: what the document
+ * shows of them is read while it is drawn, so a change of either must
+ * still reach it.
+ */
+const DocView = memo(function DocView({
+	docKey,
+	request,
+	active,
+	tabbed,
+	visible,
+	side,
+	ratio,
+	narrow,
+	calls,
+}: {
+	docKey: number;
+	request: OpenRequest;
+	active: boolean;
+	/** A desktop's tab, in a wrapper that can fill half the window. */
+	tabbed: boolean;
+	visible: boolean;
+	side: Pane["side"];
+	ratio: number;
+	narrow: boolean;
+	calls: DocCalls;
+	lang: string;
+	keys: unknown;
+}) {
+	const onClose = useCallback(() => calls.close(docKey), [calls, docKey]);
+	const onReplace = useCallback(
+		(next: OpenRequest) => calls.replace(docKey, next),
+		[calls, docKey],
+	);
+	const onLocate = useCallback(
+		() => calls.locate(docKey, request.id),
+		[calls, docKey, request.id],
+	);
+	const pane = useMemo<Pane | undefined>(
+		() =>
+			tabbed
+				? { visible, side, ratio, narrow, onFocus: () => calls.focus(docKey) }
+				: undefined,
+		[tabbed, visible, side, ratio, narrow, calls, docKey],
+	);
+	return (
+		// What the document (and a tool opened over it) would lose is
+		// asked about when it goes: a tab and its screen share the key.
+		<LeaveScope.Provider value={docScope(docKey)}>
+			<ViewerScreen
+				request={request}
+				active={active}
+				pane={pane}
+				onClose={onClose}
+				onReplace={onReplace}
+				onOpen={calls.open}
+				onTools={calls.tools}
+				onLocate={onLocate}
+			/>
+		</LeaveScope.Provider>
+	);
+});
+
+/** Home, drawn again only when what it is given changes (see DocView). */
+const KeptHome = memo(function KeptHome({
+	lang: _lang,
+	keys: _keys,
+	...props
+}: ComponentProps<typeof Home> & { lang: string; keys: unknown }) {
+	return <Home {...props} />;
+});
 
 declare global {
 	interface Window {
@@ -119,13 +288,36 @@ declare global {
 	}
 }
 
+/** A file another app handed over that is not open yet: still being
+ * copied in by MainActivity, or queued for the page. The last document
+ * is then not reopened, to open over it a moment later. */
+function arriving(): boolean {
+	if ((window.__paperwrenFiles?.length ?? 0) > 0) return true;
+	// Added after 1.8.1; backend.ts types the bridge as it was.
+	const extras = window.__paperwrenAndroidExtras as unknown as
+		| { incoming?: () => boolean }
+		| undefined;
+	try {
+		return !!extras?.incoming?.();
+	} catch {
+		return false;
+	}
+}
+
 function Root() {
 	// Every screen is drawn from here, so a change of language redraws
 	// them all.
 	const lang = useSyncExternalStore(subscribe, language);
-	const { state, push, replace, back, close, reset, onLeave } = useNav();
-	const { entries, remove, ready: recentsReady } = useRecents();
-	const { settings, ready: settingsReady } = useSettings();
+	// The screens, not the whole state: an overlay opening or closing (a
+	// menu, a dialog) does not draw Root.
+	const screens = useNavScreens();
+	const { push, replace, back, close, reset, onLeave } = useNavActions();
+	// The list itself is only read in handlers (list()): a change of it
+	// does not draw Root.
+	const { remove, settle, list: recentList } = useRecentsActions();
+	const recentsReady = useRecentsReady();
+	const settings = useSettingsOf("reopenLast", "shortcuts");
+	const settingsReady = useSettingsReady();
 	const nextKey = useRef(1);
 	const picking = useRef(false);
 	// null until storage answers; the welcome only shows on a first run.
@@ -151,7 +343,7 @@ function Root() {
 	/** A change of tab is under way; anything else that takes the
 	 * document away (Back) closes its tab. */
 	const leaving = useRef(false);
-	const top = state.screens[state.screens.length - 1];
+	const top = screens[screens.length - 1];
 	const current = top?.kind === "viewer" ? top.key : null;
 	/** Two documents side by side (a desktop's wide window): the tabs in
 	 * each half, and where the halves meet. The one on show (`current`)
@@ -162,7 +354,16 @@ function Root() {
 	/** A file being picked to open beside the document on show. */
 	const besideOf = useRef<number | null>(null);
 	const room = useSyncExternalStore(onRoomChange, roomForTwo);
-	const width = useSyncExternalStore(onResize, windowWidth);
+	const shapeOf = useMemo(
+		() => splitShape(split ? split.ratio : null),
+		[split],
+	);
+	const [shownRatio, narrowHalves = ""] = useSyncExternalStore(
+		onResize,
+		shapeOf,
+	).split(" ");
+	/** Where the halves meet, kept so that each has room. */
+	const ratio = split ? Number(shownRatio) : 0.5;
 
 	const show = useCallback(
 		(tab: Tab) => {
@@ -172,7 +373,8 @@ function Root() {
 		},
 		[reset],
 	);
-	const closeTab = useCallback(
+	/** Take the tab of `key` away, asking nothing (see closeTab). */
+	const dropTab = useCallback(
 		(key: number) => {
 			const rest = tabsRef.current.filter((tab) => tab.key !== key);
 			const pair = splitRef.current;
@@ -191,7 +393,7 @@ function Root() {
 			setTabs(rest);
 			tabsRef.current = rest;
 			used.current = used.current.filter((k) => k !== key);
-			const shown = stateRef.current.screens.some(
+			const shown = screensRef.current.some(
 				(screen) => screen.kind === "viewer" && screen.key === key,
 			);
 			if (!shown) return;
@@ -208,14 +410,34 @@ function Root() {
 		},
 		[show, reset],
 	);
+	/** A tab whose work would be lost asks first, on show. */
+	const showScope = useCallback(
+		(scope: string) => {
+			const tab = tabsRef.current.find((one) => docScope(one.key) === scope);
+			if (tab && tab.key !== shownKey.current) show(tab);
+		},
+		[show],
+	);
+	/** Close the tab of `key` (its X, Ctrl+W, the close arrow), once what
+	 * it would lose has been asked about. */
+	const closeTab = useCallback(
+		(key: number) => askLeave([docScope(key)], () => dropTab(key), showScope),
+		[dropTab, showScope],
+	);
 	const goHome = useCallback(() => {
 		leaving.current = true;
 		reset([]);
 	}, [reset]);
 	/** Put the tab of `key` at index `to` in the row. */
 	const moveTabTo = useCallback((key: number, to: number) => {
-		const next = moveTab(tabsRef.current, key, to);
-		if (next === tabsRef.current) return;
+		const list = tabsRef.current;
+		const from = list.findIndex((item) => item.key === key);
+		if (from < 0) return;
+		const at = Math.max(0, Math.min(list.length - 1, to));
+		if (at === from) return;
+		const next = list.slice();
+		const [item] = next.splice(from, 1);
+		next.splice(at, 0, item);
 		tabsRef.current = next;
 		setTabs(next);
 	}, []);
@@ -229,10 +451,16 @@ function Root() {
 			const gone = list.filter((_, i) =>
 				which === "others" ? i !== at : i > at,
 			);
-			if (gone.some((tab) => tab.key === current)) show(keep);
-			for (const tab of gone) closeTab(tab.key);
+			askLeave(
+				gone.map((tab) => docScope(tab.key)),
+				() => {
+					if (gone.some((tab) => tab.key === shownKey.current)) show(keep);
+					for (const tab of gone) dropTab(tab.key);
+				},
+				showScope,
+			);
 		},
-		[current, show, closeTab],
+		[show, dropTab, showScope],
 	);
 
 	const open = useCallback(
@@ -304,14 +532,15 @@ function Root() {
 			leaving.current = false;
 			return;
 		}
-		const stillOpen = state.screens.some(
+		const stillOpen = screens.some(
 			(screen) => screen.kind === "viewer" && screen.key === was,
 		);
-		if (was !== null && !stillOpen) closeTab(was);
-	}, [current, state.screens, closeTab]);
+		// Back has already asked about what it would lose.
+		if (was !== null && !stillOpen) dropTab(was);
+	}, [current, screens, dropTab]);
 
-	const stateRef = useRef(state);
-	stateRef.current = state;
+	const screensRef = useRef(screens);
+	screensRef.current = screens;
 
 	const pick = useCallback(
 		async (replacing?: RecentEntry) => {
@@ -320,7 +549,8 @@ function Root() {
 			try {
 				const request = await backend.pickFile();
 				if (!request) return;
-				if (replacing && replacing.id !== request.id) remove(replacing.id);
+				if (replacing && replacing.id !== request.id)
+					settle(remove(replacing.id));
 				open(
 					replacing?.position
 						? { ...request, position: replacing.position }
@@ -333,7 +563,7 @@ function Root() {
 				besideOf.current = null;
 			}
 		},
-		[open, remove],
+		[open, remove, settle],
 	);
 
 	// --- side by side ---
@@ -371,27 +601,14 @@ function Root() {
 		}),
 		[twoShown, room, tabs, current, show, pick],
 	);
-	const paneOf = (tab: Tab): Pane => {
-		const half =
-			twoShown && split
-				? tab.key === split.left
-					? "left"
-					: tab.key === split.right
-						? "right"
-						: null
-				: null;
-		const ratio = split ? clampRatio(split.ratio, width) : 0.5;
-		const across = half === "left" ? ratio : 1 - ratio;
-		return {
-			visible: half !== null || (tab.key === current && top?.kind === "viewer"),
-			side: half,
-			ratio,
-			narrow: half !== null && width * across < 720,
-			onFocus: () => {
-				if (tab.key !== current) show(tab);
-			},
-		};
-	};
+	const halfOf = (tab: Tab): Pane["side"] =>
+		twoShown && split
+			? tab.key === split.left
+				? "left"
+				: tab.key === split.right
+					? "right"
+					: null
+			: null;
 
 	const openRecent = useCallback(
 		(e: RecentEntry) =>
@@ -410,8 +627,6 @@ function Root() {
 	const resumed = useRef(false);
 	const openRecentRef = useRef(openRecent);
 	openRecentRef.current = openRecent;
-	const recentsRef = useRef(entries);
-	recentsRef.current = entries;
 	useEffect(() => {
 		if (resumed.current || !settingsReady || !recentsReady) return;
 		if (welcome !== false) return;
@@ -421,22 +636,26 @@ function Root() {
 		}
 		const timer = window.setTimeout(() => {
 			resumed.current = true;
-			const busy = stateRef.current.screens.some((x) => x.kind === "viewer");
-			if (busy) return;
-			const last = [...recentsRef.current]
+			const busy = screensRef.current.some((x) => x.kind === "viewer");
+			if (busy || arriving()) return;
+			const last = [...recentList()]
 				.filter((entry) => !entry.unavailable)
 				.sort((a, b) => b.openedAt - a.openedAt)[0];
 			if (last) openRecentRef.current(last);
 		}, 400);
 		return () => window.clearTimeout(timer);
-	}, [settingsReady, recentsReady, welcome, settings.reopenLast]);
+	}, [settingsReady, recentsReady, welcome, settings.reopenLast, recentList]);
 
 	// Android "Open with": MainActivity copies the file into private
 	// storage and calls window.__paperwrenOpenFile (see index.html);
 	// payloads queue until this effect drains them.
 	/** The document another app opened with Paperwren, and whether that
 	 * started Paperwren: Back on it goes back to that app (#83). */
-	const caller = useRef<{ id: string; started: boolean } | null>(null);
+	const caller = useRef<{
+		id: string;
+		started: boolean;
+		shown: boolean;
+	} | null>(null);
 	useEffect(() => {
 		const drain = () => {
 			const queue = window.__paperwrenFiles ?? [];
@@ -444,9 +663,27 @@ function Root() {
 			// A file shared into the app IS the onboarding: go straight to it.
 			if (files.length) finishWelcome();
 			for (const f of files) {
-				const request = requestForManagedCopy(f.path, f.name, f.size);
-				if (f.caller && !isDesktop)
-					caller.current = { id: request.id, started: f.caller === "started" };
+				// Too large to copy in (a 350 MB PDF), it comes by its address
+				// and is read from there while the app has the right to.
+				const request: OpenRequest = f.path.startsWith("content://")
+					? {
+							id: idForReopen({ kind: "uri", uri: f.path }),
+							name: f.name,
+							nameVerified: true,
+							size: f.size,
+							reopen: { kind: "uri", uri: f.path },
+						}
+					: requestForManagedCopy(f.path, f.name, f.size);
+				if (f.caller && !isDesktop) {
+					const currentTop = screensRef.current[screensRef.current.length - 1];
+					caller.current = {
+						id: request.id,
+						started: f.caller === "started",
+						shown:
+							currentTop?.kind === "viewer" &&
+							currentTop.request.id === request.id,
+					};
+				}
 				open(request);
 			}
 		};
@@ -454,6 +691,19 @@ function Root() {
 		window.addEventListener("paperwren-file", drain);
 		return () => window.removeEventListener("paperwren-file", drain);
 	}, [open, finishWelcome]);
+
+	// Once the reader leaves the caller-opened viewer (for Home, Settings,
+	// or another file), forget the caller so reopening it from Recents
+	// does not exit the app.
+	useEffect(() => {
+		const from = caller.current;
+		if (!from) return;
+		if (top?.kind === "viewer" && top.request.id === from.id) {
+			from.shown = true;
+		} else if (from.shown) {
+			caller.current = null;
+		}
+	}, [top]);
 
 	// Back on that document, with nothing over it, goes back to the app
 	// that opened it, as a viewer does: WhatsApp, a file manager. Started
@@ -464,8 +714,8 @@ function Root() {
 			onLeave((now) => {
 				const from = caller.current;
 				if (!from || !backToCaller(now, from.id)) return false;
-				const leave = window.__paperwrenAndroidExtras?.leaveToCaller;
-				if (!leave?.(from.started)) return false;
+				if (!window.__paperwrenAndroidExtras?.leaveToCaller?.(from.started))
+					return false;
 				caller.current = null;
 				if (!from.started) close();
 				return true;
@@ -500,30 +750,37 @@ function Root() {
 		return () => window.clearTimeout(timer);
 	}, []);
 
-	const entriesRef = useRef(entries);
-	entriesRef.current = entries;
-
 	// The keyboard, as a desktop reader has it: Ctrl+O opens a file,
 	// Ctrl+W closes what is open, Ctrl+F on Home goes to its search (⌘
-	// for Ctrl on a Mac). In the app's own window the webview's reload
-	// and find-in-page keys would act on the app instead of the document,
-	// so they are not let through (a viewer's own Ctrl+F still opens its
-	// find bar).
-	const deep = state.screens.length > 1;
+	// for Ctrl on a Mac). Unhandled browser keys are caught at window,
+	// after the document and its viewers have heard them.
+	const deep = screens.length > 1;
 	const shownKey = useRef(current);
 	shownKey.current = current;
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
-			const key = e.key.toLowerCase();
 			if (isDesktop && isFullscreenKey(e)) {
 				e.preventDefault();
 				toggleFullscreen();
+			} else if (
+				isDesktop &&
+				mod &&
+				!e.shiftKey &&
+				e.key === "," &&
+				!whoHas("Ctrl+,", settings.shortcuts)
+			) {
+				if (!ownsKeys()) return;
+				e.preventDefault();
+				if (!screensRef.current.some((s) => s.kind === "settings"))
+					push({ kind: "settings" });
 			} else if (matches(e, "open")) {
 				e.preventDefault();
-				pick();
+				// Not under a dialog or a tool: the keys are theirs.
+				if (ownsKeys()) pick();
 			} else if (matches(e, "close") && deep) {
 				e.preventDefault();
+				if (!ownsKeys()) return;
 				if (shownKey.current !== null) closeTab(shownKey.current);
 				else close();
 			} else if (
@@ -532,7 +789,7 @@ function Root() {
 				!e.altKey &&
 				(e.key === "Tab" || /^[1-9]$/.test(e.key)) &&
 				tabsRef.current.length > 1 &&
-				!modalOpen()
+				ownsKeys()
 			) {
 				// Ctrl+Tab and Ctrl+Shift+Tab step through the tabs; Ctrl+1 to
 				// Ctrl+8 go to one, Ctrl+9 to the last.
@@ -553,7 +810,7 @@ function Root() {
 				!e.altKey &&
 				(e.key === "PageUp" || e.key === "PageDown") &&
 				shownKey.current !== null &&
-				!modalOpen()
+				ownsKeys()
 			) {
 				// Ctrl+Shift+Page Up and Down move the tab on show one place
 				// back or on in the row, as in a browser.
@@ -567,6 +824,7 @@ function Root() {
 				!e.ctrlKey &&
 				e.key === "ArrowLeft" &&
 				deep &&
+				ownsKeys() &&
 				// On a Mac ⌥← in a field moves the caret a word back.
 				!(isMac && (e.target as Element | null)?.closest?.("input, textarea"))
 			) {
@@ -579,26 +837,28 @@ function Root() {
 				// (viewer/hooks.ts), and nothing else may act on them.
 				e.preventDefault();
 			} else if (matches(e, "find") && !(e.ctrlKey && e.metaKey)) {
-				if (isTauri) e.preventDefault();
+				if (!ownsKeys()) return;
 				if (!deep) {
 					e.preventDefault();
 					document
 						.querySelector<HTMLInputElement>('[data-testid="home"] input')
 						?.focus();
 				}
-			} else if (
-				isTauri &&
-				(e.key === "F5" ||
-					e.key === "F3" ||
-					e.key === "F7" ||
-					(mod && (key === "r" || key === "g")))
-			) {
-				e.preventDefault();
 			}
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
-	}, [pick, back, close, closeTab, show, deep, moveTabTo]);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [
+		pick,
+		back,
+		close,
+		closeTab,
+		show,
+		deep,
+		moveTabTo,
+		push,
+		settings.shortcuts,
+	]);
 
 	// Ctrl+wheel, which is also how a trackpad pinch arrives: the same
 	// rule as the zoom keys above. A viewer takes it for its document
@@ -625,10 +885,8 @@ function Root() {
 	}, [stripShown]);
 
 	// A Mac's menu bar, in the app's language. Its commands press the
-	// keys above; Settings has no key of its own to press. Only a Mac
+	// keys above; Settings uses its own action. Only a Mac
 	// loads the code for it.
-	const screensRef = useRef(state.screens);
-	screensRef.current = state.screens;
 	// biome-ignore lint/correctness/useExhaustiveDependencies: built again when the language changes
 	useEffect(() => {
 		if (!isTauri || !sharesFrame) return;
@@ -636,14 +894,15 @@ function Root() {
 			.then(({ installMenu }) =>
 				installMenu({
 					settings: () => {
+						if (!ownsKeys() || whoHas("Ctrl+,", settings.shortcuts)) return;
 						if (!screensRef.current.some((s) => s.kind === "settings"))
 							push({ kind: "settings" });
 					},
 				}),
 			)
 			.catch(() => {});
-	}, [lang, push]);
-	const viewing = state.screens[state.screens.length - 1]?.kind === "viewer";
+	}, [lang, push, settings.shortcuts]);
+	const viewing = screens[screens.length - 1]?.kind === "viewer";
 	useEffect(() => {
 		if (!isTauri || !sharesFrame) return;
 		import("@/lib/macMenu")
@@ -679,14 +938,36 @@ function Root() {
 	// never saved over: a copy goes somewhere else, and a save the reader
 	// points at one of them is refused, saying why.
 	useEffect(() => {
+		retainMemoryFiles([
+			...tabs.map((tab) => tab.request.reopen),
+			...screens.map((screen) =>
+				screen.kind === "viewer"
+					? screen.request.reopen
+					: screen.kind === "tools"
+						? screen.file?.reopen
+						: undefined,
+			),
+		]);
 		holdOpen("documents", [
 			...tabs.map((tab) => tab.request.reopen),
-			...state.screens.map((screen) =>
+			...screens.map((screen) =>
 				screen.kind === "viewer" ? screen.request.reopen : undefined,
 			),
 		]);
-	}, [tabs, state.screens]);
+	}, [tabs, screens]);
 	useEffect(() => onSaveRefused((note) => toast(t(note))), []);
+	// A setting, a bookmark, a mark or the recent list that could not be
+	// written is said, and can be tried again (lib/storedValue).
+	useEffect(
+		() =>
+			onStoreFailed((retry) =>
+				toast(t("Couldn't change saved data"), {
+					label: t("Try again"),
+					run: retry,
+				}),
+			),
+		[],
+	);
 
 	// A desktop app has no "Reload" or "Back" menu on a right-click, and
 	// the webview's own menu acts on the app, not the document (its
@@ -714,37 +995,128 @@ function Root() {
 			.then(() => toast(t("Copied")))
 			.catch(() => toast(t("Couldn't copy")));
 	};
+	const kept = keptTabs(tabs, used.current);
+	// A tab with work it would lose stays drawn, however many are opened
+	// after it.
+	const guarded = useSyncExternalStore(onGuardsChange, guardedScopes);
+	for (const tab of tabs)
+		if (guarded.split(" ").includes(docScope(tab.key))) kept.add(tab.key);
+
+	// What Home and the documents are handed, the same at every render:
+	// they are drawn again for what they show, not each time Root is.
+	const onOpenFile = useCallback(() => pick(), [pick]);
+	const onSettings = useCallback(() => push({ kind: "settings" }), [push]);
+	const onTools = useCallback(
+		(tool?: ToolId) => push({ kind: "tools", tool }),
+		[push],
+	);
+	const onNotes = useCallback(() => push({ kind: "notes" }), [push]);
+	const openTools = useCallback(
+		(tool: string | undefined, file: OpenRequest) =>
+			push({ kind: "tools", tool, file }),
+		[push],
+	);
+	/** A desktop's tabs. */
+	const tabCalls = useMemo<DocCalls>(
+		() => ({
+			close: closeTab,
+			replace: replaceTab,
+			open,
+			tools: openTools,
+			locate: (key, id) => {
+				const entry = recentList().find((e) => e.id === id);
+				closeTab(key);
+				pick(entry);
+			},
+			focus: (key) => {
+				if (key === shownKey.current) return;
+				const tab = tabsRef.current.find((one) => one.key === key);
+				if (tab) show(tab);
+			},
+		}),
+		[closeTab, replaceTab, open, openTools, pick, show, recentList],
+	);
+	/** A phone's one document on top. */
+	const stackCalls = useMemo<DocCalls>(
+		() => ({
+			close: () => {
+				const from = caller.current;
+				const at = screensRef.current.length - 1;
+				const currentTop = screensRef.current[at];
+				if (
+					from &&
+					currentTop?.kind === "viewer" &&
+					currentTop.request.id === from.id
+				) {
+					askLeave([screenScope(currentTop, at)], () => {
+						if (screensRef.current[at] !== currentTop) return;
+						caller.current = null;
+						if (
+							window.__paperwrenAndroidExtras?.leaveToCaller?.(from.started)
+						) {
+							if (!from.started) close();
+							return;
+						}
+						close();
+					});
+					return;
+				}
+				close();
+			},
+			replace: (_key, request) =>
+				replace({ kind: "viewer", request, key: nextKey.current++ }),
+			open,
+			tools: openTools,
+			locate: (_key, id) => {
+				const entry = recentList().find((e) => e.id === id);
+				back();
+				pick(entry);
+			},
+			focus: () => {},
+		}),
+		[close, replace, open, openTools, back, pick, recentList],
+	);
+	const narrowLeft = narrowHalves[0] === "1";
+	const narrowRight = narrowHalves[1] === "1";
 
 	return (
 		<>
-			<Home
-				onOpenFile={() => pick()}
+			<KeptHome
+				onOpenFile={onOpenFile}
 				onOpenRecent={openRecent}
 				onOpenRequest={open}
-				onSettings={() => push({ kind: "settings" })}
-				onTools={(tool) => push({ kind: "tools", tool })}
-				onNotes={() => push({ kind: "notes" })}
+				onSettings={onSettings}
+				onTools={onTools}
+				onNotes={onNotes}
 				onRenamed={renamedOpen}
+				lang={lang}
+				keys={settings.shortcuts}
 			/>
-			{state.screens.map((screen, i) => {
-				const atTop = i === state.screens.length - 1;
+			{screens.map((screen, i) => {
+				const atTop = i === screens.length - 1;
 				if (screen.kind === "settings")
 					return <SettingsScreen key="settings" />;
+				// What a screen would lose is asked about when it goes.
+				const scope = screenScope(screen, i);
 				if (screen.kind === "notes")
 					return (
-						<Suspense key="notes" fallback={<ScreenLoading />}>
-							<NotesScreen />
-						</Suspense>
+						<LeaveScope.Provider key="notes" value={scope}>
+							<Suspense fallback={<ScreenLoading />}>
+								<NotesScreen />
+							</Suspense>
+						</LeaveScope.Provider>
 					);
 				if (screen.kind === "tools")
 					return (
-						<Suspense key={`tools-${i}`} fallback={<ScreenLoading />}>
-							<ToolsScreen
-								start={screen.tool as ToolId | undefined}
-								file={screen.file}
-								onOpen={open}
-							/>
-						</Suspense>
+						<LeaveScope.Provider key={`tools-${i}`} value={scope}>
+							<Suspense fallback={<ScreenLoading />}>
+								<ToolsScreen
+									start={screen.tool as ToolId | undefined}
+									file={screen.file}
+									onOpen={open}
+								/>
+							</Suspense>
+						</LeaveScope.Provider>
 					);
 				// A document under another one (several shared at once, a file
 				// dropped while reading) is not kept in memory: Back opens it
@@ -756,22 +1128,18 @@ function Root() {
 						key={screen.key}
 						fallback={<OpeningView name={screen.request.name} />}
 					>
-						<ViewerScreen
+						<DocView
+							docKey={screen.key}
 							request={screen.request}
 							active={atTop}
-							onClose={close}
-							onReplace={(request) =>
-								replace({ kind: "viewer", request, key: nextKey.current++ })
-							}
-							onOpen={open}
-							onTools={(tool, file) => push({ kind: "tools", tool, file })}
-							onLocate={() => {
-								const entry = entriesRef.current.find(
-									(e) => e.id === screen.request.id,
-								);
-								back();
-								pick(entry);
-							}}
+							tabbed={false}
+							visible
+							side={null}
+							ratio={0.5}
+							narrow={false}
+							calls={stackCalls}
+							lang={lang}
+							keys={settings.shortcuts}
 						/>
 					</Suspense>
 				);
@@ -784,67 +1152,80 @@ function Root() {
 								tab.key === current ||
 								tab.key === split?.left ||
 								tab.key === split?.right ||
-								used.current.slice(-KEPT_TABS).includes(tab.key),
+								kept.has(tab.key),
 						)
-						.map((tab) => (
-							<Suspense
-								key={tab.key}
-								fallback={
-									tab.key === current ? (
-										<OpeningView name={tab.request.name} />
-									) : null
-								}
-							>
-								<ViewerScreen
-									request={tab.request}
-									// Under Settings, or behind another tab: kept, not shown.
-									// Side by side, the half on show has the keyboard.
-									active={tab.key === current && top?.kind === "viewer"}
-									pane={paneOf(tab)}
-									onClose={() => closeTab(tab.key)}
-									onReplace={(request) => replaceTab(tab.key, request)}
-									onOpen={open}
-									onTools={(tool, file) => push({ kind: "tools", tool, file })}
-									onLocate={() => {
-										const entry = entriesRef.current.find(
-											(e) => e.id === tab.request.id,
-										);
-										closeTab(tab.key);
-										pick(entry);
-									}}
-								/>
-							</Suspense>
-						))}
+						.map((tab) => {
+							const half = halfOf(tab);
+							const shown = tab.key === current && top?.kind === "viewer";
+							return (
+								<Suspense
+									key={tab.key}
+									fallback={
+										tab.key === current ? (
+											<OpeningView name={tab.request.name} />
+										) : null
+									}
+								>
+									<DocView
+										docKey={tab.key}
+										request={tab.request}
+										// Under Settings, or behind another tab: kept, not shown.
+										// Side by side, the half on show has the keyboard.
+										active={shown}
+										tabbed
+										visible={half !== null || shown}
+										side={half}
+										ratio={ratio}
+										narrow={
+											half === "left"
+												? narrowLeft
+												: half === "right" && narrowRight
+										}
+										calls={tabCalls}
+										lang={lang}
+										keys={settings.shortcuts}
+									/>
+								</Suspense>
+							);
+						})}
 			</SideBySideContext.Provider>
 			{twoShown && split && (
-				<SplitDivider
-					ratio={clampRatio(split.ratio, width)}
-					onRatio={(ratio) =>
-						setSplit(
-							(pair) => pair && { ...pair, ratio: clampRatio(ratio, width) },
-						)
-					}
-				/>
+				<Suspense fallback={null}>
+					<SplitDivider
+						ratio={ratio}
+						onRatio={(next) =>
+							setSplit(
+								(pair) =>
+									pair && {
+										...pair,
+										ratio: clampRatio(next, window.innerWidth),
+									},
+							)
+						}
+					/>
+				</Suspense>
 			)}
 			{stripShown && (
-				<TabStrip
-					tabs={tabs}
-					current={current}
-					beside={
-						twoShown && split
-							? current === split.left
-								? split.right
-								: split.left
-							: null
-					}
-					onShow={show}
-					onClose={(tab) => closeTab(tab.key)}
-					onHome={goHome}
-					onMove={(tab, to) => moveTabTo(tab.key, to)}
-					onCloseOthers={(tab) => closeAround(tab, "others")}
-					onCloseAfter={(tab) => closeAround(tab, "after")}
-					onBeside={sideBySide.room ? sideBySide.beside : undefined}
-				/>
+				<Suspense fallback={null}>
+					<TabStrip
+						tabs={tabs}
+						current={current}
+						beside={
+							twoShown && split
+								? current === split.left
+									? split.right
+									: split.left
+								: null
+						}
+						onShow={show}
+						onClose={(tab) => closeTab(tab.key)}
+						onHome={goHome}
+						onMove={(tab, to) => moveTabTo(tab.key, to)}
+						onCloseOthers={(tab) => closeAround(tab, "others")}
+						onCloseAfter={(tab) => closeAround(tab, "after")}
+						onBeside={sideBySide.room ? sideBySide.beside : undefined}
+					/>
+				</Suspense>
 			)}
 			{welcome && (
 				<Suspense fallback={null}>
@@ -896,8 +1277,11 @@ function Root() {
 				)}
 			</Sheet>
 			<LinkGuard />
+			<LeaveHost show={showScope} />
 			<ToastHost />
-			<UpdateHost paused={welcome !== false} />
+			<Suspense fallback={null}>
+				<UpdateHost paused={welcome !== false} />
+			</Suspense>
 			<WindowControls />
 		</>
 	);

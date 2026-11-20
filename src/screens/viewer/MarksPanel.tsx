@@ -13,6 +13,8 @@ import { Button, IconButton, toast } from "@/ui";
 import {
 	Copy,
 	Download,
+	Eye,
+	EyeOff,
 	FileDown,
 	Highlighter,
 	NotebookPen,
@@ -138,6 +140,8 @@ export function MarksPanel({
 	label,
 	onShow,
 	onSaveCopy,
+	marksVisible = true,
+	onToggleMarksVisible,
 }: {
 	store: MarkStore;
 	name: string;
@@ -145,6 +149,10 @@ export function MarksPanel({
 	label: (page: number) => string;
 	onShow: (mark: DocMark) => void;
 	onSaveCopy: () => void;
+	/** Whether highlights are shown on the document pages (default true). */
+	marksVisible?: boolean;
+	/** Toggle visibility of highlights on the document pages. */
+	onToggleMarksVisible?: () => void;
 }) {
 	const note = useDraft(store.note, store.setNote);
 	const marks = sortMarks(store.list);
@@ -176,13 +184,22 @@ export function MarksPanel({
 			});
 		if (saved) toast(t("Saved as {name}", { name: saved.name }));
 	};
+	const addingNote = useRef(false);
+	const [noteBusy, setNoteBusy] = useState(false);
 	const toNotes = async () => {
+		if (addingNote.current) return;
+		addingNote.current = true;
+		setNoteBusy(true);
 		const made = newNote();
 		made.title = splitName(name)[0];
 		made.blocks = [{ kind: "text", id: blockId(), text: markdown() }];
 		await saveNote(made)
 			.then(() => toast(t("Added to Notes")))
-			.catch(() => toast(t("Couldn't save a copy")));
+			.catch(() => toast(t("Couldn't save a copy")))
+			.finally(() => {
+				addingNote.current = false;
+				setNoteBusy(false);
+			});
 	};
 
 	const remove = (mark: DocMark) => {
@@ -192,6 +209,22 @@ export function MarksPanel({
 
 	return (
 		<div className={s.marksPanel} data-testid="marks-panel">
+			{onToggleMarksVisible && store.list.length > 0 && (
+				<button
+					type="button"
+					className={s.marksToggle}
+					aria-pressed={!marksVisible}
+					onClick={onToggleMarksVisible}
+					data-testid="marks-visibility-toggle"
+				>
+					{marksVisible ? (
+						<EyeOff size={16} aria-hidden="true" />
+					) : (
+						<Eye size={16} aria-hidden="true" />
+					)}
+					{marksVisible ? t("Hide highlights") : t("Show highlights")}
+				</button>
+			)}
 			<Growing
 				className={s.docNote}
 				rows={2}
@@ -242,7 +275,13 @@ export function MarksPanel({
 					<Button variant="ghost" onClick={saveText} data-testid="marks-save">
 						<Download size={16} /> {t("Save as a file")}
 					</Button>
-					<Button variant="ghost" onClick={toNotes} data-testid="marks-notes">
+					<Button
+						variant="ghost"
+						onClick={toNotes}
+						disabled={noteBusy}
+						aria-busy={noteBusy}
+						data-testid="marks-notes"
+					>
 						<NotebookPen size={16} /> {t("Add to Notes")}
 					</Button>
 					{store.list.length > 0 && (

@@ -40,6 +40,14 @@ import {
 } from "./model";
 import type { RawDeck } from "./ppt";
 
+/** How many spaces a `<text:s>` stands for: at least one, and never
+ * the millions a hostile file could ask `repeat` to build. */
+const spaces = (el: Element): number =>
+	Math.min(
+		1000,
+		Math.max(1, Math.trunc(Number(el.getAttribute("text:c")) || 1)),
+	);
+
 // ---------- Units ----------
 
 /** An ODF length ("2.5cm", "12pt", "1in") in CSS px. */
@@ -354,7 +362,7 @@ export function parseOdt(bytes: Uint8Array): RichDoc {
 			if (!(child instanceof Element)) continue;
 			switch (child.localName) {
 				case "s":
-					push(" ".repeat(Number(child.getAttribute("text:c")) || 1));
+					push(" ".repeat(spaces(child)));
 					break;
 				case "tab":
 					push("\t");
@@ -752,7 +760,7 @@ export function parseOdp(bytes: Uint8Array): RawDeck {
 					if (child.localName === "s")
 						runs.push({
 							...style(),
-							text: " ".repeat(Number(child.getAttribute("text:c")) || 1),
+							text: " ".repeat(spaces(child)),
 						});
 					else if (child.localName === "tab")
 						runs.push({ ...style(), text: "\t" });

@@ -1019,7 +1019,6 @@ export const fr: Table = {
 	"Language of the document": "Langue du document",
 	"Reading page {n} of {total}": "Lecture de la page {n} sur {total}",
 	searchable: "consultable",
-	"Nothing found yet.": "Rien trouvé pour le moment.",
 	"Showing the first {n} pages.": "Affichage des {n} premières pages.",
 	"Try a sample document": "Essayer un document d'exemple",
 	"Found on {n} pages": {
@@ -1370,4 +1369,12 @@ export const fr: Table = {
 		"La copie s'ouvrira sans mot de passe. Pour la verrouiller de nouveau, utilisez « Ajouter un mot de passe ».",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"Ce PDF limite ce qu'un lecteur peut faire, comme copier. La copie n'aura aucune limite.",
+	"Couldn't delete this note": "Impossible de supprimer cette note",
+	"Couldn't change saved data":
+		"Impossible de modifier les données enregistrées",
+	"A print job is already in progress": "Une impression est déjà en cours",
+	"No results. Try different words or turn off search options.":
+		"Aucun résultat. Essayez d’autres mots ou désactivez les options de recherche.",
+	"Hide highlights": "Masquer les surlignages",
+	"Show highlights": "Afficher les surlignages",
 };

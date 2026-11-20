@@ -8,7 +8,13 @@ import {
 } from "@/lib/signatures";
 import { Button, Dialog, toast } from "@/ui";
 import { Check, ImageUp } from "lucide-react";
-import { type CSSProperties, useMemo, useState } from "react";
+import {
+	type CSSProperties,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { InkChoice } from "./InkChoice";
 import s from "./Tools.module.css";
 import {
@@ -169,32 +175,61 @@ export function StampPad({
 	const shown = way === "make" ? made : picture;
 	const preview = useMemo(() => shown?.toDataURL("image/png") ?? null, [shown]);
 
-	const upload = async () => {
-		let canvas: HTMLCanvasElement | null;
-		try {
-			canvas = await pickPicture();
-		} catch {
-			toast(t("That picture couldn't be read"));
-			return;
-		}
-		if (!canvas) return;
-		if (!hasInk(canvas)) {
-			toast(t("No stamp was found in that picture"));
-			return;
-		}
-		setClearPaper(true);
-		setDepth(0);
-		setSource(canvas);
-	};
+	const uploadingRef = useRef(false);
+	const [uploading, setUploading] = useState(false);
+	const finishing = useRef(false);
+	const alive = useRef(true);
+	const [busy, setBusy] = useState(false);
+	useEffect(() => {
+		alive.current = true;
+		return () => {
+			alive.current = false;
+		};
+	}, []);
 
-	const done = async () => {
-		const stamp = shown ? cut(shown) : null;
-		if (!stamp) {
-			toast(t("No stamp was found in that picture"));
-			return;
+	const upload = async () => {
+		if (uploadingRef.current) return;
+		uploadingRef.current = true;
+		setUploading(true);
+		try {
+			let canvas: HTMLCanvasElement | null;
+			try {
+				canvas = await pickPicture();
+			} catch {
+				if (alive.current) toast(t("That picture couldn't be read"));
+				return;
+			}
+			if (!alive.current || !canvas) return;
+			if (!hasInk(canvas)) {
+				toast(t("No stamp was found in that picture"));
+				return;
+			}
+			setClearPaper(true);
+			setDepth(0);
+			setSource(canvas);
+		} finally {
+			uploadingRef.current = false;
+			if (alive.current) setUploading(false);
 		}
-		if (keep) await keepStamp(stamp);
-		onDone(stamp);
+	};
+	const done = async () => {
+		if (finishing.current) return;
+		finishing.current = true;
+		setBusy(true);
+		try {
+			const stamp = shown ? cut(shown) : null;
+			if (!stamp) {
+				toast(t("No stamp was found in that picture"));
+				return;
+			}
+			if (keep) await keepStamp(stamp);
+			if (alive.current) onDone(stamp);
+		} catch {
+			toast(t("Couldn't save a copy"));
+		} finally {
+			finishing.current = false;
+			if (alive.current) setBusy(false);
+		}
 	};
 
 	return (
@@ -209,7 +244,12 @@ export function StampPad({
 					<Button variant="ghost" onClick={onClose}>
 						{t("Cancel")}
 					</Button>
-					<Button onClick={done} disabled={!shown} data-testid="stamp-done">
+					<Button
+						onClick={done}
+						disabled={busy || !shown}
+						aria-busy={busy}
+						data-testid="stamp-done"
+					>
 						{t("Use it")}
 					</Button>
 				</>
@@ -372,7 +412,13 @@ export function StampPad({
 							testId="stamp"
 						/>
 					)}
-					<Button variant="secondary" onClick={upload} data-testid="stamp-pick">
+					<Button
+						variant="secondary"
+						onClick={upload}
+						disabled={uploading}
+						aria-busy={uploading || undefined}
+						data-testid="stamp-pick"
+					>
 						<ImageUp size={18} />{" "}
 						{source ? t("Pick another") : t("Pick a picture")}
 					</Button>

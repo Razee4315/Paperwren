@@ -6,7 +6,11 @@ import {
 	installUpdate,
 	useUpdateState,
 } from "@/lib/updates";
-import { useSettings } from "@/state/settings";
+import {
+	useSetting,
+	useSettingsReady,
+	useUpdateSetting,
+} from "@/state/settings";
 import { Button, Dialog, toast } from "@/ui";
 import { useEffect, useRef, useState } from "react";
 
@@ -18,24 +22,28 @@ const CHECK_AFTER_MS = 4000;
  * at start when allowed, and offers a version it found. `paused` while
  * the welcome is on screen. */
 export function UpdateHost({ paused }: { paused: boolean }) {
-	const { settings, ready, update } = useSettings();
+	// Read narrow: this sits under every screen, and a change to any
+	// other setting must not draw it again.
+	const updates = useSetting("updates");
+	const ready = useSettingsReady();
+	const update = useUpdateSetting();
 	const status = useUpdateState();
 	const [asking, setAsking] = useState(false);
 	const checked = useRef(false);
 
 	useEffect(() => {
 		if (!canUpdate || !ready || paused) return;
-		if (settings.updates === "ask") {
+		if (updates === "ask") {
 			const timer = window.setTimeout(() => setAsking(true), ASK_AFTER_MS);
 			return () => window.clearTimeout(timer);
 		}
-		if (settings.updates !== "auto" || checked.current) return;
+		if (updates !== "auto" || checked.current) return;
 		const timer = window.setTimeout(() => {
 			checked.current = true;
 			checkForUpdate(true);
 		}, CHECK_AFTER_MS);
 		return () => window.clearTimeout(timer);
-	}, [ready, paused, settings.updates]);
+	}, [ready, paused, updates]);
 
 	useEffect(() => {
 		if (status.phase !== "install-failed") return;
@@ -61,7 +69,7 @@ export function UpdateHost({ paused }: { paused: boolean }) {
 	return (
 		<>
 			<Dialog
-				open={asking && settings.updates === "ask"}
+				open={asking && updates === "ask"}
 				title={t("Check for updates automatically?")}
 				onClose={() => setAsking(false)}
 				testId="updates-ask"

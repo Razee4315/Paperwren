@@ -3,10 +3,10 @@ import { joinName, nameProblem, splitName } from "@/lib/fileName";
 import { t } from "@/lib/i18n";
 import { renameRefusal } from "@/lib/rename";
 import type { Reopen } from "@/lib/types";
-import { useRecents } from "@/state/recents";
+import { useRecentsActions } from "@/state/recents";
 import { Button, Dialog, toast } from "@/ui";
 import { useState } from "react";
-import s from "./Shell.module.css";
+import s from "./FileActions.module.css";
 
 /**
  * Give a file a new name. The extension stays as it is, so a file
@@ -29,7 +29,7 @@ export function RenameDialog({
 	/** The file now has `name`, at `reopen`, known in recents as `id`. */
 	onRenamed?: (name: string, reopen: Reopen, id: string) => void;
 }) {
-	const recents = useRecents();
+	const recents = useRecentsActions();
 	const [stem0, ext] = splitName(file.name);
 	const [stem, setStem] = useState(stem0);
 	const [busy, setBusy] = useState(false);
@@ -87,9 +87,10 @@ export function RenameDialog({
 					<Button
 						onClick={submit}
 						disabled={busy || !!problem}
+						aria-busy={busy}
 						data-testid="rename-go"
 					>
-						{t("Rename")}
+						{busy ? t("Loading") : t("Rename")}
 					</Button>
 				</>
 			}
@@ -110,13 +111,14 @@ export function RenameDialog({
 						// biome-ignore lint/a11y/noAutofocus: the dialog exists to type a name
 						autoFocus
 						onFocus={(e) => e.currentTarget.select()}
+						aria-describedby="rename-status"
 						value={stem}
 						onChange={(e) => {
 							setStem(e.target.value);
 							setError(null);
 						}}
 						aria-label={t("New name")}
-						aria-invalid={!!error || undefined}
+						aria-invalid={!!(error || problem) || undefined}
 						data-testid="rename-input"
 					/>
 					{ext && (
@@ -132,11 +134,14 @@ export function RenameDialog({
 						)}
 					</p>
 				)}
-				{(error || (problem && stem.trim())) && (
-					<p className={s.renameError} role="alert" data-testid="rename-error">
-						{error ?? t(problem ?? "")}
-					</p>
-				)}
+				<p
+					id="rename-status"
+					className={s.renameError}
+					aria-live="polite"
+					data-testid="rename-error"
+				>
+					{error ?? (problem ? t(problem) : "")}
+				</p>
 			</form>
 		</Dialog>
 	);

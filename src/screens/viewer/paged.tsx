@@ -1,3 +1,4 @@
+import { scrollBehavior } from "@/lib/motion";
 /**
  * Pages turned sideways, for documents whose text flows (a book, a
  * text file, a reflowed Word or OpenDocument file): the text is laid out
@@ -16,7 +17,7 @@ import { fitWhenSettled } from "@/lib/fullscreen";
 import { t } from "@/lib/i18n";
 import { PAGE_VIEWS } from "@/lib/pageViews";
 import type { PdfFlow } from "@/lib/types";
-import { useSettings } from "@/state/settings";
+import { useSetting, useUpdateSetting } from "@/state/settings";
 import { Sheet, SheetItem, toast } from "@/ui";
 import {
 	GalleryHorizontal,
@@ -26,11 +27,14 @@ import {
 import {
 	type RefObject,
 	useCallback,
+	useContext,
+	useEffect,
 	useLayoutEffect,
 	useRef,
 	useState,
 } from "react";
 import { shellStyles } from "./Shell";
+import { PaneContext, onShow } from "./pane";
 
 /** Whether a scroller shows its document as pages turned sideways. */
 export const isPaged = (el: HTMLElement | null | undefined): boolean =>
@@ -145,22 +149,33 @@ export function usePaged({
 	on,
 	zoom = 1,
 	relayout,
+	active,
 }: {
 	scroller: RefObject<HTMLElement | null>;
 	paper: () => HTMLElement | null;
 	on: boolean;
 	zoom?: number;
 	relayout?: unknown;
+	/** False while this viewer is behind another tab or screen. */
+	active?: boolean;
 }): Paged {
 	const [state, setState] = useState({ page: 0, pages: 0 });
 	const paperRef = useRef(paper);
 	paperRef.current = paper;
+	const pane = useContext(PaneContext);
+	const shown =
+		active !== undefined ? onShow(active, pane) : (pane?.visible ?? true);
+	const shownRef = useRef(shown);
+	shownRef.current = shown;
+	const awayResized = useRef(false);
+	const checkSize = useRef<(() => void) | null>(null);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: new text (relayout) is laid out again
 	useLayoutEffect(() => {
 		const el = scroller.current;
 		const sheet = paperRef.current();
 		if (!on || !el || !sheet) return;
+		let alive = true;
 		// Where the reader was, to be found again in the new layout: the
 		// exact place a layout just taken down left, while the reader has
 		// not moved since (a new text size lays the pages out afresh).
@@ -242,25 +257,38 @@ export function usePaged({
 
 		let frame = 0;
 		const later = () => {
+			if (!alive) return;
 			cancelAnimationFrame(frame);
 			frame = requestAnimationFrame(() => {
+				if (!alive) return;
 				ratio = readRatio(el);
 				width = 0;
 				layout();
 			});
 		};
+		const recheck = () => {
+			// A tab not on show has no size or is hidden behind another: its pages
+			// stay as they are until it is shown again.
+			if (!alive || !el.clientWidth) return;
+			if (!shownRef.current) {
+				awayResized.current = true;
+				return;
+			}
+			if (el.clientWidth !== width || el.clientHeight !== height) later();
+		};
+		checkSize.current = recheck;
 		// Laid out again once a window going to full screen or out has
 		// settled, not at each size on the way.
-		const fit = fitWhenSettled(() => {
-			// A tab not on show has no size: its pages stay as they are.
-			if (!el.clientWidth) return;
-			if (el.clientWidth !== width || el.clientHeight !== height) later();
-		});
+		const fit = fitWhenSettled(recheck);
 		const resized = new ResizeObserver(fit.run);
 		resized.observe(el);
 		// Pictures and fonts that arrive late change how much fits a page.
 		sheet.addEventListener("load", later, true);
-		document.fonts?.ready.then(later).catch(() => {});
+		document.fonts?.ready
+			.then(() => {
+				if (alive) later();
+			})
+			.catch(() => {});
 
 		const onScroll = () =>
 			setState((now) => {
@@ -285,12 +313,14 @@ export function usePaged({
 			el.scrollTo({
 				left:
 					(Math.round(el.scrollLeft / el.clientWidth) + dir) * el.clientWidth,
-				behavior: "smooth",
+				behavior: scrollBehavior(),
 			});
 		};
 		el.addEventListener("wheel", onWheel, { passive: false });
 
 		return () => {
+			alive = false;
+			checkSize.current = null;
 			cancelAnimationFrame(frame);
 			resized.disconnect();
 			fit.stop();
@@ -310,6 +340,12 @@ export function usePaged({
 		};
 	}, [on, zoom, relayout, scroller]);
 
+	useEffect(() => {
+		if (!shown || !awayResized.current) return;
+		awayResized.current = false;
+		checkSize.current?.();
+	}, [shown]);
+
 	const turn = useCallback(
 		(dir: 1 | -1) => {
 			const el = scroller.current;
@@ -317,7 +353,7 @@ export function usePaged({
 			const page = Math.round(el.scrollLeft / el.clientWidth) + dir;
 			const pages = Math.round(el.scrollWidth / el.clientWidth);
 			if (page < 0 || page >= pages) return false;
-			el.scrollTo({ left: page * el.clientWidth, behavior: "smooth" });
+			el.scrollTo({ left: page * el.clientWidth, behavior: scrollBehavior() });
 			return true;
 		},
 		[scroller],
@@ -330,9 +366,10 @@ export function usePaged({
  * document, a PDF's too (Settings, Reading: "Page view"). A PDF's
  * "One page" turns these a page at a time as well. */
 export function useSideways(): [on: boolean, set: (on: boolean) => void] {
-	const { settings, update } = useSettings();
+	const pdfFlow = useSetting("pdfFlow");
+	const update = useUpdateSetting();
 	return [
-		settings.pdfFlow !== "down",
+		pdfFlow !== "down",
 		(on) => update("pdfFlow", on ? "across" : "down"),
 	];
 }
@@ -412,7 +449,8 @@ export function PageViewSheet({
 	open,
 	onClose,
 }: { open: boolean; onClose: () => void }) {
-	const { settings, update } = useSettings();
+	const pdfFlow = useSetting("pdfFlow");
+	const update = useUpdateSetting();
 	return (
 		<Sheet
 			open={open}
@@ -425,10 +463,10 @@ export function PageViewSheet({
 					key={value}
 					icon={<PageViewIcon flow={value} />}
 					hint={t(hint)}
-					checked={settings.pdfFlow === value}
+					checked={pdfFlow === value}
 					onClick={() => {
 						onClose();
-						if (value === settings.pdfFlow) return;
+						if (value === pdfFlow) return;
 						update("pdfFlow", value);
 						if (value !== "down") sayHowToTurn();
 					}}

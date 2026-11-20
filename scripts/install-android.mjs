@@ -101,7 +101,6 @@ const FILTERS = `
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="content" />
-                <data android:scheme="file" />
 ${data}
             </intent-filter>
             <intent-filter>
@@ -165,14 +164,15 @@ function cameraPathsResource(manifest) {
 	return block.match(/android:resource="@xml\/([\w.]+)"/)?.[1] ?? null;
 }
 
-/** Make sure the camera's provider can hand out the app's Pictures folder. */
-export function reachCameraFolder(paths) {
-	const reaches =
-		/<external-files-path\b[^>]*path="(\.|Pictures\/?)"/.test(paths) ||
-		/<external-path\b[^>]*path="\."/.test(paths);
-	if (reaches) return paths;
-	if (!paths.includes("</paths>")) return CAMERA_PATHS_XML;
-	return paths.replace("</paths>", `    ${CAMERA_PATH}\n</paths>`);
+/**
+ * The camera provider's paths file: the app's own Pictures folder and
+ * nothing else. The template's file hands out "." under external
+ * storage and the cache, far more than the camera writes to (wry puts
+ * its photo in getExternalFilesDir(Pictures)), so it is replaced, not
+ * extended: what the file held before is not kept.
+ */
+export function reachCameraFolder(_paths) {
+	return CAMERA_PATHS_XML;
 }
 
 function fail(message, content = "") {
@@ -324,11 +324,18 @@ if (mode === "check") {
 		fail("Camera FileProvider declared twice.", withProvider);
 	if (cameraPathsResource(withProvider) !== "file_paths")
 		fail("Template's camera paths not found.", withProvider);
-	const root = '<paths><external-path name="my_images" path="." /></paths>';
-	if (reachCameraFolder(root) !== root)
-		fail("Camera paths changed needlessly.");
-	if (!reachCameraFolder("<paths>\n</paths>").includes("Pictures/"))
-		fail("Camera paths not extended.");
+	// The template's broad paths give way to the Pictures folder alone.
+	const root =
+		'<paths><external-path name="my_images" path="." /><cache-path name="c" path="." /></paths>';
+	for (const paths of [root, "<paths>\n</paths>", ""]) {
+		const out = reachCameraFolder(paths);
+		if (out !== CAMERA_PATHS_XML || /path="\."/.test(out))
+			fail("Camera paths not narrowed to Pictures.", out);
+	}
+	// "Open with" takes content:// only: a file:// address could name
+	// the app's own private files.
+	if (/android:scheme="file"/.test(once))
+		fail("Intent filter still takes file://.", once);
 	if (once.indexOf("<queries>") > once.indexOf("<application"))
 		fail("<queries> must come before <application>.", once);
 	// Each type appears once per filter (open-with, share), exactly.
@@ -362,12 +369,7 @@ const manifest = readFileSync(MANIFEST, "utf8");
 const cameraResource = cameraPathsResource(manifest);
 if (!cameraResource) fail("No camera FileProvider in the manifest.", manifest);
 const cameraFile = `${GEN}/res/xml/${cameraResource}.xml`;
-writeFileSync(
-	cameraFile,
-	existsSync(cameraFile)
-		? reachCameraFolder(readFileSync(cameraFile, "utf8"))
-		: CAMERA_PATHS_XML,
-);
+writeFileSync(cameraFile, reachCameraFolder(""));
 console.log(
 	"Installed MainActivity.kt, hardened AndroidManifest.xml, declared the share and camera FileProviders.",
 );

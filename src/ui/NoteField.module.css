@@ -25,7 +25,7 @@
 	padding: 10px 12px 22px;
 	resize: none;
 	border-radius: var(--r-m);
-	border: 1px solid var(--line-strong);
+	border: 1px solid var(--line-control);
 	background: var(--surface);
 	color: var(--text);
 	font: inherit;

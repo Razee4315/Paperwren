@@ -5,7 +5,7 @@ import type {
 	EventBus,
 	PDFFindController,
 } from "pdfjs-dist/web/pdf_viewer.mjs";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import s from "./PdfView.module.css";
 
 interface PageResult {
@@ -18,6 +18,39 @@ interface PageResult {
 
 /** Listed at most: past this the find bar's arrows reach the rest. */
 const MAX_PAGES = 100;
+/** How many uncached pages to read text from at once. */
+const TEXT_BATCH = 4;
+/** Extracted page text per document, released once the document closes. */
+const pageTextCache = new WeakMap<PDFDocumentProxy, Map<number, string>>();
+
+function docTextCache(doc: PDFDocumentProxy): Map<number, string> {
+	let map = pageTextCache.get(doc);
+	if (!map) {
+		map = new Map();
+		pageTextCache.set(doc, map);
+	}
+	return map;
+}
+
+async function readPageText(
+	doc: PDFDocumentProxy,
+	pageNumber: number,
+	cache: Map<number, string>,
+): Promise<string> {
+	const cached = cache.get(pageNumber);
+	if (cached !== undefined) return cached;
+	try {
+		const page = await doc.getPage(pageNumber);
+		const content = await page.getTextContent();
+		const text = content.items
+			.map((item) => ("str" in item ? item.str + (item.hasEOL ? " " : "") : ""))
+			.join("");
+		cache.set(pageNumber, text);
+		return text;
+	} catch {
+		return "";
+	}
+}
 
 /**
  * Every page a search found something on, with the words around the
@@ -39,14 +72,34 @@ export function FindResults({
 	options: FindOptions;
 	onPick: (page: number) => void;
 }) {
+	const { matchCase, wholeWords } = options;
 	const [results, setResults] = useState<PageResult[]>([]);
 	const [pages, setPages] = useState(0);
-	const texts = useRef(new Map<number, Promise<string>>());
+	const [published, setPublished] = useState("");
+	const [pending, setPending] = useState(true);
+	const signature = JSON.stringify([query, matchCase, wholeWords]);
+	const first = useRef(true);
 
-	useEffect(() => {
+	useLayoutEffect(() => {
+		setPending(true);
+		setResults([]);
+		setPages(0);
+		let cancelled = false;
 		let run = 0;
 		let timer = 0;
 		const refresh = async () => {
+			if (cancelled) return;
+			const state = finder.state as {
+				query?: string;
+				caseSensitive?: boolean;
+				entireWord?: boolean;
+			} | null;
+			if (
+				state?.query !== query ||
+				!!state.caseSensitive !== matchCase ||
+				!!state.entireWord !== wholeWords
+			)
+				return;
 			const now = ++run;
 			const found: Array<{ page: number; count: number; at: number }> = [];
 			(finder.pageMatches ?? []).forEach((matches: number[], index: number) => {
@@ -58,31 +111,29 @@ export function FindResults({
 					});
 			});
 			setPages(found.length);
-			const next: PageResult[] = [];
-			for (const entry of found.slice(0, MAX_PAGES)) {
-				let text = texts.current.get(entry.page);
-				if (!text) {
-					text = doc
-						.getPage(entry.page)
-						.then((page) => page.getTextContent())
-						.then((content) =>
-							content.items
-								.map((item) =>
-									"str" in item ? item.str + (item.hasEOL ? " " : "") : "",
-								)
-								.join(""),
-						);
-					texts.current.set(entry.page, text);
-				}
-				const words = await text.catch(() => "");
-				if (now !== run) return;
-				next.push({
-					page: entry.page,
-					count: entry.count,
-					...snippet(words, query, entry.at, options),
-				});
+			const slice = found.slice(0, MAX_PAGES);
+			const cache = docTextCache(doc);
+			const missing = slice.filter((entry) => !cache.has(entry.page));
+			for (let i = 0; i < missing.length; i += TEXT_BATCH) {
+				if (cancelled || now !== run) return;
+				await Promise.all(
+					missing
+						.slice(i, i + TEXT_BATCH)
+						.map((entry) => readPageText(doc, entry.page, cache)),
+				);
 			}
+			if (cancelled || now !== run) return;
+			const next: PageResult[] = slice.map((entry) => ({
+				page: entry.page,
+				count: entry.count,
+				...snippet(cache.get(entry.page) ?? "", query, entry.at, {
+					matchCase,
+					wholeWords,
+				}),
+			}));
 			setResults(next);
+			setPublished(signature);
+			setPending(false);
 		};
 		const soon = () => {
 			window.clearTimeout(timer);
@@ -90,19 +141,41 @@ export function FindResults({
 		};
 		bus.on("updatetextlayermatches", soon);
 		bus.on("updatefindmatchescount", soon);
-		bus.on("updatefindcontrolstate", soon);
-		soon();
+		const stateChanged = (event: { state: number }) => {
+			if (event.state === 3) {
+				window.clearTimeout(timer);
+				run++;
+				setPending(true);
+				setResults([]);
+			} else soon();
+		};
+		bus.on("updatefindcontrolstate", stateChanged);
+		if (first.current) {
+			first.current = false;
+			soon();
+		}
 		return () => {
+			cancelled = true;
 			run++;
 			window.clearTimeout(timer);
 			bus.off("updatetextlayermatches", soon);
 			bus.off("updatefindmatchescount", soon);
-			bus.off("updatefindcontrolstate", soon);
+			bus.off("updatefindcontrolstate", stateChanged);
 		};
-	}, [doc, finder, bus, query, options]);
+	}, [doc, finder, bus, query, matchCase, wholeWords, signature]);
 
+	if (pending || published !== signature)
+		return (
+			<p className={s.findNone} aria-live="polite" aria-busy="true">
+				{t("Loading")}
+			</p>
+		);
 	if (!results.length)
-		return <p className={s.findNone}>{t("Nothing found yet.")}</p>;
+		return (
+			<p className={s.findNone} aria-live="polite">
+				{t("No results. Try different words or turn off search options.")}
+			</p>
+		);
 	return (
 		<div className={s.findList} data-testid="find-results">
 			<p className={s.findSum}>

@@ -18,8 +18,8 @@ import {
 	computeVisibleWindow,
 } from "@/lib/sheetLayout";
 import { ENCODINGS, decodeText } from "@/lib/text";
-import type { CellStyle, GridObject } from "@/lib/workbookModel";
-import { useSettings } from "@/state/settings";
+import type { CellStyle, GridObject, MergeRange } from "@/lib/workbookModel";
+import { useSetting } from "@/state/settings";
 import {
 	Button,
 	Dialog,
@@ -45,6 +45,7 @@ import {
 import {
 	type CSSProperties,
 	useCallback,
+	useContext,
 	useEffect,
 	useId,
 	useLayoutEffect,
@@ -65,6 +66,7 @@ import {
 } from "./Shell";
 import { SlideChart } from "./SlideChart";
 import { useOfficeDetails, useZoom } from "./hooks";
+import { PaneContext, onShow } from "./pane";
 import { runWorker } from "./runWorker";
 import {
 	type Arrangement,
@@ -97,6 +99,10 @@ const MAX_SPILL = 16;
 const FACE = '"Manrope Variable", Manrope, system-ui, sans-serif';
 /** A frozen pane may not take more than this share of the screen. */
 const MAX_FROZEN = 0.6;
+/** Only links with these schemes render as anchors. */
+const SAFE_LINK = /^(?:https?:|mailto:|tel:|#)/i;
+/** Cap on pre-indexed merge coordinates so hostile giant merges stay bounded. */
+const MAX_INDEXED_MERGE_CELLS = 50_000;
 
 interface Point {
 	r: number;
@@ -124,8 +130,13 @@ export default function SheetView({
 	onClose,
 	active,
 }: ViewerProps) {
-	const { settings } = useSettings();
+	const rememberPosition = useSetting("rememberPosition");
 	const details = useOfficeDetails(data, fileFormat);
+	const shown = onShow(active, useContext(PaneContext));
+	const shownRef = useRef(shown);
+	shownRef.current = shown;
+	const awayResized = useRef(false);
+	const remeasure = useRef(() => {});
 	const [parsed, setSheets] = useState<Sheet[] | null>(null);
 	// Rows sorted and filtered by the reader, per sheet; the file is not
 	// changed, and Find and the grid see the rows as they are shown.
@@ -167,7 +178,7 @@ export default function SheetView({
 	// Zoom is CSS zoom on the grid surface: cell geometry stays in sheet
 	// pixels, and only the scroll offsets convert between the two.
 	const [zoom, setZoom] = useState(() =>
-		position?.kind === "sheet" && settings.rememberPosition && position.zoom
+		position?.kind === "sheet" && rememberPosition && position.zoom
 			? Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, position.zoom))
 			: 1,
 	);
@@ -195,12 +206,16 @@ export default function SheetView({
 	useEffect(() => {
 		const abort = new AbortController();
 		let urls: string[] = [];
+		setError(null);
+		setSheets(null);
+		setMediaUrls([]);
 		const input = fileFormat === "csv" ? decodeText(data, encoding) : data;
 		runWorker<PackedParseResult>(
 			{ type: "workbook", buffer: input },
 			abort.signal,
 		)
 			.then((result) => {
+				if (abort.signal.aborted) return;
 				if (!result.ok) {
 					setError(t("The file is damaged or isn't a valid spreadsheet."));
 					return;
@@ -214,9 +229,7 @@ export default function SheetView({
 					return;
 				}
 				const saved =
-					position?.kind === "sheet" && settings.rememberPosition
-						? position.sheet
-						: -1;
+					position?.kind === "sheet" && rememberPosition ? position.sheet : -1;
 				const firstVisible = Math.max(
 					0,
 					list.findIndex((sh) => !sh.hiddenSheet),
@@ -241,13 +254,13 @@ export default function SheetView({
 				setSheets(list);
 			})
 			.catch((e) => {
-				if (e?.name !== "AbortError")
-					setError(
-						explainFailure(
-							e,
-							t("The file is damaged or isn't a valid spreadsheet."),
-						),
-					);
+				if (abort.signal.aborted || e?.name === "AbortError") return;
+				setError(
+					explainFailure(
+						e,
+						t("The file is damaged or isn't a valid spreadsheet."),
+					),
+				);
 			});
 		return () => {
 			abort.abort();
@@ -297,19 +310,39 @@ export default function SheetView({
 		const el = scroller.current;
 		if (!el || !sheet) return;
 		const measure = () => {
-			// A tab not on show has no size: keep the last one.
+			// A tab not on show has no size, or is kept behind another:
+			// keep the last size until it is shown.
 			if (!el.clientWidth) return;
-			setView((v) => ({ ...v, w: el.clientWidth, h: el.clientHeight }));
+			if (!shownRef.current) {
+				awayResized.current = true;
+				return;
+			}
+			const w = el.clientWidth;
+			const h = el.clientHeight;
+			setView((v) => (v.w === w && v.h === h ? v : { ...v, w, h }));
 		};
 		measure();
+		remeasure.current = measure;
 		const fit = fitWhenSettled(measure);
-		const ro = new ResizeObserver(fit.run);
+		const ro = new ResizeObserver(() => {
+			if (!shownRef.current) {
+				awayResized.current = true;
+				return;
+			}
+			fit.run();
+		});
 		ro.observe(el);
 		return () => {
 			ro.disconnect();
 			fit.stop();
+			remeasure.current = () => {};
 		};
 	}, [sheet]);
+	useLayoutEffect(() => {
+		if (!shown || !awayResized.current) return;
+		awayResized.current = false;
+		remeasure.current();
+	}, [shown]);
 
 	// The grid has the keyboard from the moment the sheet is shown, so
 	// the arrows move through cells without a click into it first.
@@ -319,20 +352,46 @@ export default function SheetView({
 	}, [sheet, active]);
 
 	const saveTimer = useRef(0);
+	const viewRef = useRef(view);
+	viewRef.current = view;
+	const scrollFrame = useRef(0);
 	const syncView = useCallback(() => {
 		const el = scroller.current;
-		if (!el) return;
-		setView((v) =>
-			v.top === el.scrollTop && v.left === el.scrollLeft
-				? v
-				: { ...v, top: el.scrollTop, left: el.scrollLeft },
-		);
-	}, []);
+		if (!el || !sheet) return;
+		const previous = viewRef.current;
+		const next = { ...previous, top: el.scrollTop, left: el.scrollLeft };
+		const windowFor = (v: typeof view) =>
+			computeVisibleWindow({
+				rows: sheet.rows,
+				cols: sheet.cols,
+				colOffsets: colX,
+				rowOffsets: sheet.rowPrefix,
+				scrollTop: v.top / zoomRef.current,
+				scrollLeft: v.left / zoomRef.current,
+				viewportWidth: v.w / zoomRef.current,
+				viewportHeight: v.h / zoomRef.current,
+			});
+		const before = windowFor(previous);
+		const after = windowFor(next);
+		if (
+			before.r0 === after.r0 &&
+			before.r1 === after.r1 &&
+			before.c0 === after.c0 &&
+			before.c1 === after.c1
+		)
+			return;
+		viewRef.current = next;
+		setView(next);
+	}, [sheet, colX]);
 	const onScroll = () => {
 		const el = scroller.current;
 		if (!el) return;
-		syncView();
-		if (!settings.rememberPosition) return;
+		if (!scrollFrame.current)
+			scrollFrame.current = requestAnimationFrame(() => {
+				scrollFrame.current = 0;
+				syncView();
+			});
+		if (!rememberPosition) return;
 		window.clearTimeout(saveTimer.current);
 		saveTimer.current = window.setTimeout(
 			() =>
@@ -346,7 +405,21 @@ export default function SheetView({
 			400,
 		);
 	};
-	useEffect(() => () => window.clearTimeout(saveTimer.current), []);
+	useEffect(
+		() => () => {
+			window.clearTimeout(saveTimer.current);
+			cancelAnimationFrame(scrollFrame.current);
+		},
+		[],
+	);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: discard a queued frame when sheet geometry changes
+	useEffect(
+		() => () => {
+			cancelAnimationFrame(scrollFrame.current);
+			scrollFrame.current = 0;
+		},
+		[syncView],
+	);
 
 	// The grid is windowed, so it re-flows on every frame of a pinch:
 	// the cells stay sharp and the headers stay put while zooming.
@@ -379,12 +452,36 @@ export default function SheetView({
 			})
 		: null;
 
+	const mergeIndex = useMemo(() => {
+		const map = new Map<string, MergeRange>();
+		const large: MergeRange[] = [];
+		if (!sheet) return { map, large };
+		let budget = MAX_INDEXED_MERGE_CELLS;
+		for (const m of sheet.merges) {
+			const area = (m.r1 - m.r0 + 1) * (m.c1 - m.c0 + 1);
+			if (area > budget) {
+				large.push(m);
+				continue;
+			}
+			budget -= area;
+			for (let r = m.r0; r <= m.r1; r++) {
+				for (let c = m.c0; c <= m.c1; c++) {
+					map.set(`${r},${c}`, m);
+				}
+			}
+		}
+		return { map, large };
+	}, [sheet]);
+
 	const mergeAt = useCallback(
 		(r: number, c: number) =>
-			sheet?.merges.find(
-				(m) => r >= m.r0 && r <= m.r1 && c >= m.c0 && c <= m.c1,
-			),
-		[sheet],
+			mergeIndex.map.get(`${r},${c}`) ??
+			(mergeIndex.large.length
+				? mergeIndex.large.find(
+						(m) => r >= m.r0 && r <= m.r1 && c >= m.c0 && c <= m.c1,
+					)
+				: undefined),
+		[mergeIndex],
 	);
 
 	/** Scroll just enough to bring a cell out from under the headers
@@ -420,11 +517,7 @@ export default function SheetView({
 	useLayoutEffect(() => {
 		const el = scroller.current;
 		if (!el || !sheet) return;
-		if (
-			!restored.current &&
-			position?.kind === "sheet" &&
-			settings.rememberPosition
-		) {
+		if (!restored.current && position?.kind === "sheet" && rememberPosition) {
 			el.scrollTop = position.top;
 			el.scrollLeft = position.left;
 		} else {
@@ -789,14 +882,9 @@ export default function SheetView({
 		const out: JSX.Element[] = [];
 		if (!sheet || r1 <= r0 || c1 <= c0) return out;
 		const drawn = new Set<number>();
-		const local = sheet.merges.filter(
-			(m) => m.r1 >= r0 && m.r0 < r1 && m.c1 >= c0 && m.c0 < c1,
-		);
 		for (let r = r0; r < r1; r++) {
 			for (let c = c0; c < c1; c++) {
-				const m = local.find(
-					(x) => r >= x.r0 && r <= x.r1 && c >= x.c0 && c <= x.c1,
-				);
+				const m = mergeAt(r, c);
 				const ar = m ? m.r0 : r;
 				const ac = m ? m.c0 : c;
 				const k = key(ar, ac);
@@ -1117,17 +1205,26 @@ export default function SheetView({
 									{cell?.formula && (
 										<span className={s.formula}>{cell.formula}</span>
 									)}
-									{cell?.link && (
-										// Shown to copy: the app follows no link (LinkGuard).
-										<a
-											className={s.link}
-											href={cell.link}
-											dir="ltr"
-											data-testid="cell-link"
-										>
-											{cell.link}
-										</a>
-									)}
+									{cell?.link &&
+										(SAFE_LINK.test(cell.link.trim()) ? (
+											// Shown to copy: the app follows no link (LinkGuard).
+											<a
+												className={s.link}
+												href={cell.link}
+												dir="ltr"
+												data-testid="cell-link"
+											>
+												{cell.link}
+											</a>
+										) : (
+											<span
+												className={s.link}
+												dir="ltr"
+												data-testid="cell-link"
+											>
+												{cell.link}
+											</span>
+										))}
 									{cell?.note && (
 										<span
 											className={s.note}

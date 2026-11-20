@@ -1,0 +1,6 @@
+.hint {
+	margin: 0 0 4px;
+	font-size: 14px;
+	color: var(--text-2);
+	line-height: 1.5;
+}

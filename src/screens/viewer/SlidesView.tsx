@@ -14,7 +14,7 @@ import {
 } from "@/lib/pptx/parse";
 import { fitted } from "@/lib/print";
 import { hintFor, matches } from "@/lib/shortcuts";
-import { useSettings } from "@/state/settings";
+import { useSetting } from "@/state/settings";
 import {
 	Button,
 	ErrorArt,
@@ -23,6 +23,7 @@ import {
 	SheetItem,
 	Spinner,
 	StateView,
+	ownsKeys,
 } from "@/ui";
 import {
 	ChevronLeft,
@@ -34,6 +35,8 @@ import {
 } from "lucide-react";
 import {
 	type CSSProperties,
+	useCallback,
+	useContext,
 	useEffect,
 	useId,
 	useLayoutEffect,
@@ -56,6 +59,7 @@ import {
 import { SlideChart } from "./SlideChart";
 import s from "./Slides.module.css";
 import { useOfficeDetails, useTapToTurn, useZoom, useZoomLevel } from "./hooks";
+import { PaneContext, onShow } from "./pane";
 import { runWorker } from "./runWorker";
 import { domSpeech } from "./speechSources";
 import type { ViewerProps } from "./types";
@@ -671,9 +675,16 @@ export default function SlidesView({
 	onPosition,
 	onClose,
 	active,
+	passwordProtected,
 }: ViewerProps) {
-	const { settings } = useSettings();
+	const rememberPosition = useSetting("rememberPosition");
 	const details = useOfficeDetails(data, format);
+	const shown = onShow(active, useContext(PaneContext));
+	const shownRef = useRef(shown);
+	shownRef.current = shown;
+	const awayResized = useRef(false);
+	const remeasure = useRef(() => {});
+	const restored = useRef(false);
 	const scroller = useRef<HTMLDivElement>(null);
 	const stage = useRef<HTMLDivElement>(null);
 	const hud = useRef<HTMLDivElement>(null);
@@ -699,15 +710,22 @@ export default function SlidesView({
 	useEffect(() => {
 		const abort = new AbortController();
 		let loaded: Presentation | null = null;
+		setError(null);
+		setFault(null);
+		setDeck(null);
+		setTextOnly(false);
+		setMeasured(false);
+		setCurrent(0);
+		restored.current = false;
 		loadDeck(format, data, abort.signal)
 			.then((result) => {
+				if (abort.signal.aborted) {
+					if (!("failed" in result)) result.deck.dispose();
+					return;
+				}
 				if ("failed" in result) {
 					setFault(result.fault ?? null);
 					setError(result.failed);
-					return;
-				}
-				if (abort.signal.aborted) {
-					result.deck.dispose();
 					return;
 				}
 				loaded = result.deck;
@@ -715,7 +733,7 @@ export default function SlidesView({
 				setDeck(result.deck);
 			})
 			.catch((err) => {
-				if (err?.name === "AbortError") return;
+				if (abort.signal.aborted || err?.name === "AbortError") return;
 				setFault(err);
 				setError("corrupt");
 			});
@@ -733,8 +751,13 @@ export default function SlidesView({
 		// only the width would show half a slide. The list's padding sits
 		// inside the zoomed box and scales with it.
 		const measure = () => {
-			// A tab not on show has no size: nothing to fit to.
+			// A tab not on show has no size, or is kept behind another:
+			// refitting waits until it is shown.
 			if (!el.clientWidth || !el.clientHeight) return;
+			if (!shownRef.current) {
+				awayResized.current = true;
+				return;
+			}
 			setFit(
 				Math.min(
 					2,
@@ -745,14 +768,27 @@ export default function SlidesView({
 			setMeasured(true);
 		};
 		measure();
+		remeasure.current = measure;
 		const fit = fitWhenSettled(measure);
-		const ro = new ResizeObserver(fit.run);
+		const ro = new ResizeObserver(() => {
+			if (!shownRef.current) {
+				awayResized.current = true;
+				return;
+			}
+			fit.run();
+		});
 		ro.observe(el);
 		return () => {
 			ro.disconnect();
 			fit.stop();
+			remeasure.current = () => {};
 		};
 	}, [deck]);
+	useLayoutEffect(() => {
+		if (!shown || !awayResized.current) return;
+		awayResized.current = false;
+		remeasure.current();
+	}, [shown]);
 
 	const { zoomBy, zoomTo } = useZoom({
 		scroller,
@@ -769,53 +805,73 @@ export default function SlidesView({
 	});
 	const scale = fit * zoom;
 
-	const goTo = (i: number) => {
+	const goTo = useCallback((i: number) => {
 		const frame = list.current?.children[i] as HTMLElement | undefined;
 		frame?.scrollIntoView({ block: "start" });
-	};
+	}, []);
 
 	// Restore the saved slide once the deck is laid out.
-	const restored = useRef(false);
+	const positionRef = useRef(position);
+	positionRef.current = position;
 	useLayoutEffect(() => {
 		if (!deck || restored.current || !measured) return;
 		restored.current = true;
-		if (
-			settings.rememberPosition &&
-			position?.kind === "slides" &&
-			position.slide > 0
-		) {
-			requestAnimationFrame(() =>
-				goTo(Math.min(position.slide, deck.slides.length - 1)),
-			);
-		}
-	});
+		const saved = positionRef.current;
+		if (!rememberPosition || saved?.kind !== "slides" || saved.slide <= 0)
+			return;
+		const target = Math.min(saved.slide, deck.slides.length - 1);
+		const raf = requestAnimationFrame(() => goTo(target));
+		return () => cancelAnimationFrame(raf);
+	}, [deck, measured, rememberPosition, goTo]);
 
 	// Current slide = the one crossing the upper third of the viewport.
 	const saveTimer = useRef(0);
-	const onScroll = () => {
+	const scrollRaf = useRef(0);
+	const currentRef = useRef(current);
+	currentRef.current = current;
+	const onPositionRef = useRef(onPosition);
+	onPositionRef.current = onPosition;
+	const rememberRef = useRef(rememberPosition);
+	rememberRef.current = rememberPosition;
+	const syncSlide = () => {
+		scrollRaf.current = 0;
 		const el = scroller.current;
 		const frames = list.current?.children;
-		if (!el || !frames) return;
-		const probe = el.getBoundingClientRect().top + el.clientHeight / 3;
-		let idx = 0;
-		for (let i = 0; i < frames.length; i++) {
-			if ((frames[i] as HTMLElement).getBoundingClientRect().top <= probe)
-				idx = i;
-			else break;
-		}
+		if (!el || !frames?.length) return;
 		// The last slide may never climb that high; the end of the list
 		// is the last slide.
-		if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2)
-			idx = frames.length - 1;
-		if (idx !== current) setCurrent(idx);
-		if (!settings.rememberPosition) return;
+		let idx = frames.length - 1;
+		if (el.scrollTop + el.clientHeight < el.scrollHeight - 2) {
+			const probe = el.getBoundingClientRect().top + el.clientHeight / 3;
+			let lo = 0;
+			let hi = idx;
+			while (lo < hi) {
+				const mid = (lo + hi + 1) >> 1;
+				if ((frames[mid] as HTMLElement).getBoundingClientRect().top <= probe)
+					lo = mid;
+				else hi = mid - 1;
+			}
+			idx = lo;
+		}
+		if (idx !== currentRef.current) setCurrent(idx);
+		if (!rememberRef.current) return;
 		window.clearTimeout(saveTimer.current);
 		saveTimer.current = window.setTimeout(
-			() => onPosition({ kind: "slides", slide: idx }),
+			() => onPositionRef.current({ kind: "slides", slide: idx }),
 			400,
 		);
 	};
-	useEffect(() => () => window.clearTimeout(saveTimer.current), []);
+	const onScroll = () => {
+		if (!scrollRaf.current)
+			scrollRaf.current = requestAnimationFrame(syncSlide);
+	};
+	useEffect(
+		() => () => {
+			window.clearTimeout(saveTimer.current);
+			cancelAnimationFrame(scrollRaf.current);
+		},
+		[],
+	);
 
 	// Left/right step through slides; up/down keep scrolling.
 	const stepRef = useRef((_: number) => {});
@@ -823,6 +879,7 @@ export default function SlidesView({
 	useEffect(() => {
 		if (!active || presenting) return;
 		const onKey = (e: KeyboardEvent) => {
+			if (!ownsKeys()) return;
 			if ((e.target as HTMLElement).closest?.("input, textarea")) return;
 			const plain = !e.ctrlKey && !e.metaKey && !e.altKey;
 			if (matches(e, "nextPage") || (plain && e.key === "PageDown"))
@@ -833,8 +890,8 @@ export default function SlidesView({
 			else return;
 			e.preventDefault();
 		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
 	}, [active, presenting]);
 
 	const total = deck?.slides.length ?? 0;
@@ -880,7 +937,7 @@ export default function SlidesView({
 			speech={deck ? speech : undefined}
 			details={details}
 			bookmarks={
-				deck
+				deck && !passwordProtected
 					? {
 							here: () => ({
 								label: t("Slide {n}", { n: current + 1 }),
@@ -1057,6 +1114,7 @@ export default function SlidesView({
 			</div>
 			{deck && presenting && (
 				<Present
+					active={active}
 					width={deck.width}
 					height={deck.height}
 					total={total}

@@ -40,6 +40,7 @@ export async function openFixture(
 /** A Fill & sign tool, from the bar or, where a phone keeps the rarer
  * ones, from More. */
 export async function pickTool(page: Page, kind: string) {
+	await page.getByTestId("fill-sign").waitFor({ state: "visible" });
 	const more = page.getByTestId("fill-tool-more");
 	const inBar = page.getByTestId("fill-sign").getByTestId(`fill-tool-${kind}`);
 	if ((await more.isVisible()) && !(await inBar.count())) await more.click();

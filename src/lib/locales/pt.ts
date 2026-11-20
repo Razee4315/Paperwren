@@ -1008,7 +1008,6 @@ export const pt: Table = {
 	"Language of the document": "Idioma do documento",
 	"Reading page {n} of {total}": "Lendo a página {n} de {total}",
 	searchable: "pesquisável",
-	"Nothing found yet.": "Nada encontrado ainda.",
 	"Showing the first {n} pages.": "Mostrando as primeiras {n} páginas.",
 	"Try a sample document": "Experimente um documento de exemplo",
 	"Found on {n} pages": {
@@ -1358,4 +1357,11 @@ export const pt: Table = {
 		"A cópia vai abrir sem senha. Para protegê-la de novo, use «Adicionar uma senha».",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"Este PDF limita o que um leitor pode fazer, como copiar. A cópia não terá limites.",
+	"Couldn't delete this note": "Não foi possível excluir esta nota",
+	"Couldn't change saved data": "Não foi possível alterar os dados salvos",
+	"A print job is already in progress": "Uma impressão já está em andamento",
+	"No results. Try different words or turn off search options.":
+		"Sem resultados. Tente outras palavras ou desative as opções de pesquisa.",
+	"Hide highlights": "Ocultar destaques",
+	"Show highlights": "Mostrar destaques",
 };

@@ -1,3 +1,5 @@
+@import "../../styles/motion.css";
+
 /* Over the top of the document, under its bar. */
 .bar {
 	position: fixed;

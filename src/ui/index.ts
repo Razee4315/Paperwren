@@ -8,6 +8,7 @@ export {
 	SheetTiles,
 	ToastHost,
 	modalOpen,
+	ownsKeys,
 	toast,
 } from "./Overlay";
 export { WindowControls } from "./WindowControls";
@@ -27,3 +28,4 @@ export { FileIcon } from "./FileIcon";
 export { LinkGuard } from "./LinkGuard";
 export { NoteField, NoteQuote } from "./NoteField";
 export { ThemePicker } from "./Pickers";
+export { LeaveHost } from "./LeaveHost";

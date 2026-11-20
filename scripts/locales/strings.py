@@ -857,3 +857,13 @@ ROWS += RENAME_18_ROWS
 # password nor its limits.
 from protected_18 import ROWS as PROTECTED_18_ROWS
 ROWS += PROTECTED_18_ROWS
+
+from state_local_fixes import ROWS as STATE_LOCAL_FIXES_ROWS
+ROWS += STATE_LOCAL_FIXES_ROWS
+
+from ux_motion import ROWS as UX_MOTION_ROWS
+ROWS += UX_MOTION_ROWS
+
+# Highlights visibility toggle (issue #100).
+from issue_fixes import ROWS as ISSUE_FIXES_ROWS
+ROWS += ISSUE_FIXES_ROWS

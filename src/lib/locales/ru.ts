@@ -1027,7 +1027,6 @@ export const ru: Table = {
 	"Language of the document": "Язык документа",
 	"Reading page {n} of {total}": "Чтение страницы {n} из {total}",
 	searchable: "с поиском",
-	"Nothing found yet.": "Пока ничего не найдено.",
 	"Showing the first {n} pages.": "Показаны первые страницы: {n}.",
 	"Try a sample document": "Попробовать пример документа",
 	"Found on {n} pages": {
@@ -1386,4 +1385,11 @@ export const ru: Table = {
 		"Копия откроется без пароля. Чтобы снова защитить её, используйте «Добавить пароль».",
 	"This PDF limits what a reader may do, such as copying. The copy will have no limits.":
 		"Этот PDF ограничивает действия читателя, например копирование. У копии ограничений не будет.",
+	"Couldn't delete this note": "Не удалось удалить эту заметку",
+	"Couldn't change saved data": "Не удалось изменить сохранённые данные",
+	"A print job is already in progress": "Печать уже выполняется",
+	"No results. Try different words or turn off search options.":
+		"Нет результатов. Попробуйте другие слова или отключите параметры поиска.",
+	"Hide highlights": "Скрыть выделения",
+	"Show highlights": "Показать выделения",
 };
