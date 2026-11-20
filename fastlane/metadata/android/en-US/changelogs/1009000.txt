@@ -1,0 +1,5 @@
+Large PDFs now stream page by page without crashing, including 350 MB files and CamScanner scans.
+Files chosen with Open file open in place without copying into app storage, and background pruning keeps storage bounded.
+External opens from WhatsApp or Gmail stay out of Recents and exit cleanly on Back.
+New Hide/Show highlights toggle in the Highlights panel.
+Fixed landscape-to-portrait page reset, duplicate PDF scrollbars, accidental edge scrubber touches, and Settings menu highlighting.

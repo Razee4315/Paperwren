@@ -8,10 +8,10 @@ export const SITE = {
 	issues: "https://github.com/Razee4315/Paperwren/issues",
 	email: "saqlainrazee@gmail.com",
 	security: "https://github.com/Razee4315/Paperwren/security/advisories/new",
-	/** From the v1.8.0 release assets, as GitHub shows them. */
+	/** Update androidSize/windowsSize from the v1.9.0 release assets once published. */
 	androidSize: "75.8 MB",
 	windowsSize: "22.6 MB",
-	version: "1.8.0",
+	version: "1.9.0",
 };
 
 /** Internal link that respects the deploy base path. */
