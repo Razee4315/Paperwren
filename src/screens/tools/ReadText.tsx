@@ -593,13 +593,7 @@ export function ReadText({
 									</button>
 								</div>
 							)}
-							<Button
-								block
-								onClick={run}
-								disabled={phase === "reading"}
-								aria-busy={phase === "reading" || undefined}
-								data-testid="read-start"
-							>
+							<Button block onClick={run} data-testid="read-start">
 								<Play size={18} /> {t("Start reading")}
 							</Button>
 							<p className={s.fine}>
@@ -724,12 +718,7 @@ export function ReadText({
 						</p>
 					)}
 					{missing.length > 0 && (
-						<Button
-							onClick={run}
-							disabled={phase === "reading"}
-							aria-busy={phase === "reading" || undefined}
-							data-testid="read-more"
-						>
+						<Button onClick={run} data-testid="read-more">
 							<Play size={16} />
 							{tn(missing.length, "Read {n} more page", "Read {n} more pages")}
 						</Button>
@@ -783,12 +772,7 @@ export function ReadText({
 			)}
 			{phase === "done" && !words && missing.length > 0 && (
 				<footer className={s.actions}>
-					<Button
-						onClick={run}
-						disabled={phase === "reading"}
-						aria-busy={phase === "reading" || undefined}
-						data-testid="read-more"
-					>
+					<Button onClick={run} data-testid="read-more">
 						<Play size={16} />
 						{tn(missing.length, "Read {n} more page", "Read {n} more pages")}
 					</Button>
