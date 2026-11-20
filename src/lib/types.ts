@@ -138,6 +138,11 @@ export interface Settings {
 
 export type UpdateChecks = "ask" | "auto" | "off";
 
+/** The read-aloud speeds offered, as a share of the voice's normal
+ * pace. Here, not in speech.ts, so the settings code at start-up does
+ * not pull the speech code in with it. */
+export const SPEECH_RATES = [0.75, 1, 1.25, 1.5, 2];
+
 export const DEFAULT_SETTINGS: Settings = {
 	theme: "system",
 	language: "system",

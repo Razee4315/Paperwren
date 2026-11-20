@@ -249,7 +249,7 @@
 }
 .hud[data-on] {
 	opacity: 0.92;
-	transition-duration: var(--t-fast) var(--ease);
+	transition-duration: var(--t-fast);
 }
 /* The details dialog: label over value, long paths wrap. */
 .hiddenTop {
@@ -377,6 +377,7 @@
 		padding: 8px 4px;
 		overflow-y: auto;
 		overscroll-behavior: contain;
+		touch-action: pan-y;
 	}
 	:global(html:not(.desktop)) .bottom .zoom {
 		order: -1;
@@ -724,15 +725,15 @@ button.findCount {
 	animation: pw-fade-in var(--t-med) var(--ease);
 }
 
-/* The scrubber: a handle on the right edge, for touch screens. */
+/* The scrubber: a compact handle on the inline-end edge, for touch screens. */
 .scrub {
 	display: none;
 	position: absolute;
 	top: calc(8px + var(--bars-top, 0px));
-	right: 0;
+	inset-inline-end: 0;
 	bottom: calc(8px + var(--bars-bottom, 0px));
 	z-index: 4;
-	width: 28px;
+	width: 22px;
 	pointer-events: none;
 	opacity: 0;
 	visibility: hidden;
@@ -753,10 +754,12 @@ button.findCount {
 .scrubKnob {
 	position: absolute;
 	top: 0;
-	right: 0;
-	width: 28px;
+	inset-inline-end: 0;
+	width: 22px;
 	height: 44px;
 	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
 }
 .scrub[data-on] .scrubKnob,
 .scrub[data-held] .scrubKnob {
@@ -766,9 +769,9 @@ button.findCount {
 	content: "";
 	position: absolute;
 	top: 0;
-	right: 3px;
+	inset-inline-end: 3px;
 	bottom: 0;
-	width: 8px;
+	width: 6px;
 	border-radius: 999px;
 	background: var(--text-3);
 	box-shadow: 0 0 0 1px var(--surface);
@@ -776,14 +779,26 @@ button.findCount {
 	transition: transform var(--t-fast) var(--ease), background var(--t-fast)
 		var(--ease);
 }
+:global([dir="rtl"]) .scrubKnob::before {
+	transform-origin: left;
+}
 .scrub[data-held] .scrubKnob::before {
-	transform: scaleX(1.25);
+	transform: scaleX(1.5);
 	background: var(--accent);
+}
+@media (forced-colors: active) {
+	.scrubKnob::before {
+		forced-color-adjust: none;
+		background: CanvasText;
+	}
+	.scrub[data-held] .scrubKnob::before {
+		background: Highlight;
+	}
 }
 .scrubLabel {
 	position: absolute;
 	top: 50%;
-	right: 34px;
+	inset-inline-end: 28px;
 	transform: translateY(-50%);
 	padding: 6px 12px;
 	border-radius: 999px;

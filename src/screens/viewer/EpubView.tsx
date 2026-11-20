@@ -49,15 +49,19 @@ type Result =
 	| { ok: false; reason: "drm" | "corrupt"; fault?: unknown };
 
 async function read(data: ArrayBuffer): Promise<Result> {
-	const { parseEpub, EpubError } = await import("@/lib/epub");
 	try {
-		return { ok: true, book: parseEpub(new Uint8Array(data)) };
+		const { parseEpub, EpubError } = await import("@/lib/epub");
+		try {
+			return { ok: true, book: parseEpub(new Uint8Array(data)) };
+		} catch (err) {
+			return {
+				ok: false,
+				reason: err instanceof EpubError ? err.reason : "corrupt",
+				fault: err,
+			};
+		}
 	} catch (err) {
-		return {
-			ok: false,
-			reason: err instanceof EpubError ? err.reason : "corrupt",
-			fault: err,
-		};
+		return { ok: false, reason: "corrupt", fault: err };
 	}
 }
 
@@ -107,7 +111,16 @@ function Contents({
 /** A book (EPUB): its chapters as one flowing text, its own contents to
  * jump by, the text size, paper and bookmarks of any document. */
 export default function EpubView(props: ViewerProps) {
-	const { data, name, format, position, onPosition, onClose, active } = props;
+	const {
+		data,
+		name,
+		format,
+		position,
+		onPosition,
+		onClose,
+		active,
+		passwordProtected,
+	} = props;
 	const scroller = useRef<HTMLDivElement>(null);
 	const stage = useRef<HTMLDivElement>(null);
 	const hud = useRef<HTMLDivElement>(null);
@@ -121,7 +134,13 @@ export default function EpubView(props: ViewerProps) {
 
 	useEffect(() => {
 		let alive = true;
-		read(data).then((r) => alive && setResult(r));
+		setResult(null);
+		read(data)
+			.then((r) => alive && setResult(r))
+			.catch(
+				(err) =>
+					alive && setResult({ ok: false, reason: "corrupt", fault: err }),
+			);
 		return () => {
 			alive = false;
 		};
@@ -236,7 +255,7 @@ export default function EpubView(props: ViewerProps) {
 			progressOf={scroller}
 			side={side}
 			paper
-			bookmarks={book ? marks : undefined}
+			bookmarks={book && !passwordProtected ? marks : undefined}
 			speech={book ? speech : undefined}
 			details={details}
 			chromeHidden={chromeHidden && !find.open}

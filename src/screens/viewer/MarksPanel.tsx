@@ -13,6 +13,8 @@ import { Button, IconButton, toast } from "@/ui";
 import {
 	Copy,
 	Download,
+	Eye,
+	EyeOff,
 	FileDown,
 	Highlighter,
 	NotebookPen,
@@ -138,6 +140,8 @@ export function MarksPanel({
 	label,
 	onShow,
 	onSaveCopy,
+	marksVisible = true,
+	onToggleMarksVisible,
 }: {
 	store: MarkStore;
 	name: string;
@@ -145,6 +149,10 @@ export function MarksPanel({
 	label: (page: number) => string;
 	onShow: (mark: DocMark) => void;
 	onSaveCopy: () => void;
+	/** Whether highlights are shown on the document pages (default true). */
+	marksVisible?: boolean;
+	/** Toggle visibility of highlights on the document pages. */
+	onToggleMarksVisible?: () => void;
 }) {
 	const note = useDraft(store.note, store.setNote);
 	const marks = sortMarks(store.list);
@@ -201,6 +209,22 @@ export function MarksPanel({
 
 	return (
 		<div className={s.marksPanel} data-testid="marks-panel">
+			{onToggleMarksVisible && store.list.length > 0 && (
+				<button
+					type="button"
+					className={s.marksToggle}
+					aria-pressed={!marksVisible}
+					onClick={onToggleMarksVisible}
+					data-testid="marks-visibility-toggle"
+				>
+					{marksVisible ? (
+						<EyeOff size={16} aria-hidden="true" />
+					) : (
+						<Eye size={16} aria-hidden="true" />
+					)}
+					{marksVisible ? t("Hide highlights") : t("Show highlights")}
+				</button>
+			)}
 			<Growing
 				className={s.docNote}
 				rows={2}

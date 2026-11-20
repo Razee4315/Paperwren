@@ -1,19 +1,23 @@
-import { backend, managedRelPath } from "@/lib/backend";
+import { backend, managedRelPath, onDocumentKept } from "@/lib/backend";
 import { isDesktop, isTauri } from "@/lib/env";
 import { isOpaqueName } from "@/lib/formats";
+import { openDocuments, openManagedPaths, watchOpen } from "@/lib/openFiles";
 import {
+	PICK_GRACE,
 	capOrigins,
 	cleanPosition,
 	idForReopen,
 	migrateLegacyRecents,
+	normalizeGrants,
 	normalizeRecents,
 	originsChanged,
 	recordOpen as recordOpenPure,
 	renameRecent,
 	sortRecents,
+	strayGrants,
 	updateEntry,
 } from "@/lib/recents";
-import { storeFailed } from "@/lib/storedValue";
+import { createStoredValue, storeFailed } from "@/lib/storedValue";
 import { forgetThumb, moveThumb } from "@/lib/thumbs";
 import {
 	type Position,
@@ -135,6 +139,32 @@ function readUnsaved(): Array<[string, Position]> {
 	return out;
 }
 
+/** How long after a change housekeeping runs (copies over the cap,
+ * picked documents' access no entry took up). */
+const HOUSEKEEP_MS = 5000;
+
+/** This run's start: access taken at a pick in an earlier run, and
+ * still not named by the list, has nobody left to use it. */
+const STARTED = Date.now();
+
+/** Access to picked documents taken at the pick ("Open file" opens a
+ * document where it is), until Recent files names them: lib/recents
+ * strayGrants. Only written on a phone. */
+const pickedGrants = createStoredValue<Record<string, number>>({
+	key: "picked_grants_v1",
+	initial: {},
+	normalize: normalizeGrants,
+});
+onDocumentKept((uri) => {
+	const at = Date.now();
+	void pickedGrants.load();
+	pickedGrants.edit((all) => ({ ...all, [uri]: at }));
+});
+
+/** Housekeeping beyond the first run after starting is for a phone: it
+ * stays alive for days, and its copies and access build up meanwhile. */
+const onPhone = () => !!window.__paperwrenAndroid;
+
 function managedPaths(entries: RecentEntry[]): string[] {
 	return entries
 		.map((e) =>
@@ -217,6 +247,8 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 	/** Copies an undoable change took out, kept until its Undo is gone:
 	 * by the list it returned. */
 	const held = useRef(new Map<RecentEntry[], () => void>());
+	/** Ids being renamed: their picture moves, it is not forgotten. */
+	const renaming = useRef(new Set<string>());
 	/** Changes asked for before the list was read: made once it is, so
 	 * nothing is written over a list that has not been seen. */
 	const early = useRef<
@@ -268,17 +300,27 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			changes.current++;
 			apply(next);
 			persist(fn);
-			// A picked original the list now names is held over restarts
-			// (so it can still be renamed); one it no longer names is let go,
-			// with its copy.
+			// A picked document the list now names is held over restarts
+			// (so it can still be opened and renamed); one it no longer names
+			// is let go, with its copy and its picture.
 			for (const uri of originsChanged(prev, next).kept)
-				backend.keepDocument(uri);
+				void backend.keepDocument(uri);
 			const release = () => {
-				const kept = new Set(managedPaths(current.current));
+				const now = current.current;
+				// A copy still open in a tab or a tool stays; housekeeping
+				// deletes it once it is closed.
+				const kept = new Set([...managedPaths(now), ...openManagedPaths()]);
 				const dropped = managedPaths(prev).filter((p) => !kept.has(p));
 				if (dropped.length) backend.importsRemove(dropped).catch(() => {});
-				for (const uri of originsChanged(prev, current.current).released)
+				// An open document keeps being readable this run: giving back
+				// access over restarts leaves the access of the pick.
+				for (const uri of originsChanged(prev, now).released)
 					backend.releaseDocument(uri);
+				// Pictures of entries that left, the limit's too; a renamed
+				// one's picture moves to its new id instead (rename).
+				const ids = new Set(now.map((e) => e.id));
+				for (const e of prev)
+					if (!ids.has(e.id) && !renaming.current.has(e.id)) forgetThumb(e.id);
 			};
 			if (undoable) held.current.set(prev, release);
 			else release();
@@ -303,17 +345,56 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		};
 	}, [apply, commit, stores]);
 
-	// Wait until Home has settled; use the latest list if it changed meanwhile.
-	useEffect(() => {
-		if (!ready) return;
-		let alive = true;
-		const prune = async () => {
-			// Housekeeping: orphaned copies go, and the size cap evicts the
-			// oldest referenced ones, which then show as unavailable.
+	// Housekeeping: copies nothing names or has open go, and the size cap
+	// evicts the least wanted named ones (the list's oldest; open ones
+	// last), which then show as unavailable. Access taken at a pick that
+	// no entry took up is given back. Once after starting, when Home has
+	// settled; on a phone also a few seconds after each opening or
+	// closing, as the app stays alive for days.
+	const alive = useRef(true);
+	const housekeeper = useRef({ timer: 0, busy: false, again: false });
+	const schedule = useRef<(delay?: number) => void>(() => {});
+	const settleGrants = useCallback(async () => {
+		if (!window.__paperwrenAndroidExtras) return;
+		await pickedGrants.load();
+		const pending = pickedGrants.value.get();
+		if (!Object.keys(pending).length) return;
+		const open = openDocuments();
+		const { release, settled } = strayGrants(
+			pending,
+			current.current,
+			open,
+			Date.now(),
+			STARTED,
+		);
+		for (const uri of release) backend.releaseDocument(uri);
+		if (settled.length) {
+			// Only as seen: the same document picked again since is new.
+			const seen = settled.map((uri) => [uri, pending[uri]] as const);
+			pickedGrants.edit((all) => {
+				const next = { ...all };
+				for (const [uri, at] of seen) if (next[uri] === at) delete next[uri];
+				return next;
+			});
+		}
+		// One still in its first moments is looked at again after them.
+		const done = new Set([...settled, ...open]);
+		if (Object.keys(pending).some((uri) => !done.has(uri)))
+			schedule.current(PICK_GRACE);
+	}, []);
+	const housekeep = useCallback(async () => {
+		const state = housekeeper.current;
+		if (state.busy) {
+			state.again = true;
+			return;
+		}
+		state.busy = true;
+		try {
+			// What is open first: the cap evicts it last.
 			const evicted = await backend
-				.importsPrune(managedPaths(current.current))
+				.importsPrune([...openManagedPaths(), ...managedPaths(current.current)])
 				.catch(() => []);
-			if (alive && evicted.length) {
+			if (alive.current && evicted.length) {
 				const gone = new Set(evicted);
 				apply(
 					current.current.map((e) =>
@@ -324,17 +405,43 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 					),
 				);
 			}
+			await settleGrants().catch(() => {});
+		} finally {
+			state.busy = false;
+			if (state.again && alive.current) {
+				state.again = false;
+				schedule.current();
+			}
+		}
+	}, [apply, settleGrants]);
+	schedule.current = (delay = HOUSEKEEP_MS) => {
+		const state = housekeeper.current;
+		if (!stores.ready.get() || !onPhone()) return;
+		window.clearTimeout(state.timer);
+		state.timer = window.setTimeout(() => void housekeep(), delay);
+	};
+	useEffect(() => {
+		alive.current = true;
+		return () => {
+			alive.current = false;
+			window.clearTimeout(housekeeper.current.timer);
 		};
+	}, []);
+	// A document or a tool closed: its copy and access may go now.
+	useEffect(() => watchOpen(() => schedule.current()), []);
+
+	// Wait until Home has settled; use the latest list if it changed meanwhile.
+	useEffect(() => {
+		if (!ready) return;
 		const idle = typeof window.requestIdleCallback === "function";
 		const id = idle
-			? window.requestIdleCallback(() => void prune(), { timeout: 4000 })
-			: window.setTimeout(() => void prune(), 4000);
+			? window.requestIdleCallback(() => void housekeep(), { timeout: 4000 })
+			: window.setTimeout(() => void housekeep(), 4000);
 		return () => {
-			alive = false;
 			if (idle) window.cancelIdleCallback(id);
 			else window.clearTimeout(id);
 		};
-	}, [ready, apply]);
+	}, [ready, housekeep]);
 
 	// Name healing: entries saved with a fallback name ("PDF
 	// document.pdf", or an id from an older build) ask the Android
@@ -381,6 +488,11 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 
 	const record = useCallback<RecentsApi["record"]>(
 		(entry) => {
+			// A phone's copy (or access to a picked document) came in: the
+			// cap is kept while the app stays alive, not only at the next
+			// start. With Recent files off, nothing names it, so it goes
+			// once it is closed.
+			schedule.current();
 			if (!keepRef.current) return;
 			commit((prev) =>
 				capOrigins(
@@ -519,7 +631,12 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			// has a new one, and what is kept by it moves along; a copy the
 			// app holds keeps its own.
 			const now = idForReopen(reopen);
-			commit((prev) => renameRecent(prev, id, name, reopen).list);
+			renaming.current.add(id);
+			try {
+				commit((prev) => renameRecent(prev, id, name, reopen).list);
+			} finally {
+				renaming.current.delete(id);
+			}
 			moveBookmarks(id, now);
 			moveThumb(id, now);
 			const position = pending.current.get(id);

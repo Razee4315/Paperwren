@@ -1,6 +1,6 @@
 import { language, t, uiDir } from "@/lib/i18n";
 import { SPEECH_RATES, Stopped, guessLang, speaker } from "@/lib/speech";
-import { useSettings } from "@/state/settings";
+import { useSetting, useUpdateSetting } from "@/state/settings";
 import { IconButton, toast } from "@/ui";
 import { Pause, Play, SkipBack, SkipForward, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,11 +25,12 @@ export function ReadAloud({
 	active: boolean;
 	onClose: () => void;
 }) {
-	const { settings, update } = useSettings();
+	const speechRate = useSetting("speechRate");
+	const update = useUpdateSetting();
 	const voice = speaker();
 	const [playing, setPlaying] = useState(true);
-	const rateRef = useRef(settings.speechRate);
-	rateRef.current = settings.speechRate;
+	const rateRef = useRef(speechRate);
+	rateRef.current = speechRate;
 
 	// What has been said, what is being said, what was skipped back over,
 	// and the rest of the document, still to be read.
@@ -152,7 +153,7 @@ export function ReadAloud({
 		read(previous);
 	};
 	const faster = () => {
-		const at = SPEECH_RATES.indexOf(settings.speechRate);
+		const at = SPEECH_RATES.indexOf(speechRate);
 		const rate = SPEECH_RATES[(at + 1) % SPEECH_RATES.length];
 		update("speechRate", rate);
 		rateRef.current = rate;
@@ -199,11 +200,11 @@ export function ReadAloud({
 				type="button"
 				className={s.speechRate}
 				onClick={faster}
-				aria-label={t("Reading speed {n}×", { n: settings.speechRate })}
+				aria-label={t("Reading speed {n}×", { n: speechRate })}
 				title={t("Reading speed")}
 				data-testid="read-aloud-rate"
 			>
-				{settings.speechRate}×
+				{speechRate}×
 			</button>
 			<IconButton
 				label={t("Stop reading")}

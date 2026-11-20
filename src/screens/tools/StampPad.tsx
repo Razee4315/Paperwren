@@ -175,24 +175,8 @@ export function StampPad({
 	const shown = way === "make" ? made : picture;
 	const preview = useMemo(() => shown?.toDataURL("image/png") ?? null, [shown]);
 
-	const upload = async () => {
-		let canvas: HTMLCanvasElement | null;
-		try {
-			canvas = await pickPicture();
-		} catch {
-			toast(t("That picture couldn't be read"));
-			return;
-		}
-		if (!canvas) return;
-		if (!hasInk(canvas)) {
-			toast(t("No stamp was found in that picture"));
-			return;
-		}
-		setClearPaper(true);
-		setDepth(0);
-		setSource(canvas);
-	};
-
+	const uploadingRef = useRef(false);
+	const [uploading, setUploading] = useState(false);
 	const finishing = useRef(false);
 	const alive = useRef(true);
 	const [busy, setBusy] = useState(false);
@@ -202,6 +186,32 @@ export function StampPad({
 			alive.current = false;
 		};
 	}, []);
+
+	const upload = async () => {
+		if (uploadingRef.current) return;
+		uploadingRef.current = true;
+		setUploading(true);
+		try {
+			let canvas: HTMLCanvasElement | null;
+			try {
+				canvas = await pickPicture();
+			} catch {
+				if (alive.current) toast(t("That picture couldn't be read"));
+				return;
+			}
+			if (!alive.current || !canvas) return;
+			if (!hasInk(canvas)) {
+				toast(t("No stamp was found in that picture"));
+				return;
+			}
+			setClearPaper(true);
+			setDepth(0);
+			setSource(canvas);
+		} finally {
+			uploadingRef.current = false;
+			if (alive.current) setUploading(false);
+		}
+	};
 	const done = async () => {
 		if (finishing.current) return;
 		finishing.current = true;
@@ -402,7 +412,13 @@ export function StampPad({
 							testId="stamp"
 						/>
 					)}
-					<Button variant="secondary" onClick={upload} data-testid="stamp-pick">
+					<Button
+						variant="secondary"
+						onClick={upload}
+						disabled={uploading}
+						aria-busy={uploading || undefined}
+						data-testid="stamp-pick"
+					>
 						<ImageUp size={18} />{" "}
 						{source ? t("Pick another") : t("Pick a picture")}
 					</Button>

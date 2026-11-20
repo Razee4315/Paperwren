@@ -265,7 +265,10 @@ export function watchMarks(
 	const list = watchers.get(key) ?? new Set();
 	watchers.set(key, list);
 	list.add(heard);
-	return () => list.delete(heard);
+	return () => {
+		list.delete(heard);
+		if (!list.size && watchers.get(key) === list) watchers.delete(key);
+	};
 }
 
 const announce = (key: string, from?: unknown) => {
@@ -275,18 +278,32 @@ const announce = (key: string, from?: unknown) => {
 /** Keep a document's record, or drop it once there is nothing in it.
  * `from` is who wrote it, and already knows. */
 export async function saveMarks(doc: DocMarks, from?: unknown): Promise<void> {
-	const empty =
-		!doc.marks.length &&
-		!doc.note.trim() &&
-		!Object.keys(doc.scales ?? {}).length;
-	await backend.storeSet(docKey(doc.key), empty ? null : doc);
-	await changeList((list) => {
-		const rest = list.filter((n) => n.key !== doc.key);
-		if (empty) return rest;
-		const { key, name, updatedAt } = doc;
-		return [{ key, name, updatedAt, count: doc.marks.length }, ...rest];
-	});
+	await backend.storeSet(docKey(doc.key), isEmpty(doc) ? null : doc);
+	await changeList((list) => listed(list, [doc]));
 	announce(doc.key, from);
+}
+
+const isEmpty = (doc: DocMarks) =>
+	!doc.marks.length &&
+	!doc.note.trim() &&
+	!Object.keys(doc.scales ?? {}).length;
+
+/** The list with `docs` written into it, in turn: the last written at
+ * the top, as one save after another would leave it, and an empty one
+ * taken off. */
+function listed(list: DocSummary[], docs: DocMarks[]): DocSummary[] {
+	const written = new Set(docs.map((doc) => doc.key));
+	const top: DocSummary[] = [];
+	const seen = new Set<string>();
+	for (let i = docs.length - 1; i >= 0; i--) {
+		const doc = docs[i];
+		if (seen.has(doc.key)) continue;
+		seen.add(doc.key);
+		if (isEmpty(doc)) continue;
+		const { key, name, updatedAt } = doc;
+		top.push({ key, name, updatedAt, count: doc.marks.length });
+	}
+	return [...top, ...list.filter((n) => !written.has(n.key))];
 }
 
 /** Every document's record: for a backup, and to undo clearing them. */
@@ -311,7 +328,10 @@ export async function clearAllMarks(): Promise<DocMarks[]> {
 /** Bring back records from a backup or an Undo. A document that is here
  * too keeps whichever copy was changed last. How many came in. */
 export async function restoreMarks(docs: unknown[]): Promise<number> {
-	let added = 0;
+	// Each record is written as it is read; the shared list once at the
+	// end, not once per document (a backup of hundreds rewrote it as
+	// many times).
+	const written: DocMarks[] = [];
 	for (const raw of docs) {
 		const key = (raw as { key?: unknown } | null)?.key;
 		if (typeof key !== "string" || !/^[0-9a-f]{32}$/.test(key)) continue;
@@ -319,10 +339,12 @@ export async function restoreMarks(docs: unknown[]): Promise<number> {
 		if (!doc) continue;
 		const here = await loadMarks(key);
 		if (here && here.updatedAt >= doc.updatedAt) continue;
-		await saveMarks(doc);
-		added++;
+		await backend.storeSet(docKey(key), isEmpty(doc) ? null : doc);
+		written.push(doc);
 	}
-	return added;
+	if (written.length) await changeList((list) => listed(list, written));
+	for (const doc of written) announce(doc.key);
+	return written.length;
 }
 
 /** How far down its page a mark starts. */

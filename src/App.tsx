@@ -9,15 +9,14 @@ import { language, subscribe, t } from "@/lib/i18n";
 import { isFullscreenKey } from "@/lib/keys";
 import { backToCaller } from "@/lib/navigation";
 import { holdOpen, onSaveRefused } from "@/lib/openFiles";
+import { idForReopen } from "@/lib/recents";
 import { matches, whoHas } from "@/lib/shortcuts";
 import { FIND_EVENT, SELECT_ALL_EVENT } from "@/lib/signals";
 import { onStoreFailed } from "@/lib/storedValue";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
-import { type Tab, TabStrip, moveTab } from "@/screens/TabStrip";
-import { UpdateHost } from "@/screens/Updates";
+import type { Tab } from "@/screens/TabStrip";
 import { Home } from "@/screens/home/Home";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
-import { SplitDivider } from "@/screens/viewer/SplitDivider";
 import {
 	type Pane,
 	SPLIT_ROOM,
@@ -58,7 +57,6 @@ import {
 	SheetItem,
 	ToastHost,
 	WindowControls,
-	modalOpen,
 	ownsKeys,
 	toast,
 } from "@/ui";
@@ -98,6 +96,17 @@ const NotesScreen = lazy(() =>
 );
 // Shown once; never part of a regular launch's bundle.
 const Onboarding = lazy(() => import("@/screens/onboarding/Onboarding"));
+const TabStrip = lazy(() =>
+	import("@/screens/TabStrip").then((m) => ({ default: m.TabStrip })),
+);
+const SplitDivider = lazy(() =>
+	import("@/screens/viewer/SplitDivider").then((m) => ({
+		default: m.SplitDivider,
+	})),
+);
+const UpdateHost = lazy(() =>
+	import("@/screens/Updates").then((m) => ({ default: m.UpdateHost })),
+);
 
 /** The reader and pdf.js, fetched and compiled once Home has settled,
  * so the first document opens without waiting for them (most are PDFs).
@@ -108,11 +117,10 @@ function warmReader() {
 	// The PDF reader is a chunk of its own, behind the screen above.
 	void import("@/screens/viewer/PdfView").catch(() => {});
 	void import("@/lib/pdfEngine").then((m) => m.loadEngine()).catch(() => {});
-	// Then Tools and Notes, at the next quiet moment: each is opened
+	// Then Settings and Notes, at the next quiet moment: each is opened
 	// from Home, and should come up as quickly as the reader does.
 	idle(() => {
 		void loadSettings().catch(() => {});
-		void loadTools().catch(() => {});
 		void loadNotes().catch(() => {});
 	});
 }
@@ -280,6 +288,22 @@ declare global {
 	}
 }
 
+/** A file another app handed over that is not open yet: still being
+ * copied in by MainActivity, or queued for the page. The last document
+ * is then not reopened, to open over it a moment later. */
+function arriving(): boolean {
+	if ((window.__paperwrenFiles?.length ?? 0) > 0) return true;
+	// Added after 1.8.1; backend.ts types the bridge as it was.
+	const extras = window.__paperwrenAndroidExtras as unknown as
+		| { incoming?: () => boolean }
+		| undefined;
+	try {
+		return !!extras?.incoming?.();
+	} catch {
+		return false;
+	}
+}
+
 function Root() {
 	// Every screen is drawn from here, so a change of language redraws
 	// them all.
@@ -406,8 +430,14 @@ function Root() {
 	}, [reset]);
 	/** Put the tab of `key` at index `to` in the row. */
 	const moveTabTo = useCallback((key: number, to: number) => {
-		const next = moveTab(tabsRef.current, key, to);
-		if (next === tabsRef.current) return;
+		const list = tabsRef.current;
+		const from = list.findIndex((item) => item.key === key);
+		if (from < 0) return;
+		const at = Math.max(0, Math.min(list.length - 1, to));
+		if (at === from) return;
+		const next = list.slice();
+		const [item] = next.splice(from, 1);
+		next.splice(at, 0, item);
 		tabsRef.current = next;
 		setTabs(next);
 	}, []);
@@ -607,7 +637,7 @@ function Root() {
 		const timer = window.setTimeout(() => {
 			resumed.current = true;
 			const busy = screensRef.current.some((x) => x.kind === "viewer");
-			if (busy) return;
+			if (busy || arriving()) return;
 			const last = [...recentList()]
 				.filter((entry) => !entry.unavailable)
 				.sort((a, b) => b.openedAt - a.openedAt)[0];
@@ -621,7 +651,11 @@ function Root() {
 	// payloads queue until this effect drains them.
 	/** The document another app opened with Paperwren, and whether that
 	 * started Paperwren: Back on it goes back to that app (#83). */
-	const caller = useRef<{ id: string; started: boolean } | null>(null);
+	const caller = useRef<{
+		id: string;
+		started: boolean;
+		shown: boolean;
+	} | null>(null);
 	useEffect(() => {
 		const drain = () => {
 			const queue = window.__paperwrenFiles ?? [];
@@ -629,9 +663,27 @@ function Root() {
 			// A file shared into the app IS the onboarding: go straight to it.
 			if (files.length) finishWelcome();
 			for (const f of files) {
-				const request = requestForManagedCopy(f.path, f.name, f.size);
-				if (f.caller && !isDesktop)
-					caller.current = { id: request.id, started: f.caller === "started" };
+				// Too large to copy in (a 350 MB PDF), it comes by its address
+				// and is read from there while the app has the right to.
+				const request: OpenRequest = f.path.startsWith("content://")
+					? {
+							id: idForReopen({ kind: "uri", uri: f.path }),
+							name: f.name,
+							nameVerified: true,
+							size: f.size,
+							reopen: { kind: "uri", uri: f.path },
+						}
+					: requestForManagedCopy(f.path, f.name, f.size);
+				if (f.caller && !isDesktop) {
+					const currentTop = screensRef.current[screensRef.current.length - 1];
+					caller.current = {
+						id: request.id,
+						started: f.caller === "started",
+						shown:
+							currentTop?.kind === "viewer" &&
+							currentTop.request.id === request.id,
+					};
+				}
 				open(request);
 			}
 		};
@@ -639,6 +691,19 @@ function Root() {
 		window.addEventListener("paperwren-file", drain);
 		return () => window.removeEventListener("paperwren-file", drain);
 	}, [open, finishWelcome]);
+
+	// Once the reader leaves the caller-opened viewer (for Home, Settings,
+	// or another file), forget the caller so reopening it from Recents
+	// does not exit the app.
+	useEffect(() => {
+		const from = caller.current;
+		if (!from) return;
+		if (top?.kind === "viewer" && top.request.id === from.id) {
+			from.shown = true;
+		} else if (from.shown) {
+			caller.current = null;
+		}
+	}, [top]);
 
 	// Back on that document, with nothing over it, goes back to the app
 	// that opened it, as a viewer does: WhatsApp, a file manager. Started
@@ -649,8 +714,8 @@ function Root() {
 			onLeave((now) => {
 				const from = caller.current;
 				if (!from || !backToCaller(now, from.id)) return false;
-				const leave = window.__paperwrenAndroidExtras?.leaveToCaller;
-				if (!leave?.(from.started)) return false;
+				if (!window.__paperwrenAndroidExtras?.leaveToCaller?.(from.started))
+					return false;
 				caller.current = null;
 				if (!from.started) close();
 				return true;
@@ -724,7 +789,7 @@ function Root() {
 				!e.altKey &&
 				(e.key === "Tab" || /^[1-9]$/.test(e.key)) &&
 				tabsRef.current.length > 1 &&
-				!modalOpen()
+				ownsKeys()
 			) {
 				// Ctrl+Tab and Ctrl+Shift+Tab step through the tabs; Ctrl+1 to
 				// Ctrl+8 go to one, Ctrl+9 to the last.
@@ -745,7 +810,7 @@ function Root() {
 				!e.altKey &&
 				(e.key === "PageUp" || e.key === "PageDown") &&
 				shownKey.current !== null &&
-				!modalOpen()
+				ownsKeys()
 			) {
 				// Ctrl+Shift+Page Up and Down move the tab on show one place
 				// back or on in the row, as in a browser.
@@ -759,6 +824,7 @@ function Root() {
 				!e.ctrlKey &&
 				e.key === "ArrowLeft" &&
 				deep &&
+				ownsKeys() &&
 				// On a Mac ⌥← in a field moves the caret a word back.
 				!(isMac && (e.target as Element | null)?.closest?.("input, textarea"))
 			) {
@@ -771,6 +837,7 @@ function Root() {
 				// (viewer/hooks.ts), and nothing else may act on them.
 				e.preventDefault();
 			} else if (matches(e, "find") && !(e.ctrlKey && e.metaKey)) {
+				if (!ownsKeys()) return;
 				if (!deep) {
 					e.preventDefault();
 					document
@@ -972,7 +1039,30 @@ function Root() {
 	/** A phone's one document on top. */
 	const stackCalls = useMemo<DocCalls>(
 		() => ({
-			close,
+			close: () => {
+				const from = caller.current;
+				const at = screensRef.current.length - 1;
+				const currentTop = screensRef.current[at];
+				if (
+					from &&
+					currentTop?.kind === "viewer" &&
+					currentTop.request.id === from.id
+				) {
+					askLeave([screenScope(currentTop, at)], () => {
+						if (screensRef.current[at] !== currentTop) return;
+						caller.current = null;
+						if (
+							window.__paperwrenAndroidExtras?.leaveToCaller?.(from.started)
+						) {
+							if (!from.started) close();
+							return;
+						}
+						close();
+					});
+					return;
+				}
+				close();
+			},
 			replace: (_key, request) =>
 				replace({ kind: "viewer", request, key: nextKey.current++ }),
 			open,
@@ -1100,38 +1190,42 @@ function Root() {
 						})}
 			</SideBySideContext.Provider>
 			{twoShown && split && (
-				<SplitDivider
-					ratio={ratio}
-					onRatio={(next) =>
-						setSplit(
-							(pair) =>
-								pair && {
-									...pair,
-									ratio: clampRatio(next, window.innerWidth),
-								},
-						)
-					}
-				/>
+				<Suspense fallback={null}>
+					<SplitDivider
+						ratio={ratio}
+						onRatio={(next) =>
+							setSplit(
+								(pair) =>
+									pair && {
+										...pair,
+										ratio: clampRatio(next, window.innerWidth),
+									},
+							)
+						}
+					/>
+				</Suspense>
 			)}
 			{stripShown && (
-				<TabStrip
-					tabs={tabs}
-					current={current}
-					beside={
-						twoShown && split
-							? current === split.left
-								? split.right
-								: split.left
-							: null
-					}
-					onShow={show}
-					onClose={(tab) => closeTab(tab.key)}
-					onHome={goHome}
-					onMove={(tab, to) => moveTabTo(tab.key, to)}
-					onCloseOthers={(tab) => closeAround(tab, "others")}
-					onCloseAfter={(tab) => closeAround(tab, "after")}
-					onBeside={sideBySide.room ? sideBySide.beside : undefined}
-				/>
+				<Suspense fallback={null}>
+					<TabStrip
+						tabs={tabs}
+						current={current}
+						beside={
+							twoShown && split
+								? current === split.left
+									? split.right
+									: split.left
+								: null
+						}
+						onShow={show}
+						onClose={(tab) => closeTab(tab.key)}
+						onHome={goHome}
+						onMove={(tab, to) => moveTabTo(tab.key, to)}
+						onCloseOthers={(tab) => closeAround(tab, "others")}
+						onCloseAfter={(tab) => closeAround(tab, "after")}
+						onBeside={sideBySide.room ? sideBySide.beside : undefined}
+					/>
+				</Suspense>
 			)}
 			{welcome && (
 				<Suspense fallback={null}>
@@ -1185,7 +1279,9 @@ function Root() {
 			<LinkGuard />
 			<LeaveHost show={showScope} />
 			<ToastHost />
-			<UpdateHost paused={welcome !== false} />
+			<Suspense fallback={null}>
+				<UpdateHost paused={welcome !== false} />
+			</Suspense>
 			<WindowControls />
 		</>
 	);

@@ -1361,4 +1361,6 @@ export const es: Table = {
 		"Ya hay un trabajo de impresión en curso",
 	"No results. Try different words or turn off search options.":
 		"Sin resultados. Prueba otras palabras o desactiva las opciones de búsqueda.",
+	"Hide highlights": "Ocultar resaltados",
+	"Show highlights": "Mostrar resaltados",
 };

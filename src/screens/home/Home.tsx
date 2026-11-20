@@ -14,7 +14,6 @@ import { loadThumb, watchThumb } from "@/lib/thumbs";
 import { traceMark } from "@/lib/trace";
 import type { OpenRequest, RecentEntry } from "@/lib/types";
 import { FileDetails, HandOffItems } from "@/screens/files/FileActions";
-import { RenameDialog } from "@/screens/files/RenameDialog";
 import type { ToolId } from "@/screens/tools/ToolsScreen";
 import { MAX_FOLDERS, useFolders } from "@/state/folders";
 import { useRecents } from "@/state/recents";
@@ -53,12 +52,13 @@ import {
 } from "lucide-react";
 import {
 	type CSSProperties,
+	Suspense,
+	lazy,
 	useEffect,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
-import { FolderList } from "./FolderList";
 import s from "./Home.module.css";
 import {
 	type KindFilter,
@@ -67,6 +67,17 @@ import {
 	countKinds,
 	filterInForce,
 } from "./ListTools";
+
+// Off the first screen's code: a folder's list and the rename dialog
+// are fetched when they are wanted (see the effects in Home).
+const loadFolderList = () => import("./FolderList");
+const FolderList = lazy(() =>
+	loadFolderList().then((m) => ({ default: m.FolderList })),
+);
+const loadRename = () => import("@/screens/files/RenameDialog");
+const RenameDialog = lazy(() =>
+	loadRename().then((m) => ({ default: m.RenameDialog })),
+);
 
 /** The formats listed on the empty state, each in its family colour. */
 const SUPPORTED: Array<[string, FormatKind]> = [
@@ -202,8 +213,19 @@ export function Home({
 	const [menuFor, setMenuFor] = useState<RecentEntry | null>(null);
 	const [detailsFor, setDetailsFor] = useState<RecentEntry | null>(null);
 	const [renameFor, setRenameFor] = useState<RecentEntry | null>(null);
+	// The rename dialog's code is fetched as the menu that offers it
+	// opens, so it is there by the time Rename is pressed.
+	useEffect(() => {
+		if (menuFor) void loadRename().catch(() => {});
+	}, [menuFor]);
 	// Where the list looks: recents, or one of the folders the user chose.
 	const { folders, add: addFolder, remove: removeFolder } = useFolders();
+	// A folder's list is its own chunk, fetched once there is a folder
+	// to show: most readers never add one.
+	const hasFolders = folders.length > 0;
+	useEffect(() => {
+		if (hasFolders) void loadFolderList().catch(() => {});
+	}, [hasFolders]);
 	const [place, setPlace] = useState<string | null>(null);
 	const activeFolder = folders.find((f) => f.id === place) ?? null;
 	const canBrowse = backend.canBrowseFolders();
@@ -450,20 +472,22 @@ export function Home({
 					)}
 
 					{activeFolder && (
-						<FolderList
-							key={activeFolder.id}
-							folder={activeFolder}
-							onOpen={onOpenRequest}
-							onRemove={() => {
-								removeFolder(activeFolder.id);
-								setPlace(null);
-								toast(
-									t("Removed “{name}”. Its files are untouched.", {
-										name: activeFolder.name,
-									}),
-								);
-							}}
-						/>
+						<Suspense fallback={null}>
+							<FolderList
+								key={activeFolder.id}
+								folder={activeFolder}
+								onOpen={onOpenRequest}
+								onRemove={() => {
+									removeFolder(activeFolder.id);
+									setPlace(null);
+									toast(
+										t("Removed “{name}”. Its files are untouched.", {
+											name: activeFolder.name,
+										}),
+									);
+								}}
+							/>
+						</Suspense>
 					)}
 
 					{emptyHome && (
@@ -695,14 +719,16 @@ export function Home({
 				)}
 			</Sheet>
 			{renameFor && (
-				<RenameDialog
-					file={refOf(renameFor)}
-					id={renameFor.id}
-					onClose={() => setRenameFor(null)}
-					onRenamed={(name, reopen, id) =>
-						onRenamed?.(renameFor.id, { id, name, reopen })
-					}
-				/>
+				<Suspense fallback={null}>
+					<RenameDialog
+						file={refOf(renameFor)}
+						id={renameFor.id}
+						onClose={() => setRenameFor(null)}
+						onRenamed={(name, reopen, id) =>
+							onRenamed?.(renameFor.id, { id, name, reopen })
+						}
+					/>
+				</Suspense>
 			)}
 			{detailsFor && (
 				<FileDetails

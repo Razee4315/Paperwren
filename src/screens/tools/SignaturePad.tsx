@@ -145,6 +145,10 @@ export function SignaturePad({
 		});
 		return inkBounds(out.data, out.width, out.height, 0) ? canvasOf(out) : null;
 	}, [read, depth, oneInk, ink]);
+	const photoPreview = useMemo(
+		() => (photo ? photo.toDataURL("image/png") : null),
+		[photo],
+	);
 	const trimTo = (next: Trim | null) => {
 		if (!raw) return;
 		setTrim(next);
@@ -658,10 +662,10 @@ export function SignaturePad({
 							// As tall with a signature or without: the dialog must not
 							// move under a finger still dragging on the photo.
 							<div className={s.photoResult}>
-								{photo ? (
+								{photoPreview ? (
 									<img
 										className={s.photoPreview}
-										src={photo.toDataURL("image/png")}
+										src={photoPreview}
 										alt={t("Your signature")}
 										data-testid="signature-preview"
 									/>

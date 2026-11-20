@@ -123,21 +123,23 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 
 	useBackClose("onboarding-step", step > 0, () => go(step - 1));
 
+	// The welcome covers the app: the keyboard starts inside it.
+	const root = useRef<HTMLDivElement>(null);
+	const owns = useModalFocus(root, finish);
+
 	// "Forward" is towards the end of the line: left in Arabic and Urdu.
 	const forward = isRtl() ? -1 : 1;
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			// A dialog over the welcome has the keys.
+			if (!owns()) return;
 			if ((e.target as Element)?.closest("button, input, [role=radio]")) return;
 			if (e.key === "ArrowRight") go(step + forward);
 			if (e.key === "ArrowLeft") go(step - forward);
 		};
 		document.addEventListener("keydown", onKey);
 		return () => document.removeEventListener("keydown", onKey);
-	}, [go, step, forward]);
-
-	// The welcome covers the app: the keyboard starts inside it.
-	const root = useRef<HTMLDivElement>(null);
-	useModalFocus(root, finish);
+	}, [go, step, forward, owns]);
 
 	const { Scene } = STEPS[step];
 

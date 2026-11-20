@@ -14,14 +14,19 @@ import { canSpeak } from "@/lib/speech";
 import type { PageColor, Position } from "@/lib/types";
 import { useBookmarks } from "@/state/bookmarks";
 import { useBackClose } from "@/state/navigation";
-import { useSetting, useSettings, useTheme } from "@/state/settings";
+import {
+	useSetting,
+	useSettingsOf,
+	useTheme,
+	useUpdateSetting,
+} from "@/state/settings";
 import {
 	IconButton,
 	Sheet,
 	SheetDivider,
 	SheetItem,
 	formatColor,
-	modalOpen,
+	ownsKeys,
 	toast,
 } from "@/ui";
 import {
@@ -45,6 +50,9 @@ import {
 import {
 	type ReactNode,
 	type RefObject,
+	Suspense,
+	createContext,
+	lazy,
 	useContext,
 	useEffect,
 	useLayoutEffect,
@@ -52,13 +60,23 @@ import {
 	useState,
 	useSyncExternalStore,
 } from "react";
-import { ShortcutList } from "../settings/ShortcutList";
 import { FileMenu, ViewerFileContext } from "./FileMenu";
-import { ReadAloud } from "./ReadAloud";
 import { AutoScroll, DimSheet } from "./ReadingControls";
 import s from "./Shell.module.css";
 import { PaneContext, onShow } from "./pane";
 import type { SpeechSource } from "./speechSources";
+
+const ShortcutList = lazy(() =>
+	import("../settings/ShortcutList").then((m) => ({
+		default: m.ShortcutList,
+	})),
+);
+const ReadAloud = lazy(() =>
+	import("./ReadAloud").then((m) => ({ default: m.ReadAloud })),
+);
+
+/** Whether the enclosing Shell is the active viewer (default true standalone). */
+const ShellActiveContext = createContext(true);
 
 export { s as shellStyles };
 
@@ -138,7 +156,8 @@ function PageColorSheet({
 	open,
 	onClose,
 }: { open: boolean; onClose: () => void }) {
-	const { settings, update } = useSettings();
+	const pageColor = useSetting("pageColor");
+	const update = useUpdateSetting();
 	return (
 		<Sheet
 			open={open}
@@ -149,7 +168,7 @@ function PageColorSheet({
 			{PAGE_COLORS.map((value) => (
 				<SheetItem
 					key={value}
-					checked={settings.pageColor === value}
+					checked={pageColor === value}
 					onClick={() => {
 						update("pageColor", value);
 						onClose();
@@ -428,7 +447,14 @@ export function Shell({
 	/** The document's text, to be read aloud from the place on show. */
 	speech?: SpeechSource;
 }) {
-	const { settings, update } = useSettings();
+	const settings = useSettingsOf(
+		"dim",
+		"pageColor",
+		"readingBars",
+		"sidePanel",
+		"volumeKeys",
+	);
+	const update = useUpdateSetting();
 	const chromeHidden = chromeHiddenGiven ?? false;
 	const [colorOpen, setColorOpen] = useState(false);
 	const [keysOpen, setKeysOpen] = useState(false);
@@ -444,7 +470,7 @@ export function Shell({
 	useEffect(() => {
 		if (!active || !isDesktop) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.defaultPrevented) return;
+			if (!ownsKeys() || e.defaultPrevented) return;
 			if (matches(e, "keys")) setKeysOpen(true);
 			else if (matches(e, "fullscreen")) fullscreen();
 			else return;
@@ -486,7 +512,7 @@ export function Shell({
 	useEffect(() => {
 		if (!active || !fileId) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || !matches(e, "bookmark")) return;
+			if (!ownsKeys() || !matches(e, "bookmark")) return;
 			e.preventDefault();
 			addRef.current();
 		};
@@ -501,12 +527,15 @@ export function Shell({
 		if (!voiced) canSpeak(() => setVoiced(canSpeak()));
 	}, [voiced]);
 	const [reading, setReading] = useState(false);
+	useEffect(() => {
+		if (!active) setReading(false);
+	}, [active]);
 	const canRead = !!speech && voiced;
 	useEffect(() => {
 		if (!active || !canRead) return;
 		// Ctrl+Shift+U, as in Edge.
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || !matches(e, "readAloud")) return;
+			if (!ownsKeys() || !matches(e, "readAloud")) return;
 			e.preventDefault();
 			setReading((r) => !r);
 		};
@@ -535,7 +564,7 @@ export function Shell({
 		if (!active || !settings.volumeKeys || !bridge?.volumeKeys) return;
 		bridge.volumeKeys(true);
 		window.__paperwrenVolumeKey = (dir) => {
-			if (!modalOpen()) turnPage.current(dir < 0 ? -1 : 1);
+			if (ownsKeys()) turnPage.current(dir < 0 ? -1 : 1);
 		};
 		return () => {
 			bridge.volumeKeys?.(false);
@@ -774,7 +803,7 @@ export function Shell({
 	useEffect(() => {
 		if (!active || !isDesktop) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.defaultPrevented || !matches(e, "goToPage")) return;
+			if (!ownsKeys() || e.defaultPrevented || !matches(e, "goToPage")) return;
 			const field =
 				shell.current?.querySelector<HTMLInputElement>("[data-page-field]");
 			if (!field) return;
@@ -798,7 +827,7 @@ export function Shell({
 	useEffect(() => {
 		if (!active) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (e.defaultPrevented || modalOpen()) return;
+			if (e.defaultPrevented || !ownsKeys()) return;
 			// The next or the previous page, by whatever keys the reader gave
 			// them (an arrow, or a Mac's ⌘] that a trackpad swipe sends).
 			const step = matches(e, "nextPage") ? 1 : matches(e, "prevPage") ? -1 : 0;
@@ -920,7 +949,7 @@ export function Shell({
 		if (!active) return;
 		const onKey = (e: KeyboardEvent) => {
 			// ⌃⌘F is a Mac's full screen (App), not a ⌘F.
-			if (modalOpen() || (e.ctrlKey && e.metaKey)) return;
+			if (!ownsKeys() || (e.ctrlKey && e.metaKey)) return;
 			const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
 			const key = e.key.toLowerCase();
 			if (matches(e, "find")) {
@@ -987,158 +1016,171 @@ export function Shell({
 					: []),
 			]
 		: [];
+	const shown = onShow(active, pane);
 	const sideOpen = settings.sidePanel && tabs.length > 0;
 
 	return (
-		<div
-			ref={shell}
-			className={s.shell}
-			data-testid="viewer"
-			data-floating={floating ? "" : undefined}
-			data-immersed={immersed ? "" : undefined}
-			// A tab not on show keeps its size, its place and its drawn
-			// pages: hidden, not taken out of the layout, so showing it
-			// again redraws nothing and replays no entrance (#84). Side by
-			// side, the half without the keyboard is still shown.
-			data-away={onShow(active, pane) ? undefined : ""}
-			{...inert(!onShow(active, pane))}
-		>
-			<header
-				ref={topBar}
-				className={`${s.top} ${barsHidden ? s.hiddenTop : ""} ${finding ? s.pinned : ""}`}
-				{...inert(barsHidden)}
+		<ShellActiveContext.Provider value={active}>
+			<div
+				ref={shell}
+				className={s.shell}
+				data-testid="viewer"
+				data-floating={floating ? "" : undefined}
+				data-immersed={immersed ? "" : undefined}
+				// A tab not on show keeps its size, its place and its drawn
+				// pages: hidden, not taken out of the layout, so showing it
+				// again redraws nothing and replays no entrance (#84). Side by
+				// side, the half without the keyboard is still shown.
+				data-away={shown ? undefined : ""}
+				{...inert(!shown)}
 			>
-				{/* The bar is the window's title bar where the app draws its own
-				 * frame: a press on it (not on a button) moves the window. */}
-				<div className={s.row} data-tauri-drag-region="deep">
-					<IconButton
-						label={t("Back")}
-						shortcut={hintFor("close")}
-						onClick={onClose}
-						data-testid="viewer-back"
-					>
-						<ArrowLeft size={isDesktop ? 20 : 22} className="pw-flip" />
-					</IconButton>
-					<Title name={name} format={format} />
-					{isDesktop && pager && <div className={s.tools}>{pager}</div>}
-					{tabs.length > 0 && (
-						<IconButton
-							label={sideOpen ? t("Hide side panel") : t("Show side panel")}
-							active={sideOpen}
-							onClick={() => update("sidePanel", !settings.sidePanel)}
-							data-testid="side-toggle"
-						>
-							<PanelLeft size={18} className="pw-flip" />
-						</IconButton>
-					)}
-					{actions}
-					{isDesktop && !narrow && (
-						<IconButton
-							label={full ? t("Leave full screen") : t("Full screen")}
-							shortcut={hintFor("fullscreen")}
-							active={full}
-							onClick={fullscreen}
-							data-testid="viewer-fullscreen"
-						>
-							{full ? <Minimize size={18} /> : <Maximize size={18} />}
-						</IconButton>
-					)}
-					<FileMenu
-						extra={fileMenu}
-						details={details}
-						onPrint={onPrint}
-						active={active}
-						fullscreen={
-							isDesktop
-								? narrow
-									? { on: full, toggle: fullscreen }
-									: undefined
-								: canFull
-									? { on: immersed, toggle: togglePhoneFull }
-									: undefined
-						}
-					/>
-				</div>
-				{find}
-				{progressOf && <Progress of={progressOf} value={progress} />}
-			</header>
-			<div className={s.body} data-testid="viewer-body">
-				{sideOpen && (
-					<SidePanel
-						tabs={tabs}
-						focus={sideFocus}
-						onClose={() => update("sidePanel", false)}
-					/>
-				)}
-				<div
-					ref={main}
-					className={s.main}
-					dir="ltr"
-					data-page-color={pageColor}
-				>
-					{children}
-					{settings.dim > 0 && (
-						<div
-							className={s.dim}
-							style={{ opacity: settings.dim }}
-							aria-hidden="true"
-							data-testid="dim-layer"
-						/>
-					)}
-					{scrolling && progressOf && (
-						<AutoScroll of={progressOf} onClose={() => setScrolling(false)} />
-					)}
-					{reading && speech && (
-						<ReadAloud
-							source={speech}
-							active={active}
-							onClose={() => setReading(false)}
-						/>
-					)}
-					{hud && (
-						<div ref={hud} className={s.hud} dir={uiDir()} aria-hidden="true" />
-					)}
-				</div>
-			</div>
-			{paper && (
-				<PageColorSheet open={colorOpen} onClose={() => setColorOpen(false)} />
-			)}
-			<Sheet
-				open={keysOpen}
-				title={t("Keyboard shortcuts")}
-				onClose={() => setKeysOpen(false)}
-				wide
-				testId="keys-sheet"
-			>
-				<ShortcutList />
-			</Sheet>
-			<DimSheet open={dimOpen} onClose={() => setDimOpen(false)} />
-			{fileId && (
-				<Sheet
-					open={marksOpen}
-					title={t("Bookmarks")}
-					onClose={() => setMarksOpen(false)}
-					wide
-					testId="bookmark-list"
-				>
-					<BookmarkList
-						list={marks.list}
-						onPick={goMark}
-						onRemove={(mark) => marks.remove(mark.id)}
-					/>
-				</Sheet>
-			)}
-			{footed && (
-				<footer
-					ref={footBar}
-					className={`${s.bottom} ${barsHidden ? s.hiddenBottom : ""}`}
+				<header
+					ref={topBar}
+					className={`${s.top} ${barsHidden ? s.hiddenTop : ""} ${finding ? s.pinned : ""}`}
 					{...inert(barsHidden)}
 				>
-					{bottom}
-					{pager && !isDesktop && <div className={s.pager}>{pager}</div>}
-				</footer>
-			)}
-		</div>
+					{/* The bar is the window's title bar where the app draws its own
+					 * frame: a press on it (not on a button) moves the window. */}
+					<div className={s.row} data-tauri-drag-region="deep">
+						<IconButton
+							label={t("Back")}
+							shortcut={hintFor("close")}
+							onClick={onClose}
+							data-testid="viewer-back"
+						>
+							<ArrowLeft size={isDesktop ? 20 : 22} className="pw-flip" />
+						</IconButton>
+						<Title name={name} format={format} />
+						{isDesktop && pager && <div className={s.tools}>{pager}</div>}
+						{tabs.length > 0 && (
+							<IconButton
+								label={sideOpen ? t("Hide side panel") : t("Show side panel")}
+								active={sideOpen}
+								onClick={() => update("sidePanel", !settings.sidePanel)}
+								data-testid="side-toggle"
+							>
+								<PanelLeft size={18} className="pw-flip" />
+							</IconButton>
+						)}
+						{actions}
+						{isDesktop && !narrow && (
+							<IconButton
+								label={full ? t("Leave full screen") : t("Full screen")}
+								shortcut={hintFor("fullscreen")}
+								active={full}
+								onClick={fullscreen}
+								data-testid="viewer-fullscreen"
+							>
+								{full ? <Minimize size={18} /> : <Maximize size={18} />}
+							</IconButton>
+						)}
+						<FileMenu
+							extra={fileMenu}
+							details={details}
+							onPrint={onPrint}
+							active={active}
+							fullscreen={
+								isDesktop
+									? narrow
+										? { on: full, toggle: fullscreen }
+										: undefined
+									: canFull
+										? { on: immersed, toggle: togglePhoneFull }
+										: undefined
+							}
+						/>
+					</div>
+					{find}
+					{progressOf && <Progress of={progressOf} value={progress} />}
+				</header>
+				<div className={s.body} data-testid="viewer-body">
+					{sideOpen && shown && (
+						<SidePanel
+							tabs={tabs}
+							focus={sideFocus}
+							onClose={() => update("sidePanel", false)}
+						/>
+					)}
+					<div
+						ref={main}
+						className={s.main}
+						dir="ltr"
+						data-page-color={pageColor}
+					>
+						{children}
+						{settings.dim > 0 && (
+							<div
+								className={s.dim}
+								style={{ opacity: settings.dim }}
+								aria-hidden="true"
+								data-testid="dim-layer"
+							/>
+						)}
+						{scrolling && progressOf && (
+							<AutoScroll of={progressOf} onClose={() => setScrolling(false)} />
+						)}
+						{reading && active && speech && (
+							<Suspense fallback={null}>
+								<ReadAloud
+									source={speech}
+									active={active}
+									onClose={() => setReading(false)}
+								/>
+							</Suspense>
+						)}
+						{hud && (
+							<div
+								ref={hud}
+								className={s.hud}
+								dir={uiDir()}
+								aria-hidden="true"
+							/>
+						)}
+					</div>
+				</div>
+				{paper && (
+					<PageColorSheet
+						open={colorOpen}
+						onClose={() => setColorOpen(false)}
+					/>
+				)}
+				<Sheet
+					open={keysOpen}
+					title={t("Keyboard shortcuts")}
+					onClose={() => setKeysOpen(false)}
+					wide
+					testId="keys-sheet"
+				>
+					<Suspense fallback={null}>{keysOpen && <ShortcutList />}</Suspense>
+				</Sheet>
+				<DimSheet open={dimOpen} onClose={() => setDimOpen(false)} />
+				{fileId && (
+					<Sheet
+						open={marksOpen}
+						title={t("Bookmarks")}
+						onClose={() => setMarksOpen(false)}
+						wide
+						testId="bookmark-list"
+					>
+						<BookmarkList
+							list={marks.list}
+							onPick={goMark}
+							onRemove={(mark) => marks.remove(mark.id)}
+						/>
+					</Sheet>
+				)}
+				{footed && (
+					<footer
+						ref={footBar}
+						className={`${s.bottom} ${barsHidden ? s.hiddenBottom : ""}`}
+						{...inert(barsHidden)}
+					>
+						{bottom}
+						{pager && !isDesktop && <div className={s.pager}>{pager}</div>}
+					</footer>
+				)}
+			</div>
+		</ShellActiveContext.Provider>
 	);
 }
 
@@ -1266,6 +1308,7 @@ export function FindBar({
 	options,
 	onOptions,
 	onList,
+	active,
 }: {
 	state: FindState;
 	onQuery: (q: string) => void;
@@ -1276,9 +1319,15 @@ export function FindBar({
 	onOptions?: (options: FindOptions) => void;
 	/** Show every result together. */
 	onList?: () => void;
+	/** False while this viewer is behind another tab or screen. */
+	active?: boolean;
 }) {
+	const shellActive = useContext(ShellActiveContext);
+	const isActive = active ?? shellActive;
 	const input = useRef<HTMLInputElement>(null);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: focus only when the bar first opens
 	useEffect(() => {
+		if (!isActive) return;
 		input.current?.focus();
 		input.current?.select();
 	}, []);
@@ -1291,8 +1340,9 @@ export function FindBar({
 	const closeRef = useRef(onClose);
 	closeRef.current = onClose;
 	useEffect(() => {
+		if (!isActive) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.defaultPrevented) return;
+			if (!ownsKeys() || e.defaultPrevented) return;
 			if (e.ctrlKey && e.metaKey) return;
 			const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
 			const key = e.key.toLowerCase();
@@ -1307,7 +1357,7 @@ export function FindBar({
 		};
 		document.addEventListener("keydown", onKey);
 		return () => document.removeEventListener("keydown", onKey);
-	}, []);
+	}, [isActive]);
 
 	const label = state.busy
 		? "…"

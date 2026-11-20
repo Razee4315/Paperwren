@@ -1,3 +1,5 @@
+@import "../../styles/motion.css";
+
 .screen {
 	position: fixed;
 	inset: var(--tab-strip, 0px) 0 0;
@@ -293,4 +295,16 @@
 .swatch:active {
 	outline: 2px solid var(--line-control);
 	outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+	.swatch {
+		forced-color-adjust: none;
+		border-color: Canvas;
+		outline: 1px solid ButtonText;
+	}
+	.swatch[aria-pressed="true"] {
+		outline: 2px solid Highlight;
+		outline-offset: 2px;
+	}
 }

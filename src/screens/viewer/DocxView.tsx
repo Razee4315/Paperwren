@@ -4,7 +4,7 @@ import { fitWhenSettled } from "@/lib/fullscreen";
 import { t } from "@/lib/i18n";
 import { fitted } from "@/lib/print";
 import { hintFor } from "@/lib/shortcuts";
-import { useSettings } from "@/state/settings";
+import { useSetting, useUpdateSetting } from "@/state/settings";
 import {
 	Button,
 	ErrorArt,
@@ -21,7 +21,14 @@ import {
 	MessageSquareText,
 	Search,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+	useContext,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import "@/styles/office-fonts.css";
 import { PageJump } from "./Dialogs";
 import s from "./Doc.module.css";
@@ -53,6 +60,7 @@ import {
 	usePaged,
 	useSideways,
 } from "./paged";
+import { PaneContext, onShow } from "./pane";
 import { domSpeech } from "./speechSources";
 import type { ViewerProps } from "./types";
 import { useDomFind } from "./useDomFind";
@@ -91,10 +99,16 @@ export default function DocxView({
 	onPosition,
 	onClose,
 	active,
+	passwordProtected,
 }: ViewerProps) {
-	const { settings, update } = useSettings();
+	const reading = useSetting("readingView");
+	const update = useUpdateSetting();
 	const details = useOfficeDetails(data, format);
-	const reading = settings.readingView;
+	const shown = onShow(active, useContext(PaneContext));
+	const shownRef = useRef(shown);
+	shownRef.current = shown;
+	const awayResized = useRef(false);
+	const remeasure = useRef(() => {});
 	const scroller = useRef<HTMLDivElement>(null);
 	const stage = useRef<HTMLDivElement>(null);
 	const hud = useRef<HTMLDivElement>(null);
@@ -167,11 +181,17 @@ export default function DocxView({
 		if (status !== "ready" || !el || !host.current) return;
 		if (reading) {
 			setFit(1);
+			remeasure.current = () => {};
 			return;
 		}
 		const measure = () => {
-			// A tab not on show has no size: nothing to fit to.
+			// A tab not on show has no size, or is kept behind another:
+			// refitting waits until it is shown.
 			if (!el.clientWidth) return;
+			if (!shownRef.current) {
+				awayResized.current = true;
+				return;
+			}
 			let widest = 0;
 			for (const sec of host.current?.querySelectorAll<HTMLElement>(
 				"section.docx",
@@ -188,14 +208,27 @@ export default function DocxView({
 				);
 		};
 		measure();
+		remeasure.current = measure;
 		const fit = fitWhenSettled(measure);
-		const ro = new ResizeObserver(fit.run);
+		const ro = new ResizeObserver(() => {
+			if (!shownRef.current) {
+				awayResized.current = true;
+				return;
+			}
+			fit.run();
+		});
 		ro.observe(el);
 		return () => {
 			ro.disconnect();
 			fit.stop();
+			remeasure.current = () => {};
 		};
 	}, [status, reading]);
+	useLayoutEffect(() => {
+		if (!shown || !awayResized.current) return;
+		awayResized.current = false;
+		remeasure.current();
+	}, [shown]);
 
 	// Reading view can be turned page by page, as a book is.
 	const [sideways] = useSideways();
@@ -317,7 +350,7 @@ export default function DocxView({
 			progressOf={scroller}
 			side={side}
 			paper
-			bookmarks={status === "ready" ? marks : undefined}
+			bookmarks={status === "ready" && !passwordProtected ? marks : undefined}
 			details={details}
 			speech={status === "ready" ? speech : undefined}
 			onStep={step}

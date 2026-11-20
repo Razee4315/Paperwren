@@ -8,6 +8,7 @@ import { hintFor, matches } from "@/lib/shortcuts";
 import { holdScreen } from "@/lib/wake";
 import { useBackClose } from "@/state/navigation";
 import { IconButton } from "@/ui";
+import { useModalFocus } from "@/ui/Overlay";
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -181,6 +182,7 @@ export function Present({
 
 	const close = useCallback(() => onClose(indexRef.current), [onClose]);
 	useBackClose("present", true, close);
+	const owns = useModalFocus(root, close);
 
 	useLayoutEffect(() => {
 		const fit = () => {
@@ -286,6 +288,7 @@ export function Present({
 
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			if (!owns()) return;
 			if (e.ctrlKey || e.metaKey || e.altKey) return;
 			// Enter and Space press the show's own buttons; Tab brings them back.
 			const control = (e.target as HTMLElement | null)?.closest?.(
@@ -316,7 +319,7 @@ export function Present({
 		};
 		window.addEventListener("keydown", onKey, true);
 		return () => window.removeEventListener("keydown", onKey, true);
-	}, [step, beyond, close, total, wake]);
+	}, [owns, step, beyond, close, total, wake]);
 
 	// The wheel turns slides, a notch at a time.
 	const wheeled = useRef(0);

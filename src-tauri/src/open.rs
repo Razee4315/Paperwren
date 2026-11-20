@@ -6,7 +6,13 @@
 //! These are the only commands that touch a path the user's document
 //! lives at. Each one validates that the path is an absolute path to
 //! an existing file of a document type Paperwren opens, so a
-//! compromised page cannot use them to launch arbitrary programs.
+//! compromised page cannot use them to launch arbitrary programs. The
+//! type is checked on the path as given and again once links are
+//! resolved: a link named `doc.pdf` that leads to a program, or to a
+//! file of no document type, is refused. On Windows only a path on a
+//! drive of this computer is taken: a `\\server\share` path would make
+//! the system connect to that server, and sign in to it, before any
+//! check could look at the file.
 
 use std::path::{Path, PathBuf};
 
@@ -18,62 +24,133 @@ pub const DOCUMENT_EXTENSIONS: &[&str] = &[
     "xls", "ods", "csv", "tsv", "pptx", "pptm", "ppsx", "ppt", "pps", "odp", "md", "markdown",
     "txt", "text", "log", "json", "xml", "yml", "yaml", "ini", "png", "jpg", "jpeg", "gif", "webp",
     "bmp", "svg", "avif", "heic", "heif", "tif", "tiff", "cbz", "jsx", "ts", "tsx", "go", "rs",
-    "java", "kt", "kts", "swift", "c", "h", "cpp", "cc", "hpp", "cs", "sql", "css", "scss", "less",
-    "html", "htm", "vue", "toml", "gradle", "dart", "diff", "patch", "properties", "conf", "cfg",
-    "env", "csproj", "plist", "vcf", "glb",
+    "java", "kt", "swift", "c", "h", "cpp", "cc", "hpp", "cs", "sql", "css", "scss", "less", "html",
+    "htm", "vue", "toml", "gradle", "dart", "diff", "patch", "properties", "conf", "cfg", "env",
+    "csproj", "plist", "vcf", "glb",
 ];
 
 /// Source code a system may run when it is opened with its default app
 /// (a script): Paperwren shows it, but never hands it on to be opened.
+/// A Kotlin script (`kts`) runs with `kotlinc -script` where that is the
+/// default app.
 pub const SCRIPT_EXTENSIONS: &[&str] = &[
     "js", "mjs", "cjs", "py", "rb", "pl", "php", "sh", "bash", "zsh", "ps1", "bat", "lua", "r",
+    "kts",
 ];
 
-fn extension(path: &Path) -> Option<String> {
+/// Documents Paperwren reads but never hands to the system's default
+/// app: that is a browser, and a page or an SVG picture runs its own
+/// script there, with the browser's access to local files.
+const NOT_HANDED_OFF: &[&str] = &["html", "htm", "svg"];
+
+/// The path's extension, lowercase.
+pub fn extension(path: &Path) -> Option<String> {
     path.extension()
         .and_then(|e| e.to_str())
         .map(|e| e.to_ascii_lowercase())
 }
 
+/// True for an extension (without the dot, any case) of a document or
+/// script Paperwren opens.
+pub fn is_allowed_extension(ext: &str) -> bool {
+    let ext = ext.to_ascii_lowercase();
+    DOCUMENT_EXTENSIONS.contains(&ext.as_str()) || SCRIPT_EXTENSIONS.contains(&ext.as_str())
+}
+
+/// True for the extension (without the dot, any case) of a script.
+pub fn is_script_extension(ext: &str) -> bool {
+    SCRIPT_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str())
+}
+
 /// True when the path's extension is a document type we open.
 pub fn is_document(path: &Path) -> bool {
-    extension(path)
-        .map(|e| {
-            DOCUMENT_EXTENSIONS.contains(&e.as_str()) || SCRIPT_EXTENSIONS.contains(&e.as_str())
-        })
-        .unwrap_or(false)
+    extension(path).is_some_and(|e| is_allowed_extension(&e))
 }
 
 /// True when the system's default app may be asked to open the path:
-/// a document, never a script it might run.
+/// a document, never a script it might run, nor a page or picture that
+/// runs script in a browser.
 pub fn may_hand_off(path: &Path) -> bool {
-    extension(path)
-        .map(|e| DOCUMENT_EXTENSIONS.contains(&e.as_str()))
-        .unwrap_or(false)
+    extension(path).is_some_and(|e| {
+        DOCUMENT_EXTENSIONS.contains(&e.as_str()) && !NOT_HANDED_OFF.contains(&e.as_str())
+    })
 }
 
-/// An absolute path to an existing document, or an error.
-pub fn validated(path: &str) -> AppResult<PathBuf> {
+/// True when `path` is on a drive of this computer: on Windows, a drive
+/// letter (`C:\`, `\\?\C:\`), never a share on another computer
+/// (`\\server\share`, `\\?\UNC\`) or a device (`\\.\pipe\`). Read
+/// from the path's text alone, so nothing is reached to decide it.
+/// Elsewhere a network folder is mounted into the tree, and the system
+/// has signed in to it already.
+pub fn on_this_computer(path: &Path) -> bool {
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+        match path.components().next() {
+            Some(Component::Prefix(prefix)) => {
+                matches!(prefix.kind(), Prefix::Disk(_) | Prefix::VerbatimDisk(_))
+            }
+            _ => false,
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        true
+    }
+}
+
+/// A document's path, checked: as the caller wrote it (`path`), and
+/// where it is once every link is resolved (`real`).
+#[derive(Debug)]
+pub struct Checked {
+    pub path: PathBuf,
+    pub real: PathBuf,
+}
+
+/// An absolute path to an existing document, checked as given and once
+/// resolved, or an error. What costs nothing (the path's form and type)
+/// is checked before the file system is asked anything.
+pub fn checked(path: &str) -> AppResult<Checked> {
     let candidate = PathBuf::from(path);
     if !candidate.is_absolute() {
         return Err(AppError::new(ErrorKind::Path, "path is not absolute"));
     }
+    if !on_this_computer(&candidate) {
+        return Err(AppError::new(
+            ErrorKind::Path,
+            "not a path on this computer",
+        ));
+    }
     if !is_document(&candidate) {
         return Err(AppError::new(ErrorKind::Path, "not a document type"));
     }
-    if !candidate.is_file() {
+    let real = std::fs::canonicalize(&candidate)?;
+    if !real.is_file() {
         return Err(AppError::new(ErrorKind::NotFound, "no such file"));
     }
-    Ok(candidate)
+    if !is_document(&real) {
+        return Err(AppError::new(ErrorKind::Path, "not a document type"));
+    }
+    Ok(Checked {
+        path: candidate,
+        real,
+    })
 }
 
-/// An existing document that may be handed to the system's default app.
-pub fn validated_for_hand_off(path: &str) -> AppResult<PathBuf> {
-    let target = validated(path)?;
-    if !may_hand_off(&target) {
+/// An absolute path to an existing document (as given), or an error.
+pub fn validated(path: &str) -> AppResult<PathBuf> {
+    checked(path).map(|found| found.path)
+}
+
+/// An existing document that may be handed to the system's default app,
+/// by its own name and by the name of the file it leads to.
+pub fn checked_for_hand_off(path: &str) -> AppResult<Checked> {
+    let found = checked(path)?;
+    if !may_hand_off(&found.path) || !may_hand_off(&found.real) {
         return Err(AppError::new(ErrorKind::Path, "a script is not handed on"));
     }
-    Ok(target)
+    Ok(found)
 }
 
 /// The documents named on the command line, in order. A file manager
@@ -199,6 +276,96 @@ mod tests {
         }
         assert!(may_hand_off(Path::new("report.pdf")));
         assert!(may_hand_off(Path::new("main.rs")));
+    }
+
+    #[test]
+    fn a_kotlin_script_is_a_script() {
+        assert!(is_document(Path::new("build.gradle.kts")));
+        assert!(is_script_extension("KTS"));
+        assert!(!DOCUMENT_EXTENSIONS.contains(&"kts"));
+        assert!(!may_hand_off(Path::new("build.gradle.kts")));
+        assert!(may_hand_off(Path::new("Main.kt")));
+    }
+
+    #[test]
+    fn pages_and_svg_are_read_but_not_handed_to_a_browser() {
+        for page in ["index.html", "page.HTM", "logo.svg"] {
+            assert!(is_document(Path::new(page)), "{page}");
+            assert!(!may_hand_off(Path::new(page)), "{page}");
+        }
+        assert!(may_hand_off(Path::new("photo.png")));
+    }
+
+    #[test]
+    fn extensions_are_checked_in_any_case() {
+        assert!(is_allowed_extension("PDF"));
+        assert!(is_allowed_extension("ps1"));
+        assert!(!is_allowed_extension("exe"));
+        assert!(!is_allowed_extension(""));
+        assert!(is_script_extension("Bat"));
+        assert!(!is_script_extension("txt"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_path_on_another_computer_is_refused_before_it_is_reached() {
+        for remote in [
+            r"\\server\share\report.pdf",
+            r"//server/share/report.pdf",
+            r"\\?\UNC\server\share\report.pdf",
+            r"\\.\pipe\report.pdf",
+        ] {
+            assert!(!on_this_computer(Path::new(remote)), "{remote}");
+            let err = validated(remote).unwrap_err();
+            assert_eq!(err.kind, ErrorKind::Path, "{remote}");
+        }
+        assert!(on_this_computer(Path::new(r"C:\Users\report.pdf")));
+        assert!(on_this_computer(Path::new(r"\\?\C:\Users\report.pdf")));
+
+        // A drive path written the long way still opens.
+        let dir = std::env::temp_dir().join(format!("paperwren-verbatim-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let file = dir.join("long.txt");
+        std::fs::write(&file, b"hello").expect("write");
+        let canonical = file.canonicalize().expect("canonical");
+        assert!(validated(canonical.to_str().expect("utf-8")).is_ok());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_is_judged_by_the_file_it_leads_to() {
+        use std::os::unix::fs::symlink;
+        let dir = std::env::temp_dir().join(format!("paperwren-links-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let secret = dir.join("passwd");
+        let script = dir.join("evil.sh");
+        let report = dir.join("report.pdf");
+        std::fs::write(&secret, b"root:x:0:0").expect("write");
+        std::fs::write(&script, b"#!/bin/sh").expect("write");
+        std::fs::write(&report, b"%PDF-1.4").expect("write");
+        let to_secret = dir.join("doc.pdf");
+        let to_script = dir.join("run.pdf");
+        let to_report = dir.join("same.pdf");
+        symlink(&secret, &to_secret).expect("link");
+        symlink(&script, &to_script).expect("link");
+        symlink(&report, &to_report).expect("link");
+        let text = |p: &Path| p.to_str().expect("utf-8").to_owned();
+
+        // Leads to a file of no document type.
+        assert_eq!(
+            validated(&text(&to_secret)).unwrap_err().kind,
+            ErrorKind::Path
+        );
+        // Leads to a script: shown, never handed on.
+        assert!(validated(&text(&to_script)).is_ok());
+        assert!(checked_for_hand_off(&text(&to_script)).is_err());
+        // Leads to a document: accepted, under the name it was given.
+        assert_eq!(validated(&text(&to_report)).unwrap(), to_report);
+        let found = checked_for_hand_off(&text(&to_report)).unwrap();
+        assert_eq!(found.real, report.canonicalize().unwrap());
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

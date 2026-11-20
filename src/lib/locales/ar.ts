@@ -1383,4 +1383,6 @@ export const ar: Table = {
 	"A print job is already in progress": "هناك مهمة طباعة قيد التنفيذ بالفعل",
 	"No results. Try different words or turn off search options.":
 		"لا توجد نتائج. جرّب كلمات مختلفة أو أوقف خيارات البحث.",
+	"Hide highlights": "إخفاء التمييزات",
+	"Show highlights": "إظهار التمييزات",
 };

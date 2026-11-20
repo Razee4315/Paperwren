@@ -1,6 +1,5 @@
 import { LANGUAGES, type LanguageSetting } from "./i18n";
 import { normalizeShortcuts } from "./shortcuts";
-import { SPEECH_RATES } from "./speech";
 import {
 	DEFAULT_SETTINGS,
 	type PageColor,
@@ -9,6 +8,7 @@ import {
 	type ReadingBars,
 	type ReadingFont,
 	type ResolvedTheme,
+	SPEECH_RATES,
 	type Settings,
 	type ThemeSetting,
 	type UpdateChecks,

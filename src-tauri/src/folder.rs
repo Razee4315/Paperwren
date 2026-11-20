@@ -12,7 +12,7 @@
 //! The walk is the one the web layer did: breadth first, hidden entries
 //! skipped, links not followed (no loops), within the limits it is given.
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::fs;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
@@ -67,9 +67,10 @@ fn extension(name: &str) -> Option<String> {
 }
 
 /// The documents under `root` whose extension is one of `extensions`
-/// (lowercase, without the dot). The chosen folder must be readable;
-/// a deeper one that is not is passed over.
-pub fn list(root: &Path, extensions: &[String], limits: Limits) -> AppResult<Vec<Found>> {
+/// (lowercase, without the dot; a set, so each file costs one lookup).
+/// The chosen folder must be readable; a deeper one that is not is
+/// passed over.
+pub fn list(root: &Path, extensions: &HashSet<String>, limits: Limits) -> AppResult<Vec<Found>> {
     if !root.is_absolute() {
         return Err(AppError::new(ErrorKind::Path, "path is not absolute"));
     }
@@ -93,7 +94,7 @@ pub fn list(root: &Path, extensions: &[String], limits: Limits) -> AppResult<Vec
         first = false;
         // In order of name, so a listing reads the same each time.
         let mut entries: Vec<fs::DirEntry> = entries.filter_map(Result::ok).collect();
-        entries.sort_by_key(|entry| entry.file_name());
+        entries.sort_by_cached_key(|entry| entry.file_name());
         for entry in entries {
             let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
                 continue; // A name that is not text cannot be shown or opened.
@@ -162,7 +163,7 @@ mod tests {
         fs::write(path, bytes).unwrap();
     }
 
-    fn exts() -> Vec<String> {
+    fn exts() -> HashSet<String> {
         ["pdf", "docx", "txt"].iter().map(|s| s.to_string()).collect()
     }
 

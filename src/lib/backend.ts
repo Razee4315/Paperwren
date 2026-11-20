@@ -156,9 +156,11 @@ interface Backend {
 	 * by here (and is shared or saved by), which the answer says.
 	 * Rejects, renaming nothing, when the rename is refused. */
 	rename(file: FileRef, name: string): Promise<Renamed>;
-	/** Android: hold on to a picked original over restarts (Recent files
-	 * names it), or give that access back once nothing names it. */
-	keepDocument(uri: string): void;
+	/** Android: hold on to a picked document over restarts (Recent files
+	 * names it), or give that access back once nothing names it. True
+	 * when the access is held now; false where the system refused it, or
+	 * off Android. */
+	keepDocument(uri: string): Promise<boolean>;
 	releaseDocument(uri: string): void;
 	/** Ask the host to print the page as it is laid out for print.
 	 * False when the host has no printing of its own (use window.print). */
@@ -614,7 +616,10 @@ const browserBackend: Backend = {
 		}
 	},
 	async storeSet(key, value) {
-		localStorage.setItem(`paperwren.${key}`, JSON.stringify(value));
+		// Null forgets the key, as the shell's store does.
+		if (value === null || value === undefined)
+			localStorage.removeItem(`paperwren.${key}`);
+		else localStorage.setItem(`paperwren.${key}`, JSON.stringify(value));
 	},
 	async importsStats() {
 		return { bytes: 0, files: 0 };
@@ -822,12 +827,22 @@ function androidRenamesOriginal(reopen: Reopen): boolean {
 		: false;
 }
 
-function keepAndroidDocument(uri: string) {
+async function keepAndroidDocument(uri: string): Promise<boolean> {
 	try {
-		window.__paperwrenAndroidExtras?.keepDocument?.(uri);
+		return window.__paperwrenAndroidExtras?.keepDocument?.(uri) === true;
 	} catch {
 		// Readable until the app closes; renamed in the app only after.
+		return false;
 	}
+}
+
+let keptAtPick: (uri: string) => void = () => {};
+
+/** Hear of each picked document the app took access to over restarts
+ * at the pick, before anything names it (state/recents gives back the
+ * ones Recent files never takes up). Set once by the app. */
+export function onDocumentKept(heard: (uri: string) => void) {
+	keptAtPick = heard;
 }
 
 function releaseAndroidDocument(uri: string) {
@@ -891,13 +906,25 @@ function nativeTarget(file: FileRef): string {
 }
 
 /** A file the system picker gave: a path on a computer, or on Android
- * a content:// document, copied in where the bridge can (so Recent
- * files can open it again after a restart). */
+ * a content:// document. One from the shell's own picker (`original`)
+ * is opened where it is when the system lets the app keep access to it
+ * over restarts: no copy of it fills the phone, it opens at once, and
+ * a rename reaches the file. Otherwise it is copied in where the
+ * bridge can (the older picker's access ends with the app), so Recent
+ * files can open it again after a restart. `inPlace` is off where the
+ * document cannot be read where it is (the browser standing in for the
+ * shell in tests reads copies only). */
 async function requestForPicked(
 	picked: string,
 	original = false,
+	inPlace = false,
 ): Promise<OpenRequest> {
 	if (picked.startsWith("content://")) {
+		if (original && inPlace && (await keepAndroidDocument(picked))) {
+			keptAtPick(picked);
+			const { name, verified, size } = androidName(picked);
+			return request(name, verified, size, { kind: "uri", uri: picked });
+		}
 		const copy = await importPicked(picked);
 		if (copy) {
 			// From the shell's own picker the original stays in reach: its
@@ -940,7 +967,8 @@ const tauriBackend: Backend = {
 	},
 	async pickFile(options) {
 		const chosen = await androidPick(!!options?.pictures, false);
-		if (chosen) return chosen[0] ? requestForPicked(chosen[0], true) : null;
+		if (chosen)
+			return chosen[0] ? requestForPicked(chosen[0], true, true) : null;
 		const { open } = await import("@tauri-apps/plugin-dialog");
 		const picked = await open({
 			multiple: false,
@@ -954,7 +982,8 @@ const tauriBackend: Backend = {
 	},
 	async pickFiles(options) {
 		const chosen = await androidPick(!!options?.pictures, true);
-		if (chosen) return chosen.map((uri) => () => requestForPicked(uri, true));
+		if (chosen)
+			return chosen.map((uri) => () => requestForPicked(uri, true, true));
 		const { open } = await import("@tauri-apps/plugin-dialog");
 		const picked = await open({
 			multiple: true,
@@ -1068,21 +1097,27 @@ const tauriBackend: Backend = {
 				})
 				.catch(() => {});
 		};
-		take();
 		// Files opened while the app runs (a double-click in Explorer or a
 		// file manager starts Paperwren again, and that start hands them
 		// over; macOS sends them itself): the shell says when some are
-		// waiting, and they open as tabs. One may have come before this
-		// was listening, so they are asked for once more when it is.
+		// waiting, and they open as tabs. Listening comes first, then the
+		// files that came before it (the ones the app was started with)
+		// are asked for once: one call to the shell at start, not two.
 		let stop = () => {};
 		let cancelled = false;
 		import("@tauri-apps/api/event")
 			.then(({ listen }) => listen(OPEN_EVENT, take))
-			.then((unlisten) => {
-				if (cancelled) return unlisten();
-				stop = unlisten;
-				take();
-			})
+			.then(
+				(unlisten) => {
+					if (cancelled) return unlisten();
+					stop = unlisten;
+					take();
+				},
+				// No word from the shell: the files it started with still open.
+				() => {
+					if (!cancelled) take();
+				},
+			)
 			.catch(() => {});
 		return () => {
 			cancelled = true;

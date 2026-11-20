@@ -1,3 +1,5 @@
+@import "../../styles/motion.css";
+
 /* pdf.js requires an absolutely positioned scroll container. */
 .container {
 	position: absolute;
@@ -8,6 +10,19 @@
 	outline: none;
 	background: var(--canvas);
 	scroll-padding-block: var(--bars-top, 0px) var(--bars-bottom, 0px);
+}
+/* Touch screens show Scrubber on the edge; hide the native scrollbar so
+ * two scrollbars never appear side by side. */
+@media (hover: none) and (pointer: coarse) {
+	.container {
+		scrollbar-width: none;
+	}
+	.container::-webkit-scrollbar {
+		display: none;
+		width: 0;
+		height: 0;
+		background: transparent;
+	}
 }
 /* Room for bars that float over the page (Shell.module.css). The pages
  * are moved down from under the top one by `translate`, which pdf.js
@@ -371,6 +386,59 @@ button.extra[aria-pressed="false"] {
 	gap: 10px;
 	padding: 4px 2px 8px;
 }
+.marksToggle {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	min-height: 40px;
+	padding: 6px 10px;
+	border-radius: var(--r-s);
+	border: 1px solid var(--line-control);
+	background: var(--surface);
+	color: var(--text-2);
+	font-size: 13px;
+	font-weight: 650;
+	text-align: start;
+	transition: background-color var(--t-fast) var(--ease), color var(--t-fast)
+		var(--ease), border-color var(--t-fast) var(--ease);
+}
+.marksToggle > svg {
+	flex-shrink: 0;
+}
+:global(html.desktop) .marksToggle {
+	min-height: 36px;
+}
+@media (hover: hover) {
+	.marksToggle:hover {
+		background: var(--surface-2);
+		color: var(--text);
+	}
+}
+.marksToggle:active {
+	background: var(--surface-3);
+}
+.marksToggle[aria-pressed="true"] {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+@media (forced-colors: active) {
+	.barSwatch {
+		forced-color-adjust: none;
+		border: 1px solid ButtonText;
+	}
+	.barSwatch[aria-pressed="true"] {
+		outline: 2px solid Highlight;
+		outline-offset: 2px;
+	}
+	.marksToggle[aria-pressed="true"] {
+		forced-color-adjust: none;
+		border-color: HighlightText;
+		background: Highlight;
+		color: HighlightText;
+	}
+}
 .docNote,
 .markNote {
 	display: block;
@@ -446,11 +514,11 @@ button.extra[aria-pressed="false"] {
 	position: absolute;
 	top: 2px;
 	inset-inline-end: 2px;
-	opacity: 0.55;
+	color: var(--text-3);
 }
 .markCard:hover .markDelete,
 .markDelete:focus-visible {
-	opacity: 1;
+	color: var(--text);
 }
 .marksEmpty {
 	display: flex;

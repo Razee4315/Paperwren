@@ -113,11 +113,47 @@ export function guardedUnzip(
 	return out;
 }
 
+/**
+ * Refuse, before any other library unzips it, an archive this module
+ * would not trust: for a reader (docx-preview's JSZip, SheetJS) that
+ * inflates every entry itself and has no filter to ask. Unlike the
+ * scan in `guardedUnzip`, it fails closed: an archive whose end record
+ * or central directory cannot be read whole, or that spans disks, is
+ * refused as invalid, and the sizes of all its entries together count
+ * against `maxBytes`. Throws `ZipTooLarge` or an `Error`; returns
+ * nothing when the archive may be opened.
+ */
+export function validateZip(
+	bytes: Uint8Array,
+	limits: Partial<ZipLimits> = {},
+): void {
+	scanCentralDirectory(bytes, { ...ZIP_LIMITS, ...limits }, true);
+}
+
 /** Read the archive's end record and central directory and refuse,
- * before anything is inflated, what no document should be. Quiet about
- * archives it cannot read at all: unzipSync reports those its own way,
- * and the filter above still sees every entry it walks. */
-function scanCentralDirectory(bytes: Uint8Array, limits: ZipLimits): void {
+ * before anything is inflated, what no document should be. Without
+ * `strict`, quiet about archives it cannot read at all: unzipSync
+ * reports those its own way, and the filter above still sees every
+ * entry it walks (and charges only the ones a caller wants). With
+ * `strict`, for `validateZip`, what it cannot read is refused, and
+ * every entry is charged. */
+function scanCentralDirectory(
+	bytes: Uint8Array,
+	limits: ZipLimits,
+	strict = false,
+): void {
+	if (!readDirectory(bytes, limits, strict) && strict)
+		throw new Error("Invalid archive");
+}
+
+/** The scan itself: throws `ZipTooLarge` for what is too much, and is
+ * false where the end record or directory cannot be read whole (or,
+ * when `strict`, holds sizes no real entry has). */
+function readDirectory(
+	bytes: Uint8Array,
+	limits: ZipLimits,
+	strict: boolean,
+): boolean {
 	// The end-of-central-directory record sits at the end, followed only
 	// by a comment of at most 65535 bytes. The record is 22 bytes; find
 	// its signature 0x06054b50 from the back, as fflate does.
@@ -134,7 +170,7 @@ function scanCentralDirectory(bytes: Uint8Array, limits: ZipLimits): void {
 			break;
 		}
 	}
-	if (at < 0) return;
+	if (at < 0) return false;
 	const u16 = (o: number) => bytes[o] | (bytes[o + 1] << 8);
 	const u32 = (o: number) =>
 		(bytes[o] |
@@ -148,26 +184,53 @@ function scanCentralDirectory(bytes: Uint8Array, limits: ZipLimits): void {
 	if (at >= 20 && u32(at - 20) === 0x07064b50)
 		throw new ZipTooLarge("archive is past the ZIP64 line");
 	// An archive spread over disks is out of scope for a viewer.
-	if (u16(at + 4) !== 0 || u16(at + 6) !== 0) return;
+	if (u16(at + 4) !== 0 || u16(at + 6) !== 0) return false;
 	// fflate counts the entries on this disk (offset 8); the total
 	// (offset 10) should agree, and the larger is the one to believe.
-	const entries = Math.max(u16(at + 8), u16(at + 10));
+	const onDisk = u16(at + 8);
+	const entries = Math.max(onDisk, u16(at + 10));
 	// 65535 means ZIP64: too big for a document reader anyway.
 	if (entries > limits.maxEntries)
 		throw new ZipTooLarge(`archive holds ${entries} entries`);
+	if (strict && onDisk !== entries) return false;
 	// Walk the entries: each is 46 bytes of fixed fields, then its name,
 	// extra field and comment.
-	let p = u32(at + 16);
+	const start = u32(at + 16);
+	let p = start;
 	const end = p + u32(at + 12);
-	if (p > bytes.length || end > bytes.length) return;
+	if (p > bytes.length || end > bytes.length || (strict && end > at))
+		return false;
+	let totalOriginal = 0;
 	for (let n = 0; n < entries; n++) {
-		if (p + 46 > end || u32(p) !== 0x02014b50) return;
+		if (p + 46 > end || u32(p) !== 0x02014b50) return false;
+		const method = u16(p + 10);
 		const compressed = u32(p + 20);
 		const original = u32(p + 24);
 		if (compressed === 0xffffffff || original === 0xffffffff)
 			throw new ZipTooLarge("archive is past the ZIP64 line");
 		if (original > limits.maxEntryBytes)
 			throw new ZipTooLarge("an entry claims to be too large to unpack");
+		if (strict) {
+			// Every entry, whichever a reader will want: a library with no
+			// filter inflates them all.
+			totalOriginal += Math.max(original, compressed);
+			if (totalOriginal > limits.maxBytes)
+				throw new ZipTooLarge("archive unpacks to too much to hold");
+			if (
+				compressed > 0 &&
+				original > MB &&
+				original / compressed > limits.maxRatio
+			)
+				throw new ZipTooLarge("an entry claims to expand past belief");
+			// Sizes no real entry has: a stored entry is its own bytes,
+			// a compressed one cannot be read past the directory, nor
+			// inflate something out of nothing.
+			if (method === STORED && compressed !== original) return false;
+			if (compressed > start) return false;
+			if (compressed === 0 && original > 0) return false;
+			if (u32(p + 42) + 30 > start) return false;
+		}
 		p += 46 + u16(p + 28) + u16(p + 30) + u16(p + 32);
 	}
+	return p <= end;
 }

@@ -4,6 +4,7 @@ import { type DocMark, contentKey, fileSample } from "@/lib/docMarks";
 import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
 import { copyName, splitName } from "@/lib/fileName";
+import type { FindOptions } from "@/lib/find";
 import { fitWhenSettled } from "@/lib/fullscreen";
 import { locale, t, tn } from "@/lib/i18n";
 import { measureLabel as labelOf } from "@/lib/measure";
@@ -16,6 +17,7 @@ import {
 	pdfAsset,
 } from "@/lib/pdfEngine";
 import { type TextPicture, addMarkup } from "@/lib/pdfMarkup";
+import { STREAM_OPTIONS, createRangeTransport } from "@/lib/pdfRange";
 import { type Protection, digitallySignedSliced } from "@/lib/pdfTools";
 import { PrintCancelled } from "@/lib/print";
 import { resolvePageColor } from "@/lib/settings";
@@ -24,6 +26,7 @@ import { pageAsksForSignature } from "@/lib/signatureSpots";
 import { textPicture } from "@/lib/textBox";
 import { loadThumb, saveThumb } from "@/lib/thumbs";
 import type { PdfFlow, Position } from "@/lib/types";
+import { useDelayed } from "@/lib/useDelayed";
 import { useLeaveGuard } from "@/state/leave";
 import { useBackClose } from "@/state/navigation";
 import { useSettingsOf, useTheme } from "@/state/settings";
@@ -39,7 +42,7 @@ import {
 	SheetTiles,
 	Spinner,
 	StateView,
-	modalOpen,
+	ownsKeys,
 	toast,
 } from "@/ui";
 import {
@@ -92,6 +95,7 @@ import { pdfSource } from "@/screens/tools/readSource";
 import { announceSaved } from "@/screens/tools/saved";
 import {
 	Suspense,
+	createContext,
 	lazy,
 	useCallback,
 	useContext,
@@ -221,9 +225,15 @@ const TRAIL_MAX = 50;
 /** How long "Back to page 3" stays on show after a link is followed. */
 const TRAIL_HINT_MS = 8000;
 /** The largest bitmap a page is drawn into before pdf.js stretches a
- * smaller one. A desktop has the memory for sharp pages at high zoom;
- * a phone is held to half of that. */
-const MAX_CANVAS = isDesktop ? 2 ** 25 : 2 ** 24;
+ * smaller one. A desktop has the memory for sharp pages at high zoom.
+ * A phone is held to 4 MP (16 MB a page), still more than a 1080 x
+ * 2400 screen shows: at 16 MP, a few pages of a scan drawn at once
+ * took the WebView's memory and the app ended (#94). */
+const MAX_CANVAS = isDesktop ? 2 ** 25 : 2 ** 22;
+/** A PDF larger than this is not read back whole after it opens to look
+ * for a digital signature: that waits until a tool that changes it is
+ * opened. Reading it back held a second copy of the file (#97). */
+const SCAN_EAGERLY_UP_TO = 16 * 1024 * 1024;
 const ZOOM_LEVELS = [50, 75, 100, 125, 150, 200, 400];
 /** A picture on a page at least this big on screen can be opened. */
 const MIN_PICTURE = 40;
@@ -275,8 +285,41 @@ function pdfDate(raw: unknown): string | null {
 	});
 }
 
+/** Live find query and options for the side panel's Results tab, so the
+ * side-tabs array stays stable across keystrokes while FindResults still
+ * updates on every change. */
+const FindQueryContext = createContext<{
+	query: string;
+	options: FindOptions;
+}>({ query: "", options: { matchCase: false, wholeWords: false } });
+
+function SideFindResults({
+	doc,
+	finder,
+	bus,
+	onPick,
+}: {
+	doc: PDFDocumentProxy;
+	finder: PDFFindController;
+	bus: EventBus;
+	onPick: (page: number) => void;
+}) {
+	const { query, options } = useContext(FindQueryContext);
+	return (
+		<FindResults
+			doc={doc}
+			finder={finder}
+			bus={bus}
+			query={query}
+			options={options}
+			onPick={onPick}
+		/>
+	);
+}
+
 export default function PdfView({
 	data,
+	stream,
 	name,
 	format,
 	position,
@@ -284,6 +327,7 @@ export default function PdfView({
 	onClose,
 	active,
 	onBroken,
+	passwordProtected,
 }: ViewerProps) {
 	const brokenRef = useRef(onBroken);
 	brokenRef.current = onBroken;
@@ -400,6 +444,10 @@ export default function PdfView({
 		setLeaving({ go }),
 	);
 	const [marksOpen, setMarksOpen] = useState(false);
+	const [marksVisible, setMarksVisible] = useState(true);
+	const marksVisibleRef = useRef(marksVisible);
+	marksVisibleRef.current = marksVisible;
+	const toggleMarksVisible = useCallback(() => setMarksVisible((v) => !v), []);
 	const [readingText, setReadingText] = useState(false);
 	// What a copy will not keep: the password it was opened with, or the
 	// limits its author set. Every copy the tools save has neither.
@@ -460,6 +508,11 @@ export default function PdfView({
 	/** Where the reader is now, and the places links were followed from
 	 * (and, after going back, to). */
 	const here = useRef<Spot | null>(null);
+	/** Where the reader was while the room for the pages last held still
+	 * (`steadyWidth`). Turning a phone upright can clamp the scroll to the
+	 * top before the pages fit again, and "here" then says page 1 (#94). */
+	const steady = useRef<Spot | null>(null);
+	const steadyWidth = useRef(0);
 	const trail = useRef<{ back: Spot[]; forward: Spot[] }>({
 		back: [],
 		forward: [],
@@ -488,6 +541,8 @@ export default function PdfView({
 	const unlock = useRef<((password: string) => void) | null>(null);
 	const nameRef = useRef(name);
 	nameRef.current = name;
+	const passwordProtectedRef = useRef(passwordProtected);
+	passwordProtectedRef.current = passwordProtected;
 	useEffect(() => {
 		let alive = true;
 		let task: PDFDocumentLoadingTask | null = null;
@@ -500,6 +555,10 @@ export default function PdfView({
 		passwordRef.current = undefined;
 		unlock.current = null;
 		setOutline(null);
+		setAttachments([]);
+		layerConfig.current = null;
+		setLayers([]);
+		setMarkDoc(null);
 		setDetails([]);
 		setRights({ mark: true, fill: true });
 		setProtection(null);
@@ -512,18 +571,40 @@ export default function PdfView({
 				// In development React runs this effect twice; the first run is
 				// cancelled before it gets here, so the bytes are given away once.
 				if (!alive) return;
-				if (data.byteLength === 0) {
+				if (!stream && data.byteLength === 0) {
 					throw new Error("Empty PDF");
 				}
-				// Read before pdf.js takes the bytes away to its worker.
-				const sample = fileSample(new Uint8Array(data));
+				const size = stream ? stream.size : data.byteLength;
+				// Read before pdf.js takes the bytes away to its worker. A
+				// streamed file's sample is read beside its first page.
+				const sampled = stream
+					? stream.readSample()
+					: Promise.resolve(fileSample(new Uint8Array(data)));
+				sampled.catch(() => {});
 				const started = documentWorker(pdfjs);
 				release = started.release;
-				task = pdfjs.getDocument({
-					...documentOptions(),
-					worker: started.worker,
-					data: new Uint8Array(data),
-				});
+				// A piece that cannot be read is said, rather than pdf.js
+				// waiting for it for ever.
+				const unreadable = (err: unknown) => {
+					if (!alive) return;
+					setFault(err);
+					setStatus("error");
+				};
+				task = pdfjs.getDocument(
+					stream
+						? {
+								...documentOptions(true),
+								...STREAM_OPTIONS,
+								worker: started.worker,
+								range: createRangeTransport(pdfjs, stream, unreadable),
+								length: stream.size,
+							}
+						: {
+								...documentOptions(true),
+								worker: started.worker,
+								data: new Uint8Array(data),
+							},
+				);
 				task.onPassword = (
 					update: (password: string) => void,
 					reason: number,
@@ -550,14 +631,23 @@ export default function PdfView({
 						});
 						return scan;
 					};
-					void signatureScan.current().catch(() => {});
+					// A large file is read back only when a tool that changes it
+					// is opened (see `needsBytes`): reading it back is a second
+					// copy of it, and for a streamed one, all of it read.
+					if (size <= SCAN_EAGERLY_UP_TO)
+						void signatureScan.current().catch(() => {});
 					setDoc(pdf);
 					setPages(pdf.numPages);
 					setStatus("ready");
-					setMarkDoc({
-						key: contentKey(sample),
-						persist: !passwordRef.current,
-					});
+					sampled
+						.then((sample) => {
+							if (!alive) return;
+							setMarkDoc({
+								key: contentKey(sample),
+								persist: !passwordRef.current && !passwordProtectedRef.current,
+							});
+						})
+						.catch(() => {});
 					pdf
 						.getOutline()
 						.then((o) => alive && setOutline((o as unknown as Outline[]) ?? []))
@@ -656,7 +746,30 @@ export default function PdfView({
 					.finally(release);
 			else release();
 		};
-	}, [data]);
+	}, [data, stream]);
+
+	// Fill & sign, Mark up and Crop say when a copy loses a signature, so
+	// they open once the file has been looked at for one. A large file is
+	// looked at only now; until then a spinner shows. If it cannot be
+	// read back whole, they stay closed and the reader is told.
+	const needsBytes = filling || markingUp !== null || cropping;
+	const waitingForBytes = useDelayed(
+		needsBytes && !!doc && signed === null && status === "ready",
+	);
+	useEffect(() => {
+		if (!needsBytes || !doc || signed !== null) return;
+		let live = true;
+		signatureScan.current().catch(() => {
+			if (!live) return;
+			setFilling(false);
+			setMarkingUp(null);
+			setCropping(false);
+			toast(t("Couldn't open that file"));
+		});
+		return () => {
+			live = false;
+		};
+	}, [needsBytes, doc, signed]);
 
 	// --- mount pdf.js's viewer once the document is ready ---
 	useEffect(() => {
@@ -832,12 +945,17 @@ export default function PdfView({
 					};
 				}) => {
 					const loc = e.location;
-					if (loc)
+					if (loc) {
 						here.current = {
 							page: loc.pageNumber,
 							top: loc.top,
 							left: loc.left,
 						};
+						// Not while the room is changing: a scroll the new layout
+						// clamped is not where the reader was.
+						if (container.current?.clientWidth === steadyWidth.current)
+							steady.current = here.current;
+					}
 					if (!loc || !rememberRef.current) return;
 					window.clearTimeout(saveTimer);
 					saveTimer = window.setTimeout(() => {
@@ -984,7 +1102,7 @@ export default function PdfView({
 				?.div as HTMLElement | undefined) ??
 			null,
 		onTap: (_target, x, y) => {
-			if (marking.current?.tap(x, y)) return;
+			if (marksVisibleRef.current && marking.current?.tap(x, y)) return;
 			// Pages turned a page at a time turn with a tap on either side,
 			// and so do pages down a scroll where the reader asked for it.
 			const box = container.current?.getBoundingClientRect();
@@ -1026,9 +1144,12 @@ export default function PdfView({
 		},
 		[matchCase, wholeWords],
 	);
+	const pagesRef = useRef(pages);
+	pagesRef.current = pages;
 	useEffect(() => {
 		if (!findOpen) return;
-		const t = window.setTimeout(() => runFind(find.query, false), 200);
+		const delay = pagesRef.current <= 50 ? 0 : 50;
+		const t = window.setTimeout(() => runFind(find.query, false), delay);
 		return () => window.clearTimeout(t);
 	}, [find.query, findOpen, runFind]);
 	const openFind = (query?: string) => {
@@ -1210,12 +1331,19 @@ export default function PdfView({
 	useEffect(() => {
 		if (!active || !steps.forward) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (!e.altKey || e.ctrlKey || e.metaKey || e.key !== "ArrowRight") return;
+			if (
+				!ownsKeys() ||
+				!e.altKey ||
+				e.ctrlKey ||
+				e.metaKey ||
+				e.key !== "ArrowRight"
+			)
+				return;
 			e.preventDefault();
 			stepRef.current(1);
 		};
 		const onMouse = (e: MouseEvent) => {
-			if (e.button !== 4 || modalOpen()) return;
+			if (e.button !== 4 || !ownsKeys()) return;
 			e.preventDefault();
 			stepRef.current(1);
 		};
@@ -1307,7 +1435,7 @@ export default function PdfView({
 	useEffect(() => {
 		if (!active || status !== "ready") return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen()) return;
+			if (!ownsKeys()) return;
 			if (matches(e, "rotate")) rotateRef.current(90);
 			else if (matches(e, "rotateLeft")) rotateRef.current(-90);
 			else return;
@@ -1364,6 +1492,10 @@ export default function PdfView({
 	// A scan has no words to search or select, and a form wants signing.
 	// Asked of the page on show, a moment after it settles, so paging
 	// through costs nothing.
+	// Once the reader has turned the scan offer down, no page is asked
+	// again: asking reads all the drawing steps of the page, which on a
+	// page that is one big photo is costly on a phone.
+	const scanRefused = refused.includes("scan");
 	useEffect(() => {
 		if (!doc || status !== "ready") return;
 		let live = true;
@@ -1373,7 +1505,7 @@ export default function PdfView({
 				const { items } = await proxy.getTextContent();
 				const words = items as Array<{ str?: string }>;
 				let next: "scan" | "sign" | null = null;
-				if (!hasOwnText(words)) {
+				if (!scanRefused && !hasOwnText(words)) {
 					const { pdfjs } = await loadEngine();
 					if (await looksScanned(proxy, pdfjs.OPS)) next = "scan";
 				}
@@ -1396,7 +1528,7 @@ export default function PdfView({
 			live = false;
 			window.clearTimeout(timer);
 		};
-	}, [doc, status, page, rights.fill, signed]);
+	}, [doc, status, page, rights.fill, signed, scanRefused]);
 
 	// --- marks on the pages ---
 	const mapOf = (view: DrawnPage): PageMap | null =>
@@ -1524,7 +1656,7 @@ export default function PdfView({
 		const onClick = (e: MouseEvent) => {
 			if ((e as PointerEvent).pointerType === "touch" || e.button !== 0) return;
 			if ((e.target as Element).closest("a, .annotationLayer section")) return;
-			marking.current?.tap(e.clientX, e.clientY);
+			if (marksVisibleRef.current) marking.current?.tap(e.clientX, e.clientY);
 		};
 		scrollBox.addEventListener("click", onClick);
 		return () => scrollBox.removeEventListener("click", onClick);
@@ -1599,7 +1731,12 @@ export default function PdfView({
 		}
 	};
 
+	// The look for a signature can take a while on a large file (it is
+	// read back whole): a second press meanwhile does not save twice.
+	const askingSave = useRef(false);
 	const askSaveMarks = async () => {
+		if (askingSave.current) return;
+		askingSave.current = true;
 		const scan = signatureScan.current;
 		try {
 			const found = await scan();
@@ -1608,6 +1745,8 @@ export default function PdfView({
 			else void saveWithMarks();
 		} catch {
 			toast(t("Couldn't save a copy"));
+		} finally {
+			askingSave.current = false;
 		}
 	};
 
@@ -1623,7 +1762,7 @@ export default function PdfView({
 	useEffect(() => {
 		if (!active || status !== "ready" || !isDesktop) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen() || e.defaultPrevented) return;
+			if (!ownsKeys() || e.defaultPrevented) return;
 			const now = keyRef.current;
 			if (matches(e, "twoPages") && now.roomForTwo) now.toggleSpread();
 			else if (matches(e, "draw") && now.canMark) setMarkingUp("pen");
@@ -1638,6 +1777,7 @@ export default function PdfView({
 		const el = container.current;
 		if (!el) return;
 		let width = el.clientWidth;
+		steadyWidth.current = width;
 		let frame = 0;
 		const measure = () => {
 			// A tab not on show is laid out as if shown, and a window
@@ -1655,12 +1795,33 @@ export default function PdfView({
 			// beside another document, its divider dragged.
 			if (el.clientWidth === width) return;
 			width = el.clientWidth;
+			// Where the reader was before the room changed, taken now: by the
+			// next frame the fit below has moved the pages.
+			const held = steady.current;
 			cancelAnimationFrame(frame);
 			frame = requestAnimationFrame(() => {
 				const v = pdfViewer.current;
-				const named = v?.currentScaleValue;
-				if (v && named && Number.isNaN(Number(named)))
-					v.currentScaleValue = named;
+				steadyWidth.current = width;
+				if (!v) return;
+				const named = v.currentScaleValue;
+				if (named && Number.isNaN(Number(named))) v.currentScaleValue = named;
+				// A fitted zoom keeps the page on show, but not when the scroll
+				// was clamped first (a phone turned upright reset to page 1),
+				// and a set zoom is not fitted at all: the reader is put back.
+				// A step to a page beside it is pdf.js's own (another page now
+				// shows more), and is left.
+				const now = v.currentPageNumber;
+				if (
+					held &&
+					held.page !== now &&
+					held.page <= v.pagesCount &&
+					(now === 1 || Math.abs(now - held.page) > 1)
+				)
+					v.scrollPageIntoView({
+						pageNumber: held.page,
+						destArray: [null, { name: "XYZ" }, held.left, held.top, null],
+						allowNegativeOffset: true,
+					});
 			});
 		};
 		measure();
@@ -2087,8 +2248,11 @@ export default function PdfView({
 			if (!blob) continue;
 			const image = new Image();
 			image.className = "pw-page";
-			image.src = URL.createObjectURL(blob);
-			image.onload = () => URL.revokeObjectURL(image.src);
+			const url = URL.createObjectURL(blob);
+			const releaseUrl = () => URL.revokeObjectURL(url);
+			image.onload = releaseUrl;
+			image.onerror = releaseUrl;
+			image.src = url;
 			root.appendChild(image);
 		}
 	};
@@ -2184,25 +2348,28 @@ export default function PdfView({
 	};
 
 	// --- the panel beside the document (desktop) ---
+	const hasFindQuery = findOpen && find.query.length > 0;
+	const findQueryValue = useMemo(
+		() => ({ query: find.query, options: findOptions }),
+		[find.query, findOptions],
+	);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: the handlers only read refs and the viewer
 	const side = useMemo<SideTab[]>(() => {
 		if (!doc || status !== "ready") return [];
 		const pick = (dest: unknown) =>
 			links.current?.goToDestination(dest as string);
 		return [
-			...(findOpen && find.query && finder.current && bus.current
+			...(hasFindQuery && finder.current && bus.current
 				? [
 						{
 							id: "results",
 							label: t("All results"),
 							icon: <ListChecks size={16} />,
 							content: (
-								<FindResults
+								<SideFindResults
 									doc={doc}
 									finder={finder.current}
 									bus={bus.current}
-									query={find.query}
-									options={findOptions}
 									onPick={(n) => {
 										const v = pdfViewer.current;
 										if (v) v.currentPageNumber = n;
@@ -2252,6 +2419,8 @@ export default function PdfView({
 						label={pageName}
 						onShow={showMark}
 						onSaveCopy={askSaveMarks}
+						marksVisible={marksVisible}
+						onToggleMarksVisible={toggleMarksVisible}
 					/>
 				),
 			},
@@ -2299,10 +2468,10 @@ export default function PdfView({
 		attachments,
 		layers,
 		marks,
+		marksVisible,
+		toggleMarksVisible,
 		name,
-		findOpen,
-		find.query,
-		findOptions,
+		hasFindQuery,
 	]);
 
 	const presets: ZoomPreset[] = [
@@ -2377,446 +2546,461 @@ export default function PdfView({
 		) : undefined;
 
 	return (
-		<Shell
-			name={name}
-			format={format}
-			onClose={onClose}
-			active={active}
-			hud={hud}
-			progressOf={container}
-			actions={actions}
-			pager={pager}
-			side={side}
-			sideFocus={sideFocus}
-			details={details}
-			onStep={turn}
-			bookmarks={status === "ready" ? places : undefined}
-			speech={speech}
-			turnPages={paged}
-			onEdge={paged ? (end) => goTo(end ? pages : 1) : undefined}
-			pageTops={paged ? undefined : pageTops}
-			progress={one ? (page - 1) / Math.max(1, pages - 1) : undefined}
-			onFind={status === "ready" ? openFind : undefined}
-			menu={status === "ready" ? pdfMenu : undefined}
-			onPrint={doc ? printPages : undefined}
-			paper
-			chromeHidden={chromeHidden && !findOpen}
-			find={
-				findOpen ? (
-					<FindBar
-						state={find}
-						onQuery={(query) =>
-							setFind((f) => ({ ...f, query, busy: !!query }))
-						}
-						onStep={(dir) => runFind(find.query, true, dir === -1)}
-						onClose={closeFind}
-						options={{ matchCase, wholeWords }}
-						onOptions={(o) => {
-							setMatchCase(o.matchCase);
-							setWholeWords(o.wholeWords);
-						}}
-						onList={() => {
-							if (isDesktop) setSideFocus({ id: "results", at: Date.now() });
-							else setResultsOpen(true);
-						}}
-					/>
-				) : undefined
-			}
-		>
-			<div
-				ref={holdScroller}
-				className={`${s.container} ${across && fits ? s.snap : ""}`}
-				data-flow={paged ? flow : undefined}
-				data-one={one || (across && spread) ? "" : undefined}
-				data-testid="pdf-scroll"
-				tabIndex={-1}
-			>
-				<div ref={viewerEl} className="pdfViewer" />
-			</div>
-			<Scrubber
-				of={container}
-				label={`${page} / ${pages}`}
-				enabled={status === "ready" && !paged}
-			/>
-			{paged && isDesktop && status === "ready" && !markingUp && (
-				<TurnArrows of={container} page={page} pages={pages} onTurn={turn} />
-			)}
-			<PageViewSheet open={viewOpen} onClose={() => setViewOpen(false)} />
-			{steps.back > 0 && trailHint && (
-				<button
-					type="button"
-					className={s.trail}
-					onClick={() => step(-1)}
-					data-testid="pdf-trail"
-				>
-					<ArrowLeft size={16} className="pw-flip" />
-					{t("Back to page {n}", {
-						n: trail.current.back[trail.current.back.length - 1]?.page ?? 1,
-					})}
-				</button>
-			)}
-
-			{offer && !refused.includes(offer) && !findOpen && status === "ready" && (
-				<div className={s.scanOffer} data-testid={`${offer}-offer`}>
-					{offer === "scan" ? (
-						<ScanText size={18} aria-hidden="true" />
-					) : (
-						<Signature size={18} aria-hidden="true" />
-					)}
-					<span>
-						{offer === "scan"
-							? t("This page is a scan.")
-							: t("This page has a place to sign.")}
-					</span>
-					<Button
-						variant="secondary"
-						onClick={() => {
-							if (offer === "scan") setReadingText(true);
-							else {
-								setFillFrom(page - 1);
-								setFilling(true);
-							}
-						}}
-						data-testid={`${offer}-offer-go`}
-					>
-						{offer === "scan" ? t("Read its text") : t("Fill & sign")}
-					</Button>
-					<IconButton
-						label={t("Close")}
-						onClick={() => setRefused((list) => [...list, offer])}
-						data-testid={`${offer}-offer-close`}
-					>
-						<X size={16} />
-					</IconButton>
-				</div>
-			)}
-			{status === "ready" && marks.ready && (
-				<Marking
-					ref={marking}
-					container={scrollBox}
-					store={marks}
-					canMark={rights.mark}
-					active={active && !markingUp && !filling && !readingText}
-					spotOf={spotOf}
-					markAt={markAt}
-					pictureAt={pictureAt}
-					onFind={openFind}
-					onShowMarks={() => {
-						if (isDesktop) setSideFocus({ id: "highlights", at: Date.now() });
-						else setMarksOpen(true);
-					}}
-				/>
-			)}
-			{status === "loading" && (
-				<StateView>
-					<Spinner label={t("Opening PDF")} />
-				</StateView>
-			)}
-			{status === "error" && (
-				<StateView
-					icon={<ErrorArt />}
-					title={t("Can't open this PDF")}
-					action={<Button onClick={onClose}>{t("Close")}</Button>}
-					testId="pdf-error"
-				>
-					{explainFailure(
-						fault,
-						t("The file is damaged or isn't a valid PDF."),
-					)}
-				</StateView>
-			)}
-
-			{markingUp && doc && signed !== null && (
-				<Suspense fallback={null}>
-					<MarkUp
-						doc={doc}
-						name={name}
-						password={passwordRef.current}
-						store={marks}
-						start={markingUp}
-						signed={signed}
-						protection={protection}
-						onClose={() => setMarkingUp(null)}
-						onSaved={(saved) => announceSaved(saved, file?.openOver)}
-					/>
-				</Suspense>
-			)}
-
-			{readingText && textSource && (
-				<Suspense fallback={null}>
-					<ReadText
-						source={textSource}
-						docKey={markDoc?.persist ? markDoc.key : null}
-						start={page - 1}
-						onClose={() => setReadingText(false)}
-						onSaved={(saved) => announceSaved(saved, file?.openOver)}
-					/>
-				</Suspense>
-			)}
-
-			{filling && doc && signed !== null && (
-				<Suspense fallback={null}>
-					<FillSign
-						doc={doc}
-						name={name}
-						password={passwordRef.current}
-						canMark={rights.mark}
-						signed={signed}
-						protection={protection}
-						startPage={fillFrom}
-						onClose={() => setFilling(false)}
-						onSaved={(saved) => announceSaved(saved, file?.openOver)}
-					/>
-				</Suspense>
-			)}
-			<PasswordDialog
-				open={status === "password"}
+		<FindQueryContext.Provider value={findQueryValue}>
+			<Shell
 				name={name}
-				wrong={passwordWrong}
-				onSubmit={(password) => {
-					setStatus("loading");
-					passwordRef.current = password;
-					unlock.current?.(password);
-				}}
-				onCancel={onClose}
-				testId="pdf"
-			/>
-
-			{cropping && doc && signed !== null && (
-				<CropPages
-					doc={doc}
-					name={name}
-					password={passwordRef.current}
-					signed={signed}
-					protection={protection}
-					onSaved={(saved) => announceSaved(saved, file?.openOver)}
-					choice={crop}
-					page={page}
-					rotation={rotation}
-					onClose={() => setCropping(false)}
-					onDone={(next) => {
-						setCropping(false);
-						void applyCrop(next);
-					}}
-				/>
-			)}
-
-			<Dialog
-				open={printAsk !== null}
-				title={t("Print")}
-				onClose={() => answerPrint(null)}
-				testId="print-range"
-				actions={
-					<>
-						<Button variant="ghost" onClick={() => answerPrint(null)}>
-							{t("Cancel")}
-						</Button>
-						<Button
-							variant="secondary"
-							onClick={() => answerPrint({ from: page, to: page })}
-							data-testid="print-current"
-						>
-							{t("This page")}
-						</Button>
-						<Button
-							onClick={() => answerPrint({ from: 1, to: pages })}
-							data-testid="print-all"
-						>
-							{tn(pages, "All {n} page", "All {n} pages")}
-						</Button>
-					</>
+				format={format}
+				onClose={onClose}
+				active={active}
+				hud={hud}
+				progressOf={container}
+				actions={actions}
+				pager={pager}
+				side={side}
+				sideFocus={sideFocus}
+				details={details}
+				onStep={turn}
+				bookmarks={
+					status === "ready" && !passwordRef.current && !passwordProtected
+						? places
+						: undefined
+				}
+				speech={speech}
+				turnPages={paged}
+				onEdge={paged ? (end) => goTo(end ? pages : 1) : undefined}
+				pageTops={paged ? undefined : pageTops}
+				progress={one ? (page - 1) / Math.max(1, pages - 1) : undefined}
+				onFind={status === "ready" ? openFind : undefined}
+				menu={status === "ready" ? pdfMenu : undefined}
+				onPrint={doc ? printPages : undefined}
+				paper
+				chromeHidden={chromeHidden && !findOpen}
+				find={
+					findOpen ? (
+						<FindBar
+							active={active}
+							state={find}
+							onQuery={(query) =>
+								setFind((f) => ({ ...f, query, busy: !!query }))
+							}
+							onStep={(dir) => runFind(find.query, true, dir === -1)}
+							onClose={closeFind}
+							options={{ matchCase, wholeWords }}
+							onOptions={(o) => {
+								setMatchCase(o.matchCase);
+								setWholeWords(o.wholeWords);
+							}}
+							onList={() => {
+								if (isDesktop) setSideFocus({ id: "results", at: Date.now() });
+								else setResultsOpen(true);
+							}}
+						/>
+					) : undefined
 				}
 			>
-				<form
-					className={s.range}
-					onSubmit={(e) => {
-						e.preventDefault();
-						const typed = typedRange();
-						if (typed) answerPrint(typed);
-					}}
+				<div
+					ref={holdScroller}
+					className={`${s.container} ${across && fits ? s.snap : ""}`}
+					data-flow={paged ? flow : undefined}
+					data-one={one || (across && spread) ? "" : undefined}
+					data-marks-hidden={marksVisible ? undefined : ""}
+					data-testid="pdf-scroll"
+					tabIndex={-1}
 				>
-					<span>{t("Pages")}</span>
-					<input
-						className={shellStyles.input}
-						type="number"
-						inputMode="numeric"
-						min={1}
-						max={pages}
-						value={range.from}
-						onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
-						aria-label={t("First page to print")}
-						data-testid="print-from"
-					/>
-					<span>{t("to")}</span>
-					<input
-						className={shellStyles.input}
-						type="number"
-						inputMode="numeric"
-						min={1}
-						max={pages}
-						value={range.to}
-						onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
-						aria-label={t("Last page to print")}
-						data-testid="print-to"
-					/>
-					<Button
-						type="submit"
-						variant="secondary"
-						disabled={!typedRange()}
-						data-testid="print-range-go"
+					<div ref={viewerEl} className="pdfViewer" />
+				</div>
+				<Scrubber
+					of={container}
+					label={`${page} / ${pages}`}
+					enabled={status === "ready" && !paged}
+				/>
+				{paged && isDesktop && status === "ready" && !markingUp && (
+					<TurnArrows of={container} page={page} pages={pages} onTurn={turn} />
+				)}
+				<PageViewSheet open={viewOpen} onClose={() => setViewOpen(false)} />
+				{steps.back > 0 && trailHint && (
+					<button
+						type="button"
+						className={s.trail}
+						onClick={() => step(-1)}
+						data-testid="pdf-trail"
 					>
-						{t("Print these")}
-					</Button>
-				</form>
-			</Dialog>
+						<ArrowLeft size={16} className="pw-flip" />
+						{t("Back to page {n}", {
+							n: trail.current.back[trail.current.back.length - 1]?.page ?? 1,
+						})}
+					</button>
+				)}
 
-			<Dialog
-				open={leaving !== null}
-				title={t("Leave without saving?")}
-				onClose={() => setLeaving(null)}
-				alert
-				testId="reader-leave"
-				actions={
-					<>
-						<Button variant="ghost" onClick={() => setLeaving(null)}>
-							{t("Keep editing")}
-						</Button>
-						<Button
-							variant="danger"
-							onClick={() => {
-								setLeaving(null);
-								leaving?.go();
-							}}
-						>
-							{t("Discard")}
-						</Button>
-					</>
-				}
-			>
-				{t("What you added is lost unless you save a copy.")}
-			</Dialog>
-
-			<Dialog
-				open={askSigned}
-				title={t("Save a copy")}
-				onClose={() => setAskSigned(false)}
-				testId="signed-warning"
-				actions={
-					<>
-						<Button variant="ghost" onClick={() => setAskSigned(false)}>
-							{t("Cancel")}
-						</Button>
-						<Button
-							onClick={() => {
-								setAskSigned(false);
-								void saveWithMarks();
-							}}
-						>
-							{t("Save")}
-						</Button>
-					</>
-				}
-			>
-				<CopyWarnings signed={signed === true} protection={protection} />
-			</Dialog>
-
-			<Sheet
-				open={resultsOpen}
-				title={t("All results")}
-				onClose={() => setResultsOpen(false)}
-				wide
-				testId="find-sheet"
-			>
-				{doc && finder.current && bus.current && (
-					<FindResults
-						doc={doc}
-						finder={finder.current}
-						bus={bus.current}
-						query={find.query}
-						options={findOptions}
-						onPick={(n) => {
-							goTo(n);
-							setResultsOpen(false);
+				{offer &&
+					!refused.includes(offer) &&
+					!findOpen &&
+					status === "ready" && (
+						<div className={s.scanOffer} data-testid={`${offer}-offer`}>
+							{offer === "scan" ? (
+								<ScanText size={18} aria-hidden="true" />
+							) : (
+								<Signature size={18} aria-hidden="true" />
+							)}
+							<span>
+								{offer === "scan"
+									? t("This page is a scan.")
+									: t("This page has a place to sign.")}
+							</span>
+							<Button
+								variant="secondary"
+								onClick={() => {
+									if (offer === "scan") setReadingText(true);
+									else {
+										setFillFrom(page - 1);
+										setFilling(true);
+									}
+								}}
+								data-testid={`${offer}-offer-go`}
+							>
+								{offer === "scan" ? t("Read its text") : t("Fill & sign")}
+							</Button>
+							<IconButton
+								label={t("Close")}
+								onClick={() => setRefused((list) => [...list, offer])}
+								data-testid={`${offer}-offer-close`}
+							>
+								<X size={16} />
+							</IconButton>
+						</div>
+					)}
+				{status === "ready" && marks.ready && (
+					<Marking
+						ref={marking}
+						container={scrollBox}
+						store={marks}
+						canMark={rights.mark}
+						active={active && !markingUp && !filling && !readingText}
+						spotOf={spotOf}
+						markAt={markAt}
+						pictureAt={pictureAt}
+						onFind={openFind}
+						onShowMarks={() => {
+							if (isDesktop) setSideFocus({ id: "highlights", at: Date.now() });
+							else setMarksOpen(true);
 						}}
 					/>
 				)}
-			</Sheet>
+				{(status === "loading" || waitingForBytes) && (
+					<StateView>
+						<Spinner label={t("Opening PDF")} />
+					</StateView>
+				)}
+				{status === "error" && (
+					<StateView
+						icon={<ErrorArt />}
+						title={t("Can't open this PDF")}
+						action={<Button onClick={onClose}>{t("Close")}</Button>}
+						testId="pdf-error"
+					>
+						{explainFailure(
+							fault,
+							t("The file is damaged or isn't a valid PDF."),
+						)}
+					</StateView>
+				)}
 
-			<Sheet
-				open={marksOpen}
-				title={t("Highlights and notes")}
-				onClose={() => setMarksOpen(false)}
-				wide
-				testId="marks-sheet"
-			>
-				<MarksPanel
-					store={marks}
+				{markingUp && doc && signed !== null && (
+					<Suspense fallback={null}>
+						<MarkUp
+							doc={doc}
+							name={name}
+							password={passwordRef.current}
+							store={marks}
+							start={markingUp}
+							signed={signed}
+							protection={protection}
+							onClose={() => setMarkingUp(null)}
+							onSaved={(saved) => announceSaved(saved, file?.openOver)}
+						/>
+					</Suspense>
+				)}
+
+				{readingText && textSource && (
+					<Suspense fallback={null}>
+						<ReadText
+							source={textSource}
+							docKey={markDoc?.persist ? markDoc.key : null}
+							start={page - 1}
+							onClose={() => setReadingText(false)}
+							onSaved={(saved) => announceSaved(saved, file?.openOver)}
+						/>
+					</Suspense>
+				)}
+
+				{filling && doc && signed !== null && (
+					<Suspense fallback={null}>
+						<FillSign
+							doc={doc}
+							name={name}
+							password={passwordRef.current}
+							canMark={rights.mark}
+							signed={signed}
+							protection={protection}
+							startPage={fillFrom}
+							onClose={() => setFilling(false)}
+							onSaved={(saved) => announceSaved(saved, file?.openOver)}
+						/>
+					</Suspense>
+				)}
+				<PasswordDialog
+					open={status === "password"}
 					name={name}
-					label={pageName}
-					onShow={showMark}
-					onSaveCopy={askSaveMarks}
+					wrong={passwordWrong}
+					onSubmit={(password) => {
+						setStatus("loading");
+						passwordRef.current = password;
+						unlock.current?.(password);
+					}}
+					onCancel={onClose}
+					testId="pdf"
 				/>
-			</Sheet>
 
-			<Sheet
-				open={thumbsOpen}
-				title={tn(pages, "{n} page", "{n} pages")}
-				onClose={() => setThumbsOpen(false)}
-				wide
-			>
-				{doc && (
-					<PdfThumbs
+				{cropping && doc && signed !== null && (
+					<CropPages
 						doc={doc}
-						current={page}
+						name={name}
+						password={passwordRef.current}
+						signed={signed}
+						protection={protection}
+						onSaved={(saved) => announceSaved(saved, file?.openOver)}
+						choice={crop}
+						page={page}
 						rotation={rotation}
-						onPick={(n) => {
-							goTo(n);
-							setThumbsOpen(false);
+						onClose={() => setCropping(false)}
+						onDone={(next) => {
+							setCropping(false);
+							void applyCrop(next);
 						}}
 					/>
 				)}
-			</Sheet>
 
-			<Sheet
-				open={outlineOpen}
-				title={t("Contents")}
-				onClose={() => setOutlineOpen(false)}
-				wide
-			>
-				<OutlineList
-					items={outline ?? []}
-					depth={0}
-					onPick={(dest) => {
-						links.current?.goToDestination(dest as string);
-						setOutlineOpen(false);
-					}}
-				/>
-			</Sheet>
+				<Dialog
+					open={printAsk !== null}
+					title={t("Print")}
+					onClose={() => answerPrint(null)}
+					testId="print-range"
+					actions={
+						<>
+							<Button variant="ghost" onClick={() => answerPrint(null)}>
+								{t("Cancel")}
+							</Button>
+							<Button
+								variant="secondary"
+								onClick={() => answerPrint({ from: page, to: page })}
+								data-testid="print-current"
+							>
+								{t("This page")}
+							</Button>
+							<Button
+								onClick={() => answerPrint({ from: 1, to: pages })}
+								data-testid="print-all"
+							>
+								{tn(pages, "All {n} page", "All {n} pages")}
+							</Button>
+						</>
+					}
+				>
+					<form
+						className={s.range}
+						onSubmit={(e) => {
+							e.preventDefault();
+							const typed = typedRange();
+							if (typed) answerPrint(typed);
+						}}
+					>
+						<span>{t("Pages")}</span>
+						<input
+							className={shellStyles.input}
+							type="number"
+							inputMode="numeric"
+							min={1}
+							max={pages}
+							value={range.from}
+							onChange={(e) =>
+								setRange((r) => ({ ...r, from: e.target.value }))
+							}
+							aria-label={t("First page to print")}
+							data-testid="print-from"
+						/>
+						<span>{t("to")}</span>
+						<input
+							className={shellStyles.input}
+							type="number"
+							inputMode="numeric"
+							min={1}
+							max={pages}
+							value={range.to}
+							onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
+							aria-label={t("Last page to print")}
+							data-testid="print-to"
+						/>
+						<Button
+							type="submit"
+							variant="secondary"
+							disabled={!typedRange()}
+							data-testid="print-range-go"
+						>
+							{t("Print these")}
+						</Button>
+					</form>
+				</Dialog>
 
-			<Sheet
-				open={extra !== null}
-				title={
-					extra === "comments"
-						? t("Comments")
-						: extra === "attachments"
-							? t("Attachments")
-							: t("Layers")
-				}
-				onClose={() => setExtra(null)}
-				wide
-				testId="pdf-extra"
-			>
-				{extra === "comments" && doc && (
-					<Comments doc={doc} onPick={showComment} />
-				)}
-				{extra === "attachments" && (
-					<AttachmentList items={attachments} onOpen={openAttachment} />
-				)}
-				{extra === "layers" && (
-					<LayerList items={layers} onToggle={toggleLayer} />
-				)}
-			</Sheet>
-		</Shell>
+				<Dialog
+					open={leaving !== null}
+					title={t("Leave without saving?")}
+					onClose={() => setLeaving(null)}
+					alert
+					testId="reader-leave"
+					actions={
+						<>
+							<Button variant="ghost" onClick={() => setLeaving(null)}>
+								{t("Keep editing")}
+							</Button>
+							<Button
+								variant="danger"
+								onClick={() => {
+									setLeaving(null);
+									leaving?.go();
+								}}
+							>
+								{t("Discard")}
+							</Button>
+						</>
+					}
+				>
+					{t("What you added is lost unless you save a copy.")}
+				</Dialog>
+
+				<Dialog
+					open={askSigned}
+					title={t("Save a copy")}
+					onClose={() => setAskSigned(false)}
+					testId="signed-warning"
+					actions={
+						<>
+							<Button variant="ghost" onClick={() => setAskSigned(false)}>
+								{t("Cancel")}
+							</Button>
+							<Button
+								onClick={() => {
+									setAskSigned(false);
+									void saveWithMarks();
+								}}
+							>
+								{t("Save")}
+							</Button>
+						</>
+					}
+				>
+					<CopyWarnings signed={signed === true} protection={protection} />
+				</Dialog>
+
+				<Sheet
+					open={resultsOpen}
+					title={t("All results")}
+					onClose={() => setResultsOpen(false)}
+					wide
+					testId="find-sheet"
+				>
+					{doc && finder.current && bus.current && (
+						<FindResults
+							doc={doc}
+							finder={finder.current}
+							bus={bus.current}
+							query={find.query}
+							options={findOptions}
+							onPick={(n) => {
+								goTo(n);
+								setResultsOpen(false);
+							}}
+						/>
+					)}
+				</Sheet>
+
+				<Sheet
+					open={marksOpen}
+					title={t("Highlights and notes")}
+					onClose={() => setMarksOpen(false)}
+					wide
+					testId="marks-sheet"
+				>
+					<MarksPanel
+						store={marks}
+						name={name}
+						label={pageName}
+						onShow={showMark}
+						onSaveCopy={askSaveMarks}
+						marksVisible={marksVisible}
+						onToggleMarksVisible={toggleMarksVisible}
+					/>
+				</Sheet>
+
+				<Sheet
+					open={thumbsOpen}
+					title={tn(pages, "{n} page", "{n} pages")}
+					onClose={() => setThumbsOpen(false)}
+					wide
+				>
+					{doc && (
+						<PdfThumbs
+							doc={doc}
+							current={page}
+							rotation={rotation}
+							onPick={(n) => {
+								goTo(n);
+								setThumbsOpen(false);
+							}}
+						/>
+					)}
+				</Sheet>
+
+				<Sheet
+					open={outlineOpen}
+					title={t("Contents")}
+					onClose={() => setOutlineOpen(false)}
+					wide
+				>
+					<OutlineList
+						items={outline ?? []}
+						depth={0}
+						onPick={(dest) => {
+							links.current?.goToDestination(dest as string);
+							setOutlineOpen(false);
+						}}
+					/>
+				</Sheet>
+
+				<Sheet
+					open={extra !== null}
+					title={
+						extra === "comments"
+							? t("Comments")
+							: extra === "attachments"
+								? t("Attachments")
+								: t("Layers")
+					}
+					onClose={() => setExtra(null)}
+					wide
+					testId="pdf-extra"
+				>
+					{extra === "comments" && doc && (
+						<Comments doc={doc} onPick={showComment} />
+					)}
+					{extra === "attachments" && (
+						<AttachmentList items={attachments} onOpen={openAttachment} />
+					)}
+					{extra === "layers" && (
+						<LayerList items={layers} onToggle={toggleLayer} />
+					)}
+				</Sheet>
+			</Shell>
+		</FindQueryContext.Provider>
 	);
 }
 

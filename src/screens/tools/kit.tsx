@@ -110,7 +110,15 @@ export function useToolFiles(
 		null,
 	);
 	const picking = useRef(false);
+	const alive = useRef(true);
 	const password = usePassword();
+
+	useEffect(() => {
+		alive.current = true;
+		return () => {
+			alive.current = false;
+		};
+	}, []);
 
 	// What the tool works on is open: a copy it saves never goes over it.
 	const [owner] = useState(() => `tool-files-${++lists}`);
@@ -127,6 +135,7 @@ export function useToolFiles(
 			setBusy(true);
 			try {
 				const bytes = new Uint8Array(await backend.read(request.reopen));
+				if (!alive.current) return;
 				const format = sniffFormat(bytes.buffer as ArrayBuffer, request.name);
 				if (takes === "pdf" && format !== "pdf") {
 					toast(t("{name} isn't a PDF", { name: request.name }));
@@ -152,6 +161,7 @@ export function useToolFiles(
 					for (;;) {
 						try {
 							const info = await pdfInfo(bytes, tried);
+							if (!alive.current) return;
 							file.pages = info.pages;
 							file.password = tried;
 							file.protection = pdfProtection({
@@ -160,22 +170,23 @@ export function useToolFiles(
 							});
 							break;
 						} catch (err) {
+							if (!alive.current) return;
 							if (!(err instanceof ToolError) || err.reason !== "password") {
 								toast(unreadNote(err, request.name));
 								return;
 							}
 							const answer = await password.ask(request.name, wrong);
-							if (answer === null) return;
+							if (!alive.current || answer === null) return;
 							tried = answer;
 							wrong = true;
 						}
 					}
 				}
-				setFiles((list) => [...list, file]);
+				if (alive.current) setFiles((list) => [...list, file]);
 			} catch (err) {
-				toast(unreadNote(err, request.name));
+				if (alive.current) toast(unreadNote(err, request.name));
 			} finally {
-				setBusy(false);
+				if (alive.current) setBusy(false);
 			}
 		},
 		[takes, password.ask],
@@ -195,10 +206,11 @@ export function useToolFiles(
 		try {
 			if (!several) {
 				const picked = await backend.pickFile();
-				if (picked) await adopt(picked);
+				if (picked && alive.current) await adopt(picked);
 				return;
 			}
 			const picked = await backend.pickFiles({ pictures: takes === "image" });
+			if (!alive.current) return;
 			if (picked.length > MOST_AT_ONCE)
 				toast(t("Only the first {n} were added", { n: MOST_AT_ONCE }));
 			const taken = picked.slice(0, MOST_AT_ONCE);
@@ -206,14 +218,17 @@ export function useToolFiles(
 			// skipped, the others still come in. Those past the most are
 			// never made ready, so nothing of them is copied in.
 			for (const [i, ready] of taken.entries()) {
+				if (!alive.current) return;
 				if (taken.length > 1) setAdding({ done: i + 1, total: taken.length });
-				await adopt(await ready());
+				const req = await ready();
+				if (!alive.current) return;
+				await adopt(req);
 			}
 		} catch {
-			toast(t("Couldn't open the file picker"));
+			if (alive.current) toast(t("Couldn't open the file picker"));
 		} finally {
-			setAdding(null);
 			picking.current = false;
+			if (alive.current) setAdding(null);
 		}
 	};
 	const sortByName = () => setFiles((list) => byName(list));
@@ -247,13 +262,17 @@ export function FileList({
 	kit,
 	several,
 	addLabel,
+	disabled = false,
 }: {
 	kit: ReturnType<typeof useToolFiles>;
 	/** Several files, in an order the reader sets. */
 	several: boolean;
 	addLabel: string;
+	/** Locked while the tool is running. */
+	disabled?: boolean;
 }) {
 	const { files, busy, add, move, remove, adding, sortByName } = kit;
+	const locked = busy || disabled;
 	return (
 		<div className={s.files} aria-busy={busy}>
 			{files.length > 0 && (
@@ -265,7 +284,7 @@ export function FileList({
 							type="button"
 							className={s.sortFiles}
 							onClick={sortByName}
-							disabled={busy}
+							disabled={locked}
 							data-testid="tool-files-sort"
 						>
 							<ArrowDownAZ size={15} />
@@ -291,7 +310,7 @@ export function FileList({
 						<>
 							<IconButton
 								label={t("Move up")}
-								disabled={i === 0}
+								disabled={i === 0 || locked}
 								onClick={() => move(file.key, -1)}
 								data-testid="tool-file-up"
 							>
@@ -299,7 +318,7 @@ export function FileList({
 							</IconButton>
 							<IconButton
 								label={t("Move down")}
-								disabled={i === files.length - 1}
+								disabled={i === files.length - 1 || locked}
 								onClick={() => move(file.key, 1)}
 							>
 								<ArrowDown size={18} />
@@ -308,6 +327,7 @@ export function FileList({
 					)}
 					<IconButton
 						label={t("Remove {name}", { name: file.name })}
+						disabled={locked}
 						onClick={() => remove(file.key)}
 						data-testid="tool-file-remove"
 					>
@@ -339,7 +359,7 @@ export function FileList({
 					<Button
 						variant={files.length ? "secondary" : "primary"}
 						onClick={add}
-						disabled={busy}
+						disabled={locked}
 						data-testid="tool-add"
 					>
 						<FilePlus2 size={18} />{" "}
@@ -362,6 +382,13 @@ export function FileList({
 export function useRun(onOpen?: (request: OpenRequest) => void) {
 	const [running, setRunning] = useState(false);
 	const inFlight = useRef(false);
+	const alive = useRef(true);
+	useEffect(() => {
+		alive.current = true;
+		return () => {
+			alive.current = false;
+		};
+	}, []);
 	const [result, setResult] = useState<(SavedFile & { size: number }) | null>(
 		null,
 	);
@@ -381,12 +408,14 @@ export function useRun(onOpen?: (request: OpenRequest) => void) {
 		try {
 			const made = await make();
 			// The tool found nothing to save, and says so itself.
-			if (!made) return null;
+			if (!made || !alive.current) return null;
 			const saved = await backend.saveFile(made.name, made.bytes, made.mime);
+			if (!alive.current) return saved;
 			setResult(saved ? { ...saved, size: made.bytes.length } : null);
 			if (saved) announceSaved(saved, onOpen, made.bytes.length);
 			return saved;
 		} catch (err) {
+			if (!alive.current) return null;
 			const message =
 				err instanceof ToolError && err.reason === "password"
 					? t("This PDF's password is needed to save a copy")
@@ -396,7 +425,7 @@ export function useRun(onOpen?: (request: OpenRequest) => void) {
 			return null;
 		} finally {
 			inFlight.current = false;
-			setRunning(false);
+			if (alive.current) setRunning(false);
 		}
 	};
 	const request = result ? requestForSaved(result, result.size) : null;
@@ -445,6 +474,69 @@ export function usePdf(file: ToolFile | undefined) {
 	return doc;
 }
 
+const thumbListeners = new Map<Element, (near: boolean) => void>();
+let thumbObserver: IntersectionObserver | null = null;
+
+function observeThumb(
+	el: Element,
+	onChange: (near: boolean) => void,
+): () => void {
+	if (!thumbObserver) {
+		thumbObserver = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					thumbListeners.get(entry.target)?.(entry.isIntersecting);
+				}
+			},
+			{ rootMargin: "300px 0px" },
+		);
+	}
+	thumbListeners.set(el, onChange);
+	thumbObserver.observe(el);
+	return () => {
+		thumbObserver?.unobserve(el);
+		thumbListeners.delete(el);
+		if (thumbListeners.size === 0) {
+			thumbObserver?.disconnect();
+			thumbObserver = null;
+		}
+	};
+}
+
+const MAX_THUMB_RENDERS = 4;
+interface ThumbJob {
+	cancelled: boolean;
+	start: () => Promise<void>;
+}
+const thumbQueue: ThumbJob[] = [];
+let activeThumbRenders = 0;
+
+function pumpThumbQueue() {
+	while (activeThumbRenders < MAX_THUMB_RENDERS && thumbQueue.length > 0) {
+		const job = thumbQueue.shift();
+		if (!job || job.cancelled) continue;
+		activeThumbRenders++;
+		job
+			.start()
+			.catch(() => {})
+			.finally(() => {
+				activeThumbRenders--;
+				pumpThumbQueue();
+			});
+	}
+}
+
+function enqueueThumb(start: () => Promise<void>): () => void {
+	const job: ThumbJob = { cancelled: false, start };
+	thumbQueue.push(job);
+	pumpThumbQueue();
+	return () => {
+		job.cancelled = true;
+		const at = thumbQueue.indexOf(job);
+		if (at >= 0) thumbQueue.splice(at, 1);
+	};
+}
+
 /** A page drawn small, turned by `turn` degrees. */
 export function PageThumb({
 	doc,
@@ -459,14 +551,31 @@ export function PageThumb({
 }) {
 	const canvas = useRef<HTMLCanvasElement>(null);
 	const [shape, setShape] = useState(1 / 1.41);
+	const [near, setNear] = useState(false);
+
 	useEffect(() => {
+		const el = canvas.current;
+		if (!el) return;
+		return observeThumb(el, setNear);
+	}, []);
+
+	useEffect(() => {
+		const el = canvas.current;
+		if (!near) {
+			if (el && (el.width || el.height)) {
+				el.width = 0;
+				el.height = 0;
+			}
+			return;
+		}
 		let alive = true;
 		let task: { cancel(): void; promise: Promise<void> } | null = null;
-		(async () => {
+		const cancelQueued = enqueueThumb(async () => {
+			if (!alive) return;
 			const proxy = await doc.getPage(page + 1);
-			const el = canvas.current;
-			const ctx = el?.getContext("2d");
-			if (!alive || !el || !ctx) return;
+			const target = canvas.current;
+			const ctx = target?.getContext("2d");
+			if (!alive || !target || !ctx) return;
 			const base = proxy.getViewport({
 				scale: 1,
 				rotation: (proxy.rotate + turn) % 360,
@@ -477,16 +586,29 @@ export function PageThumb({
 				scale: (width * density) / base.width,
 				rotation: (proxy.rotate + turn) % 360,
 			});
-			el.width = Math.ceil(viewport.width);
-			el.height = Math.ceil(viewport.height);
+			target.width = Math.ceil(viewport.width);
+			target.height = Math.ceil(viewport.height);
 			task = proxy.render({ canvasContext: ctx, viewport });
 			await task.promise.catch(() => {});
-		})().catch(() => {});
+		});
 		return () => {
 			alive = false;
+			cancelQueued();
 			task?.cancel();
 		};
-	}, [doc, page, turn, width]);
+	}, [doc, page, turn, width, near]);
+
+	// Release GPU/RAM backing store on unmount.
+	useEffect(() => {
+		const el = canvas.current;
+		return () => {
+			if (el) {
+				el.width = 0;
+				el.height = 0;
+			}
+		};
+	}, []);
+
 	return (
 		<canvas
 			ref={canvas}
@@ -531,6 +653,7 @@ export function Go({
 			<Button
 				onClick={onClick}
 				disabled={disabled || running}
+				aria-busy={running || undefined}
 				data-testid="tool-go"
 			>
 				{running ? t("Working…") : label}

@@ -23,6 +23,7 @@
  * browser tests stand in for the window with window.__paperwrenWindow.
  */
 
+import { ownsKeys } from "@/ui/Overlay";
 import { isDesktop, isTauri } from "./env";
 import { atEdges } from "./settle";
 
@@ -309,7 +310,7 @@ export function watchFullscreen(): () => void {
 	// handed round.
 	const onKey = (e: KeyboardEvent) => {
 		if (e.key !== "Escape" || !windowFull || held) return;
-		if (document.querySelector('[aria-modal="true"]')) return;
+		if (!ownsKeys()) return;
 		window.setTimeout(() => {
 			if (!e.defaultPrevented) leaveFullscreen();
 		});

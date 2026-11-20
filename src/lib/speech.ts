@@ -27,8 +27,8 @@ declare global {
 	}
 }
 
-/** The speeds offered, as a share of the voice's normal pace. */
-export const SPEECH_RATES = [0.75, 1, 1.25, 1.5, 2];
+// The speeds offered live with the settings (types.ts).
+export { SPEECH_RATES } from "./types";
 
 // ---------- the web's voices ----------
 

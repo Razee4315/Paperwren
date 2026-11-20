@@ -4,7 +4,7 @@ import { scrollBehavior } from "@/lib/motion";
 import { readOfficeMeta } from "@/lib/officeMeta";
 import { matches } from "@/lib/shortcuts";
 import type { Position } from "@/lib/types";
-import { useSettings } from "@/state/settings";
+import { useSetting } from "@/state/settings";
 import { ownsKeys } from "@/ui/Overlay";
 import {
 	type RefObject,
@@ -474,13 +474,12 @@ export function useScrollMemory(
 	onPosition: (p: Position) => void,
 	zoom?: number,
 ) {
-	const { settings } = useSettings();
+	const remember = useSetting("rememberPosition");
 	const restored = useRef(false);
 	const onPositionRef = useRef(onPosition);
 	onPositionRef.current = onPosition;
 	const zoomRef = useRef(zoom);
 	zoomRef.current = zoom;
-	const remember = settings.rememberPosition;
 
 	useEffect(() => {
 		const el = scroller.current;
@@ -593,9 +592,9 @@ export function useTapToTurn(
 	scroller: RefObject<HTMLElement | null>,
 	onStep?: (dir: 1 | -1) => void,
 ): (x: number) => boolean {
-	const { settings } = useSettings();
-	const on = useRef(settings.tapToTurn);
-	on.current = settings.tapToTurn;
+	const tapToTurn = useSetting("tapToTurn");
+	const on = useRef(tapToTurn);
+	on.current = tapToTurn;
 	const step = useRef(onStep);
 	step.current = onStep;
 	return useCallback(

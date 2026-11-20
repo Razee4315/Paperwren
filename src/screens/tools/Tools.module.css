@@ -13,7 +13,10 @@
 	grid-template-rows: auto auto auto minmax(0, 1fr) auto;
 	background: var(--canvas);
 	color: var(--text);
-	animation: pw-fade-in var(--t-med) var(--ease);
+	animation: pw-screen-in var(--t-med) var(--ease);
+}
+:global(html.desktop) .fill {
+	animation: pw-fade-in var(--t-fast) var(--ease);
 }
 .fillBar {
 	grid-area: title;
@@ -2220,4 +2223,53 @@
 .card:active,
 .featured:active {
 	background: var(--surface-3);
+}
+
+@media (forced-colors: active) {
+	.ways {
+		border: 1px solid ButtonText;
+	}
+	.ways::before {
+		display: none;
+	}
+	.typedSize[data-chosen] > input {
+		border-color: Highlight;
+		outline: 2px solid Highlight;
+		outline-offset: -1px;
+	}
+	.steps li[data-current] {
+		color: Highlight;
+	}
+	.steps li[data-current] > span {
+		forced-color-adjust: none;
+		background: Highlight;
+		color: HighlightText;
+		border-color: Highlight;
+	}
+	.swatch {
+		forced-color-adjust: none;
+		border-color: Canvas;
+		outline: 1px solid ButtonText;
+	}
+	.swatch[aria-checked="true"] {
+		outline: 2px solid Highlight;
+		outline-offset: 2px;
+	}
+	.fillInk > button,
+	.fillInk > button > span,
+	.inkDot,
+	.inkDot > span {
+		forced-color-adjust: none;
+	}
+	.fillInk > button > span,
+	.inkDot > span {
+		border: 1px solid ButtonText;
+	}
+	.inkChoices > button.inkDot[aria-pressed="true"],
+	.fillInk > button[role="radio"][aria-checked="true"] {
+		background: Canvas;
+		color: CanvasText;
+		outline: 2px solid Highlight;
+		outline-offset: 2px;
+	}
 }

@@ -29,6 +29,7 @@ import {
 	compressPdf,
 	digitallySigned,
 	imagesToPdf,
+	open as openPdfDoc,
 	parsePages,
 	protect,
 	standardText,
@@ -68,6 +69,8 @@ import {
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
 	type ReactNode,
+	Suspense,
+	lazy,
 	useContext,
 	useEffect,
 	useMemo,
@@ -75,9 +78,6 @@ import {
 	useState,
 } from "react";
 import { useDocMarks } from "../viewer/useDocMarks";
-import { FillSign } from "./FillSign";
-import { MarkUp } from "./MarkUp";
-import { ReadText } from "./ReadText";
 import s from "./Tools.module.css";
 import {
 	Choice,
@@ -93,7 +93,19 @@ import {
 import { drawPages, recodePicture } from "./pdfFiles";
 import { type ReadSource, bytesSource, pdfSource } from "./readSource";
 import { announceSaved } from "./saved";
-import { ScanTool } from "./scan/ScanTool";
+
+const FillSign = lazy(() =>
+	import("./FillSign").then((m) => ({ default: m.FillSign })),
+);
+const MarkUp = lazy(() =>
+	import("./MarkUp").then((m) => ({ default: m.MarkUp })),
+);
+const ReadText = lazy(() =>
+	import("./ReadText").then((m) => ({ default: m.ReadText })),
+);
+const ScanTool = lazy(() =>
+	import("./scan/ScanTool").then((m) => ({ default: m.ScanTool })),
+);
 
 export type ToolId =
 	| "sign"
@@ -408,7 +420,11 @@ export function ToolsScreen({
 					)}
 					<div className={tool ? s.taskPanel : undefined}>
 						{tool === "sign" && <SignTool file={file} onOpen={onOpen} />}
-						{tool === "scan" && <ScanTool file={file} onOpen={onOpen} />}
+						{tool === "scan" && (
+							<Suspense fallback={null}>
+								<ScanTool file={file} onOpen={onOpen} />
+							</Suspense>
+						)}
 						{tool === "markup" && <MarkUpTool file={file} onOpen={onOpen} />}
 						{tool === "compress" && (
 							<CompressTool file={file} onOpen={onOpen} />
@@ -452,13 +468,20 @@ interface ToolProps {
 function OnePdf({
 	kit,
 	copy = true,
+	disabled = false,
 }: {
 	kit: ReturnType<typeof useToolFiles>;
 	copy?: boolean;
+	disabled?: boolean;
 }) {
 	return (
 		<>
-			<FileList kit={kit} several={false} addLabel={t("Choose a PDF")} />
+			<FileList
+				kit={kit}
+				several={false}
+				addLabel={t("Choose a PDF")}
+				disabled={disabled}
+			/>
 			{kit.dialog}
 			{copy && <CopyNote files={kit.files} />}
 		</>
@@ -470,6 +493,10 @@ function SignTool({ file, onOpen }: ToolProps) {
 	const doc = usePdf(kit.files[0]);
 	const [open, setOpen] = useState(false);
 	const picked = kit.files[0];
+	const signed = useMemo(
+		() => (picked ? digitallySigned(picked.bytes) : false),
+		[picked],
+	);
 	return (
 		<>
 			<OnePdf kit={kit} />
@@ -507,16 +534,18 @@ function SignTool({ file, onOpen }: ToolProps) {
 				/>
 			)}
 			{open && doc && picked && (
-				<FillSign
-					doc={doc}
-					name={picked.name}
-					password={picked.password}
-					canMark
-					signed={digitallySigned(picked.bytes)}
-					protection={picked.protection}
-					onClose={() => setOpen(false)}
-					onSaved={(saved) => announceSaved(saved, onOpen)}
-				/>
+				<Suspense fallback={null}>
+					<FillSign
+						doc={doc}
+						name={picked.name}
+						password={picked.password}
+						canMark
+						signed={signed}
+						protection={picked.protection}
+						onClose={() => setOpen(false)}
+						onSaved={(saved) => announceSaved(saved, onOpen)}
+					/>
+				</Suspense>
 			)}
 		</>
 	);
@@ -529,6 +558,10 @@ function MarkUpTool({ file, onOpen }: ToolProps) {
 	const picked = kit.files[0];
 	const key = useMemo(
 		() => (picked ? contentKey(fileSample(picked.bytes)) : null),
+		[picked],
+	);
+	const signed = useMemo(
+		() => (picked ? digitallySigned(picked.bytes) : false),
 		[picked],
 	);
 	const store = useDocMarks(key, picked?.name ?? "", !picked?.password);
@@ -544,16 +577,18 @@ function MarkUpTool({ file, onOpen }: ToolProps) {
 				/>
 			)}
 			{open && doc && picked && (
-				<MarkUp
-					doc={doc}
-					name={picked.name}
-					password={picked.password}
-					store={store}
-					signed={digitallySigned(picked.bytes)}
-					protection={picked.protection}
-					onClose={() => setOpen(false)}
-					onSaved={(saved) => announceSaved(saved, onOpen)}
-				/>
+				<Suspense fallback={null}>
+					<MarkUp
+						doc={doc}
+						name={picked.name}
+						password={picked.password}
+						store={store}
+						signed={signed}
+						protection={picked.protection}
+						onClose={() => setOpen(false)}
+						onSaved={(saved) => announceSaved(saved, onOpen)}
+					/>
+				</Suspense>
 			)}
 		</>
 	);
@@ -775,7 +810,7 @@ function CompressTool({ file, onOpen }: ToolProps) {
 
 	return (
 		<>
-			<OnePdf kit={kit} />
+			<OnePdf kit={kit} disabled={running} />
 			{picked && (
 				<>
 					<Choice
@@ -888,6 +923,7 @@ function CompressTool({ file, onOpen }: ToolProps) {
 					<Button
 						variant="secondary"
 						disabled={running}
+						aria-busy={running || undefined}
 						onClick={() => go(asPictures)}
 						data-testid="compress-pictures"
 					>
@@ -925,7 +961,9 @@ function ReadTool({ file, onOpen }: ToolProps) {
 		let alive = true;
 		bytesSource(picked.bytes, picked.name)
 			.then((made) => alive && setSource(made))
-			.catch((err) => toast(unreadNote(err, picked.name)));
+			.catch((err) => {
+				if (alive) toast(unreadNote(err, picked.name));
+			});
 		return () => {
 			alive = false;
 		};
@@ -940,15 +978,17 @@ function ReadTool({ file, onOpen }: ToolProps) {
 			<FileList kit={kit} several={false} addLabel={t("Choose a file")} />
 			{kit.dialog}
 			{source && picked && (
-				<ReadText
-					source={source}
-					docKey={key}
-					onClose={() => {
-						setSource(null);
-						kit.remove(picked.key);
-					}}
-					onSaved={(saved) => announceSaved(saved, onOpen)}
-				/>
+				<Suspense fallback={null}>
+					<ReadText
+						source={source}
+						docKey={key}
+						onClose={() => {
+							setSource(null);
+							kit.remove(picked.key);
+						}}
+						onSaved={(saved) => announceSaved(saved, onOpen)}
+					/>
+				</Suspense>
 			)}
 		</>
 	);
@@ -960,7 +1000,7 @@ function MergeTool({ file, onOpen }: ToolProps) {
 	const total = kit.files.reduce((n, f) => n + (f.pages ?? 0), 0);
 	return (
 		<>
-			<FileList kit={kit} several addLabel={t("Add PDFs")} />
+			<FileList kit={kit} several addLabel={t("Add PDFs")} disabled={running} />
 			{kit.dialog}
 			<CopyNote files={kit.files} />
 			{kit.files.length < 2 && (
@@ -1043,6 +1083,7 @@ function OrganizeTool({ file, onOpen }: ToolProps) {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: reset when the selected file changes
 	useEffect(() => {
 		setOrder(null);
+		setSavedOrder(null);
 		setSelected(new Set());
 	}, [fileKey]);
 	const pages =
@@ -1081,7 +1122,7 @@ function OrganizeTool({ file, onOpen }: ToolProps) {
 	useLeaveGuard(changed && order !== savedOrder);
 	return (
 		<>
-			<OnePdf kit={kit} />
+			<OnePdf kit={kit} disabled={running} />
 			{doc && picked && (
 				<>
 					<div className={s.actions} role="toolbar" aria-label={t("Pages")}>
@@ -1183,10 +1224,7 @@ function OrganizeTool({ file, onOpen }: ToolProps) {
 				disabled={!changed}
 				running={running}
 				onClick={async () => {
-					// Counted as kept from the press (leaving while it saves
-					// does not ask), and as not kept again if the save fails.
-					const before = savedOrder;
-					setSavedOrder(order);
+					const savingOrder = order;
 					const done = await run(async () => ({
 						name: copyName(picked.name, t("organized")),
 						bytes: await buildPdf(
@@ -1195,7 +1233,7 @@ function OrganizeTool({ file, onOpen }: ToolProps) {
 						),
 						mime: PDF,
 					}));
-					if (!done) setSavedOrder(before);
+					if (done) setSavedOrder(savingOrder);
 				}}
 			/>
 		</>
@@ -1220,7 +1258,7 @@ function ExtractTool({ file, onOpen }: ToolProps) {
 	const wrongRange = !!which && !list && (touched || !unfinished);
 	return (
 		<>
-			<OnePdf kit={kit} />
+			<OnePdf kit={kit} disabled={running} />
 			{picked && (
 				<>
 					<label className={s.label} htmlFor="tool-pages-field">
@@ -1278,10 +1316,17 @@ function ExtractTool({ file, onOpen }: ToolProps) {
 								mime: PDF,
 							};
 						const [stem] = splitName(picked.name);
+						const { PDFDocument } = await import("@cantoo/pdf-lib");
+						const source = await openPdfDoc(picked.bytes, picked.password);
 						const parts: Record<string, Uint8Array> = {};
-						for (const page of list)
+						for (const page of list) {
+							const out = await PDFDocument.create();
+							const [copied] = await out.copyPages(source, [page]);
+							if (!copied) continue;
+							out.addPage(copied);
 							parts[`${stem} - ${t("page {n}", { n: page + 1 })}.pdf`] =
-								await buildPdf([picked], [{ file: 0, page }]);
+								await out.save();
+						}
 						return {
 							name: copyName(picked.name, t("pages"), ".zip"),
 							bytes: zipSync(parts, { level: 0 }),
@@ -1304,18 +1349,24 @@ async function asPageImage(
 	if (b[0] === 0x89 && b[1] === 0x50) return { bytes: b, type: "png" };
 	const bitmap = await createImageBitmap(new Blob([b as BlobPart]));
 	const canvas = document.createElement("canvas");
-	canvas.width = bitmap.width;
-	canvas.height = bitmap.height;
-	const ctx = canvas.getContext("2d");
-	if (!ctx) throw new Error("no canvas");
-	ctx.fillStyle = "#fff";
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.drawImage(bitmap, 0, 0);
-	const blob = await new Promise<Blob | null>((done) =>
-		canvas.toBlob(done, "image/jpeg", 0.92),
-	);
-	if (!blob) throw new Error("no picture");
-	return { bytes: new Uint8Array(await blob.arrayBuffer()), type: "jpg" };
+	try {
+		canvas.width = bitmap.width;
+		canvas.height = bitmap.height;
+		const ctx = canvas.getContext("2d");
+		if (!ctx) throw new Error("no canvas");
+		ctx.fillStyle = "#fff";
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+		ctx.drawImage(bitmap, 0, 0);
+		const blob = await new Promise<Blob | null>((done) =>
+			canvas.toBlob(done, "image/jpeg", 0.92),
+		);
+		if (!blob) throw new Error("no picture");
+		return { bytes: new Uint8Array(await blob.arrayBuffer()), type: "jpg" };
+	} finally {
+		bitmap.close();
+		canvas.width = 0;
+		canvas.height = 0;
+	}
 }
 
 function ImagesTool({ file, onOpen }: ToolProps) {
@@ -1326,7 +1377,12 @@ function ImagesTool({ file, onOpen }: ToolProps) {
 	const [margin, setMargin] = useState<"0" | "12" | "24">("24");
 	return (
 		<>
-			<FileList kit={kit} several addLabel={t("Add pictures")} />
+			<FileList
+				kit={kit}
+				several
+				addLabel={t("Add pictures")}
+				disabled={running}
+			/>
 			<Choice
 				label={t("Page size")}
 				value={paper}
@@ -1371,15 +1427,21 @@ function ImagesTool({ file, onOpen }: ToolProps) {
 				disabled={!kit.files.length}
 				running={running}
 				onClick={() =>
-					run(async () => ({
-						name: copyName(kit.files[0].name, t("pictures"), ".pdf"),
-						bytes: await imagesToPdf(
-							await Promise.all(kit.files.map(asPageImage)),
-							paper,
-							{ turn, margin: Number(margin) },
-						),
-						mime: PDF,
-					}))
+					run(async () => {
+						const pictures: Array<{ bytes: Uint8Array; type: "jpg" | "png" }> =
+							[];
+						for (const item of kit.files) {
+							pictures.push(await asPageImage(item));
+						}
+						return {
+							name: copyName(kit.files[0].name, t("pictures"), ".pdf"),
+							bytes: await imagesToPdf(pictures, paper, {
+								turn,
+								margin: Number(margin),
+							}),
+							mime: PDF,
+						};
+					})
 				}
 			/>
 		</>
@@ -1398,7 +1460,7 @@ function PicturesTool({ file, onOpen }: ToolProps) {
 	const list = picked ? parsePages(which || `1-${pages}`, pages) : null;
 	return (
 		<>
-			<OnePdf kit={kit} copy={false} />
+			<OnePdf kit={kit} copy={false} disabled={running} />
 			{picked && (
 				<>
 					<label className={s.label} htmlFor="tool-pictures-field">
@@ -1509,7 +1571,7 @@ function NumbersTool({ file, onOpen }: ToolProps) {
 	const first = /^\d{1,6}$/.test(start.trim()) ? Number(start) : 0;
 	return (
 		<>
-			<OnePdf kit={kit} />
+			<OnePdf kit={kit} disabled={running} />
 			{/* Two short rows, not six cramped buttons on a phone. */}
 			<Choice
 				label={t("Where")}
@@ -1619,7 +1681,7 @@ function WatermarkTool({ file, onOpen }: ToolProps) {
 	const usable = !!text.trim() && standardText(text);
 	return (
 		<>
-			<OnePdf kit={kit} />
+			<OnePdf kit={kit} disabled={running} />
 			<label className={s.label} htmlFor="tool-mark">
 				{t("Words")}
 			</label>
@@ -1753,7 +1815,7 @@ function ProtectTool({ file, onOpen }: ToolProps) {
 	];
 	return (
 		<>
-			<OnePdf kit={kit} copy={false} />
+			<OnePdf kit={kit} copy={false} disabled={running} />
 			<label className={s.label} htmlFor="tool-password">
 				{t("Password")}
 			</label>
@@ -1829,7 +1891,7 @@ function UnlockTool({ file, onOpen }: ToolProps) {
 	const { running, run, feedback } = useRun(onOpen);
 	return (
 		<>
-			<OnePdf kit={kit} copy={false} />
+			<OnePdf kit={kit} copy={false} disabled={running} />
 			<p className={s.hint}>
 				{picked && !picked.password
 					? t("This PDF has no password to remove.")

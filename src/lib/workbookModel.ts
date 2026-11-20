@@ -52,12 +52,15 @@ export interface GridCell {
 }
 
 const MAX_NOTE = 4000;
+const SAFE_LINK = /^(?:https?:|mailto:|tel:|#)/i;
 
 /** A cell's link and note, as SheetJS read them. */
 function extras(cell: CellObject): Pick<GridCell, "link" | "note"> {
 	const out: Pick<GridCell, "link" | "note"> = {};
 	const target = cell.l?.Target;
-	if (typeof target === "string" && target.trim())
+	// Only a web, mail or phone address or a place in the workbook: a
+	// `javascript:` or `file:` link is dropped, never shown to copy.
+	if (typeof target === "string" && SAFE_LINK.test(target.trim()))
 		out.link = target.trim().slice(0, 2000);
 	if (Array.isArray(cell.c) && cell.c.length) {
 		const note = cell.c

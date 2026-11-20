@@ -10,7 +10,7 @@ import {
 	IconButton,
 	Spinner,
 	StateView,
-	modalOpen,
+	ownsKeys,
 } from "@/ui";
 import { Pause, Play, Rotate3d } from "lucide-react";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -82,6 +82,7 @@ export default function ModelView({
 	const shown = onShow(active, pane);
 	const shownRef = useRef(shown);
 	shownRef.current = shown;
+	const awayResized = useRef(false);
 	const playingRef = useRef(playing);
 	playingRef.current = playing;
 
@@ -119,8 +120,20 @@ export default function ModelView({
 						: "damaged",
 				);
 			});
-		const fit = fitWhenSettled(() => model.current?.resize());
-		const watch = new ResizeObserver(fit.run);
+		const fit = fitWhenSettled(() => {
+			if (!shownRef.current) {
+				awayResized.current = true;
+				return;
+			}
+			model.current?.resize();
+		});
+		const watch = new ResizeObserver(() => {
+			if (!shownRef.current) {
+				awayResized.current = true;
+				return;
+			}
+			fit.run();
+		});
 		watch.observe(box);
 		return () => {
 			alive = false;
@@ -133,7 +146,12 @@ export default function ModelView({
 	}, [data, ok]);
 
 	useEffect(() => {
-		if (phase === "ready") model.current?.setShown(shown);
+		if (phase !== "ready") return;
+		model.current?.setShown(shown);
+		if (shown && awayResized.current) {
+			awayResized.current = false;
+			model.current?.resize();
+		}
 	}, [shown, phase]);
 	useEffect(() => {
 		if (phase === "ready") model.current?.setPlaying(playing && animated);
@@ -179,7 +197,7 @@ export default function ModelView({
 	useEffect(() => {
 		if (!active || phase !== "ready") return;
 		const onKey = (e: KeyboardEvent) => {
-			if (e.defaultPrevented || modalOpen()) return;
+			if (e.defaultPrevented || !ownsKeys()) return;
 			const at = document.activeElement;
 			if (at instanceof HTMLElement && at.matches("input, textarea, select"))
 				return;

@@ -43,7 +43,10 @@ interface Api {
 }
 
 interface Core {
-	FS: { writeFile(path: string, data: Uint8Array): void };
+	FS: {
+		writeFile(path: string, data: Uint8Array): void;
+		unlink(path: string): void;
+	};
 	TessBaseAPI: new () => Api;
 }
 
@@ -81,21 +84,41 @@ async function cleaned(picture: Uint8Array): Promise<Uint8Array> {
 		new Blob([picture as BlobPart], { type: "image/jpeg" }),
 	);
 	const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-	const context = canvas.getContext("2d", { willReadFrequently: true });
-	if (!context) throw new Error("no canvas");
-	context.drawImage(bitmap, 0, 0);
-	bitmap.close();
-	const image = context.getImageData(0, 0, canvas.width, canvas.height);
-	cleanPage(image.data, image.width, image.height);
-	context.putImageData(image, 0, 0);
-	const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.9 });
-	return new Uint8Array(await blob.arrayBuffer());
+	try {
+		const context = canvas.getContext("2d", { willReadFrequently: true });
+		if (!context) throw new Error("no canvas");
+		context.drawImage(bitmap, 0, 0);
+		const image = context.getImageData(0, 0, canvas.width, canvas.height);
+		cleanPage(image.data, image.width, image.height);
+		context.putImageData(image, 0, 0);
+		const blob = await canvas.convertToBlob({
+			type: "image/jpeg",
+			quality: 0.9,
+		});
+		return new Uint8Array(await blob.arrayBuffer());
+	} finally {
+		bitmap.close();
+		// A page's pixels are let go now, not when the worker ends.
+		canvas.width = canvas.height = 0;
+	}
 }
 
 async function read(picture: Uint8Array): Promise<string> {
 	if (!core || !api) throw new Error("not started");
 	core.FS.writeFile("/input", await cleaned(picture));
-	if (api.SetImageFile(1, 0) === 1) throw new Error("picture not read");
+	let failed: boolean;
+	try {
+		failed = api.SetImageFile(1, 0) === 1;
+	} finally {
+		// Tesseract has read the file into its own picture: the copy in
+		// its memory file system is not kept beside it for the next page.
+		try {
+			core.FS.unlink("/input");
+		} catch {
+			// Already gone.
+		}
+	}
+	if (failed) throw new Error("picture not read");
 	api.Recognize(null);
 	return api.GetTSVText(0);
 }

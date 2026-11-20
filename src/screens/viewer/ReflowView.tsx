@@ -58,8 +58,8 @@ async function extract(
 ): Promise<Result> {
 	const { format, data } = props;
 	if (format === "odt") {
-		const { parseOdt } = await import("@/lib/office/odf");
 		try {
+			const { parseOdt } = await import("@/lib/office/odf");
 			return { ok: true, doc: parseOdt(new Uint8Array(data)) };
 		} catch (err) {
 			return {
@@ -93,7 +93,15 @@ function Blocks({ blocks }: { blocks: Block[] }) {
  * legacy Word and OpenDocument text (with their formatting, tables
  * and pictures) and RTF. Honest about what is not shown. */
 export default function ReflowView(props: ViewerProps) {
-	const { name, format, position, onPosition, onClose, active } = props;
+	const {
+		name,
+		format,
+		position,
+		onPosition,
+		onClose,
+		active,
+		passwordProtected,
+	} = props;
 	const details = useOfficeDetails(props.data, format);
 	const scroller = useRef<HTMLDivElement>(null);
 	const stage = useRef<HTMLDivElement>(null);
@@ -111,10 +119,15 @@ export default function ReflowView(props: ViewerProps) {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: extract once per document
 	useEffect(() => {
 		const abort = new AbortController();
+		setResult(null);
+		setFault(null);
 		extract(props, abort.signal)
-			.then(setResult)
+			.then((r) => {
+				if (abort.signal.aborted) return;
+				setResult(r);
+			})
 			.catch((e) => {
-				if (e?.name === "AbortError") return;
+				if (abort.signal.aborted || e?.name === "AbortError") return;
 				setFault(e);
 				setResult({ ok: false, reason: "corrupt" });
 			});
@@ -209,7 +222,7 @@ export default function ReflowView(props: ViewerProps) {
 			progressOf={scroller}
 			side={side}
 			paper
-			bookmarks={doc ? marks : undefined}
+			bookmarks={doc && !passwordProtected ? marks : undefined}
 			details={details}
 			speech={doc ? speech : undefined}
 			chromeHidden={chromeHidden && !find.open}

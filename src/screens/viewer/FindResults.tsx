@@ -18,6 +18,39 @@ interface PageResult {
 
 /** Listed at most: past this the find bar's arrows reach the rest. */
 const MAX_PAGES = 100;
+/** How many uncached pages to read text from at once. */
+const TEXT_BATCH = 4;
+/** Extracted page text per document, released once the document closes. */
+const pageTextCache = new WeakMap<PDFDocumentProxy, Map<number, string>>();
+
+function docTextCache(doc: PDFDocumentProxy): Map<number, string> {
+	let map = pageTextCache.get(doc);
+	if (!map) {
+		map = new Map();
+		pageTextCache.set(doc, map);
+	}
+	return map;
+}
+
+async function readPageText(
+	doc: PDFDocumentProxy,
+	pageNumber: number,
+	cache: Map<number, string>,
+): Promise<string> {
+	const cached = cache.get(pageNumber);
+	if (cached !== undefined) return cached;
+	try {
+		const page = await doc.getPage(pageNumber);
+		const content = await page.getTextContent();
+		const text = content.items
+			.map((item) => ("str" in item ? item.str + (item.hasEOL ? " " : "") : ""))
+			.join("");
+		cache.set(pageNumber, text);
+		return text;
+	} catch {
+		return "";
+	}
+}
 
 /**
  * Every page a search found something on, with the words around the
@@ -46,15 +79,16 @@ export function FindResults({
 	const [pending, setPending] = useState(true);
 	const signature = JSON.stringify([query, matchCase, wholeWords]);
 	const first = useRef(true);
-	const texts = useRef(new Map<number, Promise<string>>());
 
 	useLayoutEffect(() => {
 		setPending(true);
 		setResults([]);
 		setPages(0);
+		let cancelled = false;
 		let run = 0;
 		let timer = 0;
 		const refresh = async () => {
+			if (cancelled) return;
 			const state = finder.state as {
 				query?: string;
 				caseSensitive?: boolean;
@@ -77,30 +111,26 @@ export function FindResults({
 					});
 			});
 			setPages(found.length);
-			const next: PageResult[] = [];
-			for (const entry of found.slice(0, MAX_PAGES)) {
-				let text = texts.current.get(entry.page);
-				if (!text) {
-					text = doc
-						.getPage(entry.page)
-						.then((page) => page.getTextContent())
-						.then((content) =>
-							content.items
-								.map((item) =>
-									"str" in item ? item.str + (item.hasEOL ? " " : "") : "",
-								)
-								.join(""),
-						);
-					texts.current.set(entry.page, text);
-				}
-				const words = await text.catch(() => "");
-				if (now !== run) return;
-				next.push({
-					page: entry.page,
-					count: entry.count,
-					...snippet(words, query, entry.at, { matchCase, wholeWords }),
-				});
+			const slice = found.slice(0, MAX_PAGES);
+			const cache = docTextCache(doc);
+			const missing = slice.filter((entry) => !cache.has(entry.page));
+			for (let i = 0; i < missing.length; i += TEXT_BATCH) {
+				if (cancelled || now !== run) return;
+				await Promise.all(
+					missing
+						.slice(i, i + TEXT_BATCH)
+						.map((entry) => readPageText(doc, entry.page, cache)),
+				);
 			}
+			if (cancelled || now !== run) return;
+			const next: PageResult[] = slice.map((entry) => ({
+				page: entry.page,
+				count: entry.count,
+				...snippet(cache.get(entry.page) ?? "", query, entry.at, {
+					matchCase,
+					wholeWords,
+				}),
+			}));
 			setResults(next);
 			setPublished(signature);
 			setPending(false);
@@ -125,6 +155,7 @@ export function FindResults({
 			soon();
 		}
 		return () => {
+			cancelled = true;
 			run++;
 			window.clearTimeout(timer);
 			bus.off("updatetextlayermatches", soon);

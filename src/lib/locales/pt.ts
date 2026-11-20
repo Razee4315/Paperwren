@@ -1362,4 +1362,6 @@ export const pt: Table = {
 	"A print job is already in progress": "Uma impressão já está em andamento",
 	"No results. Try different words or turn off search options.":
 		"Sem resultados. Tente outras palavras ou desative as opções de pesquisa.",
+	"Hide highlights": "Ocultar destaques",
+	"Show highlights": "Mostrar destaques",
 };

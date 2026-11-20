@@ -36,7 +36,7 @@ import {
 	Sheet,
 	Switch,
 	ThemePicker,
-	modalOpen,
+	ownsKeys,
 	toast,
 } from "@/ui";
 import {
@@ -232,12 +232,18 @@ function SectionList({
 }) {
 	const [current, setCurrent] = useState<SectionId>(sections[0].id);
 	const list = useRef<HTMLElement>(null);
+	// A section chosen by clicking stays highlighted during smooth travel
+	// and at the foot of the page until the reader scrolls manually.
+	const pinned = useRef<SectionId | null>(null);
+	const scrolling = useRef(false);
+	const lockTimer = useRef(0);
 	useEffect(() => {
 		const box = scroller.current;
 		if (!box) return;
 		let frame = 0;
 		const read = () => {
 			frame = 0;
+			if (scrolling.current || pinned.current !== null) return;
 			const top = box.getBoundingClientRect().top;
 			const heads = [...box.querySelectorAll<HTMLElement>("h2[data-section]")];
 			// At the foot of the page the last one is being read, however
@@ -253,15 +259,73 @@ function SectionList({
 			if (on) setCurrent(on as SectionId);
 		};
 		const onScroll = () => {
+			if (scrolling.current || pinned.current !== null) return;
 			if (!frame) frame = requestAnimationFrame(read);
+		};
+		const onScrollEnd = () => {
+			window.clearTimeout(lockTimer.current);
+			scrolling.current = false;
+		};
+		const unlockManual = () => {
+			if (!scrolling.current && pinned.current === null) return;
+			window.clearTimeout(lockTimer.current);
+			scrolling.current = false;
+			pinned.current = null;
+		};
+		const onTouchStart = (e: TouchEvent) => {
+			if (list.current?.contains(e.target as Node)) return;
+			unlockManual();
+		};
+		const onPointerDown = (e: PointerEvent) => {
+			if (list.current?.contains(e.target as Node)) return;
+			// Dragging the scroller's scrollbar, touching, or middle-click scrolling.
+			if (e.target === box || e.pointerType === "touch" || e.button === 1) {
+				unlockManual();
+			}
+		};
+		const onKeyDown = (e: KeyboardEvent) => {
+			if (!ownsKeys()) return;
+			if (
+				e.key !== "ArrowUp" &&
+				e.key !== "ArrowDown" &&
+				e.key !== "PageUp" &&
+				e.key !== "PageDown" &&
+				e.key !== "Home" &&
+				e.key !== "End" &&
+				e.key !== " "
+			) {
+				return;
+			}
+			const target = e.target as HTMLElement | null;
+			if (target?.closest("input, textarea, select")) return;
+			if (
+				e.key === " " &&
+				target?.closest(
+					"button, [role='button'], [role='switch'], [role='radio']",
+				)
+			) {
+				return;
+			}
+			unlockManual();
 		};
 		// The first section is the one on show; read the page once it is
 		// drawn, rather than making the browser lay it out early for this.
 		onScroll();
 		box.addEventListener("scroll", onScroll, { passive: true });
+		box.addEventListener("scrollend", onScrollEnd);
+		box.addEventListener("wheel", unlockManual, { passive: true });
+		box.addEventListener("touchstart", onTouchStart, { passive: true });
+		box.addEventListener("pointerdown", onPointerDown, { passive: true });
+		window.addEventListener("keydown", onKeyDown);
 		return () => {
 			cancelAnimationFrame(frame);
+			window.clearTimeout(lockTimer.current);
 			box.removeEventListener("scroll", onScroll);
+			box.removeEventListener("scrollend", onScrollEnd);
+			box.removeEventListener("wheel", unlockManual);
+			box.removeEventListener("touchstart", onTouchStart);
+			box.removeEventListener("pointerdown", onPointerDown);
+			window.removeEventListener("keydown", onKeyDown);
 		};
 	}, [scroller]);
 	// The chip being read stays in view in the row.
@@ -276,12 +340,20 @@ function SectionList({
 	}, [current]);
 	const go = (id: SectionId) => {
 		setCurrent(id);
-		const calm = window.matchMedia?.(
-			"(prefers-reduced-motion: reduce)",
-		).matches;
+		pinned.current = id;
+		window.clearTimeout(lockTimer.current);
+		const behavior = scrollBehavior();
+		if (behavior === "smooth") {
+			scrolling.current = true;
+			lockTimer.current = window.setTimeout(() => {
+				scrolling.current = false;
+			}, 800);
+		} else {
+			scrolling.current = false;
+		}
 		document.getElementById(`settings-${id}`)?.scrollIntoView({
 			block: "start",
-			behavior: calm ? "auto" : "smooth",
+			behavior,
 		});
 	};
 	return (
@@ -334,7 +406,7 @@ export function SettingsScreen() {
 	useEffect(() => {
 		if (!isDesktop) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (e.key !== "Escape" || e.defaultPrevented || modalOpen()) return;
+			if (e.key !== "Escape" || e.defaultPrevented || !ownsKeys()) return;
 			e.preventDefault();
 			back();
 		};

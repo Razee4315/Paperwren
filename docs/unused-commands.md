@@ -64,8 +64,31 @@ handler and require no added capability.
 | --- | --- | --- |
 | `core:default` | `core:event:allow-listen`, `core:event:allow-unlisten` | `src/lib/backend.ts:1077,1080,1086` non-Android fallback handoff and cleanup; native drop helper at `:974`. Kept conservatively: Android normally takes the intent bridge and skips the open-file listener, but the same capability covers iOS and fallback branches. |
 | `dialog:allow-open` | unchanged | `src/lib/backend.ts:943,957,1012`, fallback system pickers when the Android bridge is unavailable, also iOS. |
-| scoped `fs:default` | scoped `fs:allow-read-file` | `src/lib/backend.ts:1255`; explicit paths remain `content://**`, `$APPDATA/imports/**`, `$APPDATA/imports/*`. Implicit default access to other app directories and mkdir/read helpers is removed. |
+| scoped `fs:default` | scoped `fs:allow-read-file` | `src/lib/backend.ts:1286`; explicit paths are `content://**`, `$APPDATA/imports/**`, `$APPDATA/imports/*`, `$APPDATA/files/imports/**`, `$APPDATA/files/imports/*`. Implicit default access to other app directories and mkdir/read helpers is removed. See "Android managed copies" below for the `files/` paths. |
 | `fs:default` nested deny rules | `fs:deny-webview-data-linux`, `fs:deny-webview-data-windows` | Preserve inherited denies exactly; platform restrictions make them inert on Android/iOS. |
+
+### Android managed copies
+
+On Android, Tauri's `$APPDATA` (`app_data_dir()`, from `PathPlugin.kt`) is the
+activity's `dataDir`, `/data/user/0/app.paperwren.docs`. `MainActivity.kt`
+writes managed copies to `File(filesDir, "imports")`, and `filesDir` is
+`<dataDir>/files`. So the copies are at `$APPDATA/files/imports/<hash>/<name>`,
+the same folder `imports_dir` in `src-tauri/src/lib.rs` uses for Android.
+
+The first narrowed scope allowed only `$APPDATA/imports/**`. That denies every
+Android managed copy, and only in a packaged build: Recent files from "Open
+with" and older picks would fail to open. `$APPDATA/files/imports/**` and
+`$APPDATA/files/imports/*` are added. `$APPDATA/imports/**` stays for older
+layouts and iOS. No other app-private folder is readable.
+
+The read is `readFile` at `src/lib/backend.ts:1286`. Check on a phone with a
+CI build: open a PDF from another app (WhatsApp, Gmail), close the app,
+reopen it from Recent files, and check logcat for a denied fs scope.
+
+Since this change, a file picked with "Open file" is opened where it is, as a
+`content://` document, when Android lets the app keep access to it
+(`keepDocument`, `src/lib/backend.ts:923`). That read uses the existing
+`content://**` scope. No permission is added.
 
 All other inherited core grants are removed. No updater/process plugins are
 registered on mobile. Android's picker, folder, print, save and other extras use
@@ -75,15 +98,16 @@ calls. Native mobile bridge and platform configuration are untouched.
 
 ## Custom commands and direct Rust calls
 
-The 14 app commands registered at `src-tauri/src/lib.rs:390` stay exactly as
-before. There is no app ACL manifest; Tauri 2.7.4 macro code explicitly keeps all
-app handlers when no app manifest exists. No build.rs change is needed.
+The 16 app commands registered at `src-tauri/src/lib.rs` stay unrestricted by
+plugin ACLs. There is no app ACL manifest; Tauri 2.7.4 macro code explicitly
+keeps all app handlers when no app manifest exists. No build.rs change is needed.
 
 | Registered command | Frontend call |
 | --- | --- |
 | `store_get`, `store_set` | `src/lib/backend.ts:1271,1272` |
 | `imports_stats`, `imports_clear`, `imports_remove`, `imports_prune` | `src/lib/backend.ts:1273,1274,1276,1279` |
 | `list_folder` | `src/lib/backend.ts:856` |
+| `read_file_range`, `file_size` | `src/lib/pdfRange.ts:84,90` |
 | `launch_files` | `src/lib/backend.ts:1062` |
 | `open_external`, `reveal_in_folder` | `src/lib/backend.ts:1165,1168` |
 | `rename_file`, `save_as` | `src/lib/backend.ts:1210,1195` |

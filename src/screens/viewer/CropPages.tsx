@@ -20,6 +20,7 @@ import {
 import { copyName } from "@/lib/fileName";
 import { msg, t } from "@/lib/i18n";
 import { type Protection, cropCopy } from "@/lib/pdfTools";
+import { useLeaveGuard } from "@/state/leave";
 import { Button, Dialog, IconButton, Spinner, Switch, toast } from "@/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
@@ -203,12 +204,22 @@ export function CropPages({
 	onClose: () => void;
 }) {
 	const [saving, setSaving] = useState(false);
+	const savingRef = useRef(false);
+	const alive = useRef(true);
+	useEffect(() => {
+		alive.current = true;
+		return () => {
+			alive.current = false;
+		};
+	}, []);
 	const [askSigned, setAskSigned] = useState(false);
+	const [leaving, setLeaving] = useState<{ go: () => void } | null>(null);
 	const total = doc.numPages;
 	const [n, setN] = useState(() => clamp(page, 1, total));
-	const [draft, setDraft] = useState<CropChoice>(
-		() => choice ?? { auto: true },
-	);
+	const [initial] = useState<CropChoice>(() => choice ?? { auto: true });
+	const [draft, setDraft] = useState<CropChoice>(initial);
+	const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
+	useLeaveGuard(dirty, (go) => setLeaving({ go }));
 	const [scope, setScope] = useState<CropScope>("all");
 	const [drawn, setDrawn] = useState<Drawn | null>(null);
 	const [rect, setRect] = useState<Rect | null>(null);
@@ -283,6 +294,8 @@ export function CropPages({
 	};
 
 	const save = async () => {
+		if (savingRef.current) return;
+		savingRef.current = true;
 		setSaving(true);
 		try {
 			let auto = autos.current.get(!!draft.bare);
@@ -293,6 +306,7 @@ export function CropPages({
 			const found = draft.auto ? await auto : null;
 			const boxes: Array<Box | null> = [];
 			for (let n = 1; n <= total; n++) {
+				if (!alive.current) return;
 				const share = boxByHand(draft, n);
 				boxes.push(
 					share
@@ -302,20 +316,24 @@ export function CropPages({
 							: null,
 				);
 			}
+			if (!alive.current) return;
 			const bytes = await cropCopy(await doc.getData(), boxes, { password });
+			if (!alive.current) return;
 			const saved = await backend.saveFile(
 				copyName(name, t("cropped")),
 				bytes,
 				"application/pdf",
 			);
+			if (!alive.current) return;
 			if (saved) {
 				onClose();
 				onSaved(saved);
 			}
 		} catch {
-			toast(t("Couldn't save a copy"));
+			if (alive.current) toast(t("Couldn't save a copy"));
 		} finally {
-			setSaving(false);
+			savingRef.current = false;
+			if (alive.current) setSaving(false);
 		}
 	};
 
@@ -330,7 +348,9 @@ export function CropPages({
 				fullScreen
 				title={t("Crop pages")}
 				onClose={() => {
-					if (!saving) onClose();
+					if (savingRef.current) return;
+					if (dirty) setLeaving({ go: onClose });
+					else onClose();
 				}}
 				testId="crop-pages"
 				actions={
@@ -360,6 +380,7 @@ export function CropPages({
 							<Button
 								variant="secondary"
 								disabled={!ready || saving}
+								aria-busy={saving || undefined}
 								onClick={() =>
 									signed || protection ? setAskSigned(true) : void save()
 								}
@@ -509,6 +530,33 @@ export function CropPages({
 				}
 			>
 				<CopyWarnings signed={signed} protection={protection} />
+			</Dialog>
+			<Dialog
+				open={leaving !== null}
+				title={t("Leave without saving?")}
+				onClose={() => setLeaving(null)}
+				alert
+				testId="crop-leave"
+				actions={
+					<>
+						<Button variant="ghost" onClick={() => setLeaving(null)}>
+							{t("Keep editing")}
+						</Button>
+						<Button
+							variant="danger"
+							onClick={() => {
+								const go = leaving?.go;
+								setLeaving(null);
+								go?.();
+							}}
+							data-testid="crop-leave-discard"
+						>
+							{t("Discard")}
+						</Button>
+					</>
+				}
+			>
+				{t("What you added is lost unless you save a copy.")}
 			</Dialog>
 		</>
 	);

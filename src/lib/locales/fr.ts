@@ -1375,4 +1375,6 @@ export const fr: Table = {
 	"A print job is already in progress": "Une impression est déjà en cours",
 	"No results. Try different words or turn off search options.":
 		"Aucun résultat. Essayez d’autres mots ou désactivez les options de recherche.",
+	"Hide highlights": "Masquer les surlignages",
+	"Show highlights": "Afficher les surlignages",
 };

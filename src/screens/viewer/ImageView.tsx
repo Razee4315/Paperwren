@@ -9,10 +9,9 @@ import { idForReopen } from "@/lib/recents";
 import { hintFor } from "@/lib/shortcuts";
 import { picturesAround } from "@/lib/siblings";
 import type { OpenRequest } from "@/lib/types";
-import { ReadText } from "@/screens/tools/ReadText";
 import { type ReadSource, pictureSource } from "@/screens/tools/readSource";
 import { announceSaved } from "@/screens/tools/saved";
-import { useSettings } from "@/state/settings";
+import { useSettingsOf } from "@/state/settings";
 import {
 	Button,
 	ErrorArt,
@@ -34,6 +33,8 @@ import {
 	ScanText,
 } from "lucide-react";
 import {
+	Suspense,
+	lazy,
 	useContext,
 	useEffect,
 	useLayoutEffect,
@@ -52,8 +53,13 @@ import {
 	shellStyles,
 } from "./Shell";
 import { useZoom, useZoomLevel } from "./hooks";
+import { PaneContext, onShow } from "./pane";
 import { pageFileName, savePicture } from "./savePicture";
 import type { ViewerProps } from "./types";
+
+const ReadText = lazy(() =>
+	import("@/screens/tools/ReadText").then((m) => ({ default: m.ReadText })),
+);
 
 const ZOOM_LEVELS = [25, 50, 100, 200, 400];
 /** A swipe this long, mostly sideways, turns to the next picture. */
@@ -105,8 +111,14 @@ export default function ImageView({
 	onPosition,
 	onClose,
 	active,
+	passwordProtected,
 }: ViewerProps) {
-	const { settings } = useSettings();
+	const settings = useSettingsOf("rememberPosition", "tapToTurn");
+	const visible = onShow(active, useContext(PaneContext));
+	const visibleRef = useRef(visible);
+	visibleRef.current = visible;
+	const awayResized = useRef(false);
+	const remeasure = useRef(() => {});
 	const scroller = useRef<HTMLDivElement>(null);
 	const stage = useRef<HTMLDivElement>(null);
 	const frame = useRef<HTMLDivElement>(null);
@@ -131,10 +143,16 @@ export default function ImageView({
 	useEffect(() => {
 		let alive = true;
 		setPictures(null);
+		setFailed(null);
+		setFault(null);
+		setUrl(null);
 		readPictures(data, format)
 			.then((found) => {
 				if (!alive) return;
-				if (!found.count) setFailed("damaged");
+				if (!found.count) {
+					setFailed("damaged");
+					return;
+				}
 				setPictures(found);
 			})
 			.catch((err) => {
@@ -232,8 +250,13 @@ export default function ImageView({
 		const el = scroller.current;
 		if (!el || !wide || !tall) return;
 		const measure = () => {
-			// A tab not on show has no size: nothing to fit to.
+			// A tab not on show has no size, or is kept behind another:
+			// refitting waits until it is shown.
 			if (!el.clientWidth || !el.clientHeight) return;
+			if (!visibleRef.current) {
+				awayResized.current = true;
+				return;
+			}
 			setFit(
 				Math.min(
 					1,
@@ -243,14 +266,27 @@ export default function ImageView({
 			);
 		};
 		measure();
+		remeasure.current = measure;
 		const fit = fitWhenSettled(measure);
-		const ro = new ResizeObserver(fit.run);
+		const ro = new ResizeObserver(() => {
+			if (!visibleRef.current) {
+				awayResized.current = true;
+				return;
+			}
+			fit.run();
+		});
 		ro.observe(el);
 		return () => {
 			ro.disconnect();
 			fit.stop();
+			remeasure.current = () => {};
 		};
 	}, [wide, tall]);
+	useLayoutEffect(() => {
+		if (!visible || !awayResized.current) return;
+		awayResized.current = false;
+		remeasure.current();
+	}, [visible]);
 
 	// --- several pictures: turned like pages ---
 	const goTo = (n: number) => {
@@ -416,7 +452,7 @@ export default function ImageView({
 			chromeHidden={chromeHidden}
 			onStep={several || stepping ? step : undefined}
 			details={details}
-			bookmarks={marks}
+			bookmarks={passwordProtected ? undefined : marks}
 			menu={
 				size
 					? (close) => (
@@ -575,19 +611,23 @@ export default function ImageView({
 								root.appendChild(page);
 								return page;
 							};
+							const release = (img: HTMLImageElement, src: string) => {
+								const revoke = () => URL.revokeObjectURL(src);
+								img.onload = revoke;
+								img.onerror = revoke;
+							};
 							if (several) {
 								for (let i = 0; i < count; i++) {
 									const src = URL.createObjectURL(await pictures.page(i));
-									add(src).onload = () => URL.revokeObjectURL(src);
+									release(add(src), src);
 								}
 								return;
 							}
 							const showing = picture.current;
 							if ((turn || flipX || flipY) && showing) {
 								const made = await posed(showing, pose);
-								add(made).onload = () => {
-									if (made !== url) URL.revokeObjectURL(made);
-								};
+								const img = add(made);
+								if (made !== url) release(img, made);
 							} else add(url);
 						}
 					: undefined
@@ -712,11 +752,13 @@ export default function ImageView({
 				</span>
 			)}
 			{reading && (
-				<ReadText
-					source={reading}
-					onClose={() => setReading(null)}
-					onSaved={(saved) => announceSaved(saved, context?.openOver)}
-				/>
+				<Suspense fallback={null}>
+					<ReadText
+						source={reading}
+						onClose={() => setReading(null)}
+						onSaved={(saved) => announceSaved(saved, context?.openOver)}
+					/>
+				</Suspense>
 			)}
 		</Shell>
 	);

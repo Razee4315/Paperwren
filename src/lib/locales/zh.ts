@@ -1252,4 +1252,6 @@ export const zh: Table = {
 	"A print job is already in progress": "已有打印任务正在进行",
 	"No results. Try different words or turn off search options.":
 		"没有结果。请尝试其他词语或关闭搜索选项。",
+	"Hide highlights": "隐藏高亮",
+	"Show highlights": "显示高亮",
 };

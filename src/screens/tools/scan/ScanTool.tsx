@@ -5,7 +5,7 @@ import { t, tn } from "@/lib/i18n";
 import { SCAN_MARK, scansToPdf } from "@/lib/pdfTools";
 import { findPage, warmUp } from "@/lib/scan/detect";
 import { scaleQuad } from "@/lib/scan/geometry";
-import { ScanJob, decodePhoto, photoScale } from "@/lib/scan/job";
+import { type Photo, ScanJob, decodePhoto, photoScale } from "@/lib/scan/job";
 import type { OpenRequest } from "@/lib/types";
 import { useLeaveGuard } from "@/state/leave";
 import { Button, IconButton, Switch, toast } from "@/ui";
@@ -192,27 +192,38 @@ export function ScanTool({
 			for (const page of added) {
 				queue.current = queue.current.then(async () => {
 					if (!alive.current) return;
+					let photo: Photo | null = null;
+					let handed = false;
 					try {
-						const photo = await decodePhoto(page.source);
-						if (!alive.current) {
-							photo.bitmap.close();
-							return;
-						}
+						photo = await decodePhoto(page.source);
+						const scale = photoScale(photo);
+						// Batch scans never show the editor canvas.
+						photo.view.width = 0;
+						photo.view.height = 0;
+						if (!alive.current) return;
 						const found = await findPage(photo.find);
-						if (!alive.current) {
-							photo.bitmap.close();
-							return;
-						}
+						photo.find.width = 0;
+						photo.find.height = 0;
+						if (!alive.current) return;
 						const setup: PageSetup = {
-							quad: scaleQuad(found.quad, photoScale(photo).find),
+							quad: scaleQuad(found.quad, scale.find),
 							quarters: 0,
 							look: "clean",
 						};
 						update(page.key, () => setup);
+						handed = true;
 						// Made now, not queued: only one photo is held at a time.
 						await renderNow(page.key, 1, new ScanJob(photo.bitmap), setup);
 					} catch {
 						update(page.key, () => ({ state: "failed" }));
+					} finally {
+						if (photo) {
+							if (!handed) photo.bitmap.close();
+							photo.view.width = 0;
+							photo.view.height = 0;
+							photo.find.width = 0;
+							photo.find.height = 0;
+						}
 					}
 				});
 			}
@@ -239,7 +250,9 @@ export function ScanTool({
 			.then((bytes) => {
 				if (alive.current) setEditing({ source: new Blob([bytes]) });
 			})
-			.catch((err) => toast(unreadNote(err, file.name)));
+			.catch((err) => {
+				if (alive.current) toast(unreadNote(err, file.name));
+			});
 	}, [file]);
 
 	useEffect(() => {
@@ -310,12 +323,9 @@ export function ScanTool({
 	useLeaveGuard(pages.length > 0 && pages !== savedPages);
 
 	const save = async () => {
-		const before = savedPages;
-		setSavedPages(pagesRef.current);
 		const done = await make();
-		// The pages as saved (those still being made have finished since),
-		// or as not kept if the save failed.
-		setSavedPages(done ? pagesRef.current : before);
+		// Mark saved only once the PDF has actually been saved.
+		if (done && alive.current) setSavedPages(pagesRef.current);
 	};
 	const make = () =>
 		run(async () => {

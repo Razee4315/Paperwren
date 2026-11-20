@@ -11,7 +11,10 @@
 	background: var(--canvas);
 	color: var(--text);
 	outline: none;
-	animation: pw-fade-in var(--t-med) var(--ease);
+	animation: pw-screen-in var(--t-med) var(--ease);
+}
+:global(html.desktop) .screen {
+	animation: pw-fade-in var(--t-fast) var(--ease);
 }
 .bar {
 	display: flex;
@@ -483,4 +486,17 @@
 	width: 100%;
 	text-align: start;
 	user-select: text;
+}
+
+@media (forced-colors: active) {
+	.lineBox[data-lit] {
+		outline: 2px solid Highlight;
+	}
+	.line[data-lit] {
+		forced-color-adjust: none;
+		background: Highlight;
+		color: HighlightText;
+		outline: 2px solid ButtonText;
+		outline-offset: -2px;
+	}
 }

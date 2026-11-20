@@ -173,6 +173,15 @@ export function MarkUp({
 	const editor = useRef<HTMLDivElement>(null);
 	const textOf = useRef(new Map<number, Promise<TextLine[]>>());
 	const lines = useRef<TextLine[]>([]);
+	const alive = useRef(true);
+	const savingRef = useRef(false);
+
+	useEffect(() => {
+		alive.current = true;
+		return () => {
+			alive.current = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		let alive = true;
@@ -337,12 +346,14 @@ export function MarkUp({
 			stroke.current = { kind: "line", page, from: at, to: at };
 		} else {
 			stroke.current = { kind: "text", page, from: at, to: at };
-			readLines(page).then((found) => {
-				if (stroke.current?.page === page) {
-					lines.current = found;
-					showLive();
-				}
-			});
+			readLines(page)
+				.then((found) => {
+					if (alive.current && stroke.current?.page === page) {
+						lines.current = found;
+						showLive();
+					}
+				})
+				.catch(() => {});
 			lines.current = [];
 		}
 		showLive();
@@ -439,7 +450,14 @@ export function MarkUp({
 		if (tool !== "highlight" && tool !== "underline" && tool !== "strike")
 			return;
 		// A quick first drag can end before the page's text has been read.
-		const picked = textBetween(await readLines(now.page), now.from, now.to);
+		let pageLines: TextLine[];
+		try {
+			pageLines = await readLines(now.page);
+		} catch {
+			return;
+		}
+		if (!alive.current) return;
+		const picked = textBetween(pageLines, now.from, now.to);
 		if (!picked) {
 			toast(t("There's no text to mark here. Use the pen or marker instead."));
 			return;
@@ -545,6 +563,8 @@ export function MarkUp({
 	};
 
 	const save = async () => {
+		if (savingRef.current) return;
+		savingRef.current = true;
 		setSaving("busy");
 		try {
 			const pictures: Array<TextPicture | undefined> = [];
@@ -560,11 +580,13 @@ export function MarkUp({
 				pictures,
 				labels: items.filter((i) => i.kind === "measure").map(labelFor),
 			});
+			if (!alive.current) return;
 			const saved = await backend.saveFile(
 				copyName(name, t("marked up")),
 				bytes,
 				"application/pdf",
 			);
+			if (!alive.current) return;
 			if (!saved) {
 				setSaving("ask");
 				return;
@@ -573,12 +595,15 @@ export function MarkUp({
 			onSaved?.(saved);
 			onClose();
 		} catch (err) {
+			if (!alive.current) return;
 			setSaving("ask");
 			toast(
 				err instanceof ToolError && err.reason === "password"
 					? t("This PDF's password is needed to save a copy")
 					: t("Couldn't save a copy"),
 			);
+		} finally {
+			savingRef.current = false;
 		}
 	};
 
@@ -717,6 +742,7 @@ export function MarkUp({
 					variant="secondary"
 					onClick={() => setSaving("ask")}
 					disabled={!items.length || saving === "busy"}
+					aria-busy={saving === "busy" || undefined}
 					data-testid="mark-save"
 				>
 					{t("Save a copy")}
@@ -1040,6 +1066,7 @@ export function MarkUp({
 							<Button
 								onClick={save}
 								disabled={saving === "busy"}
+								aria-busy={saving === "busy" || undefined}
 								data-testid="mark-save-go"
 							>
 								{saving === "busy" ? t("Saving…") : t("Save")}

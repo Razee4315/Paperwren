@@ -5,7 +5,6 @@
  * terminating the worker cancels the work.
  */
 
-import * as XLSX from "xlsx";
 import { type PackedCells, packCells } from "./cellPack";
 import { decryptPackage } from "./office/crypto";
 import { textDeck } from "./office/deck";
@@ -14,6 +13,7 @@ import { extractDoc, extractPpt } from "./office/legacy";
 import type { Extracted } from "./office/model";
 import { type RawDeck, parsePpt } from "./office/ppt";
 import { extractRtf } from "./office/rtf";
+import { validateZip } from "./safeZip";
 import { readXlsxStyles } from "./sheetStyles";
 import {
 	type GridSheet,
@@ -49,7 +49,13 @@ export type DeckResult =
 	| { ok: true; deck: RawDeck; textOnly: boolean }
 	| { ok: false; reason: "corrupt" | "password" };
 
-function cfbLookup(buffer: ArrayBuffer) {
+/** SheetJS, fetched only by the jobs that need it: an RTF never loads
+ * it. The legacy readers and unlocking use its CFB reader; workbooks
+ * use the whole of it. */
+const loadXlsx = () => import("xlsx");
+
+async function cfbLookup(buffer: ArrayBuffer) {
+	const XLSX = await loadXlsx();
 	const cfb = XLSX.CFB.read(new Uint8Array(buffer), { type: "array" });
 	return (name: string): Uint8Array | null => {
 		const entry = XLSX.CFB.find(cfb, name);
@@ -75,7 +81,7 @@ function withFallback<T>(rich: () => T, plain: () => T): T {
 
 async function unlock(buffer: ArrayBuffer, password: string) {
 	try {
-		const data = await decryptPackage(cfbLookup(buffer), password);
+		const data = await decryptPackage(await cfbLookup(buffer), password);
 		// A copy sized to the file: the plain bytes sit inside a larger buffer.
 		const out = data.slice().buffer as ArrayBuffer;
 		(self as unknown as Worker).postMessage(
@@ -94,7 +100,11 @@ async function unlock(buffer: ArrayBuffer, password: string) {
 	}
 }
 
-self.onmessage = (event: MessageEvent<WorkerRequest>) => {
+/** A ZIP-based workbook (xlsx, xlsm, ods): it starts "PK". */
+const isZip = (bytes: Uint8Array) =>
+	bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+
+self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 	const msg = event.data;
 	if (msg.type === "decrypt") {
 		unlock(msg.buffer, msg.password);
@@ -102,11 +112,14 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 	}
 	try {
 		if (msg.type === "workbook") {
-			const styles =
-				typeof msg.buffer === "string"
-					? null
-					: readXlsxStyles(new Uint8Array(msg.buffer));
-			const result = parseWorkbook(XLSX, msg.buffer, styles);
+			const bytes =
+				typeof msg.buffer === "string" ? null : new Uint8Array(msg.buffer);
+			// SheetJS unzips every part itself, with no limit of its own:
+			// refuse a bomb before it starts. CSV text and an old binary
+			// .xls are not archives.
+			if (bytes && isZip(bytes)) validateZip(bytes);
+			const styles = bytes ? readXlsxStyles(bytes) : null;
+			const result = parseWorkbook(await loadXlsx(), msg.buffer, styles);
 			if (!result.ok) {
 				self.postMessage(result satisfies PackedParseResult);
 				return;
@@ -131,7 +144,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 				doc: extractRtf(new Uint8Array(msg.buffer)),
 			} satisfies DocResult);
 		} else if (msg.type === "doc") {
-			const lookup = cfbLookup(msg.buffer);
+			const lookup = await cfbLookup(msg.buffer);
 			self.postMessage({
 				ok: true,
 				doc: withFallback<Extracted>(
@@ -140,7 +153,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 				),
 			} satisfies DocResult);
 		} else {
-			const lookup = cfbLookup(msg.buffer);
+			const lookup = await cfbLookup(msg.buffer);
 			let textOnly = false;
 			const deck = withFallback(
 				() => parsePpt(lookup),

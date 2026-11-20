@@ -15,7 +15,7 @@ import { hintFor } from "@/lib/shortcuts";
 import { ENCODINGS, decodeText } from "@/lib/text";
 import { textBlocks } from "@/lib/textBlocks";
 import { prettyXml } from "@/lib/xml";
-import { useSettings } from "@/state/settings";
+import { useSetting, useUpdateSetting } from "@/state/settings";
 import { Button, IconButton, Sheet, SheetItem } from "@/ui";
 import DOMPurify from "dompurify";
 import {
@@ -76,6 +76,54 @@ const BLOCKED_MIN = 150_000;
 /** Its line height, as Text.module.css sets it. */
 const LINE_PX = 14 * 1.6;
 
+/** Only classes produced by marked/markdownMath are kept on Markdown HTML. */
+const SAFE_MD_CLASS = /^(?:pw-math|language-[\w+-]+)$/;
+/** Tags forbidden in Markdown HTML; KaTeX runs after sanitization in
+ * drawMaths(), so untrusted <svg> and <math> from Markdown are dropped. */
+const FORBID_MD_TAGS = [
+	"style",
+	"script",
+	"iframe",
+	"form",
+	"object",
+	"embed",
+	"map",
+	"area",
+	"input",
+	"button",
+	"select",
+	"textarea",
+	"link",
+	"meta",
+	"base",
+	"audio",
+	"video",
+	"source",
+	"canvas",
+	"svg",
+	"math",
+];
+
+function sanitizeMarkdownHtml(raw: string): string {
+	DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
+		if (data.attrName !== "class") return;
+		const kept = data.attrValue
+			.split(/\s+/)
+			.filter((name) => SAFE_MD_CLASS.test(name))
+			.join(" ");
+		if (kept) data.attrValue = kept;
+		else data.keepAttr = false;
+	});
+	try {
+		return DOMPurify.sanitize(raw, {
+			FORBID_TAGS: FORBID_MD_TAGS,
+			FORBID_ATTR: ["style", "id"],
+		});
+	} finally {
+		DOMPurify.removeHook("uponSanitizeAttribute");
+	}
+}
+
 export default function TextView({
 	data,
 	name,
@@ -84,8 +132,10 @@ export default function TextView({
 	onPosition,
 	onClose,
 	active,
+	passwordProtected,
 }: ViewerProps) {
-	const { settings, update } = useSettings();
+	const wrap = useSetting("wrapText");
+	const update = useUpdateSetting();
 	const scroller = useRef<HTMLDivElement>(null);
 	const stage = useRef<HTMLDivElement>(null);
 	const hud = useRef<HTMLDivElement>(null);
@@ -132,13 +182,9 @@ export default function TextView({
 	const html = useMemo(() => {
 		if (format !== "md" || source) return null;
 		// File content is untrusted: sanitize before it reaches the DOM.
-		return DOMPurify.sanitize(
+		return sanitizeMarkdownHtml(
 			// Markdown as GitHub reads it, with maths in TeX.
 			markdownFor(text).parse(text, { async: false }) as string,
-			{
-				FORBID_TAGS: ["style", "script", "iframe", "form", "object", "embed"],
-				FORBID_ATTR: ["style"],
-			},
 		);
 	}, [format, text, source]);
 
@@ -188,7 +234,7 @@ export default function TextView({
 		paper: () => content.current?.firstElementChild as HTMLElement | null,
 		on: sideways && canTurn,
 		zoom,
-		relayout: `${html?.length}|${code?.length}|${lines?.length}|${shown.length}|${settings.wrapText}|${source}`,
+		relayout: `${html?.length}|${code?.length}|${lines?.length}|${shown.length}|${wrap}|${source}`,
 	});
 	const turnPage = paged.pages ? paged.turn : undefined;
 	// Plain text that is long, in blocks the browser may skip while they
@@ -202,9 +248,9 @@ export default function TextView({
 			code === null &&
 			!sideways &&
 			shown.length > BLOCKED_MIN
-				? textBlocks(shown, settings.wrapText)
+				? textBlocks(shown, wrap)
 				: null,
-		[html, treeShown, lines, code, sideways, shown, settings.wrapText],
+		[html, treeShown, lines, code, sideways, shown, wrap],
 	);
 	const tapTurn = useTapToTurn(scroller, turnPage);
 	const canNumber = useMemo(() => {
@@ -258,7 +304,6 @@ export default function TextView({
 		[html, headings],
 	);
 
-	const wrap = settings.wrapText;
 	// Text is drawn in the app's own colours; a page colour of its own
 	// lends it those of the theme that has it.
 	const paper = usePageColor();
@@ -272,7 +317,7 @@ export default function TextView({
 			progressOf={scroller}
 			paper
 			side={side}
-			bookmarks={marks}
+			bookmarks={passwordProtected ? undefined : marks}
 			speech={speech}
 			chromeHidden={chromeHidden && !find.open}
 			onFind={startFind}

@@ -298,7 +298,9 @@ export class OcrReader {
 	}
 
 	/** Tesseract's table of what a picture says. `onProgress` hears how
-	 * far through it is, from 0 to 1. */
+	 * far through it is, from 0 to 1. The picture's bytes are handed to
+	 * the worker, not copied: `picture` is empty afterwards when it was
+	 * the whole of its buffer. */
 	async read(
 		picture: Uint8Array,
 		onProgress?: (share: number) => void,
@@ -311,8 +313,15 @@ export class OcrReader {
 		this.watcher = onProgress ?? null;
 		return new Promise((done, fail) => {
 			this.waiting.set(id, { done, fail });
-			const message: OcrRequest = { kind: "read", id, picture };
-			worker.postMessage(message);
+			// A view into a larger buffer is cut out first: handing that
+			// buffer over would empty whatever else it holds.
+			const own =
+				picture.byteOffset !== 0 ||
+				picture.byteLength !== picture.buffer.byteLength
+					? picture.slice()
+					: picture;
+			const message: OcrRequest = { kind: "read", id, picture: own };
+			worker.postMessage(message, [own.buffer as ArrayBuffer]);
 		});
 	}
 

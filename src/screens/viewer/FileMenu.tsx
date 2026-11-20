@@ -13,6 +13,7 @@ import {
 	SheetItem,
 	SheetTile,
 	SheetTiles,
+	ownsKeys,
 	toast,
 } from "@/ui";
 import {
@@ -107,6 +108,7 @@ export function FileMenu({
 		// With nothing to print the shortcut is left alone.
 		if (!active || !printable) return;
 		const onKey = (e: KeyboardEvent) => {
+			if (!ownsKeys()) return;
 			if (matches(e, "print")) {
 				e.preventDefault();
 				printRef.current();

@@ -66,12 +66,17 @@ export function NotesScreen() {
 	const [open, setOpen] = useState<Note | null>(null);
 	const [menu, setMenu] = useState(false);
 	const [offerRestore, setOfferRestore] = useState(false);
+	const alive = useRef(true);
 
 	useEffect(() => {
-		let alive = true;
-		loadNotes().then((list) => alive && setNotes(list));
+		alive.current = true;
+		loadNotes()
+			.then((list) => {
+				if (alive.current) setNotes(list);
+			})
+			.catch(() => {});
 		return () => {
-			alive = false;
+			alive.current = false;
 		};
 	}, []);
 
@@ -98,9 +103,9 @@ export function NotesScreen() {
 				await backupNotes(),
 				"application/json",
 			);
-			if (saved) announceSaved(saved);
+			if (saved && alive.current) announceSaved(saved);
 		} catch {
-			toast(t("Couldn't save a copy"));
+			if (alive.current) toast(t("Couldn't save a copy"));
 		}
 	};
 
@@ -109,16 +114,19 @@ export function NotesScreen() {
 		setOfferRestore(false);
 		try {
 			const picked = await backend.pickFile();
-			if (!picked) return;
+			if (!picked || !alive.current) return;
 			const added = await restoreNotes(await backend.read(picked.reopen));
+			if (!alive.current) return;
 			if (added === null) {
 				toast(t("This isn't a Paperwren notes backup"));
 				return;
 			}
-			setNotes(await loadNotes());
+			const list = await loadNotes().catch(() => null);
+			if (!alive.current) return;
+			if (list) setNotes(list);
 			toast(tn(added, "{n} note brought back", "{n} notes brought back"));
 		} catch {
-			toast(t("Couldn't read this file"));
+			if (alive.current) toast(t("Couldn't read this file"));
 		}
 	};
 
@@ -129,7 +137,11 @@ export function NotesScreen() {
 				note={open}
 				onClose={() => {
 					setOpen(null);
-					loadNotes().then(setNotes);
+					loadNotes()
+						.then((list) => {
+							if (alive.current) setNotes(list);
+						})
+						.catch(() => {});
 				}}
 			/>
 		);
@@ -302,7 +314,16 @@ function NoteEditor({
 	const removed = useRef(false);
 	const deletingNow = useRef(false);
 	const leaveAnyway = useRef(false);
+	const alive = useRef(true);
 	const [busy, setBusy] = useState(false);
+	const [dirty, setDirty] = useState(false);
+
+	useEffect(() => {
+		alive.current = true;
+		return () => {
+			alive.current = false;
+		};
+	}, []);
 
 	const store = useCallback(function storeNote(): Promise<boolean> {
 		window.clearTimeout(timer.current);
@@ -310,12 +331,16 @@ function NoteEditor({
 		if (deletingNow.current) return writing.current;
 		writing.current = writing.current.then(async () => {
 			const now = latest.current;
-			if (now === stored.current || removed.current) return true;
+			if (now === stored.current || removed.current) {
+				if (alive.current && latest.current === stored.current) setDirty(false);
+				return true;
+			}
 			try {
 				if (isEmptyNote(now)) await deleteNote(now.id);
 				else await saveNote({ ...now, updatedAt: Date.now() });
 				stored.current = now;
 				leaveAnyway.current = false;
+				if (alive.current) setDirty(latest.current !== now);
 				return true;
 			} catch {
 				toast(t("Couldn't save this note"), {
@@ -332,6 +357,7 @@ function NoteEditor({
 
 	const update = (change: Partial<Note>) => {
 		setNote((was) => ({ ...was, ...change }));
+		setDirty(true);
 		window.clearTimeout(timer.current);
 		timer.current = window.setTimeout(store, SAVE_AFTER);
 	};
@@ -371,7 +397,7 @@ function NoteEditor({
 				else leaveAnyway.current = true;
 			} finally {
 				mutation.current = false;
-				setBusy(false);
+				if (alive.current) setBusy(false);
 			}
 		},
 		[store],
@@ -380,7 +406,7 @@ function NoteEditor({
 	useBackClose("note", true, close);
 	// Any other way out (Ctrl+W, the window) writes it down first too,
 	// and is held the same way when that fails.
-	useLeaveGuard(note !== stored.current, (go) => void closeThen(go));
+	useLeaveGuard(dirty, (go) => void closeThen(go));
 
 	const setBlock = (id: string, change: Partial<NoteBlock>) =>
 		update({
@@ -443,13 +469,14 @@ function NoteEditor({
 			await writing.current;
 			await deleteNote(note.id);
 			removed.current = true;
+			if (alive.current) setDirty(false);
 			onClose();
 		} catch {
-			toast(t("Couldn't delete this note"));
+			if (alive.current) toast(t("Couldn't delete this note"));
 		} finally {
 			deletingNow.current = false;
 			mutation.current = false;
-			setBusy(false);
+			if (alive.current) setBusy(false);
 		}
 	};
 
@@ -460,6 +487,7 @@ function NoteEditor({
 					label={t("Back")}
 					onClick={close}
 					disabled={busy}
+					aria-busy={busy || undefined}
 					data-testid="note-back"
 				>
 					<ArrowLeft size={22} className="pw-flip" />
@@ -488,6 +516,7 @@ function NoteEditor({
 							type="button"
 							className={s.tool}
 							aria-pressed={!pen.erase}
+							aria-label={t("Pen")}
 							title={t("Pen")}
 							onClick={() => setPen({ ...pen, erase: false })}
 							data-testid="note-pen"
@@ -498,6 +527,7 @@ function NoteEditor({
 							type="button"
 							className={s.tool}
 							aria-pressed={pen.erase}
+							aria-label={t("Eraser")}
 							title={t("Eraser")}
 							onClick={() => setPen({ ...pen, erase: true })}
 							data-testid="note-eraser"
@@ -515,13 +545,13 @@ function NoteEditor({
 								onClick={() => setPen({ ...pen, color, erase: false })}
 							/>
 						))}
-						{WIDTHS.map((width) => (
+						{WIDTHS.map((width, i) => (
 							<button
 								key={width}
 								type="button"
 								className={s.tool}
 								aria-pressed={!pen.erase && pen.width === width}
-								aria-label={t("Thickness")}
+								aria-label={`${t("Thickness")} ${i + 1}`}
 								onClick={() => setPen({ ...pen, width, erase: false })}
 							>
 								<i
@@ -630,18 +660,22 @@ function NoteEditor({
 					open
 					alert
 					title={t("Delete this note?")}
-					onClose={() => setDeleting(false)}
+					onClose={() => !busy && setDeleting(false)}
 					testId="note-delete-ask"
 					actions={
 						<>
-							<Button variant="ghost" onClick={() => setDeleting(false)}>
+							<Button
+								variant="ghost"
+								disabled={busy}
+								onClick={() => setDeleting(false)}
+							>
 								{t("Cancel")}
 							</Button>
 							<Button
 								variant="danger"
 								onClick={remove}
 								disabled={busy}
-								aria-busy={busy}
+								aria-busy={busy || undefined}
 								data-testid="note-delete-go"
 							>
 								{t("Delete")}

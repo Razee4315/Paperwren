@@ -1,5 +1,6 @@
 package app.paperwren.docs
 
+import android.app.ActivityManager
 import android.content.ClipData
 import android.content.ComponentName
 import android.content.Context
@@ -51,6 +52,7 @@ import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Paperwren's only native code. It does a few small jobs and keeps
@@ -92,6 +94,12 @@ import java.util.concurrent.TimeUnit
  *    needed while the page reads them, so each start clears them out.
  * 9. A page whose renderer died (crashed, or taken back for memory):
  *    the app starts afresh instead of vanishing.
+ * 10. A large PDF read a piece at a time (readRange), so pdf.js never
+ *    holds the whole file. A file too large to copy in is handed to
+ *    the page by its content:// address instead, for this run only.
+ *    Started by another app to show a file, the app's task stays out
+ *    of the system's recent apps; started from its icon, it is shown
+ *    there again.
  *
  * This file is copied verbatim over the generated activity by
  * scripts/install-android.mjs. Keep it self-contained.
@@ -103,6 +111,11 @@ class MainActivity : TauriActivity() {
   /** Files ingested but not yet accepted by the web layer. */
   private val pending = ArrayDeque<Delivery>()
   private var delivering = false
+  /** Files another app handed over that the page has not taken yet
+   * (still being copied in, or waiting for the page). The page asks
+   * (incoming) before it reopens the last document at start, so that
+   * document does not open over the one the reader came for. */
+  private val arriving = AtomicInteger(0)
 
   /** A file to hand to the web layer. `caller` says another app opened
    * it with Paperwren: "started" when that start began Paperwren, "woken"
@@ -150,6 +163,8 @@ class MainActivity : TauriActivity() {
    * cache, then the system's "save as" screen says where they go. No
    * permission is needed: the reader picks the place. */
   private val saving = HashMap<String, File>()
+  /** Bytes written so far to each copy in `saving`. Under its lock. */
+  private val savedBytes = HashMap<String, Long>()
   private var saveToken: String? = null
   private var saveFile: File? = null
   private val savePicker =
@@ -262,9 +277,30 @@ class MainActivity : TauriActivity() {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     installBackBridge()
+    // Read before handleIntent, which consumes the action. Opened by
+    // another app to show one file (WhatsApp, Gmail, a file manager), the
+    // app is a viewer for that moment and stays out of recent apps. A
+    // start from the icon shows it there again; a re-creation (no action
+    // left, saved state) keeps what it was.
+    when (intent?.action) {
+      Intent.ACTION_VIEW, Intent.ACTION_SEND -> setTaskExcludedFromRecents(true)
+      else -> if (savedInstanceState == null) setTaskExcludedFromRecents(false)
+    }
     handleIntent(intent, "started")
     clearCameraPhotos()
+    clearAbandonedCopies()
     sayIfRestarted()
+  }
+
+  /** Keep this task out of the system's recent apps, or show it there
+   * again. Best effort: a system that refuses leaves it as it was. */
+  private fun setTaskExcludedFromRecents(excluded: Boolean) {
+    try {
+      getSystemService(ActivityManager::class.java)?.appTasks?.firstOrNull()
+        ?.setExcludeFromRecents(excluded)
+    } catch (e: Exception) {
+      // Not ours to change here: nothing else depends on it.
+    }
   }
 
   // ---------- A WebView renderer that died ----------
@@ -349,8 +385,37 @@ class MainActivity : TauriActivity() {
     }
   }
 
+  /** Copies the app was making when it last ended (".incoming.*.tmp" in
+   * imports) and copies it was saving (cache/saving) that it never
+   * finished: a stop mid-copy leaves them behind. Only ones older than
+   * ten minutes go, so nothing in use now is touched. */
+  private fun clearAbandonedCopies() {
+    scanExecutor.execute {
+      val before = System.currentTimeMillis() - ABANDONED_AFTER_MS
+      try {
+        File(filesDir, "imports").listFiles()
+          ?.filter {
+            it.isFile && it.name.startsWith(".incoming.") && it.name.endsWith(".tmp") &&
+              it.lastModified() < before
+          }
+          ?.forEach { it.delete() }
+      } catch (e: Exception) {
+        // No imports yet: nothing to clear.
+      }
+      try {
+        File(cacheDir, "saving").listFiles()
+          ?.filter { it.isFile && it.lastModified() < before }
+          ?.forEach { it.delete() }
+      } catch (e: Exception) {
+        // No copies saved yet: nothing to clear.
+      }
+    }
+  }
+
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
+    // Started from its icon again: the app is back in recent apps.
+    if (intent.action == Intent.ACTION_MAIN) setTaskExcludedFromRecents(false)
     handleIntent(intent, "woken")
   }
 
@@ -359,6 +424,7 @@ class MainActivity : TauriActivity() {
     scanExecutor.shutdown()
     speech?.shutdown()
     speech = null
+    synchronized(rangeLock) { closeRangeFile() }
     super.onDestroy()
   }
 
@@ -548,8 +614,10 @@ class MainActivity : TauriActivity() {
         return@post
       }
       webView.evaluateJavascript(
-        "(window.__paperwrenNativeError && window.__paperwrenNativeError(" +
-          JSONObject.quote(code) + ")) ? 'ok' : 'no'"
+        jsSafe(
+          "(window.__paperwrenNativeError && window.__paperwrenNativeError(" +
+            JSONObject.quote(code) + ")) ? 'ok' : 'no'"
+        )
       ) { result ->
         if (result != "\"ok\"") {
           Toast.makeText(this, fallback, Toast.LENGTH_LONG).show()
@@ -708,9 +776,17 @@ class MainActivity : TauriActivity() {
     main.post {
       val webView = findWebView() ?: return@post
       if (!isAppOrigin(webView.url)) return@post
-      webView.evaluateJavascript("window.$function && window.$function($arguments)", null)
+      webView.evaluateJavascript(jsSafe("window.$function && window.$function($arguments)"), null)
     }
   }
+
+  /** JSON made safe to run as script. org.json leaves U+2028 and U+2029
+   * as they are; JavaScript before ES2019 (older WebViews) reads either
+   * as a line end, which inside a string literal is a syntax error and
+   * drops the whole call. Only ever inside JSON strings here, so each is
+   * written as its escape. */
+  private fun jsSafe(json: String): String =
+    json.replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
 
   // ---------- Open with / Share ----------
 
@@ -731,24 +807,71 @@ class MainActivity : TauriActivity() {
     }
     // Consume the intent so a configuration change does not re-import it.
     intent.action = null
-    val caller = if (fromApp && uris.size == 1) how else null
-    for (uri in uris) {
+    // Another app's document only: a file:// address, or one of the app's
+    // own providers, could make the app copy out its own private files.
+    // A share of many is bounded, so it cannot queue copies without end.
+    val (foreign, refused) = uris.take(MAX_INCOMING).partition { incomingAllowed(it) }
+    if (refused.isNotEmpty()) report("open", "Paperwren couldn't open that file.")
+    val caller = if (fromApp && foreign.size == 1) how else null
+    for (uri in foreign) {
       val mime = intent.type
+      arriving.incrementAndGet()
       ingestExecutor.execute { ingest(uri, mime, caller) }
     }
   }
 
+  /** A content:// document of another app's. The app's own providers
+   * ("<package>.files", "<package>.fileprovider") hand out its own
+   * files, so an address of theirs coming back in is refused. */
+  private fun incomingAllowed(uri: Uri): Boolean {
+    if (uri.scheme?.lowercase(Locale.ROOT) != "content") return false
+    val authority = uri.authority?.lowercase(Locale.ROOT) ?: return false
+    val own = packageName.lowercase(Locale.ROOT)
+    return authority != own && !authority.startsWith("$own.")
+  }
+
   private fun ingest(uri: Uri, mime: String?, caller: String?) {
+    if (!incomingAllowed(uri)) {
+      arriving.decrementAndGet()
+      report("open", "Paperwren couldn't open that file.")
+      return
+    }
     try {
-      val delivery = copyIn(uri, mime).copy(caller = caller)
+      // Too large to keep a copy of (a 350 MB PDF): the page reads it from
+      // where it is, by its address, while the app has the right to.
+      val delivery = try {
+        if (querySize(uri) > MAX_INGEST_BYTES) throw TooLarge()
+        copyIn(uri, mime).copy(caller = caller)
+      } catch (e: TooLarge) {
+        inPlace(uri, mime, caller)
+      }
       main.post {
         pending.addLast(delivery)
         deliverNext(0)
       }
     } catch (e: Exception) {
+      arriving.decrementAndGet()
       report("open", "Paperwren couldn't open that file.")
     }
   }
+
+  /** A file handed over by its content:// address rather than a copy.
+   * The grant that came with it usually lasts only while the app runs;
+   * where the sender allows keeping it, it is kept. */
+  private fun inPlace(uri: Uri, mime: String?, caller: String?): Delivery {
+    val type = mime ?: try { contentResolver.getType(uri) } catch (e: Exception) { null }
+    try {
+      contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    } catch (e: Exception) {
+      // Readable for this run only.
+    }
+    return Delivery(
+      uri.toString(), withExtension(queryDisplayName(uri), type), querySize(uri), caller
+    )
+  }
+
+  /** The stream is larger than a copy may be. */
+  private class TooLarge : Exception("file is too large to keep")
 
   /** The most an "Open with" / pick copy may hold. The sharing app
    * can report any size (or none) and stream forever, and the copy is
@@ -775,7 +898,7 @@ class MainActivity : TauriActivity() {
             val read = stream.read(buffer)
             if (read < 0) break
             total += read
-            if (total > MAX_INGEST_BYTES) throw IllegalStateException("file is too large to keep")
+            if (total > MAX_INGEST_BYTES) throw TooLarge()
             out.write(buffer, 0, read)
           }
         }
@@ -804,6 +927,7 @@ class MainActivity : TauriActivity() {
     delivering = true
     if (attempt > 200) {
       pending.pollFirst()
+      arriving.decrementAndGet()
       delivering = false
       deliverNext(0)
       return
@@ -813,13 +937,16 @@ class MainActivity : TauriActivity() {
       main.postDelayed({ deliverNext(attempt + 1) }, 150)
       return
     }
-    val script = "(window.__paperwrenOpenFile && window.__paperwrenOpenFile(" +
-      JSONObject.quote(next.path) + "," + JSONObject.quote(next.name) + "," + next.size +
-      "," + (next.caller?.let { JSONObject.quote(it) } ?: "null") +
-      ")) ? 'ok' : 'wait'"
+    val script = jsSafe(
+      "(window.__paperwrenOpenFile && window.__paperwrenOpenFile(" +
+        JSONObject.quote(next.path) + "," + JSONObject.quote(next.name) + "," + next.size +
+        "," + (next.caller?.let { JSONObject.quote(it) } ?: "null") +
+        ")) ? 'ok' : 'wait'"
+    )
     webView.evaluateJavascript(script) { result ->
       if (result == "\"ok\"") {
         pending.pollFirst()
+        arriving.decrementAndGet()
         delivering = false
         deliverNext(0)
       } else {
@@ -895,13 +1022,16 @@ class MainActivity : TauriActivity() {
 
   // ---------- Provider metadata ----------
 
+  /** The name a provider gives a document, as the page shows it. The
+   * sending app chooses it, so control characters and the two line
+   * separators JavaScript reads as line ends are taken out. */
   private fun queryDisplayName(uri: Uri): String {
     try {
       contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
         if (c.moveToFirst()) {
           val i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
           if (i >= 0) {
-            val name = c.getString(i)
+            val name = c.getString(i)?.let { plainName(it) }
             if (!name.isNullOrBlank()) return name
           }
         }
@@ -909,8 +1039,12 @@ class MainActivity : TauriActivity() {
     } catch (e: Exception) {
       // Fall back to the last URI segment.
     }
-    return uri.lastPathSegment?.substringAfterLast('/') ?: "document"
+    return uri.lastPathSegment?.substringAfterLast('/')?.let { plainName(it) }
+      ?.ifBlank { null } ?: "document"
   }
+
+  private fun plainName(name: String): String =
+    name.filterNot { it <= '\u001F' || it == '\u007F' || it == ' ' || it == ' ' }
 
   private fun querySize(uri: Uri): Long {
     try {
@@ -1042,8 +1176,10 @@ class MainActivity : TauriActivity() {
             main.post {
               if (!isAppOrigin(webView.url)) return@post
               webView.evaluateJavascript(
-                "window.__paperwrenImported && window.__paperwrenImported(" +
-                  JSONObject.quote(token) + "," + result + ")",
+                jsSafe(
+                  "window.__paperwrenImported && window.__paperwrenImported(" +
+                    JSONObject.quote(token) + "," + result + ")"
+                ),
                 null
               )
             }
@@ -1127,18 +1263,28 @@ class MainActivity : TauriActivity() {
 
     @JavascriptInterface
     fun stopSpeaking() {
+      if (!fromApp()) return
       main.post { if (speechReady) speech?.stop() }
     }
 
     /** Draw a picture the WebView cannot (HEIC) and hand it back as a
-     * JPEG through window.__paperwrenDecoded(token, base64 | null). */
+     * JPEG through window.__paperwrenDecoded(token, base64 | null). The
+     * picture is bounded twice: its bytes (MAX_PICTURE_BASE64), and its
+     * size in pixels, read from its header before any pixel is decoded,
+     * so a small file that claims to be huge never fills memory. */
     @JavascriptInterface
     fun decodePicture(base64: String, token: String): Boolean {
       if (!fromApp()) return false
+      if (base64.length > MAX_PICTURE_BASE64) return false
       scanExecutor.execute {
         val jpeg = try {
           val bytes = Base64.decode(base64, Base64.DEFAULT)
-          val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+          val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+          BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+          val w = bounds.outWidth
+          val h = bounds.outHeight
+          val fits = w > 0 && h > 0 && w.toLong() * h.toLong() <= MAX_PICTURE_PIXELS
+          val bitmap = if (fits) BitmapFactory.decodeByteArray(bytes, 0, bytes.size) else null
           if (bitmap == null) null else {
             val out = java.io.ByteArrayOutputStream()
             bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
@@ -1165,6 +1311,7 @@ class MainActivity : TauriActivity() {
 
     @JavascriptInterface
     fun keepAwake(on: Boolean) {
+      if (!fromApp()) return
       main.post {
         if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -1227,15 +1374,20 @@ class MainActivity : TauriActivity() {
       return json
     }
 
-    /** Start a copy to save; its bytes follow through saveChunk. */
+    /** Start a copy to save; its bytes follow through saveChunk. A few
+     * at a time (MAX_SAVING), so a page cannot fill the cache with copies
+     * it never finishes. */
     @JavascriptInterface
     fun saveBegin(token: String): Boolean {
       if (!fromApp() || token.isEmpty() || token.length > 64) return false
       return try {
         val dir = File(cacheDir, "saving").apply { mkdirs() }
         synchronized(saving) {
+          if (!saving.containsKey(token) && saving.size >= MAX_SAVING) return false
           saving.remove(token)?.delete()
+          savedBytes.remove(token)
           saving[token] = File.createTempFile("copy", ".bin", dir)
+          savedBytes[token] = 0L
         }
         true
       } catch (e: Exception) {
@@ -1243,13 +1395,28 @@ class MainActivity : TauriActivity() {
       }
     }
 
-    /** A piece of the copy, as base64. */
+    /** A piece of the copy, as base64. A copy larger than an imported
+     * one may be (MAX_INGEST_BYTES) is dropped, file and all. */
     @JavascriptInterface
     fun saveChunk(token: String, base64: String): Boolean {
       if (!fromApp()) return false
       val file = synchronized(saving) { saving[token] } ?: return false
       return try {
-        FileOutputStream(file, true).use { it.write(Base64.decode(base64, Base64.DEFAULT)) }
+        val bytes = Base64.decode(base64, Base64.DEFAULT)
+        val total = synchronized(saving) {
+          val sum = (savedBytes[token] ?: 0L) + bytes.size
+          savedBytes[token] = sum
+          sum
+        }
+        if (total > MAX_INGEST_BYTES) {
+          synchronized(saving) {
+            saving.remove(token)
+            savedBytes.remove(token)
+          }
+          file.delete()
+          return false
+        }
+        FileOutputStream(file, true).use { it.write(bytes) }
         true
       } catch (e: Exception) {
         false
@@ -1261,7 +1428,10 @@ class MainActivity : TauriActivity() {
     @JavascriptInterface
     fun saveFinish(token: String, name: String, mime: String): Boolean {
       if (!fromApp()) return false
-      val file = synchronized(saving) { saving.remove(token) } ?: return false
+      val file = synchronized(saving) {
+        savedBytes.remove(token)
+        saving.remove(token)
+      } ?: return false
       main.post {
         try {
           saveFile?.delete()
@@ -1403,6 +1573,114 @@ class MainActivity : TauriActivity() {
         false
       }
     }
+
+    /** Up to `length` bytes of a document from `offset`, as base64 ("" past
+     * its end), or null when it cannot be read that way (a provider that
+     * only streams, a file outside the imports store). pdf.js reads a large
+     * PDF like this, a piece at a time. Runs on the JavaBridge thread. */
+    @JavascriptInterface
+    fun readRange(target: String, offset: Long, length: Int): String? {
+      if (!fromApp() || offset < 0 || length <= 0) return null
+      return try {
+        val bytes = readPiece(target, offset, minOf(length, MAX_RANGE_BYTES)) ?: return null
+        Base64.encodeToString(bytes, Base64.NO_WRAP)
+      } catch (e: Exception) {
+        null
+      }
+    }
+
+    /** The size of a document readRange can read, or -1 when unknown. */
+    @JavascriptInterface
+    fun fileSize(target: String): Long {
+      if (!fromApp()) return -1L
+      return try {
+        if (target.startsWith("content://")) {
+          val told = synchronized(rangeLock) { rangeFile(target)?.statSize ?: -1L }
+          if (told >= 0) told else querySize(Uri.parse(target)).takeIf { it > 0 } ?: -1L
+        } else {
+          managedCopy(target)?.length() ?: -1L
+        }
+      } catch (e: Exception) {
+        -1L
+      }
+    }
+
+    /** Whether a file another app handed over is still on its way to the
+     * page (being copied in, or waiting for the page to take it). */
+    @JavascriptInterface
+    fun incoming(): Boolean = fromApp() && arriving.get() > 0
+  }
+
+  // ---------- Reading a piece of a document ----------
+
+  /** The document readRange read last, held open: pdf.js asks for many
+   * pieces of one file, and opening it at each costs a call to its
+   * provider. Only the JavaBridge thread uses it, under rangeLock. */
+  private val rangeLock = Any()
+  private var rangeTarget: String? = null
+  private var rangeDescriptor: ParcelFileDescriptor? = null
+
+  /** The open descriptor of a content:// document. Under rangeLock. */
+  private fun rangeFile(target: String): ParcelFileDescriptor? {
+    if (target == rangeTarget) rangeDescriptor?.let { return it }
+    closeRangeFile()
+    val opened = contentResolver.openFileDescriptor(Uri.parse(target), "r") ?: return null
+    rangeTarget = target
+    rangeDescriptor = opened
+    return opened
+  }
+
+  /** Under rangeLock. */
+  private fun closeRangeFile() {
+    try {
+      rangeDescriptor?.close()
+    } catch (e: Exception) {
+      // Closed already.
+    }
+    rangeDescriptor = null
+    rangeTarget = null
+  }
+
+  /** One of the app's imported copies, or null for any other path. */
+  private fun managedCopy(target: String): File? {
+    val file = File(target).canonicalFile
+    val imports = File(filesDir, "imports").canonicalFile
+    return if (file.isFile && file.path.startsWith(imports.path + File.separator)) file else null
+  }
+
+  /** Bytes of a content:// document or an imported copy, read at `offset`
+   * without reading what comes before it. A provider that hands over a
+   * pipe cannot be read this way and throws; the page then reads the file
+   * whole, as before. */
+  private fun readPiece(target: String, offset: Long, length: Int): ByteArray? {
+    if (target.startsWith("content://")) {
+      return synchronized(rangeLock) {
+        val pfd = rangeFile(target) ?: return@synchronized null
+        try {
+          readAt(pfd.fileDescriptor, offset, length)
+        } catch (e: Exception) {
+          closeRangeFile()
+          throw e
+        }
+      }
+    }
+    val file = managedCopy(target) ?: return null
+    return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use {
+      readAt(it.fileDescriptor, offset, length)
+    }
+  }
+
+  /** pread straight on the descriptor: no stream wraps it, so nothing
+   * but closeRangeFile ever closes the one held open. */
+  private fun readAt(fd: java.io.FileDescriptor, offset: Long, length: Int): ByteArray {
+    val bytes = ByteArray(length)
+    var done = 0
+    while (done < length) {
+      val read = android.system.Os.pread(fd, bytes, done, length - done, offset + done)
+      if (read <= 0) break
+      done += read
+    }
+    return if (done == length) bytes else bytes.copyOf(done)
   }
 
   // ---------- Helpers ----------
@@ -1423,15 +1701,28 @@ class MainActivity : TauriActivity() {
   /** The page the app itself serves. The host is compared whole: a
    * prefix ("http://localhost") would also take a page at
    * "http://localhost.attacker.tld", and the JS bridges answer
-   * whoever this says yes to. */
+   * whoever this says yes to. Only http(s): a file:// or data: page
+   * with that host is not the app's. A release build serves its page
+   * from tauri.localhost alone; localhost and 127.0.0.1 are a debug
+   * build's dev server, where any app on the phone could listen. The
+   * flag is read from applicationInfo, not BuildConfig, whose package
+   * the generated project chooses. */
   private fun isAppOrigin(url: String?): Boolean {
     if (url == null) return false
-    val host = try {
-      Uri.parse(url).host?.lowercase(Locale.ROOT)
+    val parsed = try {
+      Uri.parse(url)
     } catch (e: Exception) {
-      null
+      return false
     }
-    return host == "tauri.localhost" || host == "localhost" || host == "127.0.0.1"
+    val scheme = parsed.scheme?.lowercase(Locale.ROOT)
+    if (scheme != "https" && scheme != "http") return false
+    val host = parsed.host?.lowercase(Locale.ROOT) ?: return false
+    if (host == "tauri.localhost") return true
+    return debuggable && (host == "localhost" || host == "127.0.0.1")
+  }
+
+  private val debuggable: Boolean by lazy {
+    (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
   }
 
   private fun findWebView(): WebView? {
@@ -1455,6 +1746,24 @@ private const val PREFS = "paperwren"
 private const val RESTARTED_AT = "rendererRestartedAt"
 private const val RESTART_PENDING = "rendererRestartPending"
 private const val RESTART_WINDOW_MS = 60_000L
+
+/** The most one readRange answers with (before base64): pdf.js asks for
+ * 64 KiB pieces, and a bound keeps any one answer small. */
+private const val MAX_RANGE_BYTES = 2 * 1024 * 1024
+
+/** The most documents one share takes in. */
+private const val MAX_INCOMING = 50
+
+/** Copies being saved at once (saveBegin). */
+private const val MAX_SAVING = 4
+
+/** A picture decodePicture takes: about 25 MB of bytes as base64, and
+ * at most 32 million pixels (128 MB as a bitmap). */
+private const val MAX_PICTURE_BASE64 = 35_000_000
+private const val MAX_PICTURE_PIXELS = 32_000_000L
+
+/** Half-made copies older than this are left from an earlier run. */
+private const val ABANDONED_AFTER_MS = 10 * 60 * 1000L
 
 /** Bounds for a folder scan. */
 private const val MAX_FOLDER_FILES = 2000

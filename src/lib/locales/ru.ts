@@ -1390,4 +1390,6 @@ export const ru: Table = {
 	"A print job is already in progress": "Печать уже выполняется",
 	"No results. Try different words or turn off search options.":
 		"Нет результатов. Попробуйте другие слова или отключите параметры поиска.",
+	"Hide highlights": "Скрыть выделения",
+	"Show highlights": "Показать выделения",
 };

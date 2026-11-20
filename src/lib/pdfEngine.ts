@@ -4,6 +4,7 @@
  */
 
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { isDesktop } from "./env";
 import workerUrl from "./pdfWorker?worker&url";
 
 /** Where pdf.js finds its character maps and standard fonts: beside
@@ -20,16 +21,30 @@ export const pdfAsset = (dir: string) =>
  * orientation, which a PDF must ignore: a page that is a phone photo
  * came out turned on its side on Android only (#80). pdf.js's own
  * decoder draws the picture as stored, as every other reader does.
+ *
+ * A phone draws no picture larger than 4096 x 4096 (16 MP). A page that
+ * is a camera photo (a CamScanner PDF) can hold a 50 MP picture, which
+ * decoded is 200 MB, and a few of them ended the app (#94). pdf.js does
+ * not scale such a picture down: it leaves it out, and its page shows
+ * without it. That is the price of the app not ending, so only the
+ * viewer (`viewing`) pays it. A tool that draws pages into a new file
+ * must not lose a picture without a word; a computer has no limit.
  */
-export function documentOptions() {
+export function documentOptions(viewing = false) {
 	return {
 		isEvalSupported: false,
 		isImageDecoderSupported: false,
+		maxImageSize: viewing && !isDesktop ? MAX_PHONE_IMAGE : -1,
 		cMapUrl: pdfAsset("cmaps"),
 		cMapPacked: true,
 		standardFontDataUrl: pdfAsset("standard_fonts"),
 	};
 }
+
+/** Pixels in the largest picture a phone decodes (pdf.js's
+ * `maxImageSize` counts width times height). A 12 MP camera photo is
+ * well inside it. */
+const MAX_PHONE_IMAGE = 4096 * 4096;
 
 /**
  * The legacy build, not the modern one: the modern build needs a

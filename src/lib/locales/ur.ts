@@ -1344,4 +1344,6 @@ export const ur: Table = {
 	"A print job is already in progress": "پرنٹ کا کام پہلے ہی جاری ہے",
 	"No results. Try different words or turn off search options.":
 		"کوئی نتیجہ نہیں ملا۔ دوسرے الفاظ آزمائیں یا تلاش کے اختیارات بند کریں۔",
+	"Hide highlights": "نمایاں چھپائیں",
+	"Show highlights": "نمایاں دکھائیں",
 };

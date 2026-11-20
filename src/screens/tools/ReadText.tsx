@@ -113,7 +113,12 @@ export function ReadText({
 	} | null>(null);
 	const [lit, setLit] = useState<{ page: number; line: number } | null>(null);
 	const [saving, setSaving] = useState(false);
+	const [savingText, setSavingText] = useState(false);
 	const reader = useRef<OcrReader | null>(null);
+	const runningRef = useRef(false);
+	const savingTextRef = useRef(false);
+	const savingPdfRef = useRef(false);
+	const pictureUrl = useRef<string | null>(null);
 	const screen = useRef<HTMLDivElement>(null);
 	const textBox = useRef<HTMLDivElement>(null);
 	const followText = useRef(true);
@@ -142,17 +147,19 @@ export function ReadText({
 	useEffect(() => {
 		if (!docKey) return;
 		let live = true;
-		loadRead(docKey).then((kept) => {
-			if (!live || !kept || started.current) return;
-			const pages: Record<number, PageRead> = {};
-			for (const [page, lines] of Object.entries(kept.pages))
-				pages[Number(page)] = { lines, own: false };
-			if (!Object.keys(pages).length) return;
-			setLang(kept.language);
-			readIn.current = kept.language;
-			setReads(pages);
-			setPhase("done");
-		});
+		loadRead(docKey)
+			.then((kept) => {
+				if (!live || !kept || started.current) return;
+				const pages: Record<number, PageRead> = {};
+				for (const [page, lines] of Object.entries(kept.pages))
+					pages[Number(page)] = { lines, own: false };
+				if (!Object.keys(pages).length) return;
+				setLang(kept.language);
+				readIn.current = kept.language;
+				setReads(pages);
+				setPhase("done");
+			})
+			.catch(() => {});
 		return () => {
 			live = false;
 		};
@@ -162,17 +169,16 @@ export function ReadText({
 		const url = URL.createObjectURL(
 			new Blob([bytes as BlobPart], { type: "image/jpeg" }),
 		);
-		setPicture((was) => {
-			if (was) URL.revokeObjectURL(was.url);
-			return { page, url, ratio };
-		});
+		if (pictureUrl.current) URL.revokeObjectURL(pictureUrl.current);
+		pictureUrl.current = url;
+		setPicture({ page, url, ratio });
 	};
 	useEffect(
 		() => () => {
-			setPicture((was) => {
-				if (was) URL.revokeObjectURL(was.url);
-				return null;
-			});
+			if (pictureUrl.current) {
+				URL.revokeObjectURL(pictureUrl.current);
+				pictureUrl.current = null;
+			}
 		},
 		[],
 	);
@@ -208,11 +214,17 @@ export function ReadText({
 		const pages: Record<string, ReadLine[]> = {};
 		for (const [page, read] of Object.entries(next))
 			if (!read.own) pages[page] = read.lines;
-		saveRead(docKey, Object.keys(pages).length ? { language, pages } : null);
+		void saveRead(
+			docKey,
+			Object.keys(pages).length ? { language, pages } : null,
+		).catch(() => {});
 	};
 
 	const run = async () => {
+		if (runningRef.current) return;
+		runningRef.current = true;
 		started.current = true;
+		let dirty = false;
 		// Read in another language, what was read before gives way now
 		// that it is being replaced, and not a moment sooner.
 		if (lang !== readIn.current) {
@@ -222,9 +234,12 @@ export function ReadText({
 			readsRef.current = kept;
 			setReads(kept);
 			readIn.current = lang;
+			dirty = true;
 		}
 		const todo = pagesWanted.filter((page) => !readsRef.current[page]);
 		if (!todo.length) {
+			if (dirty) keep(readsRef.current, lang);
+			runningRef.current = false;
 			setPhase("done");
 			return;
 		}
@@ -233,13 +248,16 @@ export function ReadText({
 		const release = holdScreen();
 		setPhase("reading");
 		followText.current = true;
+		let unsavedPages = 0;
+		let lastSavedAt = Date.now();
 		try {
 			for (const page of todo) {
-				if (reader.current !== job) return;
+				if (!alive.current || reader.current !== job) return;
 				setWorking(page);
 				setShown(page);
 				setShare(0);
 				const own = await source.ownLines(page);
+				if (!alive.current || reader.current !== job) return;
 				let read: PageRead;
 				if (own) read = { lines: own, own: true };
 				else {
@@ -247,29 +265,41 @@ export function ReadText({
 						page,
 						READING_DPI,
 					);
-					if (!alive.current) return;
+					if (!alive.current || reader.current !== job) return;
 					showPicture(page, bytes, width / height);
 					setLoading(true);
 					const table = await job.read(bytes, (now) => {
+						if (!alive.current || reader.current !== job) return;
 						setLoading(false);
 						setShare(Math.max(0, (now - LAYOUT_SHARE) / (1 - LAYOUT_SHARE)));
 					});
+					if (!alive.current || reader.current !== job) return;
 					setLoading(false);
 					read = { lines: linesOfTable(table, width, height), own: false };
 				}
-				if (!alive.current) return;
 				const next = { ...readsRef.current, [page]: read };
 				readsRef.current = next;
 				setReads(next);
-				keep(next, lang);
+				dirty = true;
+				unsavedPages++;
+				const now = Date.now();
+				if (unsavedPages >= 5 || now - lastSavedAt >= 3000) {
+					keep(next, lang);
+					dirty = false;
+					unsavedPages = 0;
+					lastSavedAt = now;
+				}
 			}
 		} catch {
 			// Stopped, which keeps what was read: anything else says so.
-			if (reader.current === job) toast(t("Couldn't read this page"));
+			if (alive.current && reader.current === job)
+				toast(t("Couldn't read this page"));
 		} finally {
+			if (dirty) keep(readsRef.current, lang);
 			release();
 			job.stop();
 			if (reader.current === job) reader.current = null;
+			runningRef.current = false;
 			if (alive.current) {
 				setWorking(null);
 				setLoading(false);
@@ -321,17 +351,22 @@ export function ReadText({
 		}
 	};
 	const saveText = async () => {
-		const saved = await backend
-			.saveFile(
+		if (savingTextRef.current) return;
+		savingTextRef.current = true;
+		setSavingText(true);
+		try {
+			const saved = await backend.saveFile(
 				`${splitName(source.name)[0]}.txt`,
 				new TextEncoder().encode(allText(reads, false)),
 				"text/plain",
-			)
-			.catch(() => {
-				toast(t("Couldn't save a copy"));
-				return null;
-			});
-		if (saved) onSaved?.(saved);
+			);
+			if (saved && alive.current) onSaved?.(saved);
+		} catch {
+			if (alive.current) toast(t("Couldn't save a copy"));
+		} finally {
+			savingTextRef.current = false;
+			if (alive.current) setSavingText(false);
+		}
 	};
 	const addingNote = useRef(false);
 	const [noteBusy, setNoteBusy] = useState(false);
@@ -345,16 +380,17 @@ export function ReadText({
 			{ kind: "text", id: blockId(), text: allText(reads, false) },
 		];
 		await saveNote(made)
-			.then(() => toast(t("Added to Notes")))
-			.catch(() => toast(t("Couldn't save a copy")))
+			.then(() => alive.current && toast(t("Added to Notes")))
+			.catch(() => alive.current && toast(t("Couldn't save a copy")))
 			.finally(() => {
 				addingNote.current = false;
-				setNoteBusy(false);
+				if (alive.current) setNoteBusy(false);
 			});
 	};
 	const scanned = Object.entries(reads).filter(([, read]) => !read.own);
 	const saveSearchable = async () => {
-		if (!source.pdf) return;
+		if (!source.pdf || savingPdfRef.current) return;
+		savingPdfRef.current = true;
 		setSaving(true);
 		try {
 			const bytes = await addTextLayer(
@@ -365,16 +401,18 @@ export function ReadText({
 				})),
 				{ password: source.password },
 			);
+			if (!alive.current) return;
 			const saved = await backend.saveFile(
 				copyName(source.name, t("searchable")),
 				bytes,
 				"application/pdf",
 			);
-			if (saved) onSaved?.(saved);
+			if (saved && alive.current) onSaved?.(saved);
 		} catch {
-			toast(t("Couldn't save a copy"));
+			if (alive.current) toast(t("Couldn't save a copy"));
 		} finally {
-			setSaving(false);
+			savingPdfRef.current = false;
+			if (alive.current) setSaving(false);
 		}
 	};
 
@@ -555,7 +593,13 @@ export function ReadText({
 									</button>
 								</div>
 							)}
-							<Button block onClick={run} data-testid="read-start">
+							<Button
+								block
+								onClick={run}
+								disabled={phase === "reading"}
+								aria-busy={phase === "reading" || undefined}
+								data-testid="read-start"
+							>
 								<Play size={18} /> {t("Start reading")}
 							</Button>
 							<p className={s.fine}>
@@ -680,7 +724,12 @@ export function ReadText({
 						</p>
 					)}
 					{missing.length > 0 && (
-						<Button onClick={run} data-testid="read-more">
+						<Button
+							onClick={run}
+							disabled={phase === "reading"}
+							aria-busy={phase === "reading" || undefined}
+							data-testid="read-more"
+						>
 							<Play size={16} />
 							{tn(missing.length, "Read {n} more page", "Read {n} more pages")}
 						</Button>
@@ -695,6 +744,8 @@ export function ReadText({
 					<Button
 						variant="secondary"
 						onClick={saveText}
+						disabled={savingText}
+						aria-busy={savingText || undefined}
 						data-testid="read-save-text"
 					>
 						<Download size={16} /> {t("Save as text")}
@@ -703,7 +754,7 @@ export function ReadText({
 						variant="secondary"
 						onClick={toNotes}
 						disabled={noteBusy}
-						aria-busy={noteBusy}
+						aria-busy={noteBusy || undefined}
 						data-testid="read-notes"
 					>
 						<NotebookPen size={16} /> {t("Add to Notes")}
@@ -713,6 +764,7 @@ export function ReadText({
 							variant="secondary"
 							onClick={saveSearchable}
 							disabled={saving}
+							aria-busy={saving || undefined}
 							data-testid="read-save-pdf"
 						>
 							<FileSearch size={16} />
@@ -731,7 +783,12 @@ export function ReadText({
 			)}
 			{phase === "done" && !words && missing.length > 0 && (
 				<footer className={s.actions}>
-					<Button onClick={run} data-testid="read-more">
+					<Button
+						onClick={run}
+						disabled={phase === "reading"}
+						aria-busy={phase === "reading" || undefined}
+						data-testid="read-more"
+					>
 						<Play size={16} />
 						{tn(missing.length, "Read {n} more page", "Read {n} more pages")}
 					</Button>

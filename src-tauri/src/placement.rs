@@ -19,8 +19,7 @@
 //! (index.html).
 
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 use serde_json::Value;
@@ -88,15 +87,24 @@ pub fn reachable(place: &Place, screens: &[Screen]) -> bool {
 }
 
 /// Put the hidden window back where it was left, then show it. Whatever
-/// fails on the way, the window is shown.
+/// fails on the way, the window is shown: a helper thread waits for the
+/// word that it was, and shows it itself if that word has not come by
+/// SHOW_FALLBACK. Told at once, it ends at once; it used to sleep the
+/// whole 1.5 s on every launch.
 pub fn open<R: Runtime>(window: &WebviewWindow<R>, store_dir: Option<&Path>) {
-    let shown = Arc::new(AtomicBool::new(false));
+    let shown = Arc::new((Mutex::new(false), Condvar::new()));
     {
         let shown = Arc::clone(&shown);
         let window = window.clone();
         std::thread::spawn(move || {
-            std::thread::sleep(SHOW_FALLBACK);
-            if !shown.load(Ordering::SeqCst) {
+            let (done, told) = &*shown;
+            let guard = done.lock().unwrap_or_else(|e| e.into_inner());
+            let (guard, _) = told
+                .wait_timeout_while(guard, SHOW_FALLBACK, |ok| !*ok)
+                .unwrap_or_else(|e| e.into_inner());
+            let ok = *guard;
+            drop(guard);
+            if !ok {
                 let _ = window.show();
             }
         });
@@ -110,8 +118,12 @@ pub fn open<R: Runtime>(window: &WebviewWindow<R>, store_dir: Option<&Path>) {
         }
     }
 
+    // Only a show that worked is told: after a failed one the helper
+    // still tries again when its time is up.
     if window.show().is_ok() {
-        shown.store(true, Ordering::SeqCst);
+        let (done, told) = &*shown;
+        *done.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        told.notify_all();
     }
 }
 

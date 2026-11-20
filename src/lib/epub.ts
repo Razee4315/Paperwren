@@ -247,6 +247,19 @@ export function parseEpub(bytes: Uint8Array): EpubBook {
 				"base",
 				"audio",
 				"video",
+				"source",
+				"canvas",
+				// What is left of SVG and MathML after the cover pictures
+				// above: neither is drawn, and each can carry links and
+				// script-like attributes DOMPurify must otherwise follow.
+				"svg",
+				"math",
+				// Image maps and the rest of a form's controls: nothing in
+				// a book should take input or lead somewhere unseen.
+				"map",
+				"area",
+				"select",
+				"textarea",
 			],
 			FORBID_ATTR: ["style", "class"],
 		});

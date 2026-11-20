@@ -14,7 +14,7 @@ import {
 	IconButton,
 	NoteField,
 	NoteQuote,
-	modalOpen,
+	ownsKeys,
 	toast,
 } from "@/ui";
 import {
@@ -307,7 +307,7 @@ export const Marking = forwardRef<
 	},
 	ref,
 ) {
-	const selected = useSelected(container, active && !modalOpen());
+	const selected = useSelected(container, active && ownsKeys());
 	const [color, setColor] = useState(MARKER_COLORS[0]);
 	const [menu, setMenu] = useState<{ id: string; at: Spot } | null>(null);
 	const [noteFor, setNoteFor] = useState<NoteFor | null>(null);
@@ -484,7 +484,7 @@ export const Marking = forwardRef<
 	useEffect(() => {
 		if (!active || !isDesktop) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (modalOpen()) return;
+			if (!ownsKeys()) return;
 			const at = e.target as HTMLElement | null;
 			if (at?.closest?.("input, textarea, select, [contenteditable]")) return;
 			const now = latest.current;
