@@ -116,7 +116,7 @@ export default defineConfig({
 		// Syntax is lowered to Chrome 89 (the oldest that keeps top-level
 		// await) and src/lib/compat.ts fills the missing built-ins.
 		target: "chrome89",
-		minify: process.env.TAURI_DEBUG ? false : "esbuild",
+		minify: process.env.TAURI_DEBUG ? false : "oxc",
 		sourcemap: !!process.env.TAURI_DEBUG,
 		chunkSizeWarningLimit: 1500,
 	},

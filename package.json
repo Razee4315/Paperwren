@@ -57,11 +57,11 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/three": "0.187.0",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^6.3.0",
     "jsdom": "^30.0.1",
     "typescript": "^7.0.2",
-    "vite": "^5.4.11",
-    "vitest": "^2.1.9"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
   },
   "allowScripts": {
     "esbuild@0.21.5": true
