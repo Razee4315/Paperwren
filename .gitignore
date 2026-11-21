@@ -36,3 +36,6 @@ READER-GAP-STUDY.md
 
 # Python bytecode
 __pycache__/
+
+# TypeScript incremental build info
+*.tsbuildinfo

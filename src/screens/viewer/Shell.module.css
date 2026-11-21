@@ -9,12 +9,14 @@
 	background: var(--canvas);
 	animation: pw-screen-in var(--t-med) var(--ease);
 }
-/* A tab behind another (or under Settings): laid out as if shown, so it
- * keeps its size, scroll and pages, but neither drawn nor reached. Its
- * entrance is left alone: changing it would play it again on show. */
+/* A tab behind another (or under Settings): its fixed box stays sized so
+ * scroll offsets and bitmaps are preserved and entrance does not replay,
+ * while content-visibility: hidden skips style, layout and paint work
+ * for its subtree until it returns. */
 .shell[data-away] {
 	visibility: hidden;
 	pointer-events: none;
+	content-visibility: hidden;
 }
 .top {
 	position: relative;

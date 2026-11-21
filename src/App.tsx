@@ -1082,6 +1082,7 @@ function Root() {
 	return (
 		<>
 			<KeptHome
+				away={deep}
 				onOpenFile={onOpenFile}
 				onOpenRecent={openRecent}
 				onOpenRequest={open}

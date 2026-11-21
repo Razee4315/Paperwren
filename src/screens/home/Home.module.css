@@ -8,6 +8,13 @@
 	background: var(--page-bg);
 	overflow: hidden;
 }
+/* Covered by another screen: keep its box and scroll position intact,
+ * but skip style, layout and paint work for Home's subtree. */
+.page[data-away] {
+	visibility: hidden;
+	pointer-events: none;
+	content-visibility: hidden;
+}
 
 .bar {
 	position: relative;

@@ -232,6 +232,7 @@ function SectionList({
 }) {
 	const [current, setCurrent] = useState<SectionId>(sections[0].id);
 	const list = useRef<HTMLElement>(null);
+	const scrolledFor = useRef(current);
 	// A section chosen by clicking stays highlighted during smooth travel
 	// and at the foot of the page until the reader scrolls manually.
 	const pinned = useRef<SectionId | null>(null);
@@ -308,9 +309,9 @@ function SectionList({
 			}
 			unlockManual();
 		};
-		// The first section is the one on show; read the page once it is
-		// drawn, rather than making the browser lay it out early for this.
-		onScroll();
+		// The first section is the one on show when freshly mounted; only
+		// measure section headings once the reader scrolls, avoiding an early
+		// synchronous layout on mount.
 		box.addEventListener("scroll", onScroll, { passive: true });
 		box.addEventListener("scrollend", onScrollEnd);
 		box.addEventListener("wheel", unlockManual, { passive: true });
@@ -328,8 +329,12 @@ function SectionList({
 			window.removeEventListener("keydown", onKeyDown);
 		};
 	}, [scroller]);
-	// The chip being read stays in view in the row.
+	// The chip being read stays in view in the row. Skip the initial mount
+	// (the first chip is already in view) so we don't force a layout before
+	// Settings paints.
 	useEffect(() => {
+		if (scrolledFor.current === current) return;
+		scrolledFor.current = current;
 		const row = list.current;
 		const chip = row?.querySelector<HTMLElement>(
 			`[data-testid="section-${current}"]`,

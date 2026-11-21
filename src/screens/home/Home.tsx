@@ -303,6 +303,7 @@ const RecentRow = memo(function RecentRow({
 });
 
 export function Home({
+	away = false,
 	onOpenFile,
 	onOpenRecent,
 	onOpenRequest,
@@ -311,6 +312,8 @@ export function Home({
 	onNotes,
 	onRenamed,
 }: {
+	/** Another screen covers Home; skip Home's subtree once it has settled. */
+	away?: boolean;
 	onOpenFile: () => void;
 	onOpenRecent: (entry: RecentEntry) => void;
 	/** Open a file found in a browsed folder. */
@@ -324,6 +327,18 @@ export function Home({
 		now: Pick<OpenRequest, "id" | "name" | "reopen">,
 	) => void;
 }) {
+	const [hidden, setHidden] = useState(false);
+	useEffect(() => {
+		if (!away) {
+			setHidden(false);
+			return;
+		}
+		// Wait past the covering screen's 180 ms slide-in entrance so Home stays
+		// visible behind the sliding edge, then skip Home's subtree.
+		const timer = window.setTimeout(() => setHidden(true), 250);
+		return () => window.clearTimeout(timer);
+	}, [away]);
+	const isAway = away && hidden;
 	const { entries, ready, togglePin, remove, restore, settle } = useRecents();
 	// The first screen is on show (PAPERWREN_TRACE, lib/trace.ts).
 	useEffect(() => traceMark("Home ready"), []);
@@ -431,7 +446,11 @@ export function Home({
 	const emptyHome = !activeFolder && ready && !hasAny;
 
 	return (
-		<div className={s.page} data-testid="home">
+		<div
+			className={s.page}
+			data-testid="home"
+			data-away={isAway ? "" : undefined}
+		>
 			{/* Where the app draws the window's frame, this bar moves the window. */}
 			<header className={s.bar} data-tauri-drag-region="deep">
 				<span className={s.logo}>
