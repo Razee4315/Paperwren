@@ -513,3 +513,10 @@ Spec: [MOTION.md](MOTION.md). Tokens: [docs/tokens.md](docs/tokens.md).
 - **Now:** desktop `RANGE_CHUNK` is 256 KiB (mobile remains 64 KiB); streamed `readSample()` starts after page 1 draws so page 1 has full IPC bandwidth; `open.rs` checks extensions with zero-allocation `eq_ignore_ascii_case`; `WindowControls` and `fullscreen.ts` use trailing-only `afterQuiet(200)` on resize events while clicking the Maximise/Restore button still syncs immediately.
 - **Visible change:** no; during an active edge drag the maximise icon updates once the drag settles (200 ms), and clicking Maximise/Restore updates immediately.
 - **Confirm on:** Windows release (open >8 MB streamed PDF and verify page 1 speed and saved marks; resize window repeatedly, drag-snap, double-click title bar, and click Maximise/Restore) and macOS/Linux/Android CI builds.
+
+### Compatible Tauri, JS, and Rust dependency updates (OPT-11)
+
+- **Before:** Tauri JS/Rust plugins sat at 2.12.0/2.12.5 (`plugin-fs` 2.5.2, `plugin-dialog` 2.7.3, `plugin-updater` 2.13.3) with minor/patch drift across `marked`, `highlight.js`, `dompurify`, `katex`, `docx-preview`, and Rust lockfile crates.
+- **Now:** updated compatible minor/patch packages to `tauri` 2.12.7, `tao` 0.37.3, `wry` 0.57.3, `plugin-fs` 2.7.1, `plugin-dialog` 2.8.4, `plugin-updater` 2.14.1, `@tauri-apps/api` 2.12.5, `@tauri-apps/cli` 2.12.6, `marked` 18.2.1, `highlight.js` 11.12.0, `dompurify` 3.4.18, `katex` 0.19.1, `docx-preview` 0.4.1, and compatible Cargo.lock crates (dropping duplicate `windows-sys` 0.59/0.60).
+- **Visible change:** no.
+- **Confirm on:** CI (`validate.yml` across Windows, macOS, Linux, Android, Playwright) and packaged release builds.
