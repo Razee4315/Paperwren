@@ -649,13 +649,18 @@ pub fn run() {
                         use std::sync::atomic::Ordering;
                         match event {
                             tauri::WindowEvent::Resized(size) => {
-                                if size.width == 0 && size.height == 0 {
-                                    if wv.is_minimized().unwrap_or(false)
-                                        && !hidden.swap(true, Ordering::AcqRel)
-                                    {
+                                // Frameless Windows windows (`decorations: false`) report
+                                // their iconic strip size (e.g. 159x27) instead of 0x0 on
+                                // minimize, both well below the 360x480 minimum window size.
+                                let minimized = size.width <= 300
+                                    && size.height <= 100
+                                    && wv.is_minimized().unwrap_or(false);
+                                if minimized {
+                                    if !hidden.swap(true, Ordering::AcqRel) {
                                         let _ = AsRef::<tauri::Webview<_>>::as_ref(&wv).hide();
                                     }
                                 } else if hidden.load(Ordering::Acquire)
+                                    && !wv.is_minimized().unwrap_or(false)
                                     && hidden.swap(false, Ordering::AcqRel)
                                 {
                                     let _ = AsRef::<tauri::Webview<_>>::as_ref(&wv).show();
@@ -663,6 +668,7 @@ pub fn run() {
                             }
                             tauri::WindowEvent::Focused(true)
                                 if hidden.load(Ordering::Acquire)
+                                    && !wv.is_minimized().unwrap_or(false)
                                     && hidden.swap(false, Ordering::AcqRel) =>
                             {
                                 let _ = AsRef::<tauri::Webview<_>>::as_ref(&wv).show();
