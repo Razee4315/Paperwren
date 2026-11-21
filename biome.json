@@ -1,5 +1,10 @@
 {
 	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
 	"organizeImports": {
 		"enabled": true
 	},
@@ -60,9 +65,10 @@
 			"src-tauri/tauri.android.conf.json",
 			"fixtures/**",
 			"playwright-report/**",
-			"src-tauri/target/**",
 			"website/**",
 			"launch-film/**",
+			"flythrough/**",
+			"audit/**",
 			"src/styles/office-fonts.css"
 		]
 	},
