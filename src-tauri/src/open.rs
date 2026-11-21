@@ -50,30 +50,36 @@ pub fn extension(path: &Path) -> Option<String> {
         .map(|e| e.to_ascii_lowercase())
 }
 
+fn in_list(ext: &str, list: &[&str]) -> bool {
+    list.iter()
+        .any(|candidate| ext.eq_ignore_ascii_case(candidate))
+}
+
 /// True for an extension (without the dot, any case) of a document or
 /// script Paperwren opens.
 pub fn is_allowed_extension(ext: &str) -> bool {
-    let ext = ext.to_ascii_lowercase();
-    DOCUMENT_EXTENSIONS.contains(&ext.as_str()) || SCRIPT_EXTENSIONS.contains(&ext.as_str())
+    in_list(ext, DOCUMENT_EXTENSIONS) || in_list(ext, SCRIPT_EXTENSIONS)
 }
 
 /// True for the extension (without the dot, any case) of a script.
 pub fn is_script_extension(ext: &str) -> bool {
-    SCRIPT_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str())
+    in_list(ext, SCRIPT_EXTENSIONS)
 }
 
 /// True when the path's extension is a document type we open.
 pub fn is_document(path: &Path) -> bool {
-    extension(path).is_some_and(|e| is_allowed_extension(&e))
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(is_allowed_extension)
 }
 
 /// True when the system's default app may be asked to open the path:
 /// a document, never a script it might run, nor a page or picture that
 /// runs script in a browser.
 pub fn may_hand_off(path: &Path) -> bool {
-    extension(path).is_some_and(|e| {
-        DOCUMENT_EXTENSIONS.contains(&e.as_str()) && !NOT_HANDED_OFF.contains(&e.as_str())
-    })
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| in_list(e, DOCUMENT_EXTENSIONS) && !in_list(e, NOT_HANDED_OFF))
 }
 
 /// True when `path` is on a drive of this computer: on Windows, a drive

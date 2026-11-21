@@ -581,10 +581,13 @@ export default function PdfView({
 				}
 				const size = stream ? stream.size : data.byteLength;
 				docSizeRef.current = size;
-				// Read before pdf.js takes the bytes away to its worker. A
-				// streamed file's sample is read beside its first page.
+				// Read before pdf.js takes the bytes away to its worker. For a
+				// streamed file, wait until page 1 draws so the 2 MiB sample
+				// reads do not compete with page 1 over the IPC pool.
 				const sampled = stream
-					? stream.readSample()
+					? drawn.then(() =>
+							alive ? stream.readSample() : Promise.reject(new Error("closed")),
+						)
 					: Promise.resolve(fileSample(new Uint8Array(data)));
 				sampled.catch(() => {});
 				const started = documentWorker(pdfjs);

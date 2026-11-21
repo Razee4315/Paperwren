@@ -21,3 +21,16 @@ export function atEdges(run: () => void, quiet = 150) {
 	call.cancel = () => window.clearTimeout(timer);
 	return call;
 }
+
+/** `run` once the calls have stopped for `quiet` milliseconds (trailing
+ * edge only). Avoids leading-edge IPC storms during window resize drags
+ * when explicit clicks already sync immediately. */
+export function afterQuiet(run: () => void, quiet = 200) {
+	let timer = 0;
+	const call = () => {
+		window.clearTimeout(timer);
+		timer = window.setTimeout(run, quiet);
+	};
+	call.cancel = () => window.clearTimeout(timer);
+	return call;
+}

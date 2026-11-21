@@ -506,3 +506,10 @@ Spec: [MOTION.md](MOTION.md). Tokens: [docs/tokens.md](docs/tokens.md).
 - **Now:** `mergeIndex` uses numeric `key(r, c)` with a zero-cost fast path when a sheet has no merges (and skips the `drawn` Set); `hasRtl` runs once per cell; `textWidth` uses a two-level font-to-text cache that avoids font-key string concatenation on repeated fonts and skips redundant `ctx.font` assignments; `.cell` uses `contain: strict` and `.colHead`/`.rowHead` use `contain: layout style paint`.
 - **Visible change:** no.
 - **Confirm on:** Windows release (scroll large XLSX with merged cells, spilled text, frozen panes, notes, and RTL cells) and Android CI APK.
+
+### Streamed PDF IPC chunks, zero-alloc extension checks, and trailing resize sync (OPT-09)
+
+- **Before:** opening a large streamed PDF on desktop requested 64 KiB `read_file_range` chunks while concurrently reading 2 MiB for `readSample()` over `http://ipc.localhost` (48 IPC calls, 2,909 ms total on a 12.6 MB PDF); `open.rs` allocated lowercase `String`s twice per extension check; `WindowControls` and `fullscreen.ts` used `atEdges(150)` which fired both leading and trailing `is_maximized`/`is_fullscreen` IPC calls across resize bursts (38 calls, 1,588 ms across 5 resize cycles).
+- **Now:** desktop `RANGE_CHUNK` is 256 KiB (mobile remains 64 KiB); streamed `readSample()` starts after page 1 draws so page 1 has full IPC bandwidth; `open.rs` checks extensions with zero-allocation `eq_ignore_ascii_case`; `WindowControls` and `fullscreen.ts` use trailing-only `afterQuiet(200)` on resize events while clicking the Maximise/Restore button still syncs immediately.
+- **Visible change:** no; during an active edge drag the maximise icon updates once the drag settles (200 ms), and clicking Maximise/Restore updates immediately.
+- **Confirm on:** Windows release (open >8 MB streamed PDF and verify page 1 speed and saved marks; resize window repeatedly, drag-snap, double-click title bar, and click Maximise/Restore) and macOS/Linux/Android CI builds.

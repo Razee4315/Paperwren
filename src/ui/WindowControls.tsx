@@ -1,17 +1,24 @@
 import { isTauri, ownsFrame } from "@/lib/env";
 import { t } from "@/lib/i18n";
-import { atEdges } from "@/lib/settle";
+import { afterQuiet } from "@/lib/settle";
 import { Copy, Minus, Square, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import s from "./WindowControls.module.css";
 
 type Command = "minimize" | "toggleMaximize" | "close";
 
-function run(command: Command) {
+let windowApi: Promise<typeof import("@tauri-apps/api/window")> | null = null;
+const loadWindow = () => {
+	if (!windowApi) windowApi = import("@tauri-apps/api/window");
+	return windowApi;
+};
+
+function run(command: Command, after?: () => void) {
 	if (!isTauri) return;
-	import("@tauri-apps/api/window")
+	loadWindow()
 		.then(({ getCurrentWindow }) => getCurrentWindow()[command]())
+		.then(() => after?.())
 		.catch(() => {});
 }
 
@@ -24,13 +31,14 @@ function run(command: Command) {
  */
 export function WindowControls() {
 	const [maximized, setMaximized] = useState(false);
+	const syncRef = useRef<() => void>(() => {});
 
 	useEffect(() => {
 		if (!ownsFrame || !isTauri) return;
 		let alive = true;
 		let stop = () => {};
-		let settled: ReturnType<typeof atEdges> | null = null;
-		import("@tauri-apps/api/window")
+		let settled: ReturnType<typeof afterQuiet> | null = null;
+		loadWindow()
 			.then(({ getCurrentWindow }) => {
 				const win = getCurrentWindow();
 				const sync = () =>
@@ -38,10 +46,10 @@ export function WindowControls() {
 						.isMaximized()
 						.then((is) => alive && setMaximized(is))
 						.catch(() => {});
+				syncRef.current = sync;
 				sync();
-				// Asked as a resize starts and once it has settled, not at
-				// every step of it.
-				settled = atEdges(sync);
+				// Asked once a resize burst settles, not at every drag step.
+				settled = afterQuiet(sync, 200);
 				return win.onResized(settled);
 			})
 			.then((unlisten) => {
@@ -51,6 +59,7 @@ export function WindowControls() {
 			.catch(() => {});
 		return () => {
 			alive = false;
+			syncRef.current = () => {};
 			stop();
 			settled?.cancel();
 		};
@@ -74,7 +83,7 @@ export function WindowControls() {
 				tabIndex={-1}
 				aria-label={maximized ? t("Restore") : t("Maximise")}
 				title={maximized ? t("Restore") : t("Maximise")}
-				onClick={() => run("toggleMaximize")}
+				onClick={() => run("toggleMaximize", () => syncRef.current())}
 			>
 				{maximized ? (
 					<Copy size={13} strokeWidth={1.5} className={s.restore} />

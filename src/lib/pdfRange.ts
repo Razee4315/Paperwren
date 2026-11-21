@@ -31,8 +31,10 @@ export interface PdfStreamSource {
  * threshold (8 MiB) so small/medium files rebuilt on disk (e.g. LaTeX)
  * keep a consistent in-memory copy while large files stream. */
 export const STREAM_OVER = isDesktop ? 8 * 1024 * 1024 : 2 * 1024 * 1024;
-/** pdf.js's piece size, and the one asked for here. */
-export const RANGE_CHUNK = 65536;
+/** pdf.js's piece size, and the one asked for here. Desktop uses 256 KiB
+ * to cut IPC roundtrips ~4x on large streamed PDFs; mobile stays at 64 KiB
+ * to keep per-chunk memory and synchronous bridge calls small. */
+export const RANGE_CHUNK = isDesktop ? 256 * 1024 : 65536;
 /** As in docMarks.ts: the first and last MiB name a file. */
 const SAMPLE = 1 << 20;
 /** The most asked of Rust in one call (its own cap is the same). */
@@ -81,8 +83,11 @@ type Reader = {
 	yields: boolean;
 };
 
+let coreApi: Promise<typeof import("@tauri-apps/api/core")> | null = null;
+
 async function rustReader(path: string): Promise<Reader> {
-	const { invoke } = await import("@tauri-apps/api/core");
+	if (!coreApi) coreApi = import("@tauri-apps/api/core");
+	const { invoke } = await coreApi;
 	const size = await invoke<number>("file_size", { path });
 	return {
 		size,

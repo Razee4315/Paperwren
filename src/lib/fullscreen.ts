@@ -25,7 +25,7 @@
 
 import { ownsKeys } from "@/ui/Overlay";
 import { isDesktop, isTauri } from "./env";
-import { atEdges } from "./settle";
+import { afterQuiet } from "./settle";
 
 const REVEAL_AT = 2;
 const HIDE_PAST = 140;
@@ -320,7 +320,7 @@ export function watchFullscreen(): () => void {
 	// of (the green button, the menu, a swipe), each of which resizes it.
 	let alive = true;
 	let stop = () => {};
-	let settled: ReturnType<typeof atEdges> | null = null;
+	let settled: ReturnType<typeof afterQuiet> | null = null;
 	if (ofWindow) {
 		document.addEventListener("keydown", onKey);
 		appWindow()
@@ -336,9 +336,8 @@ export function watchFullscreen(): () => void {
 						.catch(() => {});
 				syncNow = follow;
 				follow();
-				// Asked as a resize starts and once it has settled, not at
-				// every step of a drag.
-				settled = atEdges(follow);
+				// Asked once a resize burst settles, not at every drag step.
+				settled = afterQuiet(follow, 200);
 				return win.onResized(settled);
 			})
 			.then((unlisten) => {
