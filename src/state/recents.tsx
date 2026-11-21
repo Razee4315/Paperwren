@@ -451,10 +451,12 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		let attempt = 0;
 		let timer = 0;
 		const heal = () => {
+			let pending = 0;
 			const fixes: Array<[string, string]> = [];
 			for (const e of current.current) {
 				if (e.reopen.kind !== "uri") continue;
 				if (e.nameVerified !== false && !isOpaqueName(e.name)) continue;
+				pending++;
 				const name = backend.providerName(e.reopen.uri);
 				if (name && !isOpaqueName(name)) fixes.push([e.id, name]);
 			}
@@ -466,7 +468,8 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 					}),
 				);
 			}
-			if (++attempt < 4) timer = window.setTimeout(heal, attempt * 1500);
+			if (pending > fixes.length && ++attempt < 4)
+				timer = window.setTimeout(heal, attempt * 1500);
 		};
 		heal();
 		return () => window.clearTimeout(timer);

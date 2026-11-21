@@ -397,17 +397,20 @@ async function webShare(shared: File): Promise<void> {
 	}
 }
 
+let webShareSupported: boolean | null = null;
+
 function canWebShare(): boolean {
+	if (webShareSupported !== null) return webShareSupported;
 	try {
-		return (
+		webShareSupported =
 			typeof navigator.canShare === "function" &&
 			navigator.canShare({
 				files: [new File([""], "probe.pdf", { type: "application/pdf" })],
-			})
-		);
+			});
 	} catch {
-		return false;
+		webShareSupported = false;
 	}
+	return webShareSupported;
 }
 
 /** Bytes per piece handed to the Android bridge when saving. */

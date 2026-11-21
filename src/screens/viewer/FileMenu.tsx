@@ -77,7 +77,7 @@ export function FileMenu({
 	/** The viewer's own items; `close` dismisses the menu. */
 	extra?: (close: () => void) => ReactNode;
 	/** What the viewer knows about the document, for Details. */
-	details?: Array<[string, string]>;
+	details?: Array<[string, string]> | (() => Array<[string, string]>);
 	/** Lay the document out for paper inside `root`. */
 	onPrint?: (root: HTMLElement) => Promise<void> | void;
 	active: boolean;
@@ -131,98 +131,111 @@ export function FileMenu({
 				<MoreVertical size={20} />
 			</IconButton>
 			<Sheet open={open} title={file.name} onClose={close} testId="file-menu">
-				{extra && (
+				{open && (
 					<>
-						{extra(close)}
-						<SheetDivider />
-					</>
-				)}
-				{pair?.room && (
-					<SheetItem
-						icon={<Columns2 size={20} />}
-						checked={pair.on}
-						onClick={() => {
-							setOpen(false);
-							if (pair.on) pair.leave();
-							else if (pair.others.length) setBesideOpen(true);
-							else pair.pickBeside();
-						}}
-						testId="file-side-by-side"
-						extra={
-							pair.on ? (
-								<IconButton
-									label={t("Swap sides")}
+						{extra && (
+							<>
+								{extra(close)}
+								<SheetDivider />
+							</>
+						)}
+						{pair?.room && (
+							<SheetItem
+								icon={<Columns2 size={20} />}
+								checked={pair.on}
+								onClick={() => {
+									setOpen(false);
+									if (pair.on) pair.leave();
+									else if (pair.others.length) setBesideOpen(true);
+									else pair.pickBeside();
+								}}
+								testId="file-side-by-side"
+								extra={
+									pair.on ? (
+										<IconButton
+											label={t("Swap sides")}
+											onClick={() => {
+												setOpen(false);
+												pair.swap();
+											}}
+											data-testid="file-swap-sides"
+										>
+											<ArrowLeftRight size={18} />
+										</IconButton>
+									) : undefined
+								}
+							>
+								{t("Side by side")}
+							</SheetItem>
+						)}
+						{fullscreen && (
+							<SheetItem
+								icon={
+									fullscreen.on ? (
+										<Minimize size={20} />
+									) : (
+										<Maximize size={20} />
+									)
+								}
+								shortcut={FULLSCREEN_KEYS}
+								onClick={() => {
+									setOpen(false);
+									fullscreen.toggle();
+								}}
+								testId="file-fullscreen"
+							>
+								{fullscreen.on ? t("Leave full screen") : t("Full screen")}
+							</SheetItem>
+						)}
+						{/* The file itself: tiles, so the menu stays short. */}
+						<SheetTiles>
+							{onPrint && (
+								<SheetTile
+									icon={<Printer size={20} />}
+									hint={isDesktop ? hintFor("print") : undefined}
+									onClick={print}
+									testId="file-print"
+								>
+									{t("Print")}
+								</SheetTile>
+							)}
+							<HandOffItems
+								file={file}
+								onDone={close}
+								testPrefix="file"
+								tiles
+							/>
+							{backend.abilities(file).rename && context.onRenamed && (
+								<SheetTile
+									icon={<PencilLine size={20} />}
 									onClick={() => {
 										setOpen(false);
-										pair.swap();
+										setRenaming(true);
 									}}
-									data-testid="file-swap-sides"
+									testId="file-rename"
 								>
-									<ArrowLeftRight size={18} />
-								</IconButton>
-							) : undefined
-						}
-					>
-						{t("Side by side")}
-					</SheetItem>
+									{t("Rename")}
+								</SheetTile>
+							)}
+							<SheetTile
+								icon={<Info size={20} />}
+								onClick={() => {
+									setOpen(false);
+									setDetails(true);
+								}}
+								testId="file-details-open"
+							>
+								{t("Details")}
+							</SheetTile>
+						</SheetTiles>
+					</>
 				)}
-				{fullscreen && (
-					<SheetItem
-						icon={
-							fullscreen.on ? <Minimize size={20} /> : <Maximize size={20} />
-						}
-						shortcut={FULLSCREEN_KEYS}
-						onClick={() => {
-							setOpen(false);
-							fullscreen.toggle();
-						}}
-						testId="file-fullscreen"
-					>
-						{fullscreen.on ? t("Leave full screen") : t("Full screen")}
-					</SheetItem>
-				)}
-				{/* The file itself: tiles, so the menu stays short. */}
-				<SheetTiles>
-					{onPrint && (
-						<SheetTile
-							icon={<Printer size={20} />}
-							hint={isDesktop ? hintFor("print") : undefined}
-							onClick={print}
-							testId="file-print"
-						>
-							{t("Print")}
-						</SheetTile>
-					)}
-					<HandOffItems file={file} onDone={close} testPrefix="file" tiles />
-					{backend.abilities(file).rename && context.onRenamed && (
-						<SheetTile
-							icon={<PencilLine size={20} />}
-							onClick={() => {
-								setOpen(false);
-								setRenaming(true);
-							}}
-							testId="file-rename"
-						>
-							{t("Rename")}
-						</SheetTile>
-					)}
-					<SheetTile
-						icon={<Info size={20} />}
-						onClick={() => {
-							setOpen(false);
-							setDetails(true);
-						}}
-						testId="file-details-open"
-					>
-						{t("Details")}
-					</SheetTile>
-				</SheetTiles>
 			</Sheet>
 			{details && (
 				<FileDetails
 					file={file}
 					size={size}
-					extra={more}
+					extra={typeof more === "function" ? more() : more}
 					onClose={() => setDetails(false)}
 				/>
 			)}
@@ -233,30 +246,34 @@ export function FileMenu({
 					onClose={() => setBesideOpen(false)}
 					testId="side-by-side-pick"
 				>
-					{pair.others.map((tab) => (
-						<SheetItem
-							key={tab.key}
-							icon={<FileText size={20} />}
-							onClick={() => {
-								setBesideOpen(false);
-								pair.beside(tab);
-							}}
-							testId="side-by-side-tab"
-						>
-							<span dir="auto">{tab.request.name}</span>
-						</SheetItem>
-					))}
-					<SheetDivider />
-					<SheetItem
-						icon={<FilePlus size={20} />}
-						onClick={() => {
-							setBesideOpen(false);
-							pair.pickBeside();
-						}}
-						testId="side-by-side-file"
-					>
-						{t("Choose a file")}
-					</SheetItem>
+					{besideOpen && (
+						<>
+							{pair.others.map((tab) => (
+								<SheetItem
+									key={tab.key}
+									icon={<FileText size={20} />}
+									onClick={() => {
+										setBesideOpen(false);
+										pair.beside(tab);
+									}}
+									testId="side-by-side-tab"
+								>
+									<span dir="auto">{tab.request.name}</span>
+								</SheetItem>
+							))}
+							<SheetDivider />
+							<SheetItem
+								icon={<FilePlus size={20} />}
+								onClick={() => {
+									setBesideOpen(false);
+									pair.pickBeside();
+								}}
+								testId="side-by-side-file"
+							>
+								{t("Choose a file")}
+							</SheetItem>
+						</>
+					)}
 				</Sheet>
 			)}
 			{renaming && (

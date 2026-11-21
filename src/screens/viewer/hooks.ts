@@ -619,14 +619,29 @@ export function useTapToTurn(
 	);
 }
 
-/** What an Office or OpenDocument file says about itself, as Details
- * rows; none for any other file. */
+/** What an Office or OpenDocument file says about itself, as a lazy
+ * Details getter (parsed only if the reader opens Details). */
 export function useOfficeDetails(
 	data: ArrayBuffer,
 	format: FileFormat,
-): Array<[string, string]> {
-	return useMemo(() => {
-		const meta = readOfficeMeta(data, format);
+): () => Array<[string, string]> {
+	const cached = useRef<{
+		data: ArrayBuffer;
+		format: FileFormat;
+		meta: ReturnType<typeof readOfficeMeta>;
+	} | null>(null);
+	return useCallback(() => {
+		let meta: ReturnType<typeof readOfficeMeta>;
+		if (
+			cached.current &&
+			cached.current.data === data &&
+			cached.current.format === format
+		) {
+			meta = cached.current.meta;
+		} else {
+			meta = readOfficeMeta(data, format);
+			cached.current = { data, format, meta };
+		}
 		const when = (d: Date | undefined) =>
 			d?.toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" });
 		const rows: Array<[string, string | undefined]> = [

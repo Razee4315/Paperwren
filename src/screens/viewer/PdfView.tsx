@@ -2805,69 +2805,75 @@ export default function PdfView({
 					onClose={() => answerPrint(null)}
 					testId="print-range"
 					actions={
-						<>
-							<Button variant="ghost" onClick={() => answerPrint(null)}>
-								{t("Cancel")}
-							</Button>
-							<Button
-								variant="secondary"
-								onClick={() => answerPrint({ from: page, to: page })}
-								data-testid="print-current"
-							>
-								{t("This page")}
-							</Button>
-							<Button
-								onClick={() => answerPrint({ from: 1, to: pages })}
-								data-testid="print-all"
-							>
-								{tn(pages, "All {n} page", "All {n} pages")}
-							</Button>
-						</>
+						printAsk !== null ? (
+							<>
+								<Button variant="ghost" onClick={() => answerPrint(null)}>
+									{t("Cancel")}
+								</Button>
+								<Button
+									variant="secondary"
+									onClick={() => answerPrint({ from: page, to: page })}
+									data-testid="print-current"
+								>
+									{t("This page")}
+								</Button>
+								<Button
+									onClick={() => answerPrint({ from: 1, to: pages })}
+									data-testid="print-all"
+								>
+									{tn(pages, "All {n} page", "All {n} pages")}
+								</Button>
+							</>
+						) : undefined
 					}
 				>
-					<form
-						className={s.range}
-						onSubmit={(e) => {
-							e.preventDefault();
-							const typed = typedRange();
-							if (typed) answerPrint(typed);
-						}}
-					>
-						<span>{t("Pages")}</span>
-						<input
-							className={shellStyles.input}
-							type="number"
-							inputMode="numeric"
-							min={1}
-							max={pages}
-							value={range.from}
-							onChange={(e) =>
-								setRange((r) => ({ ...r, from: e.target.value }))
-							}
-							aria-label={t("First page to print")}
-							data-testid="print-from"
-						/>
-						<span>{t("to")}</span>
-						<input
-							className={shellStyles.input}
-							type="number"
-							inputMode="numeric"
-							min={1}
-							max={pages}
-							value={range.to}
-							onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
-							aria-label={t("Last page to print")}
-							data-testid="print-to"
-						/>
-						<Button
-							type="submit"
-							variant="secondary"
-							disabled={!typedRange()}
-							data-testid="print-range-go"
+					{printAsk !== null && (
+						<form
+							className={s.range}
+							onSubmit={(e) => {
+								e.preventDefault();
+								const typed = typedRange();
+								if (typed) answerPrint(typed);
+							}}
 						>
-							{t("Print these")}
-						</Button>
-					</form>
+							<span>{t("Pages")}</span>
+							<input
+								className={shellStyles.input}
+								type="number"
+								inputMode="numeric"
+								min={1}
+								max={pages}
+								value={range.from}
+								onChange={(e) =>
+									setRange((r) => ({ ...r, from: e.target.value }))
+								}
+								aria-label={t("First page to print")}
+								data-testid="print-from"
+							/>
+							<span>{t("to")}</span>
+							<input
+								className={shellStyles.input}
+								type="number"
+								inputMode="numeric"
+								min={1}
+								max={pages}
+								value={range.to}
+								onChange={(e) =>
+									setRange((r) => ({ ...r, to: e.target.value }))
+								}
+								aria-label={t("Last page to print")}
+								data-testid="print-to"
+							/>
+							<Button
+								type="submit"
+								variant="secondary"
+								disabled={!typedRange()}
+								data-testid="print-range-go"
+							>
+								{t("Print these")}
+							</Button>
+						</form>
+					)}
 				</Dialog>
 
 				<Dialog
@@ -2877,23 +2883,26 @@ export default function PdfView({
 					alert
 					testId="reader-leave"
 					actions={
-						<>
-							<Button variant="ghost" onClick={() => setLeaving(null)}>
-								{t("Keep editing")}
-							</Button>
-							<Button
-								variant="danger"
-								onClick={() => {
-									setLeaving(null);
-									leaving?.go();
-								}}
-							>
-								{t("Discard")}
-							</Button>
-						</>
+						leaving !== null ? (
+							<>
+								<Button variant="ghost" onClick={() => setLeaving(null)}>
+									{t("Keep editing")}
+								</Button>
+								<Button
+									variant="danger"
+									onClick={() => {
+										setLeaving(null);
+										leaving?.go();
+									}}
+								>
+									{t("Discard")}
+								</Button>
+							</>
+						) : undefined
 					}
 				>
-					{t("What you added is lost unless you save a copy.")}
+					{leaving !== null &&
+						t("What you added is lost unless you save a copy.")}
 				</Dialog>
 
 				<Dialog
@@ -2902,22 +2911,26 @@ export default function PdfView({
 					onClose={() => setAskSigned(false)}
 					testId="signed-warning"
 					actions={
-						<>
-							<Button variant="ghost" onClick={() => setAskSigned(false)}>
-								{t("Cancel")}
-							</Button>
-							<Button
-								onClick={() => {
-									setAskSigned(false);
-									void saveWithMarks();
-								}}
-							>
-								{t("Save")}
-							</Button>
-						</>
+						askSigned ? (
+							<>
+								<Button variant="ghost" onClick={() => setAskSigned(false)}>
+									{t("Cancel")}
+								</Button>
+								<Button
+									onClick={() => {
+										setAskSigned(false);
+										void saveWithMarks();
+									}}
+								>
+									{t("Save")}
+								</Button>
+							</>
+						) : undefined
 					}
 				>
-					<CopyWarnings signed={signed === true} protection={protection} />
+					{askSigned && (
+						<CopyWarnings signed={signed === true} protection={protection} />
+					)}
 				</Dialog>
 
 				<Sheet
@@ -2927,7 +2940,7 @@ export default function PdfView({
 					wide
 					testId="find-sheet"
 				>
-					{doc && finder.current && bus.current && (
+					{resultsOpen && doc && finder.current && bus.current && (
 						<FindResults
 							doc={doc}
 							finder={finder.current}
@@ -2949,15 +2962,17 @@ export default function PdfView({
 					wide
 					testId="marks-sheet"
 				>
-					<MarksPanel
-						store={marks}
-						name={name}
-						label={pageName}
-						onShow={showMark}
-						onSaveCopy={askSaveMarks}
-						marksVisible={marksVisible}
-						onToggleMarksVisible={toggleMarksVisible}
-					/>
+					{marksOpen && (
+						<MarksPanel
+							store={marks}
+							name={name}
+							label={pageName}
+							onShow={showMark}
+							onSaveCopy={askSaveMarks}
+							marksVisible={marksVisible}
+							onToggleMarksVisible={toggleMarksVisible}
+						/>
+					)}
 				</Sheet>
 
 				<Sheet
@@ -2966,7 +2981,7 @@ export default function PdfView({
 					onClose={() => setThumbsOpen(false)}
 					wide
 				>
-					{doc && (
+					{thumbsOpen && doc && (
 						<PdfThumbs
 							doc={doc}
 							current={page}
@@ -2985,14 +3000,16 @@ export default function PdfView({
 					onClose={() => setOutlineOpen(false)}
 					wide
 				>
-					<OutlineList
-						items={outline ?? []}
-						depth={0}
-						onPick={(dest) => {
-							links.current?.goToDestination(dest as string);
-							setOutlineOpen(false);
-						}}
-					/>
+					{outlineOpen && (
+						<OutlineList
+							items={outline ?? []}
+							depth={0}
+							onPick={(dest) => {
+								links.current?.goToDestination(dest as string);
+								setOutlineOpen(false);
+							}}
+						/>
+					)}
 				</Sheet>
 
 				<Sheet

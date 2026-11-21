@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import {
 	type CSSProperties,
+	memo,
 	useCallback,
 	useContext,
 	useEffect,
@@ -507,7 +508,7 @@ function Element({ el }: { el: SlideElement }) {
 }
 
 /** One slide at its own size; the caller scales it. */
-function SlideCanvas({
+const SlideCanvas = memo(function SlideCanvas({
 	slide,
 	width,
 	height,
@@ -522,7 +523,7 @@ function SlideCanvas({
 			))}
 		</div>
 	);
-}
+});
 
 /** Width a slide is drawn at in the list of slides, in CSS pixels. */
 const THUMB_WIDTH = 150;

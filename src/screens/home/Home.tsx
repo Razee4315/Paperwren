@@ -711,24 +711,25 @@ export function Home({
 				onClose={() => setSortOpen(false)}
 				testId="sort-menu"
 			>
-				{SORTS.map(([value, label]) => (
-					<SheetItem
-						key={value}
-						icon={
-							<Check
-								size={20}
-								style={{ visibility: sort === value ? "visible" : "hidden" }}
-							/>
-						}
-						onClick={() => {
-							setSort(value);
-							setSortOpen(false);
-						}}
-						testId={`sort-${value}`}
-					>
-						{t(label)}
-					</SheetItem>
-				))}
+				{sortOpen &&
+					SORTS.map(([value, label]) => (
+						<SheetItem
+							key={value}
+							icon={
+								<Check
+									size={20}
+									style={{ visibility: sort === value ? "visible" : "hidden" }}
+								/>
+							}
+							onClick={() => {
+								setSort(value);
+								setSortOpen(false);
+							}}
+							testId={`sort-${value}`}
+						>
+							{t(label)}
+						</SheetItem>
+					))}
 			</Sheet>
 			<Sheet
 				open={menuFor !== null}

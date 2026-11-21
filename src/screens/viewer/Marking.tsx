@@ -103,20 +103,27 @@ function useSelected(container: HTMLElement | null, enabled: boolean) {
 		}
 		let frame = 0;
 		let down = false;
+		let hasSelection = false;
+		const clear = () => {
+			if (!hasSelection) return;
+			hasSelection = false;
+			setSelected(null);
+		};
 		const read = () => {
 			frame = 0;
 			const selection = window.getSelection();
 			if (down || !selection || selection.isCollapsed || !selection.rangeCount)
-				return setSelected(null);
+				return clear();
 			const from = selection.anchorNode;
 			const anchor = from instanceof Element ? from : from?.parentElement;
-			if (!anchor || !container.contains(anchor)) return setSelected(null);
-			if (!anchor.closest(".textLayer")) return setSelected(null);
+			if (!anchor || !container.contains(anchor)) return clear();
+			if (!anchor.closest(".textLayer")) return clear();
 			const text = selection.toString().trim();
 			const range = selection.getRangeAt(0);
 			const rects = [...range.getClientRects()].filter((r) => r.width > 0);
-			if (!text || !rects.length) return setSelected(null);
+			if (!text || !rects.length) return clear();
 			const view = container.getBoundingClientRect();
+			hasSelection = true;
 			setSelected({
 				text,
 				range: range.cloneRange(),
@@ -135,11 +142,19 @@ function useSelected(container: HTMLElement | null, enabled: boolean) {
 		const soon = () => {
 			if (!frame) frame = requestAnimationFrame(read);
 		};
+		const onScrollOrResize = () => {
+			if (hasSelection) {
+				soon();
+				return;
+			}
+			const selection = window.getSelection();
+			if (selection && !selection.isCollapsed && selection.rangeCount) soon();
+		};
 		const onDown = (e: PointerEvent) => {
 			if (e.pointerType === "mouse" && e.button !== 0) return;
 			if (e.pointerType !== "mouse") return;
 			down = true;
-			setSelected(null);
+			clear();
 		};
 		const onUp = () => {
 			if (!down) return;
@@ -149,16 +164,16 @@ function useSelected(container: HTMLElement | null, enabled: boolean) {
 		document.addEventListener("selectionchange", soon);
 		container.addEventListener("pointerdown", onDown);
 		window.addEventListener("pointerup", onUp);
-		container.addEventListener("scroll", soon, { passive: true });
-		window.addEventListener("resize", soon);
+		container.addEventListener("scroll", onScrollOrResize, { passive: true });
+		window.addEventListener("resize", onScrollOrResize);
 		soon();
 		return () => {
 			cancelAnimationFrame(frame);
 			document.removeEventListener("selectionchange", soon);
 			container.removeEventListener("pointerdown", onDown);
 			window.removeEventListener("pointerup", onUp);
-			container.removeEventListener("scroll", soon);
-			window.removeEventListener("resize", soon);
+			container.removeEventListener("scroll", onScrollOrResize);
+			window.removeEventListener("resize", onScrollOrResize);
 		};
 	}, [container, enabled]);
 	return selected;

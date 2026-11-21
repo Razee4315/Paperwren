@@ -386,16 +386,26 @@ export function SettingsScreen() {
 	const bookmarkCount = useBookmarkCount();
 	const [signatureCount, setSignatureCount] = useState(0);
 	const [markedCount, setMarkedCount] = useState(0);
+	const [stampCount, setStampCount] = useState(0);
 	const [newsOpen, setNewsOpen] = useState(false);
 	useEffect(() => {
-		Promise.all([loadMarkList(), readCount()]).then(([list, reads]) =>
-			setMarkedCount(Math.max(list.length, reads)),
-		);
-	}, []);
-	const [stampCount, setStampCount] = useState(0);
-	useEffect(() => {
-		loadSignatures().then((list) => setSignatureCount(list.length));
-		loadStamps().then((list) => setStampCount(list.length));
+		let alive = true;
+		Promise.all([
+			loadMarkList().catch(() => []),
+			readCount().catch(() => 0),
+			loadSignatures().catch(() => []),
+			loadStamps().catch(() => []),
+			backend.importsStats().catch(() => null),
+		]).then(([list, reads, sigs, stamps, stats]) => {
+			if (!alive) return;
+			setMarkedCount(Math.max(list.length, reads));
+			setSignatureCount(sigs.length);
+			setStampCount(stamps.length);
+			setStored(stats);
+		});
+		return () => {
+			alive = false;
+		};
 	}, []);
 	const [showLicenses, setShowLicenses] = useState(false);
 	const [keysOpen, setKeysOpen] = useState(false);
@@ -439,13 +449,6 @@ export function SettingsScreen() {
 		{ id: "privacy", label: t("Privacy"), icon: <ShieldCheck size={16} /> },
 		{ id: "about", label: t("About"), icon: <Info size={16} /> },
 	];
-
-	useEffect(() => {
-		backend
-			.importsStats()
-			.then(setStored)
-			.catch(() => setStored(null));
-	}, []);
 
 	const clearing = useRef(false);
 	const [clearBusy, setClearBusy] = useState(false);
@@ -1055,24 +1058,27 @@ export function SettingsScreen() {
 				title={t("Delete stored copies?")}
 				onClose={() => setConfirmCopies(false)}
 				actions={
-					<>
-						<Button variant="ghost" onClick={() => setConfirmCopies(false)}>
-							{t("Cancel")}
-						</Button>
-						<Button
-							variant="danger"
-							onClick={clearCopies}
-							disabled={clearBusy}
-							aria-busy={clearBusy}
-						>
-							{t("Delete")}
-						</Button>
-					</>
+					confirmCopies ? (
+						<>
+							<Button variant="ghost" onClick={() => setConfirmCopies(false)}>
+								{t("Cancel")}
+							</Button>
+							<Button
+								variant="danger"
+								onClick={clearCopies}
+								disabled={clearBusy}
+								aria-busy={clearBusy}
+							>
+								{t("Delete")}
+							</Button>
+						</>
+					) : undefined
 				}
 			>
-				{t(
-					"Files you open are kept as private copies so they can be reopened after the app is closed. Deleting them frees space; those recents will ask you to locate the file again.",
-				)}
+				{confirmCopies &&
+					t(
+						"Files you open are kept as private copies so they can be reopened after the app is closed. Deleting them frees space; those recents will ask you to locate the file again.",
+					)}
 			</Dialog>
 			<WhatsNew open={newsOpen} onClose={() => setNewsOpen(false)} />
 			<Sheet
@@ -1082,7 +1088,7 @@ export function SettingsScreen() {
 				wide
 				testId="shortcuts-sheet"
 			>
-				<ShortcutList editable />
+				{keysOpen && <ShortcutList editable />}
 			</Sheet>
 		</div>
 	);

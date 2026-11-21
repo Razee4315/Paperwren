@@ -35,6 +35,7 @@ import {
 import {
 	Suspense,
 	lazy,
+	useCallback,
 	useContext,
 	useEffect,
 	useLayoutEffect,
@@ -393,8 +394,12 @@ export default function ImageView({
 	const stepRef = useRef(step);
 	stepRef.current = step;
 
-	// --- what the file says ---
-	const details = useMemo<Array<[string, string]>>(() => {
+	// --- what the file says (parsed lazily when Details is opened) ---
+	const exifCache = useRef<{
+		data: ArrayBuffer;
+		facts: ReturnType<typeof readExif>;
+	} | null>(null);
+	const details = useCallback((): Array<[string, string]> => {
 		const rows: Array<[string, string | undefined]> = [
 			[
 				t("Size in pixels"),
@@ -402,7 +407,13 @@ export default function ImageView({
 			],
 			[t("Pages"), several ? String(count) : undefined],
 		];
-		const facts = readExif(new Uint8Array(data));
+		let facts: ReturnType<typeof readExif>;
+		if (exifCache.current && exifCache.current.data === data) {
+			facts = exifCache.current.facts;
+		} else {
+			facts = readExif(new Uint8Array(data));
+			exifCache.current = { data, facts };
+		}
 		const taken = exifDate(facts.taken);
 		rows.push(
 			[t("Camera"), facts.camera],

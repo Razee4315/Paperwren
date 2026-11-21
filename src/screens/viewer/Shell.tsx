@@ -405,7 +405,7 @@ export function Shell({
 	/** The viewer's own entries in the "more" menu. */
 	menu?: (close: () => void) => ReactNode;
 	/** What the viewer knows about the document, for Details. */
-	details?: Array<[string, string]>;
+	details?: Array<[string, string]> | (() => Array<[string, string]>);
 	/** Lay the document out for paper; enables Print. */
 	onPrint?: (root: HTMLElement) => Promise<void> | void;
 	/** Where `useZoom` writes the level during a gesture. */
@@ -1162,11 +1162,13 @@ export function Shell({
 						wide
 						testId="bookmark-list"
 					>
-						<BookmarkList
-							list={marks.list}
-							onPick={goMark}
-							onRemove={(mark) => marks.remove(mark.id)}
-						/>
+						{marksOpen && (
+							<BookmarkList
+								list={marks.list}
+								onPick={goMark}
+								onRemove={(mark) => marks.remove(mark.id)}
+							/>
+						)}
 					</Sheet>
 				)}
 				{footed && (
@@ -1275,18 +1277,19 @@ export function ZoomControl({
 					onClose={() => setOpen(false)}
 					testId={`${testId}-zoom-menu`}
 				>
-					{presets?.map((preset) => (
-						<SheetItem
-							key={preset.label}
-							checked={preset.on}
-							onClick={() => {
-								setOpen(false);
-								preset.run();
-							}}
-						>
-							{preset.label}
-						</SheetItem>
-					))}
+					{open &&
+						presets?.map((preset) => (
+							<SheetItem
+								key={preset.label}
+								checked={preset.on}
+								onClick={() => {
+									setOpen(false);
+									preset.run();
+								}}
+							>
+								{preset.label}
+							</SheetItem>
+						))}
 				</Sheet>
 			)}
 		</div>

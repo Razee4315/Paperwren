@@ -151,9 +151,9 @@ const formats = new Map<string, Intl.NumberFormat>();
  * in English), in the Latin digits the rest of the app uses. */
 export function formatNumber(
 	value: number,
-	options: Intl.NumberFormatOptions = {},
+	options?: Intl.NumberFormatOptions,
 ): string {
-	const id = `${current}|${JSON.stringify(options)}`;
+	const id = options ? `${current}|${JSON.stringify(options)}` : current;
 	let format = formats.get(id);
 	if (!format) {
 		format = new Intl.NumberFormat(`${current}-u-nu-latn`, options);

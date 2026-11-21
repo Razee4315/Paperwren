@@ -8,6 +8,7 @@
 	flex-direction: column;
 	overflow: hidden;
 	background: var(--page-bg);
+	contain: layout style;
 	animation: pw-screen-side var(--t-med) var(--ease);
 }
 .bar {
@@ -31,6 +32,9 @@
 	flex: 1;
 	overflow-y: auto;
 	overscroll-behavior: contain;
+	will-change: scroll-position;
+	transform: translateZ(0);
+	contain: layout style paint;
 }
 .column {
 	max-width: 640px;
