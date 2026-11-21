@@ -464,3 +464,10 @@ Spec: [MOTION.md](MOTION.md). Tokens: [docs/tokens.md](docs/tokens.md).
 - **Now:** `useExitPresence` reads and caches `--t-fast` from `:root` lazily during unmount cleanup rather than on mount; `MenuPanel` sets `el.style.left`/`top` directly before `useModalFocus` with no second React render; `useModalFocus` keeps focus, `ownsKeys`, `Tab` trap, and `Escape` synchronous in `useLayoutEffect`, sets `#root[inert]` in `useEffect` right after first paint, and still removes `inert` synchronously before restoring focus to the opener.
 - **Visible change:** no; menus and dialogs open at the exact same position and with the exact same focus/keyboard/inert behavior.
 - **Confirm on:** Windows release (open/close File menu, nested Dialog over editor, keyboard Tab/Esc, focus return to opener) and Playwright E2E (`tools.spec.ts` `inert` assertions).
+
+### Theme switch without forced style recalculation (OPT-03)
+
+- **Before:** changing the theme called `paintWindowBackground()`, which invoked `getComputedStyle(document.documentElement).getPropertyValue("--canvas")` right after updating `dataset.theme`, forcing a full-document `UpdateLayoutTree` (~563 ms across 2,194 elements at 6x) before React finished updating, and also sent `set_background_color` immediately on startup even though Rust `placement.rs` already painted the initial window.
+- **Now:** `paintWindowBackground(theme)` maps the five resolved themes directly to their `--canvas` RGB triples (falling back to `getComputedStyle` only for unknown themes), deduplicates identical colours, caches the `@tauri-apps/api/window` module import, skips writing `dataset.theme` when it already matches the initial hint, and defers only the first startup canvas sync by 250 ms.
+- **Visible change:** no.
+- **Confirm on:** Windows release (switch through all five themes in Settings and resize the window after each switch; verify first frame on cold start).

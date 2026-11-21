@@ -10,6 +10,20 @@
  */
 
 import { isTauri, ownsFrame } from "./env";
+import type { ResolvedTheme } from "./types";
+
+/** Canvas colour (`--canvas` in global.css) for each theme, so changing
+ * themes does not force a full-document `getComputedStyle` recalculation. */
+const CANVAS_RGB: Record<ResolvedTheme, [number, number, number]> = {
+	light: [0xe7, 0xe4, 0xdd],
+	sepia: [0xe0, 0xd3, 0xba],
+	dark: [0x11, 0x13, 0x15],
+	"plain-light": [0xec, 0xec, 0xee],
+	"plain-dark": [0x0a, 0x0a, 0x0b],
+};
+
+let windowApi: Promise<typeof import("@tauri-apps/api/window")> | null = null;
+let lastColor = "";
 
 /** A CSS colour as red, green and blue (0 to 255), or null when it is
  * not a plain hex or rgb() colour. */
@@ -37,13 +51,21 @@ export function cssColorRgb(value: string): [number, number, number] | null {
 /** Give the window the canvas colour of the theme now applied to the
  * page. Nothing happens outside the Windows app, or if the colour cannot
  * be read or set. */
-export function paintWindowBackground() {
+export function paintWindowBackground(theme?: ResolvedTheme) {
 	if (!isTauri || !ownsFrame) return;
-	const color = cssColorRgb(
-		getComputedStyle(document.documentElement).getPropertyValue("--canvas"),
-	);
+	const color =
+		(theme && CANVAS_RGB[theme]) ||
+		cssColorRgb(
+			getComputedStyle(document.documentElement).getPropertyValue("--canvas"),
+		);
 	if (!color) return;
-	import("@tauri-apps/api/window")
+	const key = `${color[0]},${color[1]},${color[2]}`;
+	if (key === lastColor) return;
+	lastColor = key;
+	windowApi ??= import("@tauri-apps/api/window");
+	windowApi
 		.then((api) => api.getCurrentWindow().setBackgroundColor(color))
-		.catch(() => {});
+		.catch(() => {
+			lastColor = "";
+		});
 }

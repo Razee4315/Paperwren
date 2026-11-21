@@ -25,6 +25,7 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 	useSyncExternalStore,
 } from "react";
@@ -158,6 +159,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 	}, [ready, settings.theme]);
 
 	const theme = resolveTheme(settings.theme, systemDark);
+	const paintedOnce = useRef(false);
 	// Books, Markdown and reading view take the face the reader picked.
 	useEffect(() => {
 		const root = document.documentElement;
@@ -165,7 +167,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 		else root.dataset.readingFont = settings.readingFont;
 	}, [settings.readingFont]);
 	useEffect(() => {
-		document.documentElement.dataset.theme = theme;
+		if (document.documentElement.dataset.theme !== theme)
+			document.documentElement.dataset.theme = theme;
 		document
 			.querySelector('meta[name="theme-color"]')
 			?.setAttribute("content", THEME_COLOR[theme]);
@@ -179,7 +182,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 		}
 		// On Windows the window shows its own colour wherever a resize is
 		// ahead of the page's painting: the theme's canvas, not a blank.
-		paintWindowBackground();
+		// Rust already painted the initial theme colour before showing the
+		// window, so defer only the first canvas sync off the startup path.
+		if (!paintedOnce.current) {
+			paintedOnce.current = true;
+			const id = window.setTimeout(() => paintWindowBackground(theme), 250);
+			return () => window.clearTimeout(id);
+		}
+		paintWindowBackground(theme);
 	}, [theme]);
 
 	// The interface language follows the setting as soon as it is known
