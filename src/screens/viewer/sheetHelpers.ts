@@ -260,7 +260,14 @@ export function cellTextCss(rotation?: number): CSSProperties {
 // ---------- Text measuring (for spill and auto-fit) ----------
 
 let ruler: CanvasRenderingContext2D | null = null;
-const measured = new Map<string, number>();
+let rulerFont = "";
+let measuredCount = 0;
+const measuredByFont = new Map<string, Map<string, number>>();
+let lastFamily = "";
+let lastSize = -1;
+let lastBold = false;
+let lastFont = "";
+let lastFontMap: Map<string, number> | null = null;
 
 /** Width of `text` in the grid's font, in sheet pixels. */
 export function textWidth(
@@ -269,15 +276,47 @@ export function textWidth(
 	family: string,
 	size = 13,
 ): number {
-	const id = `${family}|${size}|${bold ? "b" : "n"}|${text}`;
-	const hit = measured.get(id);
+	let map: Map<string, number> | undefined;
+	let font: string;
+	if (
+		lastFontMap &&
+		family === lastFamily &&
+		size === lastSize &&
+		bold === lastBold
+	) {
+		map = lastFontMap;
+		font = lastFont;
+	} else {
+		font = `${bold ? 700 : 400} ${size}px ${family}`;
+		map = measuredByFont.get(font);
+		if (!map) {
+			map = new Map<string, number>();
+			measuredByFont.set(font, map);
+		}
+		lastFamily = family;
+		lastSize = size;
+		lastBold = bold;
+		lastFont = font;
+		lastFontMap = map;
+	}
+	const hit = map.get(text);
 	if (hit !== undefined) return hit;
-	ruler ??= document.createElement("canvas").getContext("2d");
+	if (!ruler) ruler = document.createElement("canvas").getContext("2d");
 	if (!ruler) return text.length * 7;
-	ruler.font = `${bold ? 700 : 400} ${size}px ${family}`;
+	if (rulerFont !== font) {
+		ruler.font = font;
+		rulerFont = font;
+	}
 	const width = ruler.measureText(text).width;
-	if (measured.size > 8000) measured.clear();
-	measured.set(id, width);
+	if (measuredCount >= 8000) {
+		measuredByFont.clear();
+		measuredCount = 0;
+		map = new Map<string, number>();
+		measuredByFont.set(font, map);
+		lastFontMap = map;
+	}
+	map.set(text, width);
+	measuredCount++;
 	return width;
 }
 

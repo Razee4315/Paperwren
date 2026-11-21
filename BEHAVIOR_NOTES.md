@@ -499,3 +499,10 @@ Spec: [MOTION.md](MOTION.md). Tokens: [docs/tokens.md](docs/tokens.md).
 - **Now:** closed `Sheet`/`Dialog` children are gated behind their open flag; `canWebShare()` is cached once; `Settings` batches its 4 mount reads via `Promise.all` into one render and isolates layout/scroll with CSS containment and compositor promotion; `SlideCanvas` is wrapped in `React.memo`; `useOfficeDetails` and `ImageView` compute metadata/EXIF lazily (and cached) only when Details opens; `recents.tsx` schedules heal retries only when unverified/opaque `uri` entries exist; `Marking` skips scroll/resize rAFs while there is no selection; `formatNumber` fast-paths calls without options.
 - **Visible change:** no.
 - **Confirm on:** Windows release (open Settings, File menu, Details on Office and JPEG/EXIF files, scroll PDF with and without text selected, step slides in PPTX) and Android CI APK.
+
+### Workbook scroll containment and allocation removal (OPT-08)
+
+- **Before:** scrolling a workbook allocated `` `${r},${c}` `` strings for every cell in `mergeIndex` (even when a sheet had no merges), allocated a `drawn` Set per pane, concatenated a full font+text cache key string per visible cell in `textWidth` and re-assigned `ctx.font` on every miss, ran `hasRtl(value)` twice per cell, and rendered grid cells without CSS containment (6x `xlsx-scroll`: 447 ms Paint, 362 ms Style, 264 ms Layout, 21 frames >33 ms).
+- **Now:** `mergeIndex` uses numeric `key(r, c)` with a zero-cost fast path when a sheet has no merges (and skips the `drawn` Set); `hasRtl` runs once per cell; `textWidth` uses a two-level font-to-text cache that avoids font-key string concatenation on repeated fonts and skips redundant `ctx.font` assignments; `.cell` uses `contain: strict` and `.colHead`/`.rowHead` use `contain: layout style paint`.
+- **Visible change:** no.
+- **Confirm on:** Windows release (scroll large XLSX with merged cells, spilled text, frozen panes, notes, and RTL cells) and Android CI APK.

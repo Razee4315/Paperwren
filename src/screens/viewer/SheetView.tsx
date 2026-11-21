@@ -453,9 +453,9 @@ export default function SheetView({
 		: null;
 
 	const mergeIndex = useMemo(() => {
-		const map = new Map<string, MergeRange>();
+		const map = new Map<number, MergeRange>();
 		const large: MergeRange[] = [];
-		if (!sheet) return { map, large };
+		if (!sheet || !sheet.merges.length) return { map, large, any: false };
 		let budget = MAX_INDEXED_MERGE_CELLS;
 		for (const m of sheet.merges) {
 			const area = (m.r1 - m.r0 + 1) * (m.c1 - m.c0 + 1);
@@ -466,21 +466,25 @@ export default function SheetView({
 			budget -= area;
 			for (let r = m.r0; r <= m.r1; r++) {
 				for (let c = m.c0; c <= m.c1; c++) {
-					map.set(`${r},${c}`, m);
+					map.set(key(r, c), m);
 				}
 			}
 		}
-		return { map, large };
+		return { map, large, any: true };
 	}, [sheet]);
 
 	const mergeAt = useCallback(
-		(r: number, c: number) =>
-			mergeIndex.map.get(`${r},${c}`) ??
-			(mergeIndex.large.length
-				? mergeIndex.large.find(
-						(m) => r >= m.r0 && r <= m.r1 && c >= m.c0 && c <= m.c1,
-					)
-				: undefined),
+		(r: number, c: number) => {
+			if (!mergeIndex.any) return undefined;
+			return (
+				mergeIndex.map.get(key(r, c)) ??
+				(mergeIndex.large.length
+					? mergeIndex.large.find(
+							(m) => r >= m.r0 && r <= m.r1 && c >= m.c0 && c <= m.c1,
+						)
+					: undefined)
+			);
+		},
 		[mergeIndex],
 	);
 
@@ -881,19 +885,22 @@ export default function SheetView({
 	): JSX.Element[] => {
 		const out: JSX.Element[] = [];
 		if (!sheet || r1 <= r0 || c1 <= c0) return out;
-		const drawn = new Set<number>();
+		const drawn = mergeIndex.any ? new Set<number>() : null;
 		for (let r = r0; r < r1; r++) {
 			for (let c = c0; c < c1; c++) {
-				const m = mergeAt(r, c);
+				const m = mergeIndex.any ? mergeAt(r, c) : undefined;
 				const ar = m ? m.r0 : r;
 				const ac = m ? m.c0 : c;
 				const k = key(ar, ac);
-				if (drawn.has(k)) continue;
-				drawn.add(k);
+				if (drawn) {
+					if (drawn.has(k)) continue;
+					drawn.add(k);
+				}
 				const cell = sheet.cells.get(k);
 				const value = cell?.value ?? "";
 				const look = cell?.style !== undefined ? looks[cell.style] : undefined;
-				const numeric = NUMERIC.test(value);
+				const numeric = value ? NUMERIC.test(value) : false;
+				const rtl = value ? hasRtl(value) : false;
 				let w = m ? colX[m.c1 + 1] - colX[ac] : widths[ac];
 				// Long text runs over the empty cells to its right, as in Excel.
 				let spilled = false;
@@ -904,7 +911,7 @@ export default function SheetView({
 					look?.whiteSpace !== "pre-wrap" &&
 					look?.textAlign !== "center" &&
 					look?.textAlign !== "right" &&
-					!hasRtl(value)
+					!rtl
 				) {
 					const need =
 						textWidth(
@@ -925,7 +932,7 @@ export default function SheetView({
 								beside?.value ||
 								(beside?.style !== undefined &&
 									looks[beside.style]?.background) ||
-								mergeAt(ar, next)
+								(mergeIndex.any && mergeAt(ar, next))
 							)
 								break;
 							room += widths[next];
@@ -971,7 +978,7 @@ export default function SheetView({
 							...look,
 						}}
 						// Right-to-left text starts from the right edge, as in Excel.
-						dir={value && hasRtl(value) ? "rtl" : undefined}
+						dir={rtl ? "rtl" : undefined}
 						title={value.length > 20 ? value : undefined}
 					>
 						{cell?.style !== undefined && styles[cell.style]?.rotation ? (

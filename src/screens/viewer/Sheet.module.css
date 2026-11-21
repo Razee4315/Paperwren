@@ -90,6 +90,7 @@
 	font-size: 12px;
 	font-weight: 600;
 	user-select: none;
+	contain: layout style paint;
 }
 .colHead {
 	top: 0;
@@ -139,6 +140,7 @@
 	border-bottom: 1px solid var(--line);
 	color: var(--text);
 	background: var(--surface);
+	contain: strict;
 }
 /* Preserve authored ink on the sheet's white canvas in every app theme. */
 .ink {
