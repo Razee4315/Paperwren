@@ -78,6 +78,11 @@
 	flex: 1;
 	overflow-y: auto;
 	overscroll-behavior: contain;
+	/* Own compositor layer so scrolling over .page's --page-bg texture does
+	 * not force full-viewport main-thread repaints on every scroll tick. */
+	will-change: scroll-position;
+	transform: translateZ(0);
+	contain: layout style paint;
 }
 .column {
 	max-width: var(--content-max);
@@ -381,6 +386,7 @@
 	gap: 4px;
 	padding: 8px 4px 8px 12px;
 	min-height: 70px;
+	contain: layout style;
 	transition: background-color var(--t-fast) var(--ease);
 }
 .row + .row {

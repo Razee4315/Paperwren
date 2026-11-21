@@ -471,3 +471,10 @@ Spec: [MOTION.md](MOTION.md). Tokens: [docs/tokens.md](docs/tokens.md).
 - **Now:** `paintWindowBackground(theme)` maps the five resolved themes directly to their `--canvas` RGB triples (falling back to `getComputedStyle` only for unknown themes), deduplicates identical colours, caches the `@tauri-apps/api/window` module import, skips writing `dataset.theme` when it already matches the initial hint, and defers only the first startup canvas sync by 250 ms.
 - **Visible change:** no.
 - **Confirm on:** Windows release (switch through all five themes in Settings and resize the window after each switch; verify first frame on cold start).
+
+### Home recents scroll compositing and row memoization (OPT-04)
+
+- **Before:** scrolling Home's `.scroll` container over `.page`'s `--page-bg` paper texture forced main-thread repaints every wheel tick (1,335 ms Paint + 430 ms Layerize + 305 ms Commit over 2 s at 6x, 47 frames >33 ms); each PDF recent row created its own `IntersectionObserver`; filtering, sorting, row JSX, and `relativeTime` date formatting ran on every Home render (including opening menus).
+- **Now:** `.scroll` has its own compositor layer (`will-change: scroll-position`, `transform: translateZ(0)`, `contain: layout style paint`) and `.row` uses `contain: layout style`; `RowPicture` shares one `IntersectionObserver` across all rows; `visible`/`pinned`/`recent` and `RecentRow` are memoized (keyed with language and minute-bucketed `now`), and `relativeTime` caches today/yesterday day strings per minute.
+- **Visible change:** no; Home's paper texture and rows look identical, and scrolling stays smooth.
+- **Confirm on:** Windows release (scroll long recents list across Paper, Sand, Ink, Plain Light, Plain Dark; verify PDF thumbnails still lazy-load; switch language and open sort/file menus) and Android CI APK.

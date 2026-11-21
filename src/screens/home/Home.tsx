@@ -6,7 +6,15 @@ import {
 } from "@/lib/backend";
 import { isDesktop } from "@/lib/env";
 import { type FormatKind, kindOf } from "@/lib/formats";
-import { compareNames, formatDate, isolate, locale, msg, t } from "@/lib/i18n";
+import {
+	compareNames,
+	formatDate,
+	isolate,
+	language,
+	locale,
+	msg,
+	t,
+} from "@/lib/i18n";
 import { keys } from "@/lib/keys";
 import { folderOf, sharedNames } from "@/lib/recents";
 import { samplePdf } from "@/lib/sample";
@@ -54,6 +62,7 @@ import {
 	type CSSProperties,
 	Suspense,
 	lazy,
+	memo,
 	useEffect,
 	useMemo,
 	useRef,
@@ -107,18 +116,39 @@ const SORTS = [
 ] as const;
 type Sort = (typeof SORTS)[number][0];
 
+let dayCache: {
+	minute: number;
+	today: string;
+	yesterday: string;
+	year: number;
+} | null = null;
+
+function dayInfo(now: number) {
+	const minute = Math.floor(now / 60_000);
+	if (dayCache && dayCache.minute === minute) return dayCache;
+	const today = new Date(now);
+	const yesterday = new Date(now - 86_400_000);
+	dayCache = {
+		minute,
+		today: today.toDateString(),
+		yesterday: yesterday.toDateString(),
+		year: today.getFullYear(),
+	};
+	return dayCache;
+}
+
 export function relativeTime(ts: number, now = Date.now()): string {
 	if (!ts) return "";
 	const d = new Date(ts);
-	const today = new Date(now);
-	if (d.toDateString() === today.toDateString())
+	const { today, yesterday, year } = dayInfo(now);
+	const day = d.toDateString();
+	if (day === today)
 		return formatDate(d, { hour: "numeric", minute: "2-digit" });
-	const yesterday = new Date(now - 86_400_000);
-	if (d.toDateString() === yesterday.toDateString()) return t("Yesterday");
+	if (day === yesterday) return t("Yesterday");
 	return formatDate(d, {
 		month: "short",
 		day: "numeric",
-		year: d.getFullYear() === today.getFullYear() ? undefined : "numeric",
+		year: d.getFullYear() === year ? undefined : "numeric",
 	});
 }
 
@@ -129,9 +159,34 @@ function greeting(hour = new Date().getHours()): string {
 	return t("Good evening");
 }
 
+const rowWatchers = new WeakMap<Element, () => void>();
+let rowObserver: IntersectionObserver | null = null;
+
+function observeRow(el: Element, onVisible: () => void): () => void {
+	if (typeof IntersectionObserver === "undefined") {
+		onVisible();
+		return () => {};
+	}
+	rowObserver ??= new IntersectionObserver((entries) => {
+		for (const spot of entries) {
+			if (!spot.isIntersecting) continue;
+			const cb = rowWatchers.get(spot.target);
+			rowWatchers.delete(spot.target);
+			rowObserver?.unobserve(spot.target);
+			cb?.();
+		}
+	});
+	rowWatchers.set(el, onVisible);
+	rowObserver.observe(el);
+	return () => {
+		rowWatchers.delete(el);
+		rowObserver?.unobserve(el);
+	};
+}
+
 /** The first page of a recent PDF, read once its row is on screen; a
  * file's badge until then, and for every other kind of file. */
-function RowPicture({ entry }: { entry: RecentEntry }) {
+const RowPicture = memo(function RowPicture({ entry }: { entry: RecentEntry }) {
 	const [url, setUrl] = useState<string | null>(null);
 	const box = useRef<HTMLSpanElement>(null);
 	useEffect(() => {
@@ -140,17 +195,12 @@ function RowPicture({ entry }: { entry: RecentEntry }) {
 		let alive = true;
 		const read = () =>
 			loadThumb(entry.id).then((found) => alive && setUrl(found));
-		const seen = new IntersectionObserver(([spot]) => {
-			if (!spot.isIntersecting) return;
-			seen.disconnect();
-			read();
-		});
-		seen.observe(el);
+		const unobserve = observeRow(el, read);
 		// A file just opened gets its picture a moment later.
 		const stop = watchThumb(entry.id, read);
 		return () => {
 			alive = false;
-			seen.disconnect();
+			unobserve();
 			stop();
 		};
 	}, [entry.id, entry.format]);
@@ -163,11 +213,11 @@ function RowPicture({ entry }: { entry: RecentEntry }) {
 			)}
 		</span>
 	);
-}
+});
 
 /** What a row says under the name: where the reader is, the size, when
  * it was opened; and first its folder, when another file has its name. */
-function meta(e: RecentEntry, twin = false): string {
+function meta(e: RecentEntry, twin = false, now?: number): string {
 	const parts: string[] = [];
 	if (twin) parts.push(folderOf(e.reopen) ?? "");
 	if (e.position?.kind === "pdf" && e.position.page > 1)
@@ -177,9 +227,80 @@ function meta(e: RecentEntry, twin = false): string {
 	else if (e.position?.kind === "pages" && e.position.page > 0)
 		parts.push(t("Page {n}", { n: e.position.page + 1 }));
 	if (e.size > 0) parts.push(formatBytes(e.size));
-	parts.push(relativeTime(e.openedAt));
+	parts.push(relativeTime(e.openedAt, now));
 	return parts.filter(Boolean).map(isolate).join(" · ");
 }
+
+const RecentRow = memo(function RecentRow({
+	entry: e,
+	twin,
+	now,
+	onOpen,
+	onMenu,
+}: {
+	entry: RecentEntry;
+	twin: boolean;
+	now: number;
+	lang: string;
+	onOpen: (entry: RecentEntry) => void;
+	onMenu: (entry: RecentEntry) => void;
+}) {
+	const at = e.position;
+	const ratio =
+		at?.kind === "scroll"
+			? at.ratio
+			: at?.kind === "pdf" && at.pages && at.pages > 1
+				? (at.page - 1) / (at.pages - 1)
+				: null;
+	return (
+		<div
+			className={`${s.row} ${e.unavailable ? s.unavailable : ""}`}
+			data-testid="recent"
+		>
+			<button
+				type="button"
+				className={s.rowMain}
+				onClick={() => onOpen(e)}
+				onContextMenu={(ev) => {
+					ev.preventDefault();
+					onMenu(e);
+				}}
+			>
+				<RowPicture entry={e} />
+				<span className={s.rowText}>
+					<span className={s.name}>
+						{e.pinned && (
+							<Pin size={13} className={s.pin} aria-label={t("Pinned")} />
+						)}
+						{e.name}
+					</span>
+					<span className={`${s.meta} ${e.unavailable ? s.warn : ""}`}>
+						{ratio !== null && ratio > 0.01 && !e.unavailable && (
+							<span
+								className={s.progress}
+								role="img"
+								aria-label={t("{n}% read", { n: Math.round(ratio * 100) })}
+							>
+								<i style={{ width: `${Math.max(6, ratio * 100)}%` }} />
+							</span>
+						)}
+						{e.unavailable
+							? isDesktop
+								? t("Unavailable · click to locate")
+								: t("Unavailable · tap to locate")
+							: meta(e, twin, now)}
+					</span>
+				</span>
+			</button>
+			<IconButton
+				label={t("More actions for {name}", { name: e.name })}
+				onClick={() => onMenu(e)}
+			>
+				<MoreVertical size={20} />
+			</IconButton>
+		</div>
+	);
+});
 
 export function Home({
 	onOpenFile,
@@ -255,22 +376,27 @@ export function Home({
 
 	const shown = filterInForce(filter, counts);
 	const q = query.trim().toLowerCase();
-	const visible = entries.filter(
-		(e) =>
-			(shown === "all" || kindOf(e.format) === shown) &&
-			(!q || e.name.toLowerCase().includes(q)),
-	);
-	// The list arrives newest first; the other orders are made here.
-	const ordered =
-		sort === "opened"
-			? visible
-			: [...visible].sort(
-					sort === "name"
-						? (a, b) => compareNames(a.name, b.name)
-						: (a, b) => b.size - a.size,
-				);
-	const pinned = ordered.filter((e) => e.pinned);
-	const recent = ordered.filter((e) => !e.pinned);
+	const { visible, pinned, recent } = useMemo(() => {
+		const list = entries.filter(
+			(e) =>
+				(shown === "all" || kindOf(e.format) === shown) &&
+				(!q || e.name.toLowerCase().includes(q)),
+		);
+		// The list arrives newest first; the other orders are made here.
+		const ordered =
+			sort === "opened"
+				? list
+				: [...list].sort(
+						sort === "name"
+							? (a, b) => compareNames(a.name, b.name)
+							: (a, b) => b.size - a.size,
+					);
+		return {
+			visible: list,
+			pinned: ordered.filter((e) => e.pinned),
+			recent: ordered.filter((e) => !e.pinned),
+		};
+	}, [entries, shown, q, sort]);
 	const sortButton = (
 		<span className={s.sectionActions}>
 			<IconButton
@@ -285,64 +411,21 @@ export function Home({
 	);
 
 	const twins = useMemo(() => sharedNames(entries), [entries]);
-	const row = (e: RecentEntry) => {
-		const at = e.position;
-		const ratio =
-			at?.kind === "scroll"
-				? at.ratio
-				: at?.kind === "pdf" && at.pages && at.pages > 1
-					? (at.page - 1) / (at.pages - 1)
-					: null;
-		return (
-			<div
-				key={e.id}
-				className={`${s.row} ${e.unavailable ? s.unavailable : ""}`}
-				data-testid="recent"
-			>
-				<button
-					type="button"
-					className={s.rowMain}
-					onClick={() => onOpenRecent(e)}
-					onContextMenu={(ev) => {
-						ev.preventDefault();
-						setMenuFor(e);
-					}}
-				>
-					<RowPicture entry={e} />
-					<span className={s.rowText}>
-						<span className={s.name}>
-							{e.pinned && (
-								<Pin size={13} className={s.pin} aria-label={t("Pinned")} />
-							)}
-							{e.name}
-						</span>
-						<span className={`${s.meta} ${e.unavailable ? s.warn : ""}`}>
-							{ratio !== null && ratio > 0.01 && !e.unavailable && (
-								<span
-									className={s.progress}
-									role="img"
-									aria-label={t("{n}% read", { n: Math.round(ratio * 100) })}
-								>
-									<i style={{ width: `${Math.max(6, ratio * 100)}%` }} />
-								</span>
-							)}
-							{e.unavailable
-								? isDesktop
-									? t("Unavailable · click to locate")
-									: t("Unavailable · tap to locate")
-								: meta(e, twins.has(e.name.toLowerCase()))}
-						</span>
-					</span>
-				</button>
-				<IconButton
-					label={t("More actions for {name}", { name: e.name })}
-					onClick={() => setMenuFor(e)}
-				>
-					<MoreVertical size={20} />
-				</IconButton>
-			</div>
-		);
-	};
+	const lang = language();
+	// Granularity of relativeTime is whole minutes/days, so bucket `now`
+	// per minute to keep memoized RecentRow props stable during menu toggles.
+	const nowMinute = Math.floor(Date.now() / 60_000) * 60_000;
+	const row = (e: RecentEntry) => (
+		<RecentRow
+			key={e.id}
+			entry={e}
+			twin={twins.has(e.name.toLowerCase())}
+			now={nowMinute}
+			lang={lang}
+			onOpen={onOpenRecent}
+			onMenu={setMenuFor}
+		/>
+	);
 
 	const hasAny = entries.length > 0;
 	const emptyHome = !activeFolder && ready && !hasAny;
