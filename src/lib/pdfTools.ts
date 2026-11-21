@@ -76,9 +76,11 @@ export async function open(bytes: Uint8Array, password?: string): Promise<Doc> {
 	}
 }
 
-/** True when the bytes hold `mark` somewhere. */
-function holds(bytes: Uint8Array, mark: string): boolean {
-	const wanted = new TextEncoder().encode(mark);
+const BYTE_RANGE = new TextEncoder().encode("/ByteRange");
+const ENCRYPT_MARK = new TextEncoder().encode("/Encrypt");
+
+/** True when the bytes hold `wanted` somewhere. */
+function holds(bytes: Uint8Array, wanted: Uint8Array): boolean {
 	let at = bytes.indexOf(wanted[0]);
 	while (at >= 0) {
 		let i = 1;
@@ -92,7 +94,7 @@ function holds(bytes: Uint8Array, mark: string): boolean {
 /** True for a PDF with a digital signature: the mark every signature
  * dictionary carries. A copy rewrites the file, which breaks it. */
 export function digitallySigned(bytes: Uint8Array): boolean {
-	return holds(bytes, "/ByteRange");
+	return holds(bytes, BYTE_RANGE);
 }
 
 /** Same marker search, yielding between bounded chunks for the reader. */
@@ -100,14 +102,18 @@ export async function digitallySignedSliced(
 	bytes: Uint8Array,
 	cancelled: () => boolean = () => false,
 ): Promise<boolean> {
-	const mark = "/ByteRange";
 	const chunk = 64 * 1024;
 	for (let start = 0; start < bytes.length; start += chunk) {
 		// Yield before the first slice too, so the rendered page can paint.
 		await new Promise<void>((resolve) => setTimeout(resolve, 0));
 		if (cancelled()) return false;
 		// Overlap catches a marker crossing a chunk boundary.
-		if (holds(bytes.subarray(start, start + chunk + mark.length - 1), mark))
+		if (
+			holds(
+				bytes.subarray(start, start + chunk + BYTE_RANGE.length - 1),
+				BYTE_RANGE,
+			)
+		)
 			return true;
 	}
 	return false;
@@ -394,7 +400,7 @@ export async function pdfInfo(
 	const doc = await open(bytes, password);
 	// pdf-lib forgets the encryption once it has read the file, so this is
 	// read from the bytes: the dictionary every protected file carries.
-	return { pages: doc.getPageCount(), protected: holds(bytes, "/Encrypt") };
+	return { pages: doc.getPageCount(), protected: holds(bytes, ENCRYPT_MARK) };
 }
 
 /** How many pages a PDF has. */

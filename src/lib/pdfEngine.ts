@@ -46,6 +46,11 @@ export function documentOptions(viewing = false) {
  * well inside it. */
 const MAX_PHONE_IMAGE = 4096 * 4096;
 
+let loadedEngine: Promise<{
+	pdfjs: typeof import("pdfjs-dist/legacy/build/pdf.mjs");
+	viewer: typeof import("pdfjs-dist/legacy/web/pdf_viewer.mjs");
+}> | null = null;
+
 /**
  * The legacy build, not the modern one: the modern build needs a
  * Chromium from late 2023 (Promise.withResolvers and more), and phones
@@ -53,14 +58,22 @@ const MAX_PHONE_IMAGE = 4096 * 4096;
  * no PDF at all. Its worker is built by Vite (pdfWorker.ts) so it is
  * lowered and filled in the same way as the app.
  */
-export async function loadEngine() {
-	const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-	pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-	startSpare();
-	// pdf_viewer.mjs reads the core library from this global.
-	(globalThis as { pdfjsLib?: unknown }).pdfjsLib = pdfjs;
-	const viewer = await import("pdfjs-dist/legacy/web/pdf_viewer.mjs");
-	return { pdfjs, viewer };
+export function loadEngine() {
+	if (!loadedEngine) {
+		loadedEngine = (async () => {
+			const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+			pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+			startSpare();
+			// pdf_viewer.mjs reads the core library from this global.
+			(globalThis as { pdfjsLib?: unknown }).pdfjsLib = pdfjs;
+			const viewer = await import("pdfjs-dist/legacy/web/pdf_viewer.mjs");
+			return { pdfjs, viewer };
+		})().catch((err) => {
+			loadedEngine = null;
+			throw err;
+		});
+	}
+	return loadedEngine;
 }
 
 /**

@@ -104,7 +104,6 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { CropPages } from "./CropPages";
 import { PageJump, PasswordDialog } from "./Dialogs";
 import { ViewerFileContext } from "./FileMenu";
 import { FindResults } from "./FindResults";
@@ -163,6 +162,9 @@ import { pdfSpeech } from "./speechSources";
 import type { ViewerProps } from "./types";
 import { useDocMarks } from "./useDocMarks";
 
+const CropPages = lazy(() =>
+	import("./CropPages").then((m) => ({ default: m.CropPages })),
+);
 const FillSign = lazy(() =>
 	import("@/screens/tools/FillSign").then((m) => ({ default: m.FillSign })),
 );
@@ -460,6 +462,9 @@ export default function PdfView({
 	const [offer, setOffer] = useState<"scan" | "sign" | null>(null);
 	const [refused, setRefused] = useState<string[]>([]);
 	const [signed, setSigned] = useState<boolean | null>(null);
+	const signedRef = useRef<boolean | null>(null);
+	signedRef.current = signed;
+	const docSizeRef = useRef(0);
 	const [askSigned, setAskSigned] = useState(false);
 	const [fillFrom, setFillFrom] = useState(0);
 	const finder = useRef<PDFFindController | null>(null);
@@ -575,6 +580,7 @@ export default function PdfView({
 					throw new Error("Empty PDF");
 				}
 				const size = stream ? stream.size : data.byteLength;
+				docSizeRef.current = size;
 				// Read before pdf.js takes the bytes away to its worker. A
 				// streamed file's sample is read beside its first page.
 				const sampled = stream
@@ -631,11 +637,9 @@ export default function PdfView({
 						});
 						return scan;
 					};
-					// A large file is read back only when a tool that changes it
-					// is opened (see `needsBytes`): reading it back is a second
-					// copy of it, and for a streamed one, all of it read.
-					if (size <= SCAN_EAGERLY_UP_TO)
-						void signatureScan.current().catch(() => {});
+					// Scan on demand when a page asks for a signature or a tool
+					// that rewrites the file opens, avoiding a full pdf.getData()
+					// copy and sliced byte scan on ordinary reading opens.
 					setDoc(pdf);
 					setPages(pdf.numPages);
 					setStatus("ready");
@@ -1481,7 +1485,9 @@ export default function PdfView({
 				viewportOf: (params) => whole(first, () => first.getViewport(params)),
 			});
 			let text = "";
-			for (const byte of bytes) text += String.fromCharCode(byte);
+			const step = 0x8000;
+			for (let at = 0; at < bytes.length; at += step)
+				text += String.fromCharCode(...bytes.subarray(at, at + step));
 			if (live) saveThumb(thumbFor, `data:image/jpeg;base64,${btoa(text)}`);
 		}, 1500);
 		return () => {
@@ -1510,15 +1516,25 @@ export default function PdfView({
 					const { pdfjs } = await loadEngine();
 					if (await looksScanned(proxy, pdfjs.OPS)) next = "scan";
 				}
-				if (!next && rights.fill && signed === false) {
+				if (!next && rights.fill && signedRef.current !== true) {
 					const notes = (await proxy.getAnnotations()) as Array<{
 						fieldType?: string;
 					}>;
 					if (
 						notes.some((note) => note.fieldType === "Sig") ||
 						pageAsksForSignature(words)
-					)
-						next = "sign";
+					) {
+						if (signedRef.current === false) {
+							next = "sign";
+						} else if (
+							signedRef.current === null &&
+							docSizeRef.current <= SCAN_EAGERLY_UP_TO
+						) {
+							const alreadySigned = await signatureScan.current();
+							if (!live) return;
+							if (!alreadySigned) next = "sign";
+						}
+					}
 				}
 				if (live) setOffer(next);
 			} catch {
@@ -1529,7 +1545,7 @@ export default function PdfView({
 			live = false;
 			window.clearTimeout(timer);
 		};
-	}, [doc, status, page, rights.fill, signed, scanRefused]);
+	}, [doc, status, page, rights.fill, scanRefused]);
 
 	// --- marks on the pages ---
 	const mapOf = (view: DrawnPage): PageMap | null =>
@@ -2763,22 +2779,24 @@ export default function PdfView({
 				/>
 
 				{cropping && doc && signed !== null && (
-					<CropPages
-						doc={doc}
-						name={name}
-						password={passwordRef.current}
-						signed={signed}
-						protection={protection}
-						onSaved={(saved) => announceSaved(saved, file?.openOver)}
-						choice={crop}
-						page={page}
-						rotation={rotation}
-						onClose={() => setCropping(false)}
-						onDone={(next) => {
-							setCropping(false);
-							void applyCrop(next);
-						}}
-					/>
+					<Suspense fallback={null}>
+						<CropPages
+							doc={doc}
+							name={name}
+							password={passwordRef.current}
+							signed={signed}
+							protection={protection}
+							onSaved={(saved) => announceSaved(saved, file?.openOver)}
+							choice={crop}
+							page={page}
+							rotation={rotation}
+							onClose={() => setCropping(false)}
+							onDone={(next) => {
+								setCropping(false);
+								void applyCrop(next);
+							}}
+						/>
+					</Suspense>
 				)}
 
 				<Dialog

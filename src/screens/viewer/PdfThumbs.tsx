@@ -28,12 +28,22 @@ export function PdfThumbs({
 }) {
 	const grid = useRef<HTMLDivElement>(null);
 	const start = useRef(current);
+	const followMounted = useRef(false);
 
 	useEffect(() => {
 		if (!follow) return;
-		grid.current
-			?.querySelector(`[data-page="${current}"]`)
-			?.scrollIntoView({ block: "nearest" });
+		// Initial positioning is handled by the mount effect below; running
+		// scrollIntoView on mount forces a second synchronous layout.
+		if (!followMounted.current) {
+			followMounted.current = true;
+			return;
+		}
+		const raf = window.requestAnimationFrame(() => {
+			grid.current
+				?.querySelector(`[data-page="${current}"]`)
+				?.scrollIntoView({ block: "nearest" });
+		});
+		return () => window.cancelAnimationFrame(raf);
 	}, [follow, current]);
 
 	useEffect(() => {
@@ -42,6 +52,7 @@ export function PdfThumbs({
 		let alive = true;
 		const wanted = new Set<HTMLElement>();
 		let busy = false;
+		let activeRender: { cell: HTMLElement; cancel: () => void } | null = null;
 		const density = Math.min(2, window.devicePixelRatio || 1);
 
 		const releaseCanvas = (canvas: HTMLCanvasElement | null) => {
@@ -70,7 +81,13 @@ export function PdfThumbs({
 				releaseCanvas(canvas);
 				return;
 			}
-			await page.render({ canvasContext: context, viewport }).promise;
+			const task = page.render({ canvasContext: context, viewport });
+			activeRender = { cell, cancel: () => task.cancel() };
+			try {
+				await task.promise;
+			} finally {
+				if (activeRender?.cell === cell) activeRender = null;
+			}
 			if (!alive || !wanted.has(cell)) {
 				releaseCanvas(canvas);
 				return;
@@ -81,19 +98,26 @@ export function PdfThumbs({
 			if (busy) return;
 			busy = true;
 			while (alive && wanted.size) {
-				const next = [...wanted].find(
-					(cell) => !cell.querySelector("canvas")?.dataset.drawn,
-				);
+				let next: HTMLElement | undefined;
+				for (const cell of wanted) {
+					if (!cell.querySelector("canvas")?.dataset.drawn) {
+						next = cell;
+						break;
+					}
+				}
 				if (!next) break;
 				try {
 					await draw(next);
 				} catch {
-					// A page that cannot be drawn keeps its blank card.
-					const canvas = next.querySelector("canvas");
-					if (canvas) {
-						canvas.width = 0;
-						canvas.height = 0;
-						canvas.dataset.drawn = "1";
+					// A cancelled render (scrolled out of view) stays undrawn so
+					// returning to it renders again; a broken page keeps its blank card.
+					if (alive && wanted.has(next)) {
+						const canvas = next.querySelector("canvas");
+						if (canvas) {
+							canvas.width = 0;
+							canvas.height = 0;
+							canvas.dataset.drawn = "1";
+						}
 					}
 				}
 			}
@@ -106,6 +130,7 @@ export function PdfThumbs({
 					if (entry.isIntersecting) wanted.add(cell);
 					else {
 						wanted.delete(cell);
+						if (activeRender?.cell === cell) activeRender.cancel();
 						const canvas = cell.querySelector("canvas");
 						if (
 							canvas &&
@@ -120,11 +145,20 @@ export function PdfThumbs({
 			{ root: root.parentElement, rootMargin: "300px 0px" },
 		);
 		for (const cell of root.children) seen.observe(cell);
-		root
-			.querySelector(`[data-page="${start.current}"]`)
-			?.scrollIntoView({ block: "center" });
+		// Page 1 is already at the top of the list; skip forcing layout on open.
+		const scrollRaf =
+			start.current > 1
+				? window.requestAnimationFrame(() => {
+						root
+							.querySelector(`[data-page="${start.current}"]`)
+							?.scrollIntoView({ block: "center" });
+					})
+				: 0;
 		return () => {
 			alive = false;
+			if (scrollRaf) window.cancelAnimationFrame(scrollRaf);
+			activeRender?.cancel();
+			activeRender = null;
 			wanted.clear();
 			seen.disconnect();
 			for (const canvas of root.querySelectorAll("canvas")) {
