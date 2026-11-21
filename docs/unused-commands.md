@@ -25,7 +25,7 @@ pictures. No command or path access is added.
 
 | Before in `capabilities/desktop.json` | After | Use (file:line) |
 | --- | --- | --- |
-| `core:default` | `core:event:allow-listen`, `core:event:allow-unlisten` | `src/lib/backend.ts:1077` open-file handoff; `src/lib/backend.ts:974` native drop listeners; `src/lib/windowState.ts:106` resize/move subscriptions; `src/lib/fullscreen.ts:336` fullscreen follow; `src/ui/WindowControls.tsx:40` resize subscription. SDK event helpers use these commands for subscription and cleanup. |
+| `core:default` | `core:event:allow-listen`, `core:event:allow-unlisten` | `src/lib/backend.ts:1077` open-file handoff; `src/lib/backend.ts:974` native drop listeners; `src/lib/windowState.ts:106` resize/move subscriptions; `src/lib/fullscreen.ts:336` fullscreen follow; `src/ui/WindowControls.tsx:40` resize subscription; `src/screens/viewer/FileChanged.tsx:114` focus-change listener. SDK event helpers use these commands for subscription and cleanup. |
 | `core:default` | `core:window:allow-inner-size`, `core:window:allow-outer-position` | `src/lib/windowState.ts:65` and `:66`, persist normal window bounds. |
 | `core:default` | `core:window:allow-is-fullscreen`, `core:window:allow-is-minimized`, `core:window:allow-is-maximized` | `src/lib/windowState.ts:92`, `:91`, `:95`; `src/lib/fullscreen.ts:59` and `:327`; `src/ui/WindowControls.tsx:36`. |
 | `core:default` | `core:window:allow-internal-toggle-maximize` | Double-click a `data-tauri-drag-region`, e.g. `src/screens/home/Home.tsx:331`, `src/screens/TabStrip.tsx:256`, `src/screens/viewer/Shell.tsx:1014`. Injected Tauri 2.12.5 `src/window/scripts/drag.js:103,124` uses this distinct command. |

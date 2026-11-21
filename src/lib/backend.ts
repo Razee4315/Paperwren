@@ -636,13 +636,40 @@ const browserBackend: Backend = {
 
 // ---------- Tauri ----------
 
+let coreMod: typeof import("@tauri-apps/api/core") | null = null;
+let coreLoading: Promise<typeof import("@tauri-apps/api/core")> | null = null;
+let fsMod: typeof import("@tauri-apps/plugin-fs") | null = null;
+let fsLoading: Promise<typeof import("@tauri-apps/plugin-fs")> | null = null;
+let windowLoading: Promise<typeof import("@tauri-apps/api/window")> | null =
+	null;
+let dialogLoading: Promise<typeof import("@tauri-apps/plugin-dialog")> | null =
+	null;
+
+const loadFs = async () => {
+	if (fsMod) return fsMod;
+	if (!fsLoading) fsLoading = import("@tauri-apps/plugin-fs");
+	fsMod = await fsLoading;
+	return fsMod;
+};
+const loadWindow = () => {
+	if (!windowLoading) windowLoading = import("@tauri-apps/api/window");
+	return windowLoading;
+};
+const loadDialog = () => {
+	if (!dialogLoading) dialogLoading = import("@tauri-apps/plugin-dialog");
+	return dialogLoading;
+};
+
 async function invoke<T>(
 	cmd: string,
 	args?: Record<string, unknown> | Uint8Array,
 	options?: { headers: Record<string, string> },
 ): Promise<T> {
-	const { invoke } = await import("@tauri-apps/api/core");
-	return invoke<T>(cmd, args, options);
+	if (!coreMod) {
+		if (!coreLoading) coreLoading = import("@tauri-apps/api/core");
+		coreMod = await coreLoading;
+	}
+	return coreMod.invoke<T>(cmd, args, options);
 }
 
 function androidName(uri: string): {
@@ -948,7 +975,7 @@ async function requestForPath(path: string): Promise<OpenRequest> {
 	const name = path.split(/[\\/]/).pop() || path;
 	let size = 0;
 	try {
-		const { stat } = await import("@tauri-apps/plugin-fs");
+		const { stat } = await loadFs();
 		size = (await stat(path)).size;
 	} catch {
 		// Unknown size: the read reports the real length.
@@ -961,7 +988,7 @@ const tauriBackend: Backend = {
 	setTitle(title) {
 		document.title = title;
 		if (window.__paperwrenAndroid) return;
-		import("@tauri-apps/api/window")
+		loadWindow()
 			.then(({ getCurrentWindow }) => getCurrentWindow().setTitle(title))
 			.catch(() => {});
 	},
@@ -969,7 +996,7 @@ const tauriBackend: Backend = {
 		const chosen = await androidPick(!!options?.pictures, false);
 		if (chosen)
 			return chosen[0] ? requestForPicked(chosen[0], true, true) : null;
-		const { open } = await import("@tauri-apps/plugin-dialog");
+		const { open } = await loadDialog();
 		const picked = await open({
 			multiple: false,
 			title: options?.pictures ? t("Pick a picture") : t("Open a document"),
@@ -984,7 +1011,7 @@ const tauriBackend: Backend = {
 		const chosen = await androidPick(!!options?.pictures, true);
 		if (chosen)
 			return chosen.map((uri) => () => requestForPicked(uri, true, true));
-		const { open } = await import("@tauri-apps/plugin-dialog");
+		const { open } = await loadDialog();
 		const picked = await open({
 			multiple: true,
 			title: options?.pictures ? t("Choose pictures") : t("Choose documents"),
@@ -1039,7 +1066,7 @@ const tauriBackend: Backend = {
 					}
 				: null;
 		}
-		const { open } = await import("@tauri-apps/plugin-dialog");
+		const { open } = await loadDialog();
 		const picked = await open({
 			directory: true,
 			multiple: false,
@@ -1131,7 +1158,7 @@ const tauriBackend: Backend = {
 		if (cut < 0) return [];
 		const folder = path.slice(0, cut + 1);
 		try {
-			const { readDir } = await import("@tauri-apps/plugin-fs");
+			const { readDir } = await loadFs();
 			return (await readDir(folder))
 				.filter((e) => e.isFile && formatFromName(e.name) === "image")
 				.map((e) => e.name)
@@ -1288,7 +1315,7 @@ const tauriBackend: Backend = {
 			throw new OpenError("not_found");
 		const target = reopen.kind === "uri" ? reopen.uri : reopen.path;
 		try {
-			const { readFile } = await import("@tauri-apps/plugin-fs");
+			const { readFile } = await loadFs();
 			return toArrayBuffer(await readFile(target));
 		} catch (err) {
 			throw new OpenError(classifyError(err), String(err));
@@ -1299,7 +1326,7 @@ const tauriBackend: Backend = {
 		// content the system hands over.
 		if (reopen.kind !== "path" || window.__paperwrenAndroid) return null;
 		try {
-			const { stat } = await import("@tauri-apps/plugin-fs");
+			const { stat } = await loadFs();
 			return (await stat(reopen.path)).mtime?.getTime() ?? null;
 		} catch {
 			return null;

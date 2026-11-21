@@ -637,6 +637,40 @@ pub fn run() {
                 let store = data_dir(_app.handle(), "store").ok();
                 placement::open(&window, store.as_deref());
                 trace::mark("window shown");
+                // On Windows, minimizing a window leaves WebView2 visible, so
+                // Chromium keeps document.visibilityState == "visible" and runs
+                // timers/compositing in the background. Hiding only the child
+                // webview signals SetIsVisible(false) without hiding the window.
+                #[cfg(windows)]
+                {
+                    let hidden = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+                    let wv = window.clone();
+                    window.on_window_event(move |event| {
+                        use std::sync::atomic::Ordering;
+                        match event {
+                            tauri::WindowEvent::Resized(size) => {
+                                if size.width == 0 && size.height == 0 {
+                                    if wv.is_minimized().unwrap_or(false)
+                                        && !hidden.swap(true, Ordering::AcqRel)
+                                    {
+                                        let _ = AsRef::<tauri::Webview<_>>::as_ref(&wv).hide();
+                                    }
+                                } else if hidden.load(Ordering::Acquire)
+                                    && hidden.swap(false, Ordering::AcqRel)
+                                {
+                                    let _ = AsRef::<tauri::Webview<_>>::as_ref(&wv).show();
+                                }
+                            }
+                            tauri::WindowEvent::Focused(true)
+                                if hidden.load(Ordering::Acquire)
+                                    && hidden.swap(false, Ordering::AcqRel) =>
+                            {
+                                let _ = AsRef::<tauri::Webview<_>>::as_ref(&wv).show();
+                            }
+                            _ => {}
+                        }
+                    });
+                }
             }
             Ok(())
         })
