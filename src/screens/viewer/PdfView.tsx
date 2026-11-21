@@ -1,6 +1,6 @@
 import { backend, requestForBytes } from "@/lib/backend";
 import { type CropChoice, cropOn } from "@/lib/crop";
-import { type DocMark, contentKey, fileSample } from "@/lib/docMarks";
+import { type DocMark, contentKeyAsync, fileSample } from "@/lib/docMarks";
 import { isDesktop } from "@/lib/env";
 import { explainFailure } from "@/lib/errors";
 import { copyName, splitName } from "@/lib/fileName";
@@ -640,10 +640,11 @@ export default function PdfView({
 					setPages(pdf.numPages);
 					setStatus("ready");
 					sampled
-						.then((sample) => {
+						.then(async (sample) => {
+							const key = await contentKeyAsync(sample);
 							if (!alive) return;
 							setMarkDoc({
-								key: contentKey(sample),
+								key,
 								persist: !passwordRef.current && !passwordProtectedRef.current,
 							});
 						})

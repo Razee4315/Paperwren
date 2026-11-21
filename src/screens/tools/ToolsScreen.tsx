@@ -1,5 +1,5 @@
 import { formatBytes } from "@/lib/backend";
-import { contentKey, fileSample } from "@/lib/docMarks";
+import { contentKeyAsync, fileSample } from "@/lib/docMarks";
 import { unreadNote } from "@/lib/errors";
 import { copyName, splitName } from "@/lib/fileName";
 import { msg, t, tn } from "@/lib/i18n";
@@ -562,10 +562,21 @@ function MarkUpTool({ file, onOpen }: ToolProps) {
 	useEffect(() => {
 		void import("./MarkUp");
 	}, []);
-	const key = useMemo(
-		() => (picked ? contentKey(fileSample(picked.bytes)) : null),
-		[picked],
-	);
+	const [key, setKey] = useState<string | null>(null);
+	useEffect(() => {
+		if (!picked) {
+			setKey(null);
+			return;
+		}
+		let alive = true;
+		setKey(null);
+		contentKeyAsync(fileSample(picked.bytes))
+			.then((k) => alive && setKey(k))
+			.catch(() => {});
+		return () => {
+			alive = false;
+		};
+	}, [picked]);
 	const signed = useMemo(
 		() => (picked ? digitallySigned(picked.bytes) : false),
 		[picked],
@@ -974,11 +985,21 @@ function ReadTool({ file, onOpen }: ToolProps) {
 			alive = false;
 		};
 	}, [picked, isPdf, doc]);
-	const key = useMemo(
-		() =>
-			picked && !picked.password ? contentKey(fileSample(picked.bytes)) : null,
-		[picked],
-	);
+	const [key, setKey] = useState<string | null>(null);
+	useEffect(() => {
+		if (!picked || picked.password) {
+			setKey(null);
+			return;
+		}
+		let alive = true;
+		setKey(null);
+		contentKeyAsync(fileSample(picked.bytes))
+			.then((k) => alive && setKey(k))
+			.catch(() => {});
+		return () => {
+			alive = false;
+		};
+	}, [picked]);
 	return (
 		<>
 			<FileList kit={kit} several={false} addLabel={t("Choose a file")} />

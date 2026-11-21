@@ -446,3 +446,14 @@ Spec: [MOTION.md](MOTION.md). Tokens: [docs/tokens.md](docs/tokens.md).
 - **Now:** Android refuses non-`content://` and own-authority incoming intents, narrows camera `FileProvider` to `Pictures/`, restricts release `isAppOrigin` to `tauri.localhost`, escapes `\u2028`/`\u2029` in `evaluateJavascript`, and bounds `decodePicture`/`saveChunk`/`ACTION_SEND_MULTIPLE`. Rust gates `list_folder`/`rename_file` to desktop, rejects Windows UNC/device paths, canonicalizes before extension checks, blocks app-private dirs and script renames, uses `symlink_metadata`, caps store/save payloads, skips `sync_all` on `thumb_*`, and adds `frame-src 'none'; media-src 'none'` to CSP. Frontend adds strict `validateZip` before `docx-preview`/SheetJS, sanitizes DOCX styles/hrefs and workbook links, tightens `LinkGuard`/DOMPurify/ODF, clears `PasswordDialog` state, disables persistent bookmarks on password-protected docs, enforces `ownsKeys()` and inactive `FindBar` gating, releases offscreen tool canvases and `ImageBitmap`s, moves textures to `public/textures/*.svg`, removes `* { scrollbar-color }`, and fixes Android transform-only entrances and `forced-colors` rules.
 - **Visible change:** Windows `\\server\share` UNC paths and Android `file://` intents are now refused (mapped drives and `content://` still work); password-protected documents no longer save bookmarks; hidden-tab keys and double-clicks no longer misfire.
 - **Confirm on:** CI (`validate.yml` + `ci.yml` across Linux, Windows, macOS, Android, Playwright) and packaged desktop/Android builds.
+
+---
+
+## Performance, efficiency and modernization pass (2026-11-22)
+
+### Async WebCrypto document marks key (OPT-01)
+
+- **Before:** opening a PDF (or picking one in Mark up / Read text) computed its marks store key by running a pure-JS `sha512()` synchronously on the main thread over up to 2 MiB (`contentKey(sample)`), taking ~667 ms of JS self-time at 6x CPU throttle and causing a >50 ms long task even at 1x.
+- **Now:** `contentKeyAsync(sample)` hashes the exact same sample off the main thread with `crypto.subtle.digest("SHA-512", ...)` and falls back to synchronous `contentKey(sample)` where WebCrypto is unavailable (e.g. non-secure origins). Existing marks keys are byte-for-byte identical.
+- **Visible change:** no.
+- **Confirm on:** Windows release (open PDFs with existing marks and verify marks load identically, including large streamed PDFs) and Android CI APK.

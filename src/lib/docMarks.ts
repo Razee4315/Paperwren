@@ -84,13 +84,36 @@ export function fileSample(bytes: Uint8Array): Uint8Array {
 	return out;
 }
 
+function hexKey(digest: Uint8Array): string {
+	let hex = "";
+	for (const byte of digest.subarray(0, 16))
+		hex += byte.toString(16).padStart(2, "0");
+	return hex;
+}
+
 /** The key of a file's sample. Its letters are ones a store key may
  * have, and short enough to fit one. */
 export function contentKey(sample: Uint8Array): string {
-	let hex = "";
-	for (const byte of sha512(sample).subarray(0, 16))
-		hex += byte.toString(16).padStart(2, "0");
-	return hex;
+	return hexKey(sha512(sample));
+}
+
+/** Same key as `contentKey`, hashed off the main thread via WebCrypto
+ * when available (secure contexts such as Tauri and localhost). */
+export async function contentKeyAsync(sample: Uint8Array): Promise<string> {
+	const subtle = globalThis.crypto?.subtle;
+	if (subtle) {
+		try {
+			const view =
+				sample.buffer instanceof ArrayBuffer
+					? new Uint8Array(sample.buffer, sample.byteOffset, sample.byteLength)
+					: sample.slice();
+			const digest = await subtle.digest("SHA-512", view);
+			return hexKey(new Uint8Array(digest));
+		} catch {
+			// Fall back to the synchronous JS hash when WebCrypto is unavailable.
+		}
+	}
+	return contentKey(sample);
 }
 
 const isPoint = (p: unknown): p is [number, number] =>
