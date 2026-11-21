@@ -7,7 +7,6 @@ import { useExitPresence } from "@/lib/useExitPresence";
 import { useBackClose } from "@/state/navigation";
 import { X } from "lucide-react";
 import {
-	type CSSProperties,
 	type ReactNode,
 	useCallback,
 	useEffect,
@@ -23,6 +22,7 @@ import s from "./Overlay.module.css";
 
 /** Open sheets and dialogs; the app is inert while there is one. */
 let modals = 0;
+let appInert = false;
 
 /** True while a sheet, menu or dialog is open over the app. */
 export const modalOpen = () => modals - leaving > 0;
@@ -128,7 +128,6 @@ export function useModalFocus(
 		const app = document.getElementById("root");
 		const depth = ++modals;
 		own.current = depth;
-		app?.setAttribute("inert", "");
 		let left = false;
 		let gone = false;
 		const onKey = (e: KeyboardEvent) => {
@@ -172,10 +171,28 @@ export function useModalFocus(
 			gone = true;
 			own.current = -1;
 			if (left) leaving--;
-			if (--modals === 0) app?.removeAttribute("inert");
+			if (--modals === 0 && appInert) {
+				app?.removeAttribute("inert");
+				appInert = false;
+			}
 			opener?.focus?.();
 		};
 	}, [root]);
+	// Apply `inert` to `#root` after first paint so toggling it does not
+	// force a full-document style recalculation before the overlay paints.
+	// Focus and keyboard trapping above are already active synchronously.
+	useEffect(() => {
+		if (modals > 0 && !appInert) {
+			document.getElementById("root")?.setAttribute("inert", "");
+			appInert = true;
+		}
+		return () => {
+			if (modals === 0 && appInert) {
+				document.getElementById("root")?.removeAttribute("inert");
+				appInert = false;
+			}
+		};
+	}, []);
 	// Whether this layer has the keyboard now, for its own shortcuts.
 	return useCallback(() => ownsKeys(own.current), []);
 }
@@ -308,29 +325,29 @@ function MenuPanel({ title, onClose, children, testId }: PanelProps) {
 	const body = useRef<HTMLDivElement>(null);
 	// Read before the menu takes the focus from the button it hangs on.
 	const [anchor] = useState(anchorBox);
-	const [at, setAt] = useState<CSSProperties>({ visibility: "hidden" });
-	useModalFocus(ref, onClose);
-	useExitPresence(ref);
 
 	useLayoutEffect(() => {
 		const el = ref.current;
 		if (!el) return;
 		const place = () => {
-			setAt(
-				placeMenu(
-					anchor,
-					el.offsetWidth,
-					el.offsetHeight,
-					window.innerWidth,
-					window.innerHeight,
-				),
+			const pos = placeMenu(
+				anchor,
+				el.offsetWidth,
+				el.offsetHeight,
+				window.innerWidth,
+				window.innerHeight,
 			);
+			el.style.left = `${pos.left}px`;
+			el.style.top = `${pos.top}px`;
 			if (body.current) markMore(body.current);
 		};
 		place();
 		window.addEventListener("resize", place);
 		return () => window.removeEventListener("resize", place);
 	}, [anchor]);
+
+	useModalFocus(ref, onClose);
+	useExitPresence(ref);
 
 	/** Up and Down walk the items, as in any menu. */
 	const onKey = (e: React.KeyboardEvent) => {
@@ -369,7 +386,6 @@ function MenuPanel({ title, onClose, children, testId }: PanelProps) {
 				aria-label={typeof title === "string" ? title : undefined}
 				tabIndex={-1}
 				data-testid={testId}
-				style={at}
 				onKeyDown={onKey}
 			>
 				<div

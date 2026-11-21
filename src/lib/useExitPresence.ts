@@ -1,5 +1,17 @@
 import { type RefObject, useLayoutEffect } from "react";
 
+let cachedFastMs: number | null = null;
+
+function fastMs(): number {
+	if (cachedFastMs === null) {
+		cachedFastMs =
+			Number.parseFloat(
+				getComputedStyle(document.documentElement).getPropertyValue("--t-fast"),
+			) || 120;
+	}
+	return cachedFastMs;
+}
+
 /** Keep only an inert visual at unmount, releasing focus and input at once.
  * Also covers callers that conditionally mount their overlay. */
 export function useExitPresence(
@@ -10,11 +22,6 @@ export function useExitPresence(
 	// biome-ignore lint/correctness/useExhaustiveDependencies: a replacement toast retires the previous visual
 	useLayoutEffect(() => {
 		const element = ref.current;
-		const duration = element
-			? Number.parseFloat(
-					getComputedStyle(element).getPropertyValue("--t-fast"),
-				) || 120
-			: 120;
 		return () => {
 			if (
 				!enabled ||
@@ -25,6 +32,7 @@ export function useExitPresence(
 				window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
 			)
 				return;
+			const duration = fastMs();
 			const visual = element.cloneNode(true) as HTMLElement;
 			visual.setAttribute("inert", "");
 			visual.setAttribute("aria-hidden", "true");

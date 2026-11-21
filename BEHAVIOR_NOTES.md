@@ -457,3 +457,10 @@ Spec: [MOTION.md](MOTION.md). Tokens: [docs/tokens.md](docs/tokens.md).
 - **Now:** `contentKeyAsync(sample)` hashes the exact same sample off the main thread with `crypto.subtle.digest("SHA-512", ...)` and falls back to synchronous `contentKey(sample)` where WebCrypto is unavailable (e.g. non-secure origins). Existing marks keys are byte-for-byte identical.
 - **Visible change:** no.
 - **Confirm on:** Windows release (open PDFs with existing marks and verify marks load identically, including large streamed PDFs) and Android CI APK.
+
+### Overlay open without forced layout or style recalc (OPT-02)
+
+- **Before:** opening any menu or dialog triggered a full-document `UpdateLayoutTree` (~327 ms at 6x) because `useModalFocus` set `#root[inert]` synchronously in `useLayoutEffect` immediately before `useExitPresence` called `getComputedStyle(el).getPropertyValue("--t-fast")`, and `MenuPanel` called `setAt()` in `useLayoutEffect` forcing a second synchronous React render and layout (~220 ms combined at 6x).
+- **Now:** `useExitPresence` reads and caches `--t-fast` from `:root` lazily during unmount cleanup rather than on mount; `MenuPanel` sets `el.style.left`/`top` directly before `useModalFocus` with no second React render; `useModalFocus` keeps focus, `ownsKeys`, `Tab` trap, and `Escape` synchronous in `useLayoutEffect`, sets `#root[inert]` in `useEffect` right after first paint, and still removes `inert` synchronously before restoring focus to the opener.
+- **Visible change:** no; menus and dialogs open at the exact same position and with the exact same focus/keyboard/inert behavior.
+- **Confirm on:** Windows release (open/close File menu, nested Dialog over editor, keyboard Tab/Esc, focus return to opener) and Playwright E2E (`tools.spec.ts` `inert` assertions).
