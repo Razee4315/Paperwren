@@ -520,3 +520,24 @@ Spec: [MOTION.md](MOTION.md). Tokens: [docs/tokens.md](docs/tokens.md).
 - **Now:** updated compatible minor/patch packages to `tauri` 2.12.7, `tao` 0.37.3, `wry` 0.57.3, `plugin-fs` 2.7.1, `plugin-dialog` 2.8.4, `plugin-updater` 2.14.1, `@tauri-apps/api` 2.12.5, `@tauri-apps/cli` 2.12.6, `marked` 18.2.1, `highlight.js` 11.12.0, `dompurify` 3.4.18, `katex` 0.19.1, `docx-preview` 0.4.1, and compatible Cargo.lock crates (dropping duplicate `windows-sys` 0.59/0.60).
 - **Visible change:** no.
 - **Confirm on:** CI (`validate.yml` across Windows, macOS, Linux, Android, Playwright) and packaged release builds.
+
+### Windows frameless iconic minimize guard (`de20917`)
+
+- **Before:** Windows undecorated (`decorations: false`) windows report an iconic strip size (`159 × 27`) on `WM_SIZE` when minimized rather than `(0, 0)`, so OPT-05's original `(0, 0)` guard did not trigger `tauri::Webview::hide()` on Windows release builds.
+- **Now:** `src-tauri/src/lib.rs` matches `size.width <= 300 && size.height <= 100 && wv.is_minimized().unwrap_or(false)` (below the `360 × 480` minimum window size) to hide the child webview, and guards `show()` on `!wv.is_minimized()`.
+- **Visible change:** no; taskbar icon stays intact and restoring brings the webview back immediately.
+- **Confirm on:** Windows release (verified: minimized PDF `plugin:fs|stat` polls dropped from 30/min to 0/min, `ctx/s` from 47.6 to 12.3, `main` CPU to 0%).
+
+### TypeScript 7, Vite 8, and Vitest 5 toolchain upgrade (OPT-12, OPT-13; `d8ac2ea`, `f3b16e9`)
+
+- **Before:** frontend used TypeScript 5.9.3 (`tsc --noEmit` 20.62 s), Vite 5.4.21 + `@vitejs/plugin-react` 4.7.0 (`vite build` 25.08 s, dev start 5.38 s), and Vitest 2.1.9 with 8 `npm audit` vulnerabilities (2 critical, 3 high, 3 moderate).
+- **Now:** upgraded to TypeScript 7.0.2 (removed deprecated `baseUrl`), Vite 8.3.8 (Rolldown + Oxc minifier, preserving explicit `build.target: "chrome89"`), `@vitejs/plugin-react` 6.3.0, and Vitest 5.1.1 (0 `npm audit` vulnerabilities; 199 -> 148 packages).
+- **Visible change:** no.
+- **Confirm on:** CI (`validate.yml` run `44960868394`: all unit tests, Rust tests, Playwright E2E, Windows/macOS/Linux/Android builds green) and Android old-WebView smoke test.
+
+### Offscreen tab/Home `content-visibility: hidden` and Settings mount layout guard (`247b997`)
+
+- **Before:** hidden desktop viewer tabs (`.shell[data-away]`) and covered `Home` (`.page`) stayed in Blink's active style and layout tree, causing theme switches (`2,194` elements), modal `#root[inert]` menus (`1,202` elements), and multi-tab resizes to restyle and lay out hidden screens. `Settings`'s `SectionList` also read `row.scrollWidth` and triggered `onScroll()` on initial mount, forcing a 301 ms synchronous layout before first paint at 6x.
+- **Now:** `.shell[data-away]` sets `content-visibility: hidden;` (preserving its fixed box, scroll position, bitmaps, and `ResizeObserver` refit on show). `Home` receives `away={deep}` and applies `data-away` (`visibility: hidden; pointer-events: none; content-visibility: hidden;`) 250 ms after being covered (past the 180 ms screen slide-in) and clears it synchronously on render when returning to Home. `SectionList` skips `onScroll()` on mount and skips scrolling the chip row until `current` actually changes.
+- **Visible change:** no.
+- **Confirm on:** Windows release (verified: 6x `file-menu` 591 -> 189 ms, `switch-theme` 657 -> 244 ms, `switch-tab` 317 -> 100 ms, `open-settings` 368 -> 269 ms; Playwright E2E hidden-tab scroll/redraw/resize and Home visibility tests passed on CI), macOS WKWebView, Linux WebKitGTK, and Android WebView.

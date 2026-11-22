@@ -17,6 +17,12 @@ Paperwren is an offline document viewer: Tauri 2 shell, React 18 page, Android s
 - Release what a document holds when it closes: `v.setDocument(null)` for pdf.js, revoke object URLs in the effect that made them, end workers after their last job. A leak of 2,100 DOM nodes a round came from skipping this.
 - Do not call `is_maximized` or `is_fullscreen` per resize event. Use `src/lib/settle.ts`.
 - Load heavy screens and tools lazily. Check the entry chunk size when you add an import to `App.tsx` or Home.
+- Do not add polling loops when an event or observer exists (`onFocusChanged`, `ResizeObserver`, `IntersectionObserver`). Share observers across list rows instead of creating one per row.
+- Do not run background work while minimized, unfocused, or covered: stop file-check timers when unfocused/minimized, skip style/layout of hidden tabs and covered Home with `content-visibility: hidden`, and gate closed `Sheet`/`Dialog` children behind their open flag.
+- Avoid per-frame and per-scroll allocations in hot paths (no template-string map keys, uncached `measureText`, or redundant `Date` formatting per row/cell), and run multi-megabyte hashes off the main thread via `crypto.subtle.digest`.
+- Bound and clean up every cache, listener, timer, and worker on unmount or close.
+- Prefer byte-range streaming (`read_file_range`) and on-demand scans or metadata parsing over loading whole files into memory on open.
+- Never force synchronous style or layout (`getComputedStyle`, `scrollWidth`, `scrollIntoView`) immediately after mutating root attributes (`data-theme`, `#root[inert]`) or on initial screen mount. Measure before and after on a release build when possible, and revert any change that does not measurably help.
 
 ## State
 
