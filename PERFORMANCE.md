@@ -241,12 +241,15 @@ Measured on the CI-built Windows release MSI (`validate.yml` run `44960868394`, 
 | Leak check: 20x open/close `big.pdf` | Flat (slope -9.09 MB/r; r1 449.9 -> r20 525.8 MB) | -9.72 MB/r | **-0.014 MB/r** (9.3 -> 10.7 MB) | **-97.8/r** (returns to 1,551 nodes / 452 listeners) | 1 |
 | 10-minute scripted use (46 loops) | t=30s 862.1 -> t=600s **1,098.3 MB** (-79.5 MB vs v1.9.0's 1,177.8 MB) | — | **14.1 -> 13.7 MB (flat)** | **2,513 -> 2,387 (flat)** | 1–3 |
 
-### Size (v1.10.0 candidate vs v1.9.0)
+### Size (v1.10.0 release vs v1.9.0)
 
-| Artifact | v1.9.0 | v1.10.0 candidate | Delta |
+| Artifact | v1.9.0 release | v1.10.0 release (`44965873237`) | Delta |
 |---|---|---|---|
 | Installed `paperwren.exe` (Windows) | 26,014,720 B (24.81 MiB) | 26,105,344 B (24.90 MiB) | +90.6 KB (Tauri 2.12.7 / wry 0.57.3 + minimize hook; under 27 MB budget) |
-| Windows NSIS / MSI installer | 23.53 MB / 23.99 MB | 23.54 MB (`23,542,118 B`) / 24.01 MB (`24,014,848 B`) | +11 KB / +24 KB (under 24 MB NSIS budget) |
+| Windows NSIS / MSI installer | 23,529,036 B / 23,986,176 B | 23,537,315 B / 24,014,848 B | +8.3 KB / +28.7 KB (under 24 MB NSIS budget) |
+| macOS universal DMG / `.app.tar.gz` | 47,881,919 B / 47,924,834 B | **47,861,688 B / 47,893,698 B** | **-20.2 KB / -31.1 KB** |
+| Linux `.deb` / `.rpm` / `.AppImage` | 24,203,452 / 24,204,686 / 102,754,808 B | **24,176,886 / 24,181,562 / 102,734,328 B** | **-26.6 KB / -23.1 KB / -20.5 KB** |
+| Android APK | 77,844,901 B | **77,842,005 B** | **-2.9 KB** |
 | `dist/` total | 42,917,175 B (570 files) | **42,898,544 B** (581 files) | **-18.6 KB** |
 | Entry JS preload sum | 303,950 B (296.8 KiB) | **302,889 B (295.8 KiB)** | **-1.1 KB** (under 300 KB budget) |
 | Total CSS (`dist/`) | 394,897 B | **386,390 B** | **-8.5 KB** |
@@ -300,6 +303,7 @@ Measured on the CI-built Windows release MSI (`validate.yml` run `44960868394`, 
 | Lint (`npm run lint`) | 21.21 s (exit 1, 3,579 files) | **0.76 s** Biome / **1.46 s** wall (exit 0, 374 files) | **14.5x faster** |
 | `npm audit` vulnerabilities | 8 (2 critical, 3 high, 3 moderate) | **0** | **100% resolved** |
 | CI `validate.yml` (`44960868394`) | Frontend 76 s, Rust 190 s, E2E 316 s | **Frontend 64 s, Rust 63 s, E2E 303 s** (7/7 jobs green) | Faster across all jobs |
+| CI `release.yml` (`44965873237` vs `44773820476`) | Win 538 s, macOS 553 s, Linux 361 s, Android 452 s | **Win 448 s, macOS 420 s, Linux 256 s, Android 451 s** (5/5 jobs green) | **Win -17%, macOS -24%, Linux -29%** |
 
 ## 3. Findings
 
