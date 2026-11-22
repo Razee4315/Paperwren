@@ -1,0 +1,4 @@
+PDFs open faster with off-thread hashing and on-demand signature scans.
+Menus, tabs, themes, Settings, and the side panel respond faster with less stutter.
+Home recents and large spreadsheets scroll more smoothly, with lower memory use across multiple files.
+Updated Tauri (including plugin-fs 2.7.1) and document viewer libraries for improved stability and efficiency.

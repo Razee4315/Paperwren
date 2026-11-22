@@ -1,5 +1,14 @@
 # What's new
 
+## 1.10.0
+
+- PDFs open faster, with document fingerprints computed off the main thread, signature scans deferred until a form field is present or a tool opens, and larger desktop range reads on streamed files.
+- Menus, dialogs, theme switches, tab switching, the side panel, and Settings respond with less stutter by skipping hidden tabs and covered screens from style and layout work and removing forced layout reads on open.
+- Scrolling the Home recents list and large spreadsheets runs smoother with GPU-composited Home scrolling, shared thumbnail observers, and stricter cell containment.
+- Desktop: minimizing the window on Windows now pauses background file checks and webview compositing, cutting minimized idle wakeups and CPU use, and window resize checks run once a drag settles.
+- Lower memory use when several documents are open together, with closed overlays and metadata computed only on demand.
+- Updated Tauri, runtime libraries, and frontend build tooling (TypeScript 7, Vite 8, Vitest 5) with zero known npm vulnerabilities.
+
 ## 1.9.0
 
 - Large PDFs stream a piece at a time instead of loading whole into memory, fixing crashes on very large files and scanned picture PDFs and showing the first page sooner.

@@ -3,6 +3,12 @@ name: Release
 on:
   # Publishing is an explicit action. Ordinary pushes only run CI.
   workflow_dispatch:
+    inputs:
+      draft:
+        description: "Create a draft GitHub release (skip publishing live and Play upload)"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -148,7 +154,7 @@ jobs:
             What's new: [Release notes (v__VERSION__)](https://github.com/Razee4315/Paperwren/blob/main/docs/releases/v__VERSION__.md) · [Full changelog](https://github.com/Razee4315/Paperwren/blob/main/CHANGELOG.md)
 
             Downloads for Windows, macOS, Linux (AppImage, .deb, .rpm) and Android are attached below.
-          releaseDraft: false
+          releaseDraft: ${{ inputs.draft }}
           prerelease: false
 
   # After the Windows job, which creates the release: each job adds its
@@ -214,7 +220,7 @@ jobs:
           tagName: v__VERSION__
           releaseCommitish: ${{ needs.check-and-bump.outputs.commit }}
           releaseName: Paperwren v__VERSION__
-          releaseDraft: false
+          releaseDraft: ${{ inputs.draft }}
           prerelease: false
 
   # Linux (beta): an AppImage that runs on most distributions, a .deb
@@ -286,7 +292,7 @@ jobs:
           tagName: v__VERSION__
           releaseCommitish: ${{ needs.check-and-bump.outputs.commit }}
           releaseName: Paperwren v__VERSION__
-          releaseDraft: false
+          releaseDraft: ${{ inputs.draft }}
           prerelease: false
 
   android:
@@ -445,6 +451,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.check-and-bump.outputs.version }}
+          target_commitish: ${{ needs.check-and-bump.outputs.commit }}
+          draft: ${{ inputs.draft }}
           files: artifacts/Paperwren-v*-android*.apk
           fail_on_unmatched_files: true
 
@@ -453,7 +461,7 @@ jobs:
       # PLAY_SERVICE_ACCOUNT_JSON secret. The very first bundle must be
       # uploaded by hand in Play Console before the API accepts uploads.
       - name: Upload AAB to Play (internal track, draft)
-        if: env.PLAY_SERVICE_ACCOUNT_JSON != '' && steps.signing.outputs.suffix == ''
+        if: env.PLAY_SERVICE_ACCOUNT_JSON != '' && steps.signing.outputs.suffix == '' && !inputs.draft
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
