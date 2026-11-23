@@ -26,6 +26,9 @@ export interface OpenRequest {
 	reopen: Reopen;
 	/** Carried over when a recent is repaired by picking the file again. */
 	position?: Position;
+	/** Readable for this run only (session-scoped Android URI grant); not
+	 * added to Recent files and no persistent thumbnail saved. */
+	ephemeral?: boolean;
 }
 
 /** Where the reader stopped, per viewer. Small and versionless: a

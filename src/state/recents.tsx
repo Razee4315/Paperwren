@@ -485,6 +485,7 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 			const release = held.current.get(before);
 			held.current.delete(before);
 			release?.();
+			schedule.current(0);
 		}, UNDO_MS);
 		return () => window.clearTimeout(timer);
 	}, [settingsReady, ready, settings.keepRecents, commit]);
@@ -626,6 +627,7 @@ export function RecentsProvider({ children }: { children: ReactNode }) {
 		const release = held.current.get(list);
 		held.current.delete(list);
 		release?.();
+		schedule.current(0);
 	}, []);
 
 	const rename = useCallback<RecentsApi["rename"]>(

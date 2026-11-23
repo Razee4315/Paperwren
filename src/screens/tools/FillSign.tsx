@@ -1430,12 +1430,21 @@ export function FillPage({
 				const target = canvas.current;
 				const ctx = target?.getContext("2d");
 				if (!alive || !target || !ctx) return;
-				const density = Math.min(2, window.devicePixelRatio || 1);
+				const dpr = Math.min(2, window.devicePixelRatio || 1);
 				// The whole page, whatever the reader has cropped on screen.
 				const base = whole(proxy, () => proxy.getViewport({ scale: 1 }));
-				const viewport = whole(proxy, () =>
-					proxy.getViewport({ scale: (width * density) / base.width }),
-				);
+				// Cap canvas backing store so tall or high-res pages never hit
+				// WebView texture limits and turn blank (#104).
+				const maxPixels = isDesktop ? 2 ** 25 : 2 ** 22;
+				const maxEdge = isDesktop ? 16384 : 4096;
+				const rawW = width * dpr;
+				const rawH = rawW * (base.height / Math.max(1, base.width));
+				const pixelCap =
+					rawW * rawH > maxPixels ? Math.sqrt(maxPixels / (rawW * rawH)) : 1;
+				const edgeCap =
+					Math.max(rawW, rawH) > maxEdge ? maxEdge / Math.max(rawW, rawH) : 1;
+				const scale = (rawW * Math.min(pixelCap, edgeCap)) / base.width;
+				const viewport = whole(proxy, () => proxy.getViewport({ scale }));
 				target.width = Math.ceil(viewport.width);
 				target.height = Math.ceil(viewport.height);
 				task = proxy.render({

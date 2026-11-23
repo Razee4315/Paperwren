@@ -31,10 +31,10 @@ export interface PdfStreamSource {
  * threshold (8 MiB) so small/medium files rebuilt on disk (e.g. LaTeX)
  * keep a consistent in-memory copy while large files stream. */
 export const STREAM_OVER = isDesktop ? 8 * 1024 * 1024 : 2 * 1024 * 1024;
-/** pdf.js's piece size, and the one asked for here. Desktop uses 256 KiB
- * to cut IPC roundtrips ~4x on large streamed PDFs; mobile stays at 64 KiB
- * to keep per-chunk memory and synchronous bridge calls small. */
-export const RANGE_CHUNK = isDesktop ? 256 * 1024 : 65536;
+/** pdf.js's piece size, and the one asked for here. Using 256 KiB cuts
+ * IPC / JNI bridge roundtrips ~4x on large streamed PDFs while keeping
+ * mobile chunks comfortably under BRIDGE_PIECE (1 MiB). */
+export const RANGE_CHUNK = 256 * 1024;
 /** As in docMarks.ts: the first and last MiB name a file. */
 const SAMPLE = 1 << 20;
 /** The most asked of Rust in one call (its own cap is the same). */

@@ -22,29 +22,29 @@ export const pdfAsset = (dir: string) =>
  * came out turned on its side on Android only (#80). pdf.js's own
  * decoder draws the picture as stored, as every other reader does.
  *
- * A phone draws no picture larger than 4096 x 4096 (16 MP). A page that
- * is a camera photo (a CamScanner PDF) can hold a 50 MP picture, which
- * decoded is 200 MB, and a few of them ended the app (#94). pdf.js does
- * not scale such a picture down: it leaves it out, and its page shows
- * without it. That is the price of the app not ending, so only the
- * viewer (`viewing`) pays it. A tool that draws pages into a new file
- * must not lose a picture without a word; a computer has no limit.
+ * A phone downscales oversized embedded images in the PDF worker rather
+ * than dropping them (#104) or allocating unbounded RGBA bitmaps in the
+ * WebView (#94): `canvasMaxAreaInBytes` (64 MiB RGBA = 16 MP) keeps
+ * normal photos at full resolution and asks pdf.js's `ImageResizer` to
+ * shrink larger camera scans into a compact `ImageBitmap`. A tool that
+ * rewrites pages into a new file (`viewing = false`) keeps full input
+ * resolution; desktop has no limit.
  */
 export function documentOptions(viewing = false) {
 	return {
 		isEvalSupported: false,
 		isImageDecoderSupported: false,
-		maxImageSize: viewing && !isDesktop ? MAX_PHONE_IMAGE : -1,
+		maxImageSize: -1,
+		canvasMaxAreaInBytes: viewing && !isDesktop ? MAX_PHONE_IMAGE_BYTES : -1,
 		cMapUrl: pdfAsset("cmaps"),
 		cMapPacked: true,
 		standardFontDataUrl: pdfAsset("standard_fonts"),
 	};
 }
 
-/** Pixels in the largest picture a phone decodes (pdf.js's
- * `maxImageSize` counts width times height). A 12 MP camera photo is
- * well inside it. */
-const MAX_PHONE_IMAGE = 4096 * 4096;
+/** Max RGBA byte budget before pdf.js's worker downscales an image on a
+ * phone (`canvasMaxAreaInBytes = 64 MiB` -> 16 MP `ImageResizer` cap). */
+const MAX_PHONE_IMAGE_BYTES = 64 * 1024 * 1024;
 
 let loadedEngine: Promise<{
 	pdfjs: typeof import("pdfjs-dist/legacy/build/pdf.mjs");

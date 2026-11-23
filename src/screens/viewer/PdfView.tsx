@@ -513,11 +513,14 @@ export default function PdfView({
 	/** Where the reader is now, and the places links were followed from
 	 * (and, after going back, to). */
 	const here = useRef<Spot | null>(null);
-	/** Where the reader was while the room for the pages last held still
-	 * (`steadyWidth`). Turning a phone upright can clamp the scroll to the
-	 * top before the pages fit again, and "here" then says page 1 (#94). */
+	/** Where the reader was while the viewer size held steady, plus
+	 * lock/anchor state across multi-step resizes (such as Android
+	 * landscape -> portrait rotation followed by bar/inset updates). */
 	const steady = useRef<Spot | null>(null);
-	const steadyWidth = useRef(0);
+	const resizing = useRef(false);
+	const resizeAnchor = useRef<Spot | null>(null);
+	const lastSize = useRef({ w: 0, h: 0 });
+	const cancelResize = useRef(() => {});
 	const trail = useRef<{ back: Spot[]; forward: Spot[] }>({
 		back: [],
 		forward: [],
@@ -873,10 +876,13 @@ export default function PdfView({
 						allowNegativeOffset: true,
 					});
 				} else {
+					const jumped = v.currentPageNumber;
 					// Pages turned are read a whole page at a time.
 					v.currentScaleValue = turnsPages(flowRef.current)
 						? "page-fit"
 						: defaultZoom.current;
+					if (jumped > 1 && jumped <= v.pagesCount)
+						v.currentPageNumber = jumped;
 				}
 				setRotation(v.pagesRotation);
 			});
@@ -959,12 +965,17 @@ export default function PdfView({
 							top: loc.top,
 							left: loc.left,
 						};
-						// Not while the room is changing: a scroll the new layout
-						// clamped is not where the reader was.
-						if (container.current?.clientWidth === steadyWidth.current)
+						// Not while the container is changing size or settling: a scroll
+						// the layout clamped before refit is not where the reader was.
+						if (
+							!resizing.current &&
+							container.current?.clientWidth === lastSize.current.w &&
+							container.current?.clientHeight === lastSize.current.h
+						) {
 							steady.current = here.current;
+						}
 					}
-					if (!loc || !rememberRef.current) return;
+					if (!loc || !rememberRef.current || resizing.current) return;
 					window.clearTimeout(saveTimer);
 					saveTimer = window.setTimeout(() => {
 						const pos: Position = {
@@ -1171,12 +1182,14 @@ export default function PdfView({
 	};
 
 	const goTo = (n: number) => {
+		cancelResize.current();
 		const v = pdfViewer.current;
 		if (v && n >= 1 && n <= pages) v.currentPageNumber = n;
 	};
 	/** The next or the previous page, or pair of pages; `fromFoot` shows
 	 * it from its foot (back a page from the top of one zoomed in). */
 	const turn = (dir: 1 | -1, fromFoot = false) => {
+		cancelResize.current();
 		const v = pdfViewer.current;
 		if (dir > 0) v?.nextPage();
 		else v?.previousPage();
@@ -1252,12 +1265,30 @@ export default function PdfView({
 		if (!v || shownFlow.current === flow) return;
 		const was = shownFlow.current;
 		shownFlow.current = flow;
-		const at = v.currentPageNumber;
+		const at =
+			(resizing.current ? resizeAnchor.current?.page : steady.current?.page) ??
+			v.currentPageNumber;
 		v.scrollMode = scrollMode(flow, spreadRef.current);
 		// From a row to one at a time (or back) the whole page stays.
 		if (turnsPages(flow) !== turnsPages(was))
 			v.currentScaleValue = turnsPages(flow) ? "page-fit" : defaultZoom.current;
-		v.currentPageNumber = at;
+		if (at >= 1 && at <= v.pagesCount) {
+			v.currentPageNumber = at;
+			v.update();
+		}
+		const frame = requestAnimationFrame(() => {
+			const live = pdfViewer.current;
+			if (
+				live &&
+				at >= 1 &&
+				at <= live.pagesCount &&
+				live.currentPageNumber !== at
+			) {
+				live.currentPageNumber = at;
+				live.update();
+			}
+		});
+		return () => cancelAnimationFrame(frame);
 	}, [flow]);
 
 	// Whether the page on show fits the screen (then a swipe snaps to
@@ -1296,6 +1327,7 @@ export default function PdfView({
 
 	// Back through the links followed, and forward again.
 	const step = (dir: -1 | 1) => {
+		cancelResize.current();
 		const v = pdfViewer.current;
 		const { back, forward } = trail.current;
 		const from = dir < 0 ? back : forward;
@@ -1467,7 +1499,7 @@ export default function PdfView({
 	// A small picture of the first page, for Recents. Never of a file
 	// with a password, nor one the app isn't keeping a list of.
 	const thumbFor = file?.id;
-	const thumbFile = file?.file.reopen.kind !== "memory";
+	const thumbFile = file?.file.reopen.kind !== "memory" && !file?.ephemeral;
 	useEffect(() => {
 		if (!doc || !thumbFor || !markDoc?.persist || !thumbFile) return;
 		if (!settings.keepRecents) return;
@@ -1684,6 +1716,7 @@ export default function PdfView({
 
 	/** Go to a mark and draw the eye to it. */
 	const showMark = (mark: DocMark) => {
+		cancelResize.current();
 		const v = pdfViewer.current;
 		if (!v) return;
 		setMarksOpen(false);
@@ -1797,51 +1830,95 @@ export default function PdfView({
 		const el = container.current;
 		if (!el) return;
 		let width = el.clientWidth;
-		steadyWidth.current = width;
+		let height = el.clientHeight;
+		lastSize.current = { w: width, h: height };
 		let frame = 0;
+		let settleTimer = 0;
+		const restoreSpot = (v: PDFViewer, spot: Spot) => {
+			if (spot.page < 1 || spot.page > v.pagesCount) return;
+			if (v.scrollMode === SCROLL_ONE || v.currentScaleValue === "page-fit") {
+				v.currentPageNumber = spot.page;
+			} else {
+				v.scrollPageIntoView({
+					pageNumber: spot.page,
+					destArray: [null, { name: "XYZ" }, spot.left, spot.top, null],
+					allowNegativeOffset: true,
+				});
+			}
+			v.update();
+		};
+		const cancelSettle = () => {
+			if (!resizing.current) return;
+			window.clearTimeout(settleTimer);
+			resizing.current = false;
+			resizeAnchor.current = null;
+			if (here.current) steady.current = here.current;
+		};
+		cancelResize.current = cancelSettle;
 		const measure = () => {
 			// A tab not on show is laid out as if shown, and a window
 			// resized meanwhile would fit all its pages again for nothing:
 			// that waits until it is shown.
-			if (!el.clientWidth) return;
+			if (!el.clientWidth || !el.clientHeight) return;
 			if (!shownRef.current) {
 				awayResized.current = true;
 				return;
 			}
 			setRoomForTwo(el.clientWidth >= 700 && el.clientWidth > el.clientHeight);
 			measureFit();
-			// A zoom that fits ("Fit width", "Fit page", "Auto") fits again
-			// when the room changes: a window resized, or half a window
-			// beside another document, its divider dragged.
-			if (el.clientWidth === width) return;
+			const widthChanged = el.clientWidth !== width;
+			const heightChanged = el.clientHeight !== height;
+			if (!widthChanged && !heightChanged) return;
+			if (!pdfViewer.current) {
+				width = el.clientWidth;
+				height = el.clientHeight;
+				lastSize.current = { w: width, h: height };
+				return;
+			}
+			// Capture the reader's position once before the first frame of a
+			// multi-step resize (e.g. orientation change + Android bar/insets).
+			if (!resizing.current) {
+				resizeAnchor.current = steady.current ?? here.current;
+				resizing.current = true;
+			}
 			width = el.clientWidth;
-			// Where the reader was before the room changed, taken now: by the
-			// next frame the fit below has moved the pages.
-			const held = steady.current;
+			height = el.clientHeight;
+			lastSize.current = { w: width, h: height };
 			cancelAnimationFrame(frame);
+			window.clearTimeout(settleTimer);
 			frame = requestAnimationFrame(() => {
 				const v = pdfViewer.current;
-				steadyWidth.current = width;
 				if (!v) return;
+				const anchor = resizeAnchor.current;
 				const named = v.currentScaleValue;
-				if (named && Number.isNaN(Number(named))) v.currentScaleValue = named;
-				// A fitted zoom keeps the page on show, but not when the scroll
-				// was clamped first (a phone turned upright reset to page 1),
-				// and a set zoom is not fitted at all: the reader is put back.
-				// A step to a page beside it is pdf.js's own (another page now
-				// shows more), and is left.
-				const now = v.currentPageNumber;
 				if (
-					held &&
-					held.page !== now &&
-					held.page <= v.pagesCount &&
-					(now === 1 || Math.abs(now - held.page) > 1)
-				)
-					v.scrollPageIntoView({
-						pageNumber: held.page,
-						destArray: [null, { name: "XYZ" }, held.left, held.top, null],
-						allowNegativeOffset: true,
-					});
+					named &&
+					Number.isNaN(Number(named)) &&
+					(widthChanged ||
+						named === "page-fit" ||
+						named === "page-height" ||
+						named === "auto")
+				) {
+					v.currentScaleValue = named;
+				}
+				if (anchor && anchor.page <= v.pagesCount) {
+					restoreSpot(v, anchor);
+				}
+				settleTimer = window.setTimeout(() => {
+					const live = pdfViewer.current;
+					const held = resizeAnchor.current;
+					resizing.current = false;
+					resizeAnchor.current = null;
+					if (live && held && held.page <= live.pagesCount) {
+						if (live.currentPageNumber !== held.page) {
+							restoreSpot(live, held);
+						} else {
+							live.update();
+						}
+					} else if (here.current) {
+						steady.current = here.current;
+					}
+				}, 250);
 			});
 		};
 		measure();
@@ -1851,10 +1928,23 @@ export default function PdfView({
 		const fit = fitWhenSettled(measure);
 		const ro = new ResizeObserver(fit.run);
 		ro.observe(el);
+		const opts: AddEventListenerOptions = { capture: true, passive: true };
+		window.addEventListener("pointerdown", cancelSettle, opts);
+		window.addEventListener("touchstart", cancelSettle, opts);
+		window.addEventListener("wheel", cancelSettle, opts);
+		window.addEventListener("keydown", cancelSettle, opts);
+		window.addEventListener("click", cancelSettle, opts);
 		return () => {
 			ro.disconnect();
 			fit.stop();
+			window.clearTimeout(settleTimer);
 			cancelAnimationFrame(frame);
+			cancelResize.current = () => {};
+			window.removeEventListener("pointerdown", cancelSettle, opts);
+			window.removeEventListener("touchstart", cancelSettle, opts);
+			window.removeEventListener("wheel", cancelSettle, opts);
+			window.removeEventListener("keydown", cancelSettle, opts);
+			window.removeEventListener("click", cancelSettle, opts);
 		};
 	}, [measureFit]);
 	useEffect(() => {
@@ -2336,6 +2426,7 @@ export default function PdfView({
 
 	// --- comments, attachments and layers ---
 	const showComment = (item: Comment) => {
+		cancelResize.current();
 		const v = pdfViewer.current;
 		if (!v) return;
 		const [x0, , , y1] = item.rect;
@@ -2541,6 +2632,7 @@ export default function PdfView({
 					onGo={goTo}
 					label={pageLabel}
 					onGoText={(text) => {
+						cancelResize.current();
 						const v = pdfViewer.current;
 						// pdf.js takes a label or a plain number.
 						if (v) v.currentPageLabel = text;
@@ -3008,6 +3100,7 @@ export default function PdfView({
 							items={outline ?? []}
 							depth={0}
 							onPick={(dest) => {
+								cancelResize.current();
 								links.current?.goToDestination(dest as string);
 								setOutlineOpen(false);
 							}}

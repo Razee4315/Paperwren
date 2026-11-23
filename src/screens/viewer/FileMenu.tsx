@@ -46,6 +46,8 @@ export interface ViewerFile {
 	file: FileRef;
 	/** Its id in recents. */
 	id: string;
+	/** Session-only Android grant: never saved to recents or thumbs. */
+	ephemeral?: boolean;
 	/** The file was renamed: show it under its new name. */
 	onRenamed?: (name: string, reopen: Reopen, id: string) => void;
 	/** Bytes, as read. */

@@ -59,12 +59,15 @@
       window.__paperwrenFiles = [];
       // `caller`: another app opened it with Paperwren ("started" or
       // "woken" Paperwren); Back on it goes back to that app.
-      window.__paperwrenOpenFile = function (path, name, size, caller) {
+      // `persisted`: on Android, whether persistable read access was
+      // granted across restarts for a content:// URI.
+      window.__paperwrenOpenFile = function (path, name, size, caller, persisted) {
         window.__paperwrenFiles.push({
           path: path,
           name: name,
           size: size || 0,
           caller: caller || null,
+          persisted: typeof persisted === "boolean" ? persisted : undefined,
         });
         window.dispatchEvent(new CustomEvent("paperwren-file"));
         return true;

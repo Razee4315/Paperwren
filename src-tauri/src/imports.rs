@@ -26,9 +26,10 @@ use crate::error::{AppError, AppResult, ErrorKind};
 const STALE_TEMP: Duration = Duration::from_secs(60 * 60);
 
 /// A copy this new may be a file that is being opened right now: the
-/// Android layer copies it in before the web layer has recorded it, so
-/// it is in no recents list yet. `prune` leaves it for a later run.
-const FRESH_COPY: Duration = Duration::from_secs(10 * 60);
+/// Android layer may hand it over moments before the web layer records
+/// it. `prune` still counts it toward `max_bytes` so unreferenced
+/// copies never grow unboundedly.
+const FRESH_COPY: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Default, Serialize, PartialEq, Eq)]
 pub struct Stats {
@@ -205,6 +206,7 @@ pub fn prune(root: &Path, keep: &[String], max_bytes: u64, now: SystemTime) -> P
     }
     let mut report = PruneReport::default();
     let mut live = Vec::new();
+    let mut fresh_orphans = Vec::new();
     for entry in walk(root) {
         if is_temp(&entry.rel) {
             let age = now.duration_since(entry.modified).unwrap_or_default();
@@ -217,25 +219,44 @@ pub fn prune(root: &Path, keep: &[String], max_bytes: u64, now: SystemTime) -> P
             live.push((at, entry));
             continue;
         }
-        // A clock that went backwards reads as age zero: kept.
+        // A clock that went backwards reads as age zero: kept while under `max_bytes`.
         let age = now.duration_since(entry.modified).unwrap_or_default();
-        if age >= FRESH_COPY && remove_entry(root, &entry.path) {
-            report.orphans_removed += 1;
+        if age >= FRESH_COPY {
+            if remove_entry(root, &entry.path) {
+                report.orphans_removed += 1;
+            }
+        } else {
+            fresh_orphans.push(entry);
+        }
+    }
+    // Least wanted first.
+    live.sort_by_key(|(at, _)| std::cmp::Reverse(*at));
+    let mut total: u64 = live.iter().map(|(_, e)| e.bytes).sum::<u64>()
+        + fresh_orphans.iter().map(|e| e.bytes).sum::<u64>();
+    if total > max_bytes {
+        // Fresh unreferenced copies still count toward `max_bytes` and
+        // go (oldest first) before anything in `keep`.
+        fresh_orphans.sort_by_key(|e| e.modified);
+        for entry in &fresh_orphans {
+            if total <= max_bytes {
+                break;
+            }
+            if remove_entry(root, &entry.path) {
+                total -= entry.bytes;
+                report.orphans_removed += 1;
+            }
+        }
+        for (_, entry) in &live {
+            if total <= max_bytes {
+                break;
+            }
+            if remove_entry(root, &entry.path) {
+                total -= entry.bytes;
+                report.evicted.push(entry.rel.clone());
+            }
         }
     }
     remove_empty_folders(root, now);
-    // Least wanted first.
-    live.sort_by_key(|(at, _)| std::cmp::Reverse(*at));
-    let mut total: u64 = live.iter().map(|(_, e)| e.bytes).sum();
-    for (_, entry) in &live {
-        if total <= max_bytes {
-            break;
-        }
-        if remove_entry(root, &entry.path) {
-            total -= entry.bytes;
-            report.evicted.push(entry.rel.clone());
-        }
-    }
     report.bytes_after = total;
     report
 }
@@ -391,6 +412,28 @@ mod tests {
         let report = prune(&root, &[], u64::MAX, later);
         assert_eq!(report.orphans_removed, 1);
         assert!(!root.join("h1/opening-now.pdf").exists());
+    }
+
+    #[test]
+    fn prune_bounds_fresh_orphans_under_max_bytes() {
+        let root = scratch("fresh-cap");
+        put(&root, "h1/keep.pdf", 80);
+        put(&root, "h2/orphan.pdf", 80);
+        // Even a fresh orphan goes before anything in `keep` when total > max_bytes.
+        let report = prune(&root, &["h1/keep.pdf".into()], 100, SystemTime::now());
+        assert_eq!(report.orphans_removed, 1);
+        assert!(report.evicted.is_empty());
+        assert_eq!(report.bytes_after, 80);
+        assert!(root.join("h1/keep.pdf").exists());
+        assert!(!root.join("h2/orphan.pdf").exists());
+
+        // With `keep` empty and total > max_bytes, even fresh copies are cleared down to max_bytes.
+        put(&root, "h3/orphan2.pdf", 60);
+        let report = prune(&root, &[], 50, SystemTime::now());
+        assert_eq!(report.orphans_removed, 2);
+        assert_eq!(report.bytes_after, 0);
+        assert!(!root.join("h1").exists());
+        assert!(!root.join("h3").exists());
     }
 
     #[test]

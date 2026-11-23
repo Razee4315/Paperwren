@@ -45,8 +45,6 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
-import java.security.DigestInputStream
-import java.security.MessageDigest
 import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
@@ -58,17 +56,16 @@ import java.util.concurrent.atomic.AtomicInteger
  * Paperwren's only native code. It does a few small jobs and keeps
  * everything else in the web layer:
  *
- * 1. "Open with" / "Share": copy the incoming content:// stream into
- *    app-private storage (filesDir/imports/<hash>/<name>) and hand the
- *    path to the web layer. Copies are named after a SHA-256 of their
- *    bytes, so the same file opened twice is stored once and two
- *    different files with the same name never collide.
+ * 1. "Open with" / "Share": open incoming content:// documents
+ *    directly in place where they live (zero-copy via content:// and
+ *    readRange), taking persistable read access when the provider
+ *    allows it and keeping ephemeral grants session-scoped otherwise.
  * 2. System Back: ask the web layer first; finish only when it did
  *    not consume the press. Back on a file another app opened with
  *    Paperwren goes back to that app (leaveToCaller).
  * 3. A tiny JS bridge for the in-app picker: the provider's real
- *    display name and size, and a copy of the picked file into the
- *    same imports store so recents can reopen after a restart.
+ *    display name and size, while reading picked files directly from
+ *    their content:// URI rather than copying them into imports/.
  * 4. Hand-offs the web layer cannot do: share a file, open it in
  *    another app, print (the page, or a PDF itself), keep the screen
  *    on while reading, browse a folder the user picked, pick documents
@@ -112,7 +109,7 @@ class MainActivity : TauriActivity() {
   private val pending = ArrayDeque<Delivery>()
   private var delivering = false
   /** Files another app handed over that the page has not taken yet
-   * (still being copied in, or waiting for the page). The page asks
+   * (still being inspected, or waiting for the page). The page asks
    * (incoming) before it reopens the last document at start, so that
    * document does not open over the one the reader came for. */
   private val arriving = AtomicInteger(0)
@@ -124,7 +121,8 @@ class MainActivity : TauriActivity() {
     val path: String,
     val name: String,
     val size: Long,
-    val caller: String?
+    val caller: String?,
+    val persisted: Boolean = false
   )
 
   /** Folder scans can be long; they must not hold up file imports. */
@@ -837,14 +835,9 @@ class MainActivity : TauriActivity() {
       return
     }
     try {
-      // Too large to keep a copy of (a 350 MB PDF): the page reads it from
-      // where it is, by its address, while the app has the right to.
-      val delivery = try {
-        if (querySize(uri) > MAX_INGEST_BYTES) throw TooLarge()
-        copyIn(uri, mime).copy(caller = caller)
-      } catch (e: TooLarge) {
-        inPlace(uri, mime, caller)
-      }
+      // Open external files directly from their content:// URI in place
+      // without copying whole documents into app storage (#103).
+      val delivery = inPlace(uri, mime, caller)
       main.post {
         pending.addLast(delivery)
         deliverNext(0)
@@ -860,63 +853,20 @@ class MainActivity : TauriActivity() {
    * where the sender allows keeping it, it is kept. */
   private fun inPlace(uri: Uri, mime: String?, caller: String?): Delivery {
     val type = mime ?: try { contentResolver.getType(uri) } catch (e: Exception) { null }
+    var persisted = false
     try {
       contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      persisted = true
     } catch (e: Exception) {
       // Readable for this run only.
     }
     return Delivery(
-      uri.toString(), withExtension(queryDisplayName(uri), type), querySize(uri), caller
+      uri.toString(), withExtension(queryDisplayName(uri), type), querySize(uri), caller, persisted
     )
   }
 
-  /** The stream is larger than a copy may be. */
-  private class TooLarge : Exception("file is too large to keep")
-
-  /** The most an "Open with" / pick copy may hold. The sharing app
-   * can report any size (or none) and stream forever, and the copy is
-   * written whole before the reader can ask about a large file, so the
-   * copy itself is bounded here. Matches the imports store's cap. */
+  /** Size ceiling for streamed saves written through saveChunk. */
   private val MAX_INGEST_BYTES = 250L * 1024 * 1024
-
-  /** Copy a content:// stream into imports/<hash>/<name>. Runs on the
-   * ingest executor only. Throws when the stream can't be read (or
-   * turns out to be more than MAX_INGEST_BYTES). */
-  private fun copyIn(uri: Uri, mime: String?): Delivery {
-    val type = mime ?: try { contentResolver.getType(uri) } catch (e: Exception) { null }
-    val displayName = withExtension(queryDisplayName(uri), type)
-    val imports = File(filesDir, "imports").apply { mkdirs() }
-    val tmp = File.createTempFile(".incoming.", ".tmp", imports)
-    val digest = MessageDigest.getInstance("SHA-256")
-    try {
-      val input = contentResolver.openInputStream(uri) ?: throw IllegalStateException("no stream")
-      DigestInputStream(input, digest).use { stream ->
-        tmp.outputStream().use { out ->
-          val buffer = ByteArray(64 * 1024)
-          var total = 0L
-          while (true) {
-            val read = stream.read(buffer)
-            if (read < 0) break
-            total += read
-            if (total > MAX_INGEST_BYTES) throw TooLarge()
-            out.write(buffer, 0, read)
-          }
-        }
-      }
-      if (tmp.length() == 0L) throw IllegalStateException("empty file")
-      val hash = digest.digest().joinToString("") { "%02x".format(it) }.take(16)
-      val folder = File(imports, hash).apply { mkdirs() }
-      val target = File(folder, safeFileName(displayName))
-      if (target.exists() && target.length() == tmp.length()) {
-        target.setLastModified(System.currentTimeMillis())
-      } else if (!tmp.renameTo(target)) {
-        throw IllegalStateException("rename failed")
-      }
-      return Delivery(target.absolutePath, displayName, target.length(), null)
-    } finally {
-      tmp.delete()
-    }
-  }
 
   /** Hand queued files to the web layer one at a time. The page's
    * inline bridge answers true once it has queued the payload; until
@@ -941,6 +891,7 @@ class MainActivity : TauriActivity() {
       "(window.__paperwrenOpenFile && window.__paperwrenOpenFile(" +
         JSONObject.quote(next.path) + "," + JSONObject.quote(next.name) + "," + next.size +
         "," + (next.caller?.let { JSONObject.quote(it) } ?: "null") +
+        "," + (if (next.persisted) "true" else "false") +
         ")) ? 'ok' : 'wait'"
     )
     webView.evaluateJavascript(script) { result ->
@@ -1051,7 +1002,7 @@ class MainActivity : TauriActivity() {
       contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { c ->
         if (c.moveToFirst()) {
           val i = c.getColumnIndex(OpenableColumns.SIZE)
-          if (i >= 0 && !c.isNull(i)) return c.getLong(i)
+          if (i >= 0 && !c.isNull(i)) return c.getLong(i).coerceAtLeast(0L)
         }
       }
     } catch (e: Exception) {
@@ -1097,15 +1048,6 @@ class MainActivity : TauriActivity() {
       else -> null
     }
     return if (ext != null) "$name.$ext" else name
-  }
-
-  private fun safeFileName(name: String): String {
-    val cleaned = name.substringAfterLast('/')
-      .filter { it.isLetterOrDigit() || it in " .-_()[]," }
-      .trim()
-      .trimStart('.')
-      .take(120)
-    return cleaned.ifEmpty { "document" }
   }
 
   // ---------- System Back ----------
@@ -1154,41 +1096,11 @@ class MainActivity : TauriActivity() {
       fun contentSize(uri: String): Long =
         if (!allowed(uri)) 0L else try { querySize(Uri.parse(uri)) } catch (e: Exception) { 0L }
 
-      /** Copy a picked file into managed storage so its recent still
-       * opens after a restart. The dialog plugin picks with
-       * ACTION_GET_CONTENT, whose read grant dies with the process and
-       * can never be made persistable; a private copy is the only thing
-       * that survives. Answers later through window.__paperwrenImported
-       * (token, {path,name,size} | null); returns false when it could
-       * not even start. */
+      /** Legacy bridge entry retained as a no-op stub: Paperwren opens
+       * picked and external content:// documents directly in place and
+       * never copies them into app storage (#103). */
       @JavascriptInterface
-      fun importPicked(uri: String, token: String): Boolean {
-        if (!allowed(uri)) return false
-        val parsed = Uri.parse(uri)
-        return try {
-          ingestExecutor.execute {
-            val result = try {
-              val d = copyIn(parsed, null)
-              JSONObject().put("path", d.path).put("name", d.name).put("size", d.size).toString()
-            } catch (e: Exception) {
-              "null"
-            }
-            main.post {
-              if (!isAppOrigin(webView.url)) return@post
-              webView.evaluateJavascript(
-                jsSafe(
-                  "window.__paperwrenImported && window.__paperwrenImported(" +
-                    JSONObject.quote(token) + "," + result + ")"
-                ),
-                null
-              )
-            }
-          }
-          true
-        } catch (e: Exception) {
-          false
-        }
-      }
+      fun importPicked(uri: String, token: String): Boolean = false
     }
     webView.addJavascriptInterface(bridge, "__paperwrenAndroid")
     webView.addJavascriptInterface(handOffBridge(webView), "__paperwrenAndroidExtras")

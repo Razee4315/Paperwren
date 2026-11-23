@@ -430,4 +430,105 @@ test.describe("a file another app opened with Paperwren (#83)", () => {
 		await expect(page.getByTestId("home")).toBeVisible();
 		expect(await left(page)).toBeUndefined();
 	});
+
+	test("Android content:// files open in place without copying or saving ephemeral recents (#103)", async ({
+		page,
+	}) => {
+		await page.addInitScript(() => {
+			const w = window as unknown as {
+				__importedCalls: number;
+				__paperwrenAndroid: Record<string, unknown>;
+			};
+			w.__importedCalls = 0;
+			w.__paperwrenAndroid = {
+				displayName: () => "",
+				contentSize: () => 0,
+				importPicked() {
+					w.__importedCalls++;
+					return true;
+				},
+			};
+		});
+		await boot(page);
+		const b64 = readFileSync("fixtures/sample.pdf").toString("base64");
+		const deliverUri = async (
+			uri: string,
+			name: string,
+			persisted: boolean,
+		) => {
+			await page.evaluate(
+				({ b64, uri, name, persisted }) => {
+					const w = window as unknown as {
+						__paperwrenTestCopies: Record<string, Blob>;
+						__paperwrenOpenFile: (
+							path: string,
+							name: string,
+							size: number,
+							caller: string | null,
+							persisted?: boolean,
+						) => boolean;
+					};
+					w.__paperwrenTestCopies ??= {};
+					w.__paperwrenTestCopies[uri] = new Blob([
+						Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)),
+					]);
+					w.__paperwrenOpenFile(uri, name, 100, "started", persisted);
+				},
+				{ b64, uri, name, persisted },
+			);
+			await expect(page.getByTestId("pdf-page")).toHaveText("1 / 3", {
+				timeout: 20_000,
+			});
+		};
+
+		// Ephemeral grant (persisted = false): opens in place, never calls importPicked, never stored in recents.
+		const ephemeralUri = "content://com.whatsapp.provider/media/ephemeral.pdf";
+		await deliverUri(ephemeralUri, "ephemeral.pdf", false);
+		expect(
+			await page.evaluate(
+				() =>
+					(window as unknown as { __importedCalls: number }).__importedCalls,
+			),
+		).toBe(0);
+		expect(
+			JSON.parse(
+				(await page.evaluate(() =>
+					localStorage.getItem("paperwren.recents_v2"),
+				)) ?? "[]",
+			),
+		).toEqual([]);
+
+		// Deliver a persistable content:// URI with keepRecents on.
+		const persistedUri =
+			"content://com.android.providers.downloads.documents/document/77";
+		await deliverUri(persistedUri, "persisted.pdf", true);
+		const stored = JSON.parse(
+			(await page.evaluate(() =>
+				localStorage.getItem("paperwren.recents_v2"),
+			)) ?? "[]",
+		);
+		expect(stored).toHaveLength(1);
+		expect(stored[0].reopen).toEqual({ kind: "uri", uri: persistedUri });
+
+		// When keepRecents is disabled, even persistable content:// files are not added to recents.
+		await page.evaluate(() => {
+			localStorage.setItem(
+				"paperwren.settings_v2",
+				JSON.stringify({ keepRecents: false }),
+			);
+			localStorage.setItem("paperwren.recents_v2", "[]");
+		});
+		await page.reload();
+		await expect(page.getByTestId("home")).toBeVisible();
+		const secondUri =
+			"content://com.android.providers.downloads.documents/document/88";
+		await deliverUri(secondUri, "no-recents.pdf", true);
+		expect(
+			JSON.parse(
+				(await page.evaluate(() =>
+					localStorage.getItem("paperwren.recents_v2"),
+				)) ?? "[]",
+			),
+		).toEqual([]);
+	});
 });

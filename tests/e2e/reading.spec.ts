@@ -203,6 +203,98 @@ test.describe("PDF pages and links", () => {
 		await page.goBack();
 		await expect(page.getByTestId("home")).toBeVisible();
 	});
+
+	test("a phone still draws a PDF page whose picture is larger than 16 MP (#104)", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		await boot(page);
+		const jpgBase64 = await page.evaluate(() => {
+			const c = document.createElement("canvas");
+			c.width = 4200;
+			c.height = 4200;
+			const ctx = c.getContext("2d");
+			if (!ctx) throw new Error("no 2d context");
+			ctx.fillStyle = "#dc2626";
+			ctx.fillRect(0, 0, c.width, c.height);
+			const url = c.toDataURL("image/jpeg", 0.5);
+			c.width = 0;
+			c.height = 0;
+			return url.split(",")[1];
+		});
+		const doc = await PDFDocument.create();
+		const img = await doc.embedJpg(Buffer.from(jpgBase64, "base64"));
+		const pdfPage = doc.addPage([img.width, img.height]);
+		pdfPage.drawImage(img, {
+			x: 0,
+			y: 0,
+			width: img.width,
+			height: img.height,
+		});
+		const pdfBase64 = Buffer.from(await doc.save()).toString("base64");
+		await page.evaluate((b64) => {
+			const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+			window.__paperwrenTestFile = new File([bytes], "huge-photo.pdf");
+		}, pdfBase64);
+		await page.getByTestId("open-file").click();
+		await expect(page.getByTestId("pdf-page")).toHaveText("1 / 1", {
+			timeout: 20_000,
+		});
+		const viewerCenter = () =>
+			page
+				.getByTestId("pdf-scroll")
+				.locator(".page canvas")
+				.first()
+				.evaluate((el) => {
+					const c = el as HTMLCanvasElement;
+					if (!c.width || !c.height) return [0, 0, 0];
+					const [r, g, b] =
+						c
+							.getContext("2d")
+							?.getImageData(
+								Math.floor(c.width / 2),
+								Math.floor(c.height / 2),
+								1,
+								1,
+							).data ?? [];
+					return [r, g, b];
+				});
+		await expect.poll(viewerCenter, { timeout: 20_000 }).toHaveLength(3);
+		await expect
+			.poll(async () => {
+				const [r, g, b] = await viewerCenter();
+				return r > 180 && g < 80 && b < 80;
+			})
+			.toBe(true);
+
+		// Open Fill & sign on the same huge-image PDF: the base page stays drawn.
+		await page.getByTestId("file-more").click();
+		await page.getByTestId("pdf-fill-sign").click();
+		await expect(page.getByTestId("fill-sign")).toBeVisible({
+			timeout: 20_000,
+		});
+		const fillCanvas = page
+			.getByTestId("fill-page")
+			.first()
+			.locator('canvas[data-drawn="1"]');
+		await expect(fillCanvas).toBeVisible({ timeout: 20_000 });
+		const [fr, fg, fb] = await fillCanvas.evaluate((el) => {
+			const c = el as HTMLCanvasElement;
+			const [r, g, b] =
+				c
+					.getContext("2d")
+					?.getImageData(
+						Math.floor(c.width / 2),
+						Math.floor(c.height / 2),
+						1,
+						1,
+					).data ?? [];
+			return [r, g, b];
+		});
+		expect(fr).toBeGreaterThan(180);
+		expect(fg).toBeLessThan(80);
+		expect(fb).toBeLessThan(80);
+	});
 });
 
 /** The file a "save as picture" hands over, and its size in pixels. */
@@ -1700,6 +1792,60 @@ test.describe("a phone held sideways", () => {
 		await expect.poll(railLeft).toBeLessThan(800);
 		expect((await rail.boundingBox())?.x ?? 0).toBeGreaterThan(780);
 		expect(await size()).toBe("844x390");
+	});
+
+	test("rotating upright from landscape and switching page view keeps the current page (#103)", async ({
+		page,
+	}) => {
+		await boot(page);
+		await page.evaluate((text) => {
+			window.__paperwrenTestFile = new File([text], "long.pdf");
+		}, longPdf(12));
+		await page.getByTestId("open-file").click();
+		const counter = page.getByTestId("pdf-page");
+		await expect(counter).toContainText("/ 12", { timeout: 20_000 });
+		await expect(
+			page.getByTestId("pdf-scroll").locator("canvas").first(),
+		).toBeVisible({ timeout: 20_000 });
+
+		// Jump to page 5 in landscape.
+		await counter.click();
+		await page.getByTestId("pdf-jump-input").fill("5");
+		await page.getByTestId("pdf-jump-go").click();
+		await expect(counter).toHaveText("5 / 12");
+
+		// Two-step portrait transition simulating Android window flip + inset update.
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.waitForTimeout(40);
+		await page.setViewportSize({ width: 376, height: 812 });
+		await page.waitForTimeout(500);
+		await expect(counter).toHaveText("5 / 12");
+
+		// Back to landscape, zoom in to a numeric zoom, and rotate upright again.
+		await page.setViewportSize({ width: 844, height: 390 });
+		await page.waitForTimeout(500);
+		await expect(counter).toHaveText("5 / 12");
+		await page.getByTestId("pdf-zoom-in").click();
+		await page.waitForTimeout(200);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.waitForTimeout(40);
+		await page.setViewportSize({ width: 376, height: 812 });
+		await page.waitForTimeout(500);
+		await expect(counter).toHaveText("5 / 12");
+
+		// Switching between horizontal (across), one-page, and vertical (down) keeps page 5.
+		for (const viewId of [
+			"page-view-across",
+			"page-view-down",
+			"page-view-one",
+			"page-view-down",
+		]) {
+			await page.getByTestId("file-more").click();
+			await page.getByTestId("pdf-page-view").click();
+			await page.getByTestId(viewId).click();
+			await page.waitForTimeout(200);
+			await expect(counter).toHaveText("5 / 12");
+		}
 	});
 });
 

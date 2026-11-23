@@ -541,3 +541,24 @@ Spec: [MOTION.md](MOTION.md). Tokens: [docs/tokens.md](docs/tokens.md).
 - **Now:** `.shell[data-away]` sets `content-visibility: hidden;` (preserving its fixed box, scroll position, bitmaps, and `ResizeObserver` refit on show). `Home` receives `away={deep}` and applies `data-away` (`visibility: hidden; pointer-events: none; content-visibility: hidden;`) 250 ms after being covered (past the 180 ms screen slide-in) and clears it synchronously on render when returning to Home. `SectionList` skips `onScroll()` on mount and skips scrolling the chip row until `current` actually changes.
 - **Visible change:** no.
 - **Confirm on:** Windows release (verified: 6x `file-menu` 591 -> 189 ms, `switch-theme` 657 -> 244 ms, `switch-tab` 317 -> 100 ms, `open-settings` 368 -> 269 ms; Playwright E2E hidden-tab scroll/redraw/resize and Home visibility tests passed on CI), macOS WKWebView, Linux WebKitGTK, and Android WebView.
+
+### Zero-copy Android opening (`#103`)
+
+- **Before:** external `ACTION_VIEW`/`ACTION_SEND` files <= 250 MB were always copied into `filesDir/imports/<hash>/<name>` before opening, `requestForPicked` fell back to `importPicked` when persistable grants failed, and `imports.rs` kept unreferenced fresh copies under 10 minutes outside the 250 MB cap.
+- **Now:** `MainActivity.kt` always delivers external files in place via `content://` (reporting `persisted`) with `importPicked` retired as a non-copying stub; `requestForPicked` keeps Android documents in place without copying; `ViewerScreen` and `PdfView` skip recents, position persistence, and thumbnails for session-only (`ephemeral`) grants; and `imports.rs` bounds unreferenced fresh copies (>30 s) inside `max_bytes`.
+- **Visible change:** yes — opening files from other Android apps or pickers no longer fills private app storage, and un-reopenable session-only opens stay out of Recent files.
+- **Confirm on:** Android phone (open PDFs and docs from WhatsApp, Gmail, Samsung My Files, and Files by Google with Recent files both on and off; confirm app data size stays flat after opening large files).
+
+### PDF page preservation across orientation changes and page view switches (`#103`)
+
+- **Before:** rotating from landscape to portrait could update `steadyWidth` before `currentScaleValue` finished resetting scroll or across delayed inset resizes, overwriting `steady` with page 1 and snapping back to page 1; switching between horizontal and vertical page views could also drift on layout transitions.
+- **Now:** `PdfView.tsx` locks a single `resizeAnchor` across multi-step resize bursts (`resizing` guard), blocks `steady` and position-save updates until the resize settles (250 ms or user input), tracks both width and height changes, restores the page unconditionally (`restoreSpot`), and guards `flow` changes with a post-frame page check.
+- **Visible change:** yes — rotating between landscape and portrait or switching Page view keeps the active page.
+- **Confirm on:** Vite dev server in headless Chromium and Android phone (rotate landscape <-> portrait with bars and insets at page 5+, and toggle horizontal/vertical/one-page views).
+
+### Large image PDF downscaling and faster mobile streaming (`#104`)
+
+- **Before:** mobile viewer options set `maxImageSize: 4096 * 4096` (16 MP), causing pdf.js to silently discard larger images (leaving blank pages with only annotations/signatures visible); `FillSign` had no mobile canvas pixel cap; and mobile `RANGE_CHUNK` was 64 KiB.
+- **Now:** `documentOptions` sets `maxImageSize: -1` and `canvasMaxAreaInBytes: 64 * 1024 * 1024` on phones so pdf.js's worker downscales oversized images via `ImageResizer` instead of deleting them; `FillPage` caps backing canvases to 4 MP / 4096 px on mobile; and `RANGE_CHUNK` is 256 KiB.
+- **Visible change:** yes — large camera-photo or JPG-to-PDF documents render their image layer in both viewer and Fill & sign on phones.
+- **Confirm on:** Vite dev server in headless Chromium and Android 14 phone (open 1–25 MB JPG-to-PDF files in viewer and Fill & sign).

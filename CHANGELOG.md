@@ -8,6 +8,8 @@
 - Desktop: minimizing the window on Windows now pauses background file checks and webview compositing, cutting minimized idle wakeups and CPU use, and window resize checks run once a drag settles.
 - Lower memory use when several documents are open together, with closed overlays and metadata computed only on demand.
 - Updated Tauri, runtime libraries, and frontend build tooling (TypeScript 7, Vite 8, Vitest 5) with zero known npm vulnerabilities.
+- Android: files opened from other apps or the file picker now open in place without copying into app storage, temporary opens skip Recents and thumbnails, and rotating from landscape to portrait or switching page layout keeps your PDF page.
+- Android: large image-based PDFs downscale oversized pictures in the worker instead of rendering blank white pages in Viewer and Fill & sign, and mobile streamed reads use larger 256 KiB chunks.
 
 ## 1.9.0
 

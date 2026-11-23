@@ -1,5 +1,6 @@
 import {
 	backend,
+	noteDocumentKept,
 	requestForManagedCopy,
 	retainMemoryFiles,
 } from "@/lib/backend";
@@ -284,6 +285,9 @@ declare global {
 			/** Another app opened it with Paperwren, which that start
 			 * "started" or "woken" (index.html). */
 			caller?: string | null;
+			/** On Android, whether MainActivity took persistable read access
+			 * to this content:// URI across restarts. */
+			persisted?: boolean;
 		}>;
 	}
 }
@@ -663,8 +667,10 @@ function Root() {
 			// A file shared into the app IS the onboarding: go straight to it.
 			if (files.length) finishWelcome();
 			for (const f of files) {
-				// Too large to copy in (a 350 MB PDF), it comes by its address
-				// and is read from there while the app has the right to.
+				// On Android, files arrive directly by their content:// URI
+				// without copying them into app storage (#103). Only
+				// persistable URIs go into Recent files; ephemeral grants are
+				// kept for this session only.
 				const request: OpenRequest = f.path.startsWith("content://")
 					? {
 							id: idForReopen({ kind: "uri", uri: f.path }),
@@ -672,8 +678,12 @@ function Root() {
 							nameVerified: true,
 							size: f.size,
 							reopen: { kind: "uri", uri: f.path },
+							...(f.persisted === false ? { ephemeral: true } : {}),
 						}
 					: requestForManagedCopy(f.path, f.name, f.size);
+				if (f.path.startsWith("content://") && f.persisted === true) {
+					noteDocumentKept(f.path);
+				}
 				if (f.caller && !isDesktop) {
 					const currentTop = screensRef.current[screensRef.current.length - 1];
 					caller.current = {

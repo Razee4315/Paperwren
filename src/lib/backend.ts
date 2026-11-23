@@ -601,7 +601,11 @@ const browserBackend: Backend = {
 	},
 	async read(reopen) {
 		const copy =
-			reopen.kind === "managed" && window.__paperwrenTestCopies?.[reopen.path];
+			reopen.kind === "managed"
+				? window.__paperwrenTestCopies?.[reopen.path]
+				: reopen.kind === "uri"
+					? window.__paperwrenTestCopies?.[reopen.uri]
+					: undefined;
 		if (copy) return copy.arrayBuffer();
 		if (reopen.kind !== "browser") throw new OpenError("not_found");
 		const blob =
@@ -875,6 +879,12 @@ export function onDocumentKept(heard: (uri: string) => void) {
 	keptAtPick = heard;
 }
 
+/** Record that an incoming Android URI was persisted outside the picker
+ * (ACTION_VIEW / ACTION_SEND) so strayGrants releases it if dropped. */
+export function noteDocumentKept(uri: string) {
+	keptAtPick(uri);
+}
+
 function releaseAndroidDocument(uri: string) {
 	renamable.delete(uri);
 	try {
@@ -950,10 +960,14 @@ async function requestForPicked(
 	inPlace = false,
 ): Promise<OpenRequest> {
 	if (picked.startsWith("content://")) {
-		if (original && inPlace && (await keepAndroidDocument(picked))) {
-			keptAtPick(picked);
+		if (inPlace) {
+			const kept = original ? await keepAndroidDocument(picked) : false;
+			if (kept) keptAtPick(picked);
 			const { name, verified, size } = androidName(picked);
-			return request(name, verified, size, { kind: "uri", uri: picked });
+			return {
+				...request(name, verified, size, { kind: "uri", uri: picked }),
+				...(kept ? {} : { ephemeral: true }),
+			};
 		}
 		const copy = await importPicked(picked);
 		if (copy) {
@@ -1008,7 +1022,7 @@ const tauriBackend: Backend = {
 				: [{ name: t("Documents"), extensions: PICKER_EXTENSIONS }],
 		});
 		if (!picked || typeof picked !== "string") return null;
-		return requestForPicked(picked);
+		return requestForPicked(picked, false, true);
 	},
 	async pickFiles(options) {
 		const chosen = await androidPick(!!options?.pictures, true);
@@ -1023,7 +1037,7 @@ const tauriBackend: Backend = {
 				: [{ name: t("Documents"), extensions: PICKER_EXTENSIONS }],
 		});
 		const list = Array.isArray(picked) ? picked : picked ? [picked] : [];
-		return list.map((path) => () => requestForPicked(path));
+		return list.map((path) => () => requestForPicked(path, false, true));
 	},
 	onFileDrop({ hover, drop }) {
 		// The webview reports drags natively (with real paths), which the

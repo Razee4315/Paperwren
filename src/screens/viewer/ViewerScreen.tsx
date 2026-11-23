@@ -279,7 +279,7 @@ function Viewer({
 		const { name, verified } = displayName(request, format);
 		firstOpen.current = !list().some((e) => e.id === request.id);
 		// A file inside another one has no place to reopen it from.
-		if (request.reopen.kind !== "memory")
+		if (request.reopen.kind !== "memory" && !request.ephemeral)
 			record({
 				id: request.id,
 				name,
@@ -375,8 +375,11 @@ function Viewer({
 	};
 
 	const onPosition = useCallback(
-		(p: Position) => setPosition(request.id, p),
-		[request.id, setPosition],
+		(p: Position) => {
+			if (!request.ephemeral && request.reopen.kind !== "memory")
+				setPosition(request.id, p);
+		},
+		[request.id, request.ephemeral, request.reopen.kind, setPosition],
 	);
 	// Where the reader got to goes into Recent files as they leave the
 	// document: for another tab, Home, Settings, or closing it.
@@ -403,6 +406,7 @@ function Viewer({
 					reopen: request.reopen,
 				},
 				id: request.id,
+				...(request.ephemeral ? { ephemeral: true } : {}),
 				// Shown again under its new name, from where it now is.
 				onRenamed:
 					request.reopen.kind === "memory"
